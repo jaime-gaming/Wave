@@ -102,135 +102,139 @@ export function LyricsEditor({
       closeDisabled={busy}
       className="lyrics-editor-modal"
     >
-      <p className="modal-description">
-        {track.title} · {track.artist}
-        <br />
-        Import LRC timestamps like [00:12.500], or paste plain text. Your audio file stays
-        unchanged. No automatic online lookup is performed.
-      </p>
-      <section className="editor-lookup" aria-label="Find lyrics">
-        <p>
-          Search LRCLIB with this song’s title, artist and known album/duration — never audio.
-          Playback and automatic lookup are not required. Results are saved only when you choose
-          Save lyrics.
+      <div className="lyrics-editor-body">
+        <p className="modal-description">
+          {track.title} · {track.artist}
+          <br />
+          Import LRC timestamps like [00:12.500], or paste plain text. Your audio file stays
+          unchanged. No automatic online lookup is performed.
         </p>
-        <div className="editor-lookup-actions">
-          <button
-            className="tonal-button"
-            disabled={busy || searching || !canLookup(track) || Math.max(cooldown, retryAt) > now}
-            onClick={() => void search()}
-          >
-            <Search size={18} />
-            Search online
-          </button>
-          {searching && (
-            <button
-              className="text-button"
-              onClick={() => {
-                request.current?.abort();
-                setSearching(false);
-                setSearchMessage('Search canceled. Your draft is unchanged.');
-              }}
-            >
-              <X size={18} />
-              Cancel search
-            </button>
-          )}
-        </div>
-        {!canLookup(track) && <p>Add a song title and artist in Song options before searching.</p>}
-        <p role="status" aria-live="polite">
-          {searchMessage}
-          {Math.max(cooldown, retryAt) > now &&
-            ` Try again after ${new Date(Math.max(cooldown, retryAt)).toLocaleTimeString()}.`}
-        </p>
-        {candidate && (
-          <>
-            <pre className="editor-result" tabIndex={0} aria-label="Lyrics search preview">
-              {candidate.raw}
-            </pre>
+        <section className="editor-lookup" aria-label="Find lyrics">
+          <p>
+            Search LRCLIB with this song’s title, artist and known album/duration — never audio.
+            Playback and automatic lookup are not required. Results are saved only when you choose
+            Save lyrics.
+          </p>
+          <div className="editor-lookup-actions">
             <button
               className="tonal-button"
-              disabled={busy}
-              onClick={() => {
-                setRaw(candidate.raw);
-                setOffset(candidate.offsetMs);
-                setApplied(candidate);
-                setCandidate(undefined);
-                setSearchMessage('Result placed in the draft. Save lyrics to keep it.');
-              }}
+              disabled={busy || searching || !canLookup(track) || Math.max(cooldown, retryAt) > now}
+              onClick={() => void search()}
             >
-              Use found lyrics
+              <Search size={18} />
+              Search online
             </button>
-            <a href="https://lrclib.net" target="_blank" rel="noreferrer">
-              LRCLIB
-            </a>
-          </>
-        )}
-      </section>
-      <button className="tonal-button" disabled={busy} onClick={() => file.current?.click()}>
-        <FileUp size={18} /> Import LRC or TXT
-      </button>
-      <input
-        ref={file}
-        type="file"
-        className="file-input"
-        aria-label="Lyrics file"
-        accept=".lrc,.txt,text/plain"
-        disabled={busy}
-        onChange={async (event) => {
-          const input = event.currentTarget,
-            selected = input.files?.[0];
-          input.value = '';
-          if (!selected) return;
-          setBusy(true);
-          setError('');
-          try {
-            if (selected.size > MAX_LYRICS_LENGTH * 3 || !/\.(lrc|txt)$/i.test(selected.name))
-              throw Error('Choose an LRC or TXT file up to 300 KB.');
-            const text = await selected.text();
-            parseLyrics(text);
-            setRaw(text);
-            setOffset(0);
-            setApplied(undefined);
-          } catch (reason) {
-            setError(reason instanceof Error ? reason.message : 'The file could not be read.');
-          } finally {
-            setBusy(false);
-          }
-        }}
-      />
-      <label className="form-field lyrics-field">
-        Lyrics
-        <textarea
-          value={raw}
-          disabled={busy}
-          maxLength={MAX_LYRICS_LENGTH}
-          onChange={(event) => setRaw(event.target.value)}
-          placeholder={'[00:05.000]First line\n[00:12.500]Next line'}
-        />
-      </label>
-      <p className="lyrics-caption">{preview}</p>
-      <label className="form-field">
-        Timing offset (ms)
+            {searching && (
+              <button
+                className="text-button"
+                onClick={() => {
+                  request.current?.abort();
+                  setSearching(false);
+                  setSearchMessage('Search canceled. Your draft is unchanged.');
+                }}
+              >
+                <X size={18} />
+                Cancel search
+              </button>
+            )}
+          </div>
+          {!canLookup(track) && (
+            <p>Add a song title and artist in Song options before searching.</p>
+          )}
+          <p role="status" aria-live="polite">
+            {searchMessage}
+            {Math.max(cooldown, retryAt) > now &&
+              ` Try again after ${new Date(Math.max(cooldown, retryAt)).toLocaleTimeString()}.`}
+          </p>
+          {candidate && (
+            <>
+              <pre className="editor-result" tabIndex={0} aria-label="Lyrics search preview">
+                {candidate.raw}
+              </pre>
+              <button
+                className="tonal-button"
+                disabled={busy}
+                onClick={() => {
+                  setRaw(candidate.raw);
+                  setOffset(candidate.offsetMs);
+                  setApplied(candidate);
+                  setCandidate(undefined);
+                  setSearchMessage('Result placed in the draft. Save lyrics to keep it.');
+                }}
+              >
+                Use found lyrics
+              </button>
+              <a href="https://lrclib.net" target="_blank" rel="noreferrer">
+                LRCLIB
+              </a>
+            </>
+          )}
+        </section>
+        <button className="tonal-button" disabled={busy} onClick={() => file.current?.click()}>
+          <FileUp size={18} /> Import LRC or TXT
+        </button>
         <input
-          type="number"
-          min={-10000}
-          max={10000}
-          step={100}
-          value={offset}
+          ref={file}
+          type="file"
+          className="file-input"
+          aria-label="Lyrics file"
+          accept=".lrc,.txt,text/plain"
           disabled={busy}
-          onChange={(event) => setOffset(Number(event.target.value))}
+          onChange={async (event) => {
+            const input = event.currentTarget,
+              selected = input.files?.[0];
+            input.value = '';
+            if (!selected) return;
+            setBusy(true);
+            setError('');
+            try {
+              if (selected.size > MAX_LYRICS_LENGTH * 3 || !/\.(lrc|txt)$/i.test(selected.name))
+                throw Error('Choose an LRC or TXT file up to 300 KB.');
+              const text = await selected.text();
+              parseLyrics(text);
+              setRaw(text);
+              setOffset(0);
+              setApplied(undefined);
+            } catch (reason) {
+              setError(reason instanceof Error ? reason.message : 'The file could not be read.');
+            } finally {
+              setBusy(false);
+            }
+          }}
         />
-      </label>
-      <p className="lyrics-caption">
-        Positive values show lines later; negative values show them earlier. Plain text is not
-        synchronized.
-      </p>
-      {error && (
-        <p role="alert" className="form-error">
-          {error}
+        <label className="form-field lyrics-field">
+          Lyrics
+          <textarea
+            value={raw}
+            disabled={busy}
+            maxLength={MAX_LYRICS_LENGTH}
+            onChange={(event) => setRaw(event.target.value)}
+            placeholder={'[00:05.000]First line\n[00:12.500]Next line'}
+          />
+        </label>
+        <p className="lyrics-caption">{preview}</p>
+        <label className="form-field">
+          Timing offset (ms)
+          <input
+            type="number"
+            min={-10000}
+            max={10000}
+            step={100}
+            value={offset}
+            disabled={busy}
+            onChange={(event) => setOffset(Number(event.target.value))}
+          />
+        </label>
+        <p className="lyrics-caption">
+          Positive values show lines later; negative values show them earlier. Plain text is not
+          synchronized.
         </p>
-      )}
+        {error && (
+          <p role="alert" className="form-error">
+            {error}
+          </p>
+        )}
+      </div>
       <div className="modal-actions">
         {track.lyrics && (
           <button className="text-button" disabled={busy} onClick={() => void save(true)}>

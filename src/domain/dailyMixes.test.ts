@@ -40,3 +40,10 @@ it('caps results, does not mutate originals, deduplicates IDs and uses local cal
   expect(many.map((t) => t.id)).toEqual(ids);
   expect(localDayKey(new Date(2026, 9, 5, 23, 59))).toBe('2026-10-05');
 });
+
+it('does not turn punctuation-only artist tags into a daily mix', () => {
+  const source = ['---', '...', '///'].map((artist, i) =>
+    makeTrack({ id: String(i), artist, genres: undefined }),
+  );
+  expect(dailyMixes(source, '2026-10-15')).toEqual([]);
+});

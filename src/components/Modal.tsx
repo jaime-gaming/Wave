@@ -3,6 +3,11 @@ import { X } from 'lucide-react';
 import { motion, useIsPresent } from 'motion/react';
 import { useWaveMotion } from '../ui/motion';
 
+function outsideDialog(dialog: HTMLDialogElement, x: number, y: number) {
+  const bounds = dialog.getBoundingClientRect();
+  return x < bounds.left || x > bounds.right || y < bounds.top || y > bounds.bottom;
+}
+
 export function Modal({
   title,
   onClose,
@@ -29,6 +34,7 @@ export function Modal({
   returnFocusRef?: RefObject<HTMLElement | null>;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const backdropStart = useRef(false);
   const animation = useWaveMotion();
   const present = useIsPresent();
   useEffect(() => {
@@ -75,8 +81,21 @@ export function Modal({
         event.preventDefault();
         if (!closeDisabled) onClose();
       }}
+      onPointerDown={(event) => {
+        backdropStart.current =
+          event.target === event.currentTarget &&
+          outsideDialog(event.currentTarget, event.clientX, event.clientY);
+      }}
+      onPointerCancel={() => {
+        backdropStart.current = false;
+      }}
       onClick={(event) => {
-        if (!fullScreen && !closeDisabled && event.target === event.currentTarget) onClose();
+        const beganOutside = backdropStart.current;
+        backdropStart.current = false;
+        if (fullScreen || closeDisabled || !beganOutside || event.target !== event.currentTarget)
+          return;
+        // Both ends must be outside: padding clicks and text-selection drags preserve drafts.
+        if (outsideDialog(event.currentTarget, event.clientX, event.clientY)) onClose();
       }}
     >
       <div className="modal-heading">

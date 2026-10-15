@@ -33,7 +33,7 @@ export function dailyMixes(tracks: Track[], day: string): DailyMix[] {
       );
     const artist = mainArtist(track.artist).trim();
     const label = genre ?? (!missingTag(artist) ? artist : '');
-    if (!label) continue;
+    if (!label || !canonical(label)) continue;
     const basis = genre ? 'genre' : 'artist';
     const key = `${basis}:${canonical(label)}`;
     const group = groups.get(key) ?? { id: key, label, basis, tracks: [] };

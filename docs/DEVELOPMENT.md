@@ -275,4 +275,18 @@ Settings tests must navigate through the relevant menu, not query unmounted cont
 
 ### Candidate regression checks
 
-Run `release-010.spec.ts` for offline daily genre groups and native queue coherence, explicit unplayed-song lyric preview/save, failure/cooldown/manual-draft preservation, and larger text on a 320 px viewport. Unit checks additionally cover deterministic day changes, input immutability, sparse libraries, worker timeouts/recovery and shared cooldown/oversized-body cancellation. Live lyric provider coverage and native builds require separate validation.
+Run `release-010.spec.ts` for offline daily genre groups and native queue coherence, explicit unplayed-song lyric preview/save, failure/cooldown/manual-draft preservation, and larger text on a 320 px viewport. Unit checks additionally cover deterministic day changes, input immutability, sparse libraries, worker timeouts/recovery and shared cooldown/oversized-body cancellation. Live lyric provider coverage and native builds require separate validation. The editor regressions also verify that dialog padding cannot discard a draft and that Close/Cancel/Remove/Save remain visible while the body scrolls at 320×360 with larger text.
+
+## Merge-time 0.1.0 publication
+
+The candidate stays in a draft pull request until merge is explicitly requested. Keep its description to Highlights; detailed QA belongs in this document and `VALIDATION.md`.
+
+When proceeding with the approved merge:
+
+1. Require successful web and native checks on the latest PR revision and review the remaining device/runtime limitations.
+2. Merge PR #1 using its explicit number. Do not create a release from an unmerged candidate SHA.
+3. Read the actual merge commit from the merged PR, create the annotated `v0.1.0` tag at that commit, and push that tag.
+4. Create the GitHub Release for `v0.1.0` using the reviewed `RELEASE_NOTES_0.1.0.md`. Verify that the tag and release point to the merged revision.
+5. Native debug/unsigned CI artifacts are test builds, not signed installers. Do not silently relabel or attach them as production-ready packages.
+
+Tagging, publishing and deployment are not part of preparing or updating the draft PR. Successful compilation does not establish Android/Windows UI or playback parity with the web client.

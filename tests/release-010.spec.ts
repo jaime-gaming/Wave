@@ -150,3 +150,70 @@ test('larger text persists and narrow mobile forms, cards and playback remain in
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
 });
+
+test('clicking dialog padding keeps an unsaved lyric draft; the real backdrop still dismisses', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page.getByLabel('Import audio files').setInputFiles({
+    name: 'Signal.wav',
+    mimeType: 'audio/wav',
+    buffer: wav('Signal', 90),
+  });
+  await expect(page.getByRole('status')).toContainText('1 track added');
+  const editor = await edit(page);
+  await editor.getByRole('textbox', { name: 'Lyrics', exact: true }).fill('Keep my unsaved verse');
+  const bounds = (await editor.boundingBox())!;
+  await page.mouse.click(bounds.x + 5, bounds.y + 5);
+  await expect(editor).toBeVisible();
+  await expect(editor.getByRole('textbox', { name: 'Lyrics', exact: true })).toHaveValue(
+    'Keep my unsaved verse',
+  );
+  await page.mouse.move(bounds.x + 5, bounds.y + 5);
+  await page.mouse.down();
+  await page.mouse.move(2, 2);
+  await page.mouse.up();
+  await expect(editor).toBeVisible();
+  await page.mouse.click(2, 2);
+  await expect(editor).toHaveCount(0);
+});
+
+test('lyric editor keeps Close, Cancel, Remove and Save reachable at 320px with larger text and a short viewport', async ({
+  page,
+}) => {
+  await page.addInitScript(() => localStorage.setItem('wave-large-text', 'true'));
+  await page.setViewportSize({ width: 320, height: 360 });
+  await page.goto('/');
+  await page.getByLabel('Import audio files').setInputFiles({
+    name: 'Signal.wav',
+    mimeType: 'audio/wav',
+    buffer: wav('Signal', 90),
+  });
+  await expect(page.getByRole('status')).toContainText('1 track added');
+  const editor = await edit(page);
+  await editor.getByRole('textbox', { name: 'Lyrics', exact: true }).fill('Saved original verse');
+  await editor.getByRole('button', { name: 'Save lyrics' }).click();
+  await expect(editor).toHaveCount(0);
+  await edit(page);
+  await editor
+    .getByRole('textbox', { name: 'Lyrics', exact: true })
+    .fill('A long unsaved line\n'.repeat(500));
+  const body = editor.locator('.lyrics-editor-body');
+  expect(await body.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
+  for (const position of [0, 100000]) {
+    await body.evaluate((el, top) => {
+      el.scrollTop = top;
+    }, position);
+    for (const name of ['Close dialog', 'Cancel', 'Remove lyrics', 'Save lyrics']) {
+      await expect(editor.getByRole('button', { name, exact: true })).toBeInViewport({ ratio: 1 });
+    }
+  }
+  await expect(editor.getByRole('heading', { name: 'Edit lyrics' })).toBeInViewport({ ratio: 1 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await editor.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(editor).toHaveCount(0);
+  await edit(page);
+  await expect(editor.getByRole('textbox', { name: 'Lyrics', exact: true })).toHaveValue(
+    'Saved original verse',
+  );
+});

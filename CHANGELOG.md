@@ -7,6 +7,9 @@
 - Replace Home's duplicated current-session row with up to three deterministic local daily mixes after Your collection. Use real genre tags and explicit artist fallback; show fewer groups when metadata/library size is insufficient.
 - Add Appearance Larger text, mobile sixteen-pixel form text, reinforced touch/focus targets and compact narrow-screen controls.
 - Bound metadata-worker jobs, clear settled timers, handle message errors and allow recovery after a silent worker timeout.
+- Keep lyric-editor dismissal/save actions visible while its body scrolls, including larger text at 320×360. Prevent padding clicks and selection drags from dismissing native dialogs.
+- Reject punctuation-only artist labels when generating Daily mixes.
+- Repair native build checks: import Windows I/O types and use the Android SDK provided by the pinned Ubuntu runner. Improve native diagnostics, Windows dark edit-field contrast, rounded controls, long-label containment and wrapping playback actions.
 - Freeze the web candidate for draft review. No release tag, merge, production deployment or native parity certification is included.
 
 ## Unreleased — focused settings and mobile library (web)

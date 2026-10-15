@@ -5217,3 +5217,24 @@ select {
     padding: 12px;
   }
 }
+
+/* Keep dismissal and saving reachable while the editor content scrolls. */
+.lyrics-editor-modal[open] {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.lyrics-editor-modal > .modal-heading,
+.lyrics-editor-modal > .modal-actions {
+  flex-shrink: 0;
+}
+.lyrics-editor-modal > .modal-actions {
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+.lyrics-editor-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 4px 4px;
+}

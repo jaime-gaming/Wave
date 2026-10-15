@@ -15,6 +15,9 @@ Status: **unreleased; draft review**, 15 October 2026. This candidate freezes th
 
 - Silent metadata-worker jobs expire after thirty seconds, release their resources and allow a later file to recover. Timed-out work is not repeated on the UI thread.
 - Lyric searches reject pre-canceled requests, cancel oversized response bodies and retain recording/version/timeline checks and local/manual precedence.
+- The lyric editor scrolls its body independently of Close/Cancel/Save, including short phone viewports. Dialog padding clicks and selection drags do not discard drafts.
+- Punctuation-only artist tags cannot produce a Daily mix.
+- Native build setup and Windows I/O imports are repaired. Windows controls receive rounded surfaces, explicit dark-field text/caret colors, contained long labels and wrapping playback actions. These are source/build improvements, not device-runtime certification.
 - Draft saves, generated queues and UI layout changes preserve original audio and existing stored library data.
 
 ## Validation

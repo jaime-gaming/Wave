@@ -7,7 +7,7 @@
     </Grid.ColumnDefinitions>
     <Grid.RowDefinitions>
       <RowDefinition Height="*"/>
-      <RowDefinition x:Name="MiniHeight" Height="76"/>
+      <RowDefinition x:Name="MiniHeight" Height="88"/>
     </Grid.RowDefinitions>
     <StackPanel x:Name="NavigationPanel" Margin="14,24">
       <StackPanel Orientation="Horizontal" Margin="12,0,0,28">
@@ -50,12 +50,12 @@
             <RowDefinition Height="*"/>
           </Grid.RowDefinitions>
           <TextBox x:Name="Search" TextChanged="SearchChanged" ToolTip="Search songs, artists, albums" Margin="0,0,0,16"/>
-          <ListBox x:Name="Songs" Grid.Row="1" SelectionChanged="SongSelected" Background="#1D2230" BorderThickness="0" Foreground="#E3E5F1">
+          <ListBox HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled" x:Name="Songs" Grid.Row="1" SelectionChanged="SongSelected" Background="#1D2230" BorderThickness="0" Foreground="#E3E5F1">
             <ListBox.ItemTemplate>
               <DataTemplate>
                 <StackPanel Margin="10">
-                  <TextBlock Text="{Binding Title}" FontSize="17" FontWeight="SemiBold"/>
-                  <TextBlock Text="{Binding Caption}" Foreground="#ACB2C4" FontSize="12" Margin="0,4,0,0"/>
+                  <TextBlock TextTrimming="CharacterEllipsis" ToolTip="{Binding Title}" Text="{Binding Title}" FontSize="17" FontWeight="SemiBold"/>
+                  <TextBlock TextTrimming="CharacterEllipsis" ToolTip="{Binding Caption}" Text="{Binding Caption}" Foreground="#ACB2C4" FontSize="12" Margin="0,4,0,0"/>
                 </StackPanel>
               </DataTemplate>
             </ListBox.ItemTemplate>
@@ -64,16 +64,16 @@
         <ScrollViewer x:Name="NowView" Visibility="Collapsed">
           <StackPanel>
             <Button Content="Collapse" Click="HomeClick" HorizontalAlignment="Left"/>
-            <TextBlock x:Name="NowTitle" FontSize="32" FontWeight="Bold" Margin="0,16"/>
-            <TextBlock x:Name="NowArtist" Foreground="#ACB2C4"/>
+            <TextBlock TextWrapping="Wrap" x:Name="NowTitle" FontSize="32" FontWeight="Bold" Margin="0,16"/>
+            <TextBlock TextWrapping="Wrap" x:Name="NowArtist" Foreground="#ACB2C4"/>
             <Slider x:Name="Seek" Minimum="0" Maximum="1" PreviewMouseLeftButtonUp="SeekReleased" PreviewKeyUp="SeekKey" Margin="0,24"/>
-            <StackPanel Orientation="Horizontal">
+            <WrapPanel>
               <Button Content="Previous" Click="PreviousClick"/>
               <Button x:Name="NowToggle" Content="Play" Click="ToggleClick"/>
               <Button Content="Next" Click="NextClick"/>
               <Button Content="Favorite" Click="FavoriteClick"/>
               <Button Content="Edit song / lyrics" Click="EditClick"/>
-            </StackPanel>
+            </WrapPanel>
             <Expander x:Name="LyricsDisclosure" Header="Lyrics" IsExpanded="True" Foreground="#E3E5F1" Margin="0,24">
               <StackPanel>
                 <Button Content="Search online" Click="LyricsClick" HorizontalAlignment="Left"/>
@@ -93,8 +93,8 @@
         </Grid.ColumnDefinitions>
         <Button Click="NowClick" Background="Transparent" HorizontalContentAlignment="Left">
           <StackPanel>
-            <TextBlock x:Name="MiniTitle" Text="Nothing playing" FontWeight="Bold"/>
-            <TextBlock x:Name="MiniArtist" Text="Choose a song" FontSize="12" Foreground="#ACB2C4"/>
+            <TextBlock TextTrimming="CharacterEllipsis" x:Name="MiniTitle" Text="Nothing playing" FontWeight="Bold"/>
+            <TextBlock TextTrimming="CharacterEllipsis" x:Name="MiniArtist" Text="Choose a song" FontSize="12" Foreground="#ACB2C4"/>
           </StackPanel>
         </Button>
         <StackPanel Grid.Column="1" Orientation="Horizontal">
