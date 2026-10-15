@@ -1,718 +1,278 @@
-# Guía de Desarrollo de Wave 🛠️
+# Wave Development Guide
 
-Este documento proporciona instrucciones detalladas para configurar el entorno de desarrollo, compilar, ejecutar y depurar la aplicación Wave.
+## Requirements
 
----
+| Tool    | Requirement                         |
+| ------- | ----------------------------------- |
+| Node.js | 22.12+ in Node 22, or Node 24       |
+| npm     | Included with Node.js               |
+| Git     | A recent supported version          |
+| Browser | Modern Chromium, Firefox, or Safari |
+| Editor  | Any editor with TypeScript support  |
 
-## 📋 Requisitos Previos
+JDK, Gradle, Android Studio, and an Android SDK are not required for the web client; they are needed for the independent Android project (see PLATFORMS.md).
 
-### Software Requerido
-
-| Herramienta | Versión Mínima | Recomendada | Descarga |
-|-------------|----------------|-------------|----------|
-| **JDK** | 17 | 21 | [Adoptium](https://adoptium.net/) |
-| **Gradle** | 8.0 | 8.4 | [Gradle](https://gradle.org/install/) |
-| **Android Studio** | 2022.3.1 | 2024.1.1 | [Android Studio](https://developer.android.com/studio) |
-| **Git** | 2.30+ | Latest | [Git](https://git-scm.com/) |
-
-### Requisitos del Sistema
-
-- **RAM**: 8GB mínimo (16GB recomendado)
-- **Espacio en Disco**: 10GB libre
-- **Sistema Operativo**: Windows 10+, macOS 10.15+, Linux (distribuciones recientes)
-
----
-
-## 🚀 Configuración Inicial
-
-### 1. Clonar el Repositorio
+## Initial setup
 
 ```bash
-# Clonar el repositorio
 git clone https://github.com/jaime-gaming/Wave.git
-
-# Navegar al directorio del proyecto
 cd Wave
-
-# Configurar el repositorio remoto upstream (opcional)
-git remote add upstream https://github.com/jaime-gaming/Wave.git
+npm ci
+npm run dev
 ```
 
-### 2. Configurar el Entorno
+Vite prints the development URL, normally `http://localhost:5173`. The server binds to `0.0.0.0` so it can also be used in a proxied development environment. The configured host allowlist accepts `.e2b.app` preview hosts. Add other trusted preview hosts explicitly if needed; do not disable host validation globally.
 
-#### Opción A: Usar Android Studio
+No `.env` file, API key, account, or separate backend is needed. Bundled browser-facing resources use same-origin URLs; optional lyrics requests use the public LRCLIB HTTPS API. Do not hard-code another service's localhost URL in client code.
 
-1. Abrir Android Studio
-2. Seleccionar **File > Open**
-3. Navegar al directorio del proyecto y seleccionarlo
-4. Esperar a que Android Studio sincronice las dependencias de Gradle
+## Commands
 
-#### Opción B: Usar Línea de Comandos
+| Command                | Purpose                                       |
+| ---------------------- | --------------------------------------------- |
+| `npm run dev`          | Development server with hot reload            |
+| `npm run build`        | Strict type checking and production bundle    |
+| `npm run preview`      | Local preview of the production bundle        |
+| `npm run lint`         | ESLint checks                                 |
+| `npm run format`       | Format source and documentation with Prettier |
+| `npm run format:check` | Check formatting without modifying files      |
+| `npm test`             | Run unit and component tests once             |
+| `npm run test:watch`   | Watch unit and component tests                |
+| `npm run test:e2e`     | Playwright browser tests                      |
+
+Build output is written to `dist/` and is ignored by Git. Do not commit `node_modules/`, browser binaries, test reports, audio collections, or generated artifacts. `package-lock.json` is committed for reproducible dependency installation.
+
+## Browser tests
+
+Install Chromium before the first Playwright run:
 
 ```bash
-# Instalar dependencias (usando el wrapper de Gradle)
-./gradlew build --refresh-dependencies
+npx playwright install chromium
+npm run test:e2e
 ```
 
-### 3. Configurar el SDK de Android
+Linux systems may also need `npx playwright install --with-deps chromium`. The Playwright configuration starts a local Vite server automatically unless one is already available. `CHROMIUM_EXECUTABLE_PATH` can point to a compatible preinstalled Chromium binary in constrained environments.
 
-Asegúrate de tener instalados los siguientes componentes del SDK:
+Browser tests generate small WAV files in memory. They do not download or commit copyrighted music. Inspect failures with the generated report or retained failure trace:
 
 ```bash
-# Listar paquetes instalados
-sdkmanager --list
-
-# Instalar paquetes necesarios
-sdkmanager "platforms;android-34"
-sdkmanager "build-tools;34.0.0"
-sdkmanager "platform-tools"
-sdkmanager "emulator"
+npx playwright show-report
 ```
 
----
+## Developing with local music
 
-## 🏗️ Estructura del Proyecto
+1. Choose **Add your music**, or drag files onto the app.
+2. Wait for the import notification.
+3. Select a track to play it.
+4. Search for title, artist, or album; try the grouping tabs and favorites.
+5. Reload and confirm that the library is still present.
+6. Create a playlist, add two songs, use song options to move one up, and reload to verify saved order.
+7. Enable **Settings → Library editing**, edit metadata, choose a local JPEG/PNG/WebP cover, and save. Reload, then restore the original information.
+8. Turn editing off and verify that saved values remain but the editing controls disappear.
+9. Disable animations and test the system reduced-motion preference separately.
+10. Remove a track and verify playlist references disappear while the original file is unchanged. Delete a playlist and verify library music remains.
 
-### Módulos Principales
+Useful manual cases:
 
-```
-Wave/
-├── app/                      # Módulo principal de la aplicación
-│   ├── src/
-│   │   └── main/
-│   │       ├── kotlin/        # Código Kotlin
-│   │       └── resources/     # Recursos (XML, imágenes, etc.)
-│   └── build.gradle.kts      # Configuración de Gradle del módulo
-├── gradle/                   # Scripts de Gradle
-│   └── wrapper/
-│       ├── gradle-wrapper.jar
-│       └── gradle-wrapper.properties
-├── .github/                  # Configuración de GitHub Actions
-├── docs/                     # Documentación
-└── build.gradle.kts          # Configuración de Gradle del proyecto
-```
+- Tagged and untagged files, Unicode names, and missing artwork.
+- Duplicate imports and renamed copies.
+- Corrupted media and files with unsupported codecs.
+- Empty files, non-audio files, and files over 200 MB.
+- Browser storage disabled or full.
+- Removing the current, first, last, and only queue entries.
+- Full-viewport player at 320/390/768/1024/1440 px, including opaque dark/light artwork palettes, short-height no-scroll fit, queue focus, and return to the initiating Home/bar button.
+- Home counts/actions, card cover dimensions, and artist album ownership with same-named albums by different artists.
+- Native 24-bit WAV import/playback, source-detail labels, and byte-for-byte Blob preservation.
+- Volume persistence, mute/reload/unmute, and restoring selected order after shuffle.
+- Repeat-off at the final track, repeat-one, repeat-all, and shuffle.
+- Keyboard-only navigation and narrow viewports.
+- Reloading after favorites change; switching origins or browser profiles.
+- Dark, light, system theme, reduced motion, and the Animations switch.
+- Version-1 database migration with existing audio/favorites.
+- Playlist creation from song options, duplicate membership, reordering, and deleting referenced music.
+- Invalid/oversized artwork, canceling edits, multiple edits then original restoration.
+- Favorite and metadata changes while playing; elapsed time must not reset.
 
----
+The development library belongs to the development origin. Switching between localhost and a preview URL does not share the same collection.
 
-## 📦 Compilación del Proyecto
+## Debugging
 
-### Compilar para Depuración
+Use browser developer tools:
+
+- **Console:** runtime failures and browser API support.
+- **Application / Storage:** `wave-library` IndexedDB, `tracks`/`playlists`/`artists`/`albumOrders` stores (schema v3), and `wave-theme`, `wave-editor-enabled`, `wave-animations-enabled`, `wave-volume`, `wave-last-audible-volume`, `wave-crossfade`, `wave-mix-enabled`, `wave-auto-lyrics`, and `wave-playback-session-v1` localStorage.
+- **Network:** confirm that importing and playing music does not upload files.
+- **Performance:** import responsiveness and audio transitions.
+- **Accessibility:** control names, focus order, and contrast.
+
+Do not log audio contents or sensitive local filenames in production. Console and storage inspection can expose personal collection metadata; redact it before sharing a bug report.
+
+## Troubleshooting
+
+### Dependencies fail to install
+
+Check the Node.js version and package registry access. Use `npm ci` with the committed lockfile. Do not delete or regenerate the lockfile merely to hide an installation error.
+
+### The library will not open or imports stop
+
+IndexedDB may be disabled, restricted in private mode, or out of space. Enable site storage or free space. Files committed before a failed import remain saved. Clearing Wave's site data resets the collection, favorites, playlists, and local edits, so keep the original files first.
+
+### Editing controls are missing
+
+Enable **Settings → Library editing**. Basic playlist naming and membership are available without it. Song editing and custom playlist artwork/descriptions are gated. Turning the setting off preserves saved values; it does not restore originals automatically.
+
+### A custom image is rejected
+
+Choose a readable JPEG, PNG, or WebP smaller than or equal to 5 MB and 40 million decoded pixels. SVG and remote URLs are unsupported. The picker displays a recoverable error and keeps the existing cover. Accepted images are square-cropped/resized in the browser; original image/audio files are never rewritten.
+
+### Animations do not run
+
+The Animations switch is on by default, but the operating system's reduced-motion preference takes precedence. Test both preferences. Do not bypass reduced motion to make a screenshot or test pass.
+
+### A track imports but will not play
+
+Extension recognition and metadata parsing do not imply codec support. Try a known-good WAV or MP3 file and check the browser's supported formats. Unsupported or damaged audio produces a message rather than being silently treated as playable.
+
+### Audio quality and source details
+
+Wave plays the original stored Blob with native browser decoding; no transcoding, EQ or normalization is added. Optional crossfade uses two native elements with equal-power volume ramps; it is disabled by default. New imports retain source codec/sample-rate/bit-depth metadata when reported. Older records can show only the filename format. Default volume is 100%; chosen level and pre-mute level are persisted. Device routing, browser/OS resampling, hardware, recording quality, and codec support still determine output. Do not claim bit-perfect audio or restoration of information already lost in a lossy file.
+
+### Playback does not start automatically
+
+Browsers restrict autoplay. Start playback through a user interaction. A rejected playback promise pauses the interface and prompts another attempt.
+
+### A preview rejects its host
+
+Keep the server bound to `0.0.0.0` and include the trusted proxy domain in Vite's allowlist. If adding a backend later, proxy it through the same origin instead of requesting browser-local `localhost`.
+
+### Tests cannot find a browser
+
+Install Playwright Chromium or set `CHROMIUM_EXECUTABLE_PATH`. Do not treat missing-browser failures as application test passes.
+
+## Production deployment
 
 ```bash
-# Compilar el proyecto completo
-./gradlew assembleDebug
-
-# Compilar solo el módulo app
-./gradlew :app:assembleDebug
+npm ci
+npm run lint
+npm test
+npm run build
 ```
 
-### Compilar para Producción
+Serve `dist/` from an HTTPS static host. No backend endpoints or secrets are required. Set appropriate cache headers for hashed assets; avoid caching `index.html` indefinitely. `vite preview` is for local verification, not a production server.
 
-```bash
-# Compilar APK de lanzamiento
-./gradlew assembleRelease
+There is no service worker or PWA manifest yet. Once loaded, imported tracks play locally, but a completely offline cold start is not guaranteed.
 
-# Compilar bundle de aplicación (AAB)
-./gradlew bundleRelease
-```
+## Persistence and motion regressions
 
-### Limpiar el Proyecto
+Keep migrations conditional on `oldVersion`; test with version-1 and version-2 databases before changing the schema. Never recreate `tracks` just to add a new store. Library-track deletion and playlist pruning belong in one transaction. Favorite and metadata writes must read the latest record; do not replace a record with stale component props. Preserve the in-memory Blob when merging metadata so the audio effect does not reload its source.
 
-```bash
-# Limpiar archivos generados
-./gradlew clean
+Use `src/ui/motion.ts` rather than inventing animation durations in every component. Animated exits retain DOM temporarily: scope text/label assertions to the active surface, or wait for actual removal. Exiting controls must remain inert. Native modal focus restoration happens after `dialog.close()`; the compact-player opener is supplied explicitly because expanding the player makes its footer inert. Browser tests exercise that focus path.
 
-# Limpiar y reconstruir
-./gradlew clean build
-```
+Wait for the committed visible state before reloading in persistence tests. A click starts an asynchronous database write; reloading immediately can interrupt it. Browser fixtures and generated image files belong in ignored test output, never the production library.
 
----
+## Dependency and documentation maintenance
 
-## 🎮 Ejecución de la Aplicación
+Check `npm outdated` and `npm audit`, review changes, and run the complete check suite after updates. Do not apply breaking upgrades blindly. Keep documentation in English and update API signatures, behavior, limitations, and roadmap status as implementation changes.
 
-### Usando Android Studio
+See [CONTRIBUTING.md](../CONTRIBUTING.md) for review and licensing expectations.
 
-1. Conectar un dispositivo Android o iniciar un emulador
-2. Hacer clic en el botón **Run (▶️)** en la barra de herramientas
-3. Seleccionar el dispositivo o emulador
-4. Esperar a que la aplicación se instale y ejecute
+## Lyrics/crossfade/reordering QA
 
-### Usando Línea de Comandos
+Cover LRC boundary timestamps/fractions/offsets/repeated stamps, embedded millisecond vs MPEG-frame tags, plain/missing lyrics, reload, seek/pause and native progression. Reject oversized/invalid imports without replacing saved lyrics. Validate manual photo save/remove in gallery, Home and profile; song album artwork must remain independent.
 
-```bash
-# Instalar en un dispositivo conectado
-./gradlew installDebug
+Crossfade browser tests instrument actual native Audio constructors: two simultaneously unpaused elements, nonzero complementary gains, incoming identity before outgoing end, and pause stopping both. Engine tests also cover rejection/cancellation, outgoing-event isolation, mute, source URL cleanup, and guarded queue changes. Test repeat-one, single-entry repeat, manual skip, seek, removal and background/mobile restrictions separately; a mocked play promise is not evidence of real overlap.
 
-# Ejecutar en un dispositivo conectado
-adb shell am start -n com.wave.music/.MainActivity
-```
+Reorder full album/playlist memberships using pointer handles, buttons and keyboard; validate independent reload persistence, filtered browsing, current-queue preservation, 320 px fit and concurrent collection changes. Album orders must never include a different artist's homonymous album.
 
-### Usando Emulador
+## Automatic-lyrics and immediate-storage QA
 
-```bash
-# Listar emuladores disponibles
-emulator -list-avds
+Playwright intercepts LRCLIB with realistic contract responses; the suite does not depend on live provider availability. Verify synchronized/plain matches, wrong title/artist/duration, 404 album fallback, instrumentation versus errors, response-size limits, timeout/abort, cache TTLs, local/embedded precedence, stale metadata and deleted-track rejection. Test opt-out across reload, deliberate retry, provider attribution, quick offsets and saved lyrics without another request. A production-browser smoke test against live LRCLIB is still required to validate current CORS/service availability; a fixture is not proof of provider coverage.
 
-# Iniciar un emulador
-emulator -avd Pixel_6_API_34
+Import a tagged file without playing it, reload, and compare stored Blob hashes to the original. Import a renamed/redated byte copy and assert a single track/audio record. Keep legacy IDs and playlists stable when lazily recording a content hash. Check storage-write failure without corrupting previous successful imports, persistence grant/denial/unsupported cases, original-quality audio, compact cover output and raw-only lyric records. Native browser storage usage may differ from library estimates.
 
-# Instalar y ejecutar
-./gradlew installDebug
-```
+Crossfade QA also checks opacity-only cover overlap and absence of transition meters/banners, equal-power quarter-point gains, completion/cancellation cleanup, sum of squared gains, mute and system reduced-motion behavior. New card, lyric and navigation movement must respect both motion preferences.
 
----
+## Text fill and compact-layout QA
 
-## 🐛 Depuración
+Test line-fill start/midpoint/end, positive/negative offsets, final native duration, unknown duration, plain text, Unicode/whitespace preservation, wrapped text, seek reset and pause stability. Check the actual glyph-clipped gradients and assert no lyric progress bar. Enhanced LRC uses supplied word stamps; ordinary LRC follows line timing, not fabricated word timing. Keep its temporal feedback under reduced motion while disabling spatial/decorative movement.
 
-### Depuración con Android Studio
+Keyboard tests after an editor closes must wait for the actual native dialog element to detach, not just its accessibility role to disappear: an inert exiting dialog still holds the native modal layer and can prevent focus reaching the full player.
 
-1. Establecer puntos de interrupción en el código
-2. Hacer clic en el botón **Debug (🛠️)**
-3. Usar la ventana **Debug** para inspeccionar variables
-4. Usar la consola **Logcat** para ver logs
+Validate 64 px collapsed-player geometry, explicit full-screen opening and focus return, Home collection/daily-mix controls without a duplicated session, desktop sidebar navigation, light/dark themes and no document overflow at 320/390/768/1024/1440 px. Keep stored music and existing queue/playback semantics intact.
 
-### Depuración desde Línea de Comandos
+## Three-platform update
 
-```bash
-# Ver logs de la aplicación
-adb logcat | grep "Wave\|Music\|Player"
+Home is the initial web page; Settings is now a full page, not a dialog. Lyrics starts open in a collapsible section each time Now Playing expands or the song changes. Redundant source/playback status text is removed. The original curved W mark replaces generic waveform bars. Online automatic lyrics is optional/off initially, while manual one-song lookup remains available. Exact/search requests validate artist/title/duration, identify the client, and honor provider cooldowns; availability cannot be guaranteed. Crossfade uses incoming media time and equal-power gains, not elapsed wall time. Duplicate cleanup merges only confirmed byte-identical records, preserving references; same-name groups are reviewed non-destructively.
 
-# Filtrar por tag específico
-adb logcat Wave:D *:S
+Separate native Android (Kotlin/Compose) and Windows (C#/WPF) source implementations exist; prior web-only scope statements apply to the web architecture, not the entire project. They are early, uncompiled in this workspace and lack full web parity. [PLATFORMS](PLATFORMS.md) is the authoritative build/status matrix. [Privacy](../PRIVACY.md) describes data flows, rights and unresolved public-release obligations.
 
-# Guardar logs a un archivo
-adb logcat -d > wave_logs.txt
-```
+## Listening-stage and restoration QA
 
-### Niveles de Log
+Check viewport bounds **and actual lyric visibility/hit targets**, not only hidden overflow: 1440×900, 1024×768, 768×700, 390×844, 320×568 and 844×390. Cover enhanced LRC, plain/missing lyrics and long metadata/lines. Validate word-start/mid/end, repeated stamps, offsets, malformed word timing, provider timelines beyond recording duration and decoded-duration cache reconciliation.
 
-```kotlin
-// En el código Kotlin
-Log.v("TAG", "Mensaje verbose")    // Verbose
-Log.d("TAG", "Mensaje debug")      // Debug
-Log.i("TAG", "Mensaje info")       // Info
-Log.w("TAG", "Mensaje warning")    // Warning
-Log.e("TAG", "Mensaje error")      // Error
-```
+Restore a nonzero native position after reload and delayed IndexedDB hydration with queue/order/shuffle/repeat intact and no autoplay. Test deleted references, selected-track removal, invalid/blocked localStorage and lifecycle saves.
 
-### Depuración de UI con Compose
+For inactivity, settle actual native playback before advancing test time. Verify entry after 30 seconds, no focusable controls in cinema, and mouse/touch/keyboard wake to the previous compact/expanded view without a play/seek/source change. Editing dialogs, buffering and hidden tabs must block entry. Metadata artist/album actions must not activate the surrounding play row.
 
-```kotlin
-// Habilitar herramientas de depuración de Compose
-@Composable
-fun MyScreen() {
-    // Ver límites de recomposición
-    ComposeTheme {
-        LayoutInspector {
-            MyContent()
-        }
-    }
-}
-
-// Ver información de recomposición
-@Composable
-fun DebugRecomposition() {
-    var count by remember { mutableStateOf(0) }
-    SideEffect { count++ }
-    Text("Recompositions: $count")
-}
-```
-
----
-
-## 🧪 Pruebas
-
-### Ejecutar Pruebas Unitarias
-
-```bash
-# Ejecutar todas las pruebas unitarias
-./gradlew test
-
-# Ejecutar pruebas de un módulo específico
-./gradlew :app:test
+## Palette/reader redesign QA
 
-# Ejecutar pruebas de un paquete específico
-./gradlew test --tests "com.wave.*"
-
-# Ejecutar una clase de prueba específica
-./gradlew test --tests "com.wave.MusicViewModelTest"
-
-# Ejecutar un método de prueba específico
-./gradlew test --tests "com.wave.MusicViewModelTest.testPlaySong"
-```
-
-### Ejecutar Pruebas de Instrumentación
+Verify the actual native View Transition keyframes (bottom-centered circular reveal), not only a palette variable. Disabled/reduced motion and unsupported browsers must remain usable without animation. Check Light accents against white text across multiple artwork hues, plus dark text on tonal surfaces.
 
-```bash
-# Ejecutar pruebas en un dispositivo conectado
-./gradlew connectedAndroidTest
-
-# Ejecutar pruebas de UI con Compose
-./gradlew connectedAndroidTest -P android.testInstrumentationRunnerArguments.class=com.wave.ComposeTest
-```
-
-### Escribir Pruebas
-
-#### Pruebas Unitarias con JUnit y MockK
-
-```kotlin
-import io.mockk.coEvery
-import io.mockk.mockk
-import kotlinx.coroutines.test.runTest
-import org.junit.Assert.assertEquals
-import org.junit.Before
-import org.junit.Test
-
-class MusicViewModelTest {
-    private lateinit var viewModel: MusicViewModel
-    private val getSongsUseCase: GetSongsUseCase = mockk()
-
-    @Before
-    fun setup() {
-        viewModel = MusicViewModel(getSongsUseCase)
-    }
-
-    @Test
-    fun `loadSongs should update state with songs`() = runTest {
-        // Given
-        val expectedSongs = listOf(
-            Song(id = "1", title = "Song 1", artist = "Artist 1"),
-            Song(id = "2", title = "Song 2", artist = "Artist 2")
-        )
-        coEvery { getSongsUseCase() } returns expectedSongs
-
-        // When
-        viewModel.loadSongs()
-
-        // Then
-        val state = viewModel.state.value
-        assertEquals(expectedSongs, state.songs)
-        assertEquals(false, state.isLoading)
-    }
-}
-```
-
-#### Pruebas de UI con Compose Testing
-
-```kotlin
-import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performClick
-import org.junit.Rule
-import org.junit.Test
-
-class PlayerScreenTest {
-    @get:Rule
-    val composeTestRule = createComposeRule()
-
-    @Test
-    fun playButton_click_triggersPlay() {
-        // Arrange
-        val viewModel = MusicViewModel()
-        composeTestRule.setContent {
-            PlayerScreen(viewModel = viewModel)
-        }
-
-        // Act
-        composeTestRule.onNodeWithText("Play").performClick()
-
-        // Assert
-        assert(viewModel.state.value.isPlaying)
-    }
-}
-```
-
----
-
-## 🔧 Configuración Avanzada
-
-### Configurar Variables de Entorno
-
-Crear un archivo `.env` en la raíz del proyecto:
-
-```properties
-# Configuración de desarrollo
-DEBUG_MODE=true
-LOG_LEVEL=DEBUG
-
-# Configuración de API (futuro)
-# API_BASE_URL=https://api.example.com
-# API_KEY=your_api_key
-```
-
-### Configurar Build Variants
-
-```kotlin
-// En build.gradle.kts
-android {
-    buildTypes {
-        debug {
-            isMinifyEnabled = false
-            isShrinkResources = false
-            buildConfigField("String", "BASE_URL", '"https://dev-api.example.com"')
-        }
-        
-        release {
-            isMinifyEnabled = true
-            isShrinkResources = true
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            buildConfigField("String", "BASE_URL", '"https://api.example.com"')
-        }
-        
-        staging {
-            initWith(debug)
-            buildConfigField("String", "BASE_URL", '"https://staging-api.example.com"')
-        }
-    }
-    
-    flavorDimensions += "version"
-    productFlavors {
-        free {
-            dimension = "version"
-            buildConfigField("Boolean", "IS_PAID", "false")
-        }
-        paid {
-            dimension = "version"
-            buildConfigField("Boolean", "IS_PAID", "true")
-        }
-    }
-}
-```
-
----
-
-## 📊 Análisis de Código
-
-### Ejecutar Análisis de Código
-
-```bash
-# Ejecutar lint
-./gradlew lint
-
-# Ejecutar lint con HTML report
-./gradlew lintDebug -P lintHtmlReport=true
-
-# Ejecutar detekt (análisis estático de Kotlin)
-./gradlew detekt
-
-# Ejecutar ktlint (formateo de código)
-./gradlew ktlintCheck
-
-# Formatear código con ktlint
-./gradlew ktlintFormat
-```
-
-### Configurar detekt
-
-Crear archivo `detekt.yml`:
-
-```yaml
-build:
-  maxIssues: 0
-  ignoreFailures: false
-
-config:
-  validation: true
-  warningsAsErrors: true
-
-complexity:
-  TooManyFunctions:
-    thresholdInFiles: 15
-    thresholdInClasses: 15
-    thresholdInInterfaces: 15
-    thresholdInObjects: 15
-    thresholdInEnums: 15
-
-style:
-  WildcardImport:
-    active: true
-    excludes: ['**/Test*.kt']
-  
-  MagicNumber:
-    active: true
-    excludes: ['**/test/**']
-
-formatting:
-  MaximumLineLength:
-    maxLineLength: 120
-    excludeCommentStatements: true
-```
-
----
-
-## 🚀 Despliegue
-
-### Generar APK para Distribución
-
-```bash
-# Generar APK de lanzamiento
-./gradlew assembleRelease
-
-# El APK se generará en:
-# app/build/outputs/apk/release/app-release.apk
-```
-
-### Generar App Bundle (AAB)
-
-```bash
-# Generar bundle de aplicación
-./gradlew bundleRelease
-
-# El AAB se generará en:
-# app/build/outputs/bundle/release/app-release.aab
-```
-
-### Firmar la Aplicación
-
-1. **Generar keystore** (solo una vez):
-   ```bash
-   keytool -genkey -v -keystore wave-release.keystore \
-       -alias wave -keyalg RSA -keysize 2048 -validity 10000
-   ```
-
-2. **Configurar signingConfig** en `build.gradle.kts`:
-   ```kotlin
-   android {
-       signingConfigs {
-           release {
-               storeFile = file("wave-release.keystore")
-               storePassword = System.getenv("STORE_PASSWORD") ?: ""
-               keyAlias = System.getenv("KEY_ALIAS") ?: "wave"
-               keyPassword = System.getenv("KEY_PASSWORD") ?: ""
-           }
-       }
-       
-       buildTypes {
-           release {
-               signingConfig = signingConfigs.getByName("release")
-           }
-       }
-   }
-   ```
-
-3. **Compilar con firma**:
-   ```bash
-   STORE_PASSWORD=your_password KEY_PASSWORD=your_password ./gradlew assembleRelease
-   ```
-
----
-
-## 🔄 Actualización de Dependencias
-
-### Verificar Dependencias Obsoletas
-
-```bash
-# Usar el plugin de Gradle Versions
-./gradlew dependencyUpdates
-```
-
-### Actualizar Dependencias
-
-1. Editar el archivo `build.gradle.kts`
-2. Actualizar las versiones de las dependencias
-3. Ejecutar:
-   ```bash
-   ./gradlew build --refresh-dependencies
-   ```
-
-### Ejemplo de Gestión de Dependencias
-
-```kotlin
-// En build.gradle.kts
-object Versions {
-    const val KOTLIN = "1.9.0"
-    const val COMPOSE = "1.5.0"
-    const val LIFECYCLE = "2.6.2"
-    const val ROOM = "2.5.2"
-    const val HILT = "2.48"
-    const val MEDIA3 = "1.2.0"
-}
-
-dependencies {
-    implementation("org.jetbrains.kotlin:kotlin-stdlib:${Versions.KOTLIN}")
-    implementation("androidx.compose.ui:ui:${Versions.COMPOSE}")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:${Versions.LIFECYCLE}")
-    implementation("androidx.room:room-runtime:${Versions.ROOM}")
-    implementation("com.google.dagger:hilt-android:${Versions.HILT}")
-    implementation("androidx.media3:media3-exoplayer:${Versions.MEDIA3}")
-}
-```
-
----
-
-## 📁 Gestión de Recursos
-
-### Añadir Nuevos Recursos
-
-#### Imágenes
-
-1. Colocar imágenes en `app/src/main/res/drawable/`
-2. Para diferentes densidades, crear directorios:
-   - `drawable-mdpi/` (160 dpi)
-   - `drawable-hdpi/` (240 dpi)
-   - `drawable-xhdpi/` (320 dpi)
-   - `drawable-xxhdpi/` (480 dpi)
-   - `drawable-xxxhdpi/` (640 dpi)
-
-#### Strings
-
-Editar `app/src/main/res/values/strings.xml`:
-
-```xml
-<resources>
-    <string name="app_name">Wave</string>
-    <string name="welcome_message">Bienvenido a Wave</string>
-    <string name="play">Reproducir</string>
-    <string name="pause">Pausar</string>
-</resources>
-```
-
-#### Colores
-
-Editar `app/src/main/res/values/colors.xml`:
-
-```xml
-<resources>
-    <color name="primary">#6200EE</color>
-    <color name="primary_variant">#3700B3</color>
-    <color name="secondary">#03DAC6</color>
-    <color name="background">#FFFFFF</color>
-    <color name="surface">#FFFFFF</color>
-    <color name="error">#B00020</color>
-</resources>
-```
-
-#### Estilos
-
-Editar `app/src/main/res/values/themes.xml`:
-
-```xml
-<resources xmlns:tools="http://schemas.android.com/tools">
-    <style name="Theme.Wave" parent="Theme.Material3.DayNight.NoActionBar">
-        <item name="colorPrimary">@color/primary</item>
-        <item name="colorSecondary">@color/secondary</item>
-        <item name="colorBackground">@color/background</item>
-        <item name="colorSurface">@color/surface</item>
-        <item name="colorError">@color/error</item>
-    </style>
-</resources>
-```
-
----
-
-## 🎵 Pruebas con Música Local
-
-### Añadir Música de Prueba
-
-1. Crear un directorio `test_music` en la raíz del proyecto
-2. Copiar archivos de música (MP3, FLAC, etc.) a este directorio
-3. Configurar el escáner de música para usar este directorio:
-
-```kotlin
-// En MusicScanner.kt
-class MusicScanner {
-    fun scanMusicFiles(): List<Song> {
-        val musicDir = File("test_music")
-        // ... lógica de escaneo
-    }
-}
-```
-
-### Simular Diferentes Escenarios
-
-```kotlin
-// En pruebas unitarias
-val testSongs = listOf(
-    Song(
-        id = "1",
-        title = "Test Song 1",
-        artist = "Test Artist",
-        album = "Test Album",
-        duration = 180000,
-        path = "/test_music/song1.mp3"
-    ),
-    Song(
-        id = "2",
-        title = "Test Song 2",
-        artist = "Test Artist",
-        album = "Test Album",
-        duration = 240000,
-        path = "/test_music/song2.mp3"
-    )
-)
-```
-
----
-
-## 🔍 Solución de Problemas Comunes
-
-### Problema: Gradle Sync Failed
-
-**Soluciones:**
-1. Refrescar dependencias: `./gradlew build --refresh-dependencies`
-2. Limpiar caché de Gradle: `./gradlew clean`
-3. Eliminar directorio `.gradle` y volver a sincronizar
-4. Verificar conexión a internet
-5. Verificar versión de JDK
-
-### Problema: Emulador no Inicia
-
-**Soluciones:**
-1. Verificar que HAXM esté instalado (en Windows/macOS)
-2. Aumentar memoria del emulador en AVD Manager
-3. Usar un emulador con menos requisitos (ej: Pixel 2 en lugar de Pixel 6)
-4. Habilitar virtualización en BIOS
-
-### Problema: Aplicación se Cierra al Iniciar
-
-**Soluciones:**
-1. Verificar logs con `adb logcat`
-2. Buscar `NullPointerException` o `ClassNotFoundException`
-3. Verificar que todas las dependencias estén correctamente configuradas
-4. Verificar permisos en AndroidManifest.xml
-
-### Problema: Compose Preview no Funciona
-
-**Soluciones:**
-1. Asegurarse de que el componente tenga `@Preview`
-2. Verificar que no haya errores de compilación
-3. Reiniciar Android Studio
-4. Invalidar caché: **File > Invalidate Caches / Restart**
-
----
-
-## 📚 Recursos de Aprendizaje
-
-### Kotlin
-- [Documentación Oficial](https://kotlinlang.org/docs/home.html)
-- [Kotlin Koans](https://kotlinlang.org/docs/koans.html)
-- [Kotlin for Java Developers](https://kotlinlang.org/docs/java-to-kotlin.html)
-
-### Jetpack Compose
-- [Documentación Oficial](https://developer.android.com/jetpack/compose)
-- [Compose Samples](https://github.com/android/compose-samples)
-- [Compose Academy](https://www.compose.academy/)
-
-### Android Development
-- [Android Developers](https://developer.android.com/)
-- [Android Basics in Kotlin](https://developer.android.com/courses/android-basics-kotlin/course)
-- [Advanced Android in Kotlin](https://developer.android.com/courses/advanced-android-kotlin/course)
-
-### Arquitectura
-- [Guide to App Architecture](https://developer.android.com/jetpack/guide)
-- [Clean Architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
-- [MVVM Pattern](https://developer.android.com/jetpack/guide#recommended-app-arch)
-
----
-
-## 🤝 Comunidad
-
-- **GitHub Issues**: [https://github.com/jaime-gaming/Wave/issues](https://github.com/jaime-gaming/Wave/issues)
-- **Discussions**: [https://github.com/jaime-gaming/Wave/discussions](https://github.com/jaime-gaming/Wave/discussions)
-- **Pull Requests**: [https://github.com/jaime-gaming/Wave/pulls](https://github.com/jaime-gaming/Wave/pulls)
-
----
-
-**¡Feliz desarrollo!** 🎉
-
-Si tienes alguna pregunta o problema, no dudes en abrir un Issue en el repositorio.
+Keep the complete normal lyric document accessible in an internal reader, with blurred context and unblurred focus/hover. In cinema, verify current text has no line clamp or hidden ending, and missing lyrics show only centered music metadata. Check focused-tab gating with controlled focus signals; headless focus emulation is not a physical OS-switch test. Verify local generated playlist icons mix member colors consistently while explicit covers retain precedence.
+
+## Discovery and filename regression checks
+
+Search is intentionally absent from Home/Settings. Open the dedicated Search destination (or Ctrl/⌘ K), verify word-order/accent matching across categories, and confirm that artist/album/playlist actions navigate correctly. Library has no repeated filter. Playlist/album order remains a complete-collection operation, not global search.
+
+Use RIFF INFO fixtures with the declared Latin-1 metadata encoding for accented browser-test names. Valid embedded tags must win over contradictory filenames; untagged two-part spaced-dash files can infer title/artist, but ambiguous filenames must not be guessed. Never modify source audio to test metadata inference.
+
+After editing a module while Vite is serving, a write/transform race can leave a stale empty development transform. If fresh pages report a missing export despite a successful production build, restart the development server before the final complete browser run. Do not edit application sources during that run. Inactivity tests must wait for native playback to leave buffering before advancing the mocked 30-second clock; decoder readiness does not follow the mock timer.
+
+## Expressive playback QA
+
+Check the compact artist/cover/title actions separately from expanded metadata navigation. The large cover must toggle playback without changing selection; pause restores base tones and stops background motion. For visual-energy tests, use a generated waveform with silent and louder sections and seek the real decoder: CSS keyframes alone do not establish audio responsiveness. Check mute, app animation opt-out, native reduced-motion changes without reload, and large/unsupported visual-analysis fallback. The audio bytes and native output graph must stay unchanged.
+
+Lyric tests mock exact 400/422 rejection, missing duration, service throttling with absent/inaccessible Retry-After, manual interrupted-import recovery, replaced request generations and local/embedded precedence. Live provider availability is not established. Do not bypass provider cooldowns to make retry tests pass; use controlled network errors for immediate manual retries and a separate persisted-throttle test.
+
+## Stage clipping and network-recovery QA
+
+`tests/player-stage.spec.ts` checks a 320–2560 px width matrix, including 700×360 and 1440×600, across empty/near-zero/mid/near-end progress. Assert actual SVG width/path coverage, an in-bounds thumb, square artwork, SVG-in-button bounds and Home/End/arrow seeking. Test a moving path and a flattened paused path separately; reduced motion may leave a static wavy shape while playing.
+
+Do not count invisible native-details descendants as visible hit targets. Closed timing controls are explicitly removed from layout; opening the adjustment retains editing, ±100 ms persistence and idle protection. Keep the 30-second stage disabled while the timing editor is open.
+
+The real-audio tests require `data-music-analysis="live"` and a perceptible computed light opacity, then verify that native time advances without source/volume changes and that pause releases live analysis. A separate unsupported-capture test requires the envelope fallback and mute/unmute response. Source fixtures are generated waveforms, not licensed music.
+
+For lyric recovery, abort the headered request and inspect the next request: same URL, no custom preflight header, no credentials or audio payload. Reload must reuse the saved verified result without a new request. Keep separate tests for HTTP throttles and recording mismatches. Mock success does not demonstrate live service availability. The browser and command-line live checks in this restricted workspace both failed to connect to LRCLIB; neither establishes a provider outage or a CORS misconfiguration.
+
+## Spectral, queue and native-command regression checks
+
+Use a generated multi-section 100/1000/6000 Hz source at a sufficient sample rate to verify **actual** bass/body/air dominance after native seeks. Check independent transform changes and the absence of glow/filter styles. A fake band variable or a single RMS test cannot establish spectral behavior; frequency bands are still not vocal isolation.
+
+Check compact seek visibility and hit behavior at 320/390/768/1440 px without opening the full player. Queue must fit desktop, phone and short landscape, preserve the current source/position on same-row selection and retain add/remove/restore semantics.
+
+Test conflicting exact album responses before a matching deluxe search candidate, plain-only fallback for compilation conflicts and rejection of performance-album conflicts. Keep live-provider claims separate from mocks. Resolve/reject old native play promises after newer commands in unit tests; they must not pause or clear newer operations.
+
+In cinema, assert computed visibility of the underlying normal view as well as ARIA/inert state. Inspect an actual 30-second native-timer entry, not just mocked timer assertions. Install a mocked clock before arming the idle timer, or generate activity afterward; preexisting native timers are not reliable fake-clock fixtures. Verify full active text, wake, timing reset and failed-write recovery. Privacy background roles must match Wave and update from another tab's appearance preference changes, without accessing media or changing legal content.
+
+## Illumination, queue and mixing QA
+
+Use owned low/mid/high tones to verify radial lights rather than wave silhouettes, independent band motion and all motion/mute/pause/focus guards. Keep the wavy seek separate from background rendering. Enter absence with native and controlled timers; check computed visibility of the workspace, navigation, compact player and every normal-stage control, then wake without changing native source/time.
+
+Queue QA covers drag handles, arrow buttons, Alt-arrow moves, selected identity/time, announcements, narrow/short viewports and reload restoration. Context-menu QA covers actual right-click, Shift-F10, enabled-item arrow/Home/End navigation, Escape/Tab, focus restoration, edge/resize placement during entrance, dismissal, action execution and preservation of native editable/selection/Shift-right-click behavior.
+
+Mix QA uses actual native decoders and owned silence-padded files to verify safe cue offsets, original lyric clock, complementary gains, no byte changes, stage color interpolation and completion/pause cleanup. Keep classic crossfade switch and saved preference checks. Unit tests cover staged curve continuity, conservative bounds, missing/short/silent analysis, no periodic-sample aliasing, shortest hue arcs, stale palettes, outgoing origin fallback, motion opt-out and final palette persistence. Do not claim tempo/beat matching or isolated stems.
+
+## Automatic listening and import QA
+
+Mix now has one switch and no duration slider. Test fresh on / migrated disabled preferences, pair-specific windows, cue offsets, native overlap, mute/pause/manual changes, unavailable preload and motion opt-out. Older standard-playback regression fixtures explicitly disable Mix and Autoplay; separate feature checks verify their fresh defaults and actual native behavior.
+
+Inspect imports with absent/invalid text, multi-artist credits, front/back/corrupt pictures and year/genre. Verify a same-origin worker parses large phone imports, fallback behavior retains tags and original-byte hashes remain unchanged. Set a legacy metadata-consent flag to true and assert zero catalogue/cover requests on import/reload. Previously completed metadata must remain saved; local review must ignore old suggestions and derive current completeness. Automatic lyrics consent is tested separately.
+
+Test Autoplay from a one-song Search queue into a larger local library, with Mix both on/off; check native ended progression, repeat priority, no immediate current-track duplicates and the no-alternative fallback. Pattern unit tests use deterministic weighted sampling, not a remote recommendation service.
+
+Use a 150-track owned fixture at 320 px to exercise off-thread import, plain large-collection rows, viewport containment, eight-row metadata paging and reduced motion. No DOM virtualization or device-level benchmark is claimed. Root position updates are bounded near 10 Hz; lyric native clocks and mix gain timing remain independent.
+
+Settings tests must navigate through the relevant menu, not query unmounted controls. Check all six sections, Back/focus return, persisted independent switches and both themes. Mobile regression fixtures include 400–500 character unbroken title/artist/album fields and 100-character playlist names. Check actual element bounds, not only document width: ellipsis/clamps are intentional but buttons and containers must stay inside the viewport. Verify the empty player is hidden, all library categories remain reachable and last rows scroll clear of the fixed dock. Keep native audio progression tests alongside layout tests.
+
+### Candidate regression checks
+
+Run `release-010.spec.ts` for offline daily genre groups and native queue coherence, explicit unplayed-song lyric preview/save, failure/cooldown/manual-draft preservation, and larger text on a 320 px viewport. Unit checks additionally cover deterministic day changes, input immutability, sparse libraries, worker timeouts/recovery and shared cooldown/oversized-body cancellation. Live lyric provider coverage and native builds require separate validation.

@@ -1,173 +1,93 @@
-# Contribuir a Wave 🌊
+# Contributing to Wave
 
-¡Gracias por tu interés en contribuir a Wave! Este documento te guiará a través del proceso de contribución.
+Thank you for your interest in improving Wave. Contributions should keep the player simple, private, and pleasant to use.
 
----
+## Code of conduct
 
-## 📋 Código de Conducta
+Participation is subject to the [Code of Conduct](CODE_OF_CONDUCT.md). Be respectful and constructive.
 
-Al contribuir a este proyecto, aceptas cumplir con nuestro [Código de Conducta](CODE_OF_CONDUCT.md). Sé respetuoso y amable con todos los colaboradores.
+## Reporting bugs
 
----
+Search the [issue tracker](https://github.com/jaime-gaming/Wave/issues) before opening a new report. Include:
 
-## 🎯 ¿Cómo puedo contribuir?
+- A clear title and description.
+- Steps to reproduce, expected behavior, and actual behavior.
+- Browser version, operating system, and Wave version or commit.
+- Screenshots or recordings for visual problems.
+- The audio format and codec for playback problems, if known.
 
-### 🐛 Reportar Bugs
+Do not upload private music, personal information, credentials, or copyrighted test files without permission. A small reproducible audio fixture you are allowed to share is more useful than a large collection.
 
-1. **Verifica si ya existe** - Busca en los [Issues](https://github.com/jaime-gaming/Wave/issues) para ver si el bug ya ha sido reportado.
+## Proposing features
 
-2. **Crea un nuevo Issue** - Si el bug no existe, crea uno nuevo con:
-   - Un **título claro y descriptivo**
-   - Una **descripción detallada** del problema
-   - **Pasos para reproducir** el error
-   - **Capturas de pantalla o videos** (si aplica)
-   - **Información del entorno**:
-     - Versión de la aplicación
-     - Sistema operativo
-     - Navegador (si es web)
-     - Dispositivo (si es móvil)
+Open an issue describing the use case and proposed behavior. Check the [roadmap](docs/ROADMAP.md) and discuss significant architecture changes before implementing them. Network access, permissions, and storage changes need explicit privacy consideration.
 
-3. **Etiqueta el Issue** - Usa etiquetas apropiadas como `bug`, `enhancement`, `help wanted`, etc.
+## Submitting changes
 
-### 🚀 Proponer Nuevas Características
+1. Fork the repository or use the working branch provided by your development environment.
+2. Install dependencies with `npm ci`.
+3. Make a focused change using the conventions below.
+4. Add tests for the behavior being changed.
+5. Update the affected documentation in the same change, in English. Distinguish implemented behavior from plans.
+6. Run the checks:
 
-1. **Abre un Issue de Discusión** - Describe tu idea y su caso de uso.
-2. **Espera feedback** - El equipo revisará la propuesta.
-3. **Implementa** - Si es aprobada, puedes implementarla y enviar un Pull Request.
-
-### 💻 Enviar Pull Requests
-
-1. **Forkea el repositorio**
-2. **Crea una rama** para tu característica o corrección:
    ```bash
-   git checkout -b feature/nueva-caracteristica
-   # o
-   git checkout -b fix/arreglar-bug
+   npm run format:check
+   npm run lint
+   npm test
+   npm run build
+   npx playwright install chromium
+   npm run test:e2e
    ```
 
-3. **Haz tus cambios**
-   - Sigue el **estilo de código** del proyecto
-   - Añade **comentarios** donde sea necesario
-   - Mantén los **commits atómicos** (un cambio por commit)
+7. Use a descriptive commit message, such as `feat: add playlist editing`, `fix: preserve queue position`, or `docs: explain browser storage`.
+8. Push your working branch to your fork or the appropriate remote and open a pull request.
 
-4. **Ejecuta las pruebas**
-   ```bash
-   ./gradlew test
-   ```
+Include a summary, related issues, checks run, known limitations, and screenshots for visual changes. Keep commits focused and do not include generated build output.
 
-5. **Haz commit de tus cambios**
-   ```bash
-   git commit -m "Añade nueva característica"
-   ```
-   - Usa **mensajes de commit claros**
-   - Sigue el formato: `tipo(tipo): descripción`
-     - `feat: añade nueva característica`
-     - `fix: corrige bug de reproducción`
-     - `docs: actualiza README`
-     - `refactor: mejora estructura del código`
-     - `chore: actualiza dependencias`
+## Code conventions
 
-6. **Push a tu fork**
-   ```bash
-   git push origin feature/nueva-caracteristica
-   ```
+- Use TypeScript strict mode. Avoid `any` and unchecked casts.
+- Name components and types in `PascalCase`, functions and variables in `camelCase`, and shared constants in `UPPER_SNAKE_CASE`.
+- Use English names, comments, interface copy, and documentation.
+- Use two-space indentation and run `npm run format` before submitting changes.
+- Keep queue transitions in the pure domain reducer, persistence in `data/`, and browser lifecycle management in hooks.
+- Use React state rather than manual DOM mutation, except when controlling browser APIs such as audio and dialogs.
+- Clean up subscriptions, event handlers, and object URLs.
+- Use shared motion tokens and keep exiting content inert; respect Settings and system reduced motion.
+- Test database migrations and keep related playlist/track deletions atomic.
+- Preserve audio Blob identity during metadata/favorite updates.
+- Handle missing metadata, blocked storage, unsupported codecs, and rejected playback promises.
+- Do not add remote fonts, tracking, or music services without an agreed product decision.
 
-7. **Abre un Pull Request**
-   - Usa un **título claro**
-   - Proporciona una **descripción detallada** de los cambios
-   - Relaciona el PR con el Issue correspondiente (si existe)
-   - Incluye **capturas de pantalla** si hay cambios visuales
+## Interface conventions
 
----
+Use shared theme variables rather than hard-coded page-specific colors. Support narrow screens, keyboard operation, visible focus, semantic controls, accessible labels, and reduced motion. Do not fill the production library with sample songs or make unimplemented controls look functional.
 
-## 📝 Convenciones de Código
+## Testing
 
-### 🏗️ Estructura del Código
+- Vitest covers queue transitions, metadata fallbacks, filtering, storage migrations, ordered playlist mutations, non-destructive editing, and component behavior.
+- Testing Library tests the user-facing interface rather than implementation details.
+- Playwright checks browser import, playback, persistence, and narrow-screen layouts using generated audio fixtures.
+- Add regression coverage when fixing a bug.
+- Test supported browsers manually where codec behavior differs.
 
-- **Kotlin** - Sigue las [guías de estilo de Kotlin](https://kotlinlang.org/docs/coding-conventions.html)
-- **Jetpack Compose** - Sigue las mejores prácticas de Compose
-- **Nombres** - Usa nombres descriptivos y en inglés
-  - Clases: `PascalCase` (ej: `MusicPlayerService`)
-  - Funciones: `camelCase` (ej: `playSong`)
-  - Variables: `camelCase` (ej: `currentSong`)
-  - Constantes: `UPPER_SNAKE_CASE` (ej: `MAX_VOLUME`)
+See the [development guide](docs/DEVELOPMENT.md) for setup and troubleshooting.
 
-### 🎨 Convenciones de UI
+## Licensing
 
-- **Componentes Compose** - Usa nombres descriptivos
-- **Preview** - Añade `@Preview` a los componentes para visualización
-- **Tema** - Usa los colores y estilos definidos en el tema
-- **Espaciado** - Usa `dp` para dimensiones
+Wave is MIT-licensed. Only contribute code and resources you have the right to distribute under the applicable terms. PixelPlayer is a product reference, not a source-code dependency; do not copy its proprietary implementation or assets. Check and preserve notices for any third-party material you introduce.
 
-### 📦 Organización de Archivos
+## Resources
 
-- **ViewModels** - En `presentation/viewmodel/`
-- **Screens** - En `presentation/screens/`
-- **Components** - En `presentation/components/`
-- **Models** - En `data/model/`
-- **Repositories** - En `data/repository/`
+- [React documentation](https://react.dev/)
+- [TypeScript documentation](https://www.typescriptlang.org/docs/)
+- [Vite documentation](https://vite.dev/guide/)
+- [MDN web platform documentation](https://developer.mozilla.org/)
+- [Testing Library](https://testing-library.com/)
 
----
+Questions and suggestions are welcome in the issue tracker.
 
-## 🧪 Pruebas
+## Independent native work and publication
 
-### Ejecutar Pruebas
-
-```bash
-# Pruebas unitarias
-./gradlew test
-
-# Pruebas de instrumentación (Android)
-./gradlew connectedAndroidTest
-```
-
-### Escribir Pruebas
-
-- **Pruebas Unitarias** - Usa JUnit y MockK
-- **Pruebas de UI** - Usa Compose Testing
-- **Cobertura** - Intenta mantener una buena cobertura de código
-
----
-
-## 🔧 Configuración del Entorno
-
-### Prerrequisitos
-
-- **JDK 17+**
-- **Gradle 8.0+**
-- **Android Studio** (para desarrollo móvil)
-- **Git**
-
-### Configuración Inicial
-
-1. Clona el repositorio:
-   ```bash
-   git clone https://github.com/jaime-gaming/Wave.git
-   ```
-
-2. Abre el proyecto en Android Studio o tu IDE preferido
-
-3. Sincroniza las dependencias de Gradle
-
-4. ¡Listo para empezar a codificar!
-
----
-
-## 📚 Recursos
-
-- [Documentación de Kotlin](https://kotlinlang.org/docs/home.html)
-- [Jetpack Compose](https://developer.android.com/jetpack/compose)
-- [Material Design 3](https://m3.material.io/)
-- [Guía de Contribución de GitHub](https://guides.github.com/activities/contributing-to-open-source/)
-
----
-
-## 🙏 Reconocimientos
-
-Gracias a todos los colaboradores que han ayudado a mejorar Wave. ¡Tu contribución es valiosa!
-
----
-
-**¿Preguntas?** Abre un Issue o contacta al equipo de desarrollo.
-
-¡Feliz codificación! 🎉
+See [PLATFORMS](docs/PLATFORMS.md) for Android/Windows toolchains and the explicit parity gaps. Native source is not a web wrapper. Test platform lifecycle, interruptions, original-byte storage and malformed metadata independently. Do not claim runtime verification from syntax or XML checks. Never check in music, signing credentials, build artifacts or machine-local SDK paths. Public production distribution must satisfy owner-approved publication requirements and applicable dependency/runtime notices.

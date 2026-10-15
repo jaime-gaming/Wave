@@ -1,0 +1,107 @@
+<?xml version="1.0" ?>
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="Wave.Windows.MainWindow" Title="Wave" Icon="/Wave.ico" Width="1120" Height="780" MinWidth="760" MinHeight="560" Background="#10141F" Foreground="#E3E5F1" FontFamily="Segoe UI" Closing="ClosingWindow">
+  <Grid>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition x:Name="SidebarWidth" Width="196"/>
+      <ColumnDefinition Width="*"/>
+    </Grid.ColumnDefinitions>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="*"/>
+      <RowDefinition x:Name="MiniHeight" Height="76"/>
+    </Grid.RowDefinitions>
+    <StackPanel x:Name="NavigationPanel" Margin="14,24">
+      <StackPanel Orientation="Horizontal" Margin="12,0,0,28">
+        <Path Data="M4,7 C7,7 7,23 12,23 C17,23 17,7 20,7 C23,7 23,23 28,23 C33,23 33,7 36,7" Stroke="#89A9EC" StrokeThickness="4.5" Width="40" Height="32" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+        <TextBlock Text="Wave" FontSize="24" FontWeight="Bold" Margin="10,0"/>
+      </StackPanel>
+      <Button Content="Home" Click="HomeClick"/>
+      <Button Content="Library" Click="LibraryClick"/>
+      <Button Content="Favorites" Click="FavoritesClick"/>
+      <Button Content="Settings" Click="SettingsClick"/>
+      <Button Content="Add music" Click="ImportClick"/>
+    </StackPanel>
+    <Grid x:Name="ContentPanel" Grid.Column="1" Margin="24">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="*"/>
+      </Grid.RowDefinitions>
+      <TextBlock x:Name="Heading" Text="Home" FontSize="36" FontWeight="Bold"/>
+      <TextBlock x:Name="Message" Grid.Row="1" TextWrapping="Wrap" Foreground="#B0C7FF" Margin="0,12"/>
+      <Grid Grid.Row="2">
+        <ScrollViewer x:Name="SettingsView" Visibility="Collapsed">
+          <StackPanel>
+            <Button Content="Back" Click="HomeClick" HorizontalAlignment="Left"/>
+            <TextBlock Text="Playback" FontSize="20" Margin="0,14"/>
+            <TextBlock x:Name="FadeLabel" Text="Crossfade: Off"/>
+            <Slider x:Name="Fade" Minimum="0" Maximum="12" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="FadeChanged" Margin="0,12"/>
+            <TextBlock Text="Equal-power overlap. Original audio stays unchanged."/>
+            <CheckBox x:Name="Online" Content="Automatic lyrics" Foreground="#E3E5F1" Margin="0,24,0,12" Checked="OnlineChanged" Unchecked="OnlineChanged"/>
+            <TextBlock Text="Optional LRCLIB lookup sends song metadata and connection IP, never audio." TextWrapping="Wrap"/>
+            <TextBlock Text="Storage" FontSize="20" Margin="0,24,0,12"/>
+            <TextBlock x:Name="StorageText" TextWrapping="Wrap"/>
+            <Button Content="Open local library folder" Click="FolderClick" HorizontalAlignment="Left"/>
+            <TextBlock Text="Use audio and lyrics you may lawfully access. See the repository privacy information." TextWrapping="Wrap" Margin="0,24"/>
+          </StackPanel>
+        </ScrollViewer>
+        <Grid x:Name="LibraryView">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+          </Grid.RowDefinitions>
+          <TextBox x:Name="Search" TextChanged="SearchChanged" ToolTip="Search songs, artists, albums" Margin="0,0,0,16"/>
+          <ListBox x:Name="Songs" Grid.Row="1" SelectionChanged="SongSelected" Background="#1D2230" BorderThickness="0" Foreground="#E3E5F1">
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <StackPanel Margin="10">
+                  <TextBlock Text="{Binding Title}" FontSize="17" FontWeight="SemiBold"/>
+                  <TextBlock Text="{Binding Caption}" Foreground="#ACB2C4" FontSize="12" Margin="0,4,0,0"/>
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Grid>
+        <ScrollViewer x:Name="NowView" Visibility="Collapsed">
+          <StackPanel>
+            <Button Content="Collapse" Click="HomeClick" HorizontalAlignment="Left"/>
+            <TextBlock x:Name="NowTitle" FontSize="32" FontWeight="Bold" Margin="0,16"/>
+            <TextBlock x:Name="NowArtist" Foreground="#ACB2C4"/>
+            <Slider x:Name="Seek" Minimum="0" Maximum="1" PreviewMouseLeftButtonUp="SeekReleased" PreviewKeyUp="SeekKey" Margin="0,24"/>
+            <StackPanel Orientation="Horizontal">
+              <Button Content="Previous" Click="PreviousClick"/>
+              <Button x:Name="NowToggle" Content="Play" Click="ToggleClick"/>
+              <Button Content="Next" Click="NextClick"/>
+              <Button Content="Favorite" Click="FavoriteClick"/>
+              <Button Content="Edit song / lyrics" Click="EditClick"/>
+            </StackPanel>
+            <Expander x:Name="LyricsDisclosure" Header="Lyrics" IsExpanded="True" Foreground="#E3E5F1" Margin="0,24">
+              <StackPanel>
+                <Button Content="Search online" Click="LyricsClick" HorizontalAlignment="Left"/>
+                <TextBlock Text="Search sends title/artist to LRCLIB, not audio." Foreground="#ACB2C4" FontSize="12"/>
+                <StackPanel x:Name="LyricsLines" Margin="0,16"/>
+              </StackPanel>
+            </Expander>
+          </StackPanel>
+        </ScrollViewer>
+      </Grid>
+    </Grid>
+    <Border x:Name="MiniPlayer" Grid.Row="1" Grid.Column="1" Background="#282E3E" CornerRadius="20" Margin="12,0,24,12">
+      <Grid Margin="12,6">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+        <Button Click="NowClick" Background="Transparent" HorizontalContentAlignment="Left">
+          <StackPanel>
+            <TextBlock x:Name="MiniTitle" Text="Nothing playing" FontWeight="Bold"/>
+            <TextBlock x:Name="MiniArtist" Text="Choose a song" FontSize="12" Foreground="#ACB2C4"/>
+          </StackPanel>
+        </Button>
+        <StackPanel Grid.Column="1" Orientation="Horizontal">
+          <Button x:Name="MiniToggle" Content="Play" Click="ToggleClick"/>
+          <Button Content="Next" Click="NextClick"/>
+        </StackPanel>
+      </Grid>
+    </Border>
+  </Grid>
+</Window>

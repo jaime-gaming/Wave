@@ -1,0 +1,105 @@
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { expect, it, vi } from 'vitest';
+import { LyricsPanel } from './LyricsPanel';
+import { parseLyrics } from '../domain/lyrics';
+import { makeTrack } from '../test/fixtures';
+it('fills text in reading order without an elapsed bar, follows seeks and preserves text', () => {
+  const previous = HTMLElement.prototype.scrollTo;
+  HTMLElement.prototype.scrollTo = vi.fn();
+  try {
+    const track = makeTrack({ lyrics: parseLyrics('[00:00]First word\n[00:04]Next line') });
+    const props = { track, time: 2, duration: 8, onSeek: vi.fn(), onEdit: vi.fn() };
+    const { container, rerender } = render(<LyricsPanel {...props} />);
+    const first = screen.getByRole('button', { name: 'Seek to lyric: First word' });
+    expect(first).toHaveAttribute('aria-current', 'true');
+    expect(first.textContent).toBe('First word');
+    expect(first.querySelector('.lyric-text')).toHaveAttribute('data-fill', '0.5');
+    expect(first.querySelectorAll('.lyric-word')).toHaveLength(2);
+    expect(first.querySelector('.lyric-word')?.getAttribute('style')).toContain('100%');
+    expect(container.querySelector('.lyric-elapsed')).toBeNull();
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+    rerender(<LyricsPanel {...props} time={6} />);
+    expect(
+      screen.getByRole('button', { name: 'Seek to lyric: Next line' }).querySelector('.lyric-text'),
+    ).toHaveAttribute('data-fill', '0.5');
+    expect(first.querySelector('.lyric-text')).toHaveAttribute('data-fill', '1');
+    rerender(<LyricsPanel {...props} time={0} />);
+    expect(first.querySelector('.lyric-text')).toHaveAttribute('data-fill', '0');
+  } finally {
+    HTMLElement.prototype.scrollTo = previous;
+  }
+});
+
+it('keeps timing controls tucked away while retaining editing and attribution', () => {
+  const previous = HTMLElement.prototype.scrollTo;
+  HTMLElement.prototype.scrollTo = vi.fn();
+  try {
+    const lyrics = {
+      ...parseLyrics('[00:00]First line\n[00:04]Next line', 0, 'lrclib'),
+      providerId: 42,
+    };
+    const onOffset = vi.fn().mockResolvedValue(true),
+      onEdit = vi.fn();
+    const { container } = render(
+      <LyricsPanel
+        stage
+        track={makeTrack({ lyrics })}
+        time={1}
+        duration={90}
+        onSeek={vi.fn()}
+        onEdit={onEdit}
+        onOffset={onOffset}
+      />,
+    );
+    const details = container.querySelector('details')!;
+    expect(details.open).toBe(false);
+    expect(screen.getByRole('link', { name: 'LRCLIB' })).toHaveAttribute(
+      'href',
+      'https://lrclib.net/lyrics/42',
+    );
+    expect(screen.queryByText(/Word-timed|saved offline/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Adjust lyric timing'));
+    expect(details.open).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Show lyrics 100 milliseconds later' }));
+    expect(onOffset).toHaveBeenCalledWith({ ...lyrics, offsetMs: 100 });
+    fireEvent.click(screen.getByRole('button', { name: 'Edit lyrics' }));
+    expect(onEdit).toHaveBeenCalledOnce();
+  } finally {
+    HTMLElement.prototype.scrollTo = previous;
+  }
+});
+
+it('recovers the timing controls after a failed save instead of leaving them disabled', async () => {
+  const previous = HTMLElement.prototype.scrollTo;
+  HTMLElement.prototype.scrollTo = vi.fn();
+  try {
+    const lyrics = parseLyrics('[00:00]First line\n[00:04]Next line');
+    const onOffset = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('Storage unavailable'))
+      .mockResolvedValueOnce(true);
+    render(
+      <LyricsPanel
+        stage
+        track={makeTrack({ lyrics })}
+        time={1}
+        duration={90}
+        onSeek={vi.fn()}
+        onEdit={vi.fn()}
+        onOffset={onOffset}
+      />,
+    );
+    fireEvent.click(screen.getByLabelText('Adjust lyric timing'));
+    const later = screen.getByRole('button', { name: 'Show lyrics 100 milliseconds later' });
+    fireEvent.click(later);
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent('Could not save timing'),
+    );
+    expect(later).toBeEnabled();
+    fireEvent.click(later);
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+    expect(onOffset).toHaveBeenCalledTimes(2);
+  } finally {
+    HTMLElement.prototype.scrollTo = previous;
+  }
+});

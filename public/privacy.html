@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Wave — Privacy &amp; rights</title>
+    <link rel="stylesheet" href="privacy.css" />
+    <script src="privacy-theme.js" defer></script>
+  </head>
+  <body>
+    <header class="privacy-nav">
+      <a class="back-link" href="./">← Back to Wave</a
+      ><span class="wordmark"><img src="wave.svg" alt="" />Wave</span>
+    </header>
+    <main>
+      <header class="privacy-hero">
+        <p class="eyebrow">YOUR MUSIC, YOUR DEVICE</p>
+        <h1>Privacy &amp; rights</h1>
+        <p class="intro">
+          Understand what stays here, when Wave connects, and the controls you have.
+        </p>
+        <p class="updated">Updated 15 October 2026 · Development version</p>
+      </header>
+      <p class="notice">
+        Wave is local-first, not a backup service. Keep your original music files. Public deployment
+        operators must provide their legal identity and private privacy contact before release; this
+        development notice does not supply them.
+      </p>
+      <section class="privacy-topic">
+        <h2>Your library stays on your device</h2>
+        <p>
+          Music, metadata, favorites, playlists, images and cached lyrics are kept in this browser's
+          IndexedDB; preferences and the playback session use localStorage. No accounts, analytics,
+          advertising, telemetry, cloud synchronization or audio uploads are implemented. Clearing
+          site data, private browsing or storage eviction can erase the stored copies. Original
+          files on your disk are not changed or deleted.
+        </p>
+      </section>
+      <section class="privacy-topic">
+        <h2>Queue, progress and appearance</h2>
+        <p>
+          Your selected song, queue order, repeat/shuffle and playback positions are saved in this
+          browser. Reloading restores a paused session, never automatic playback. This is a
+          current-session bookmark, not an account or a cloud backup. It is scoped to this website
+          origin; a different browser, device or deployment address has separate storage.
+        </p>
+        <p>
+          Artwork colors are sampled locally to style the interface. Automatic playlist icons
+          combine local cover colors in memory; they do not send images to a design service or
+          modify your audio. Theme and the last palette can be remembered locally so this notice
+          matches Wave.
+        </p>
+      </section>
+      <section class="privacy-topic">
+        <h2>Your controls</h2>
+        <ul class="control-list">
+          <li>
+            <strong>Keep your originals.</strong> Browser storage can be cleared or evicted. Wave is
+            not a backup.
+          </li>
+          <li>
+            <strong>Remove one song or playlist.</strong> Use its options in the library. Removing a
+            playlist does not delete the music.
+          </li>
+          <li>
+            <strong>Remove downloaded lyrics.</strong> Open the lyric editor. Manual lyrics take
+            precedence over online matches.
+          </li>
+          <li>
+            <strong>Clear everything for this site.</strong> Use your browser’s site-data controls.
+            This removes local copies, artwork, preferences and saved progress; it cannot erase the
+            original files on disk or copies held elsewhere.
+          </li>
+        </ul>
+      </section>
+      <section class="privacy-topic">
+        <h2>Online lyrics are optional</h2>
+        <p>
+          Automatic lyrics is off initially. Enabling it in Settings sends song title, artist,
+          optional album/duration and a client identifier to LRCLIB. The provider also receives
+          connection information such as your IP address. Audio and artwork are not sent. The Search
+          online action requests one song even while automatic lookup is off. Turn automatic lookup
+          off to stop new automatic requests; an already sent request cannot be recalled. Saved text
+          remains local and can be removed in the lyric editor.
+        </p>
+        <p>
+          <a href="https://lrclib.net/docs" rel="noreferrer">LRCLIB documentation</a> describes API
+          use. Provider privacy/retention terms and a blanket copyright license for lyrics were not
+          verified during review. API availability does not grant rights to copyrighted text.
+        </p>
+      </section>
+      <section class="privacy-topic">
+        <h2>Metadata checks stay on your device</h2>
+        <p>
+          Imports inspect tags, duration and embedded covers locally, using a same-origin worker
+          where supported. Original audio stays unchanged. Local checks do not identify recordings
+          against an external catalogue.
+        </p>
+        <p>
+          Online catalogue checks and cover downloading have been removed. Imports and metadata
+          review make no MusicBrainz or Cover Art Archive requests, including when an older
+          verification preference is saved. Previously saved details and covers remain local; they
+          are not automatically erased or reverted. Prior provider requests cannot be recalled. Use
+          local editing/restoration or browser site-data controls to manage saved data. The separate
+          optional lyric-search policy is unchanged.
+        </p>
+        <h2>Local continuous listening</h2>
+        <p>
+          Autoplay selects only from your local songs, using artist, album, available genre/year,
+          favorites, duration and recent-session IDs with weighted variety. No online recommendation
+          profile or streaming audio is requested. Repeat modes take priority; Autoplay can be
+          switched off. Mix chooses the handover locally without uploading audio, changing
+          tempo/pitch or rewriting your files.
+        </p>
+      </section>
+      <section class="privacy-topic">
+        <h2>The website host</h2>
+        <p>
+          Visiting a GitHub Pages deployment downloads the client from GitHub, which may process
+          IP/device/request information under its
+          <a
+            href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement"
+            rel="noreferrer"
+            >privacy statement</a
+          >. Other hosts have their own policies. Fonts are served with Wave, not fetched from a
+          font CDN.
+        </p>
+      </section>
+      <section class="privacy-topic">
+        <h2>Music, lyrics and artwork rights</h2>
+        <p>
+          Use only content you are entitled to access and use. Free/open-source software does not
+          authorize copying or distributing music, lyrics or covers. Wave bundles no music
+          catalogue, bypasses no access controls and does not download streaming audio. Spain's
+          private-copy exception has specific cumulative conditions; it is not permission to
+          download arbitrary online material. This is not legal advice or certification.
+        </p>
+      </section>
+      <section class="privacy-topic">
+        <h2>Contact and further information</h2>
+        <p>
+          Read the
+          <a href="https://github.com/jaime-gaming/Wave/blob/main/PRIVACY.md" rel="noreferrer"
+            >technical privacy notice</a
+          >, and <a href="https://github.com/jaime-gaming/Wave" rel="noreferrer">project source</a>.
+          Public issues are visible to others: do not attach personal music, private metadata or
+          credentials. Applicable privacy rights and complaint channels must be explained by the
+          actual deployment operator.
+        </p>
+      </section>
+      <footer class="privacy-footer">
+        <a href="./">Return to your music →</a><span>Local-first · No account required</span>
+      </footer>
+    </main>
+  </body>
+</html>

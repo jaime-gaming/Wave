@@ -1,64 +1,50 @@
-# Código de Conducta de Wave 🌊
+# Wave Code of Conduct
 
----
+## Our pledge
 
-## 🤝 Nuestro Compromiso
+In the interest of fostering an open and welcoming environment, we as contributors and maintainers pledge to make participation in our project and community a harassment-free experience for everyone, regardless of age, body size, visible or invisible disability, ethnicity, gender identity and expression, level of experience, education, socioeconomic status, nationality, personal appearance, race, religion, or sexual identity and orientation.
 
-En el interés de fomentar un entorno abierto y acogedor, nosotros, como colaboradores y mantenedores, nos comprometemos a hacer que la participación en nuestro proyecto y comunidad sea una experiencia libre de acoso para todos, independientemente de la edad, tamaño corporal, discapacidad visible o invisible, etnia, identidad y expresión de género, nivel de experiencia, educación, estatus socioeconómico, nacionalidad, apariencia personal, raza, religión o identidad y orientación sexual.
+We do not tolerate abusive, harassing, or disrespectful behavior from any project contributor.
 
-No toleramos el comportamiento abusivo, acosador o irrespetuoso de ningún colaborador del proyecto.
+## Our standards
 
----
+Examples of behavior that contributes to creating a positive environment include:
 
-## 📋 Normas
+- Being kind and respectful.
+- Using welcoming and inclusive language.
+- Being patient and understanding.
+- Gracefully accepting constructive criticism.
+- Focusing on what is best for the community.
+- Showing empathy towards other community members.
 
-Ejemplos de comportamientos que contribuyen a crear un entorno positivo:
+Examples of unacceptable behavior include:
 
-✅ **Ser amable y respetuoso**
-✅ **Usar lenguaje inclusivo**
-✅ **Ser paciente y comprensivo**
-✅ **Aceptar críticas constructivas**
-✅ **Enfocarse en lo que es mejor para la comunidad**
-✅ **Mostrar empatía hacia otros colaboradores**
+- The use of sexualized language or imagery and unwelcome sexual attention or advances.
+- Trolling, insulting or derogatory comments, and personal or political attacks.
+- Public or private harassment.
+- Publishing others' private information without explicit permission.
+- Other conduct that could reasonably be considered inappropriate in a professional setting.
 
-Ejemplos de comportamientos inaceptables:
+## Maintainer responsibilities
 
-❌ **El uso de lenguaje o imágenes sexualizadas y la atención sexual no deseada**
-❌ **Comentarios insultantes o despectivos y ataques personales o políticos**
-❌ **Acoso público o privado**
-❌ **Publicar información privada de otros sin su consentimiento explícito**
-❌ **Otra conducta que pueda ser razonablemente considerada inapropiada en un entorno profesional**
+Project maintainers are responsible for clarifying the standards of acceptable behavior and are expected to take appropriate and fair corrective action in response to unacceptable behavior.
 
----
+Project maintainers have the right and responsibility to remove, edit, or reject comments, commits, code, wiki edits, issues, and other contributions that are not aligned with this Code of Conduct, or to ban temporarily or permanently any contributor for behavior they deem inappropriate, threatening, offensive, or harmful.
 
-## 🛡️ Responsabilidades del Mantenedor
+## Scope
 
-Los mantenedores del proyecto son responsables de aclarar los estándares de comportamiento aceptable y se espera que tomen medidas apropiadas y justas para corregir cualquier comportamiento inaceptable.
+This Code of Conduct applies within all project spaces and when an individual is officially or publicly representing the project in public spaces. Examples include using an official project email address, posting through an official social media account, or acting as an appointed representative at an online or offline event.
 
-Los mantenedores del proyecto tienen el derecho y la responsabilidad de eliminar, editar o rechazar comentarios, commits, código, ediciones de wiki, issues y otras contribuciones que no se alineen con este Código de Conducta, o de prohibir temporal o permanentemente a cualquier colaborador por comportamientos que consideren inapropiados, amenazantes, ofensivos o dañinos.
+## Enforcement
 
----
+Instances of unacceptable behavior may be reported to [jaime-gaming](https://github.com/jaime-gaming) through GitHub. Do not publish sensitive incident details in a public issue; contact the maintainer to arrange a private reporting channel.
 
-## 📜 Alcance
+All complaints will be reviewed and investigated and will result in a response considered necessary and appropriate to the circumstances. The project team is obligated to maintain confidentiality with regard to the reporter of an incident. Further details of specific enforcement policies may be posted separately.
 
-Este Código de Conducta se aplica dentro de todos los espacios del proyecto y también se aplica cuando un individuo está representando oficial o públicamente al proyecto en espacios públicos. Ejemplos de representación del proyecto incluyen el uso de una dirección de correo electrónico oficial del proyecto, la publicación mediante una cuenta oficial de redes sociales o actuar como representante designado en un evento en línea o fuera de línea.
+Project maintainers who do not follow or enforce the Code of Conduct in good faith, or who do not apply it fairly, may face temporary or permanent disciplinary action as determined by other members of the project's leadership.
 
----
+## Attribution
 
-## 🚨 Cumplimiento
+This Code of Conduct is adapted from the [Contributor Covenant](https://www.contributor-covenant.org), version 1.4, available at <https://www.contributor-covenant.org/version/1/4/code-of-conduct.html>.
 
-Se pueden reportar instancias de comportamiento inaceptable a [jaime-gaming](https://github.com/jaime-gaming) a través de GitHub.
-
-Todos los quejas serán revisadas e investigadas y darán lugar a una respuesta que se considere necesaria y apropiada a las circunstancias. El equipo del proyecto está obligado a mantener la confidencialidad con respecto al reportero de un incidente. Más detalles sobre las políticas de cumplimiento específicas pueden publicarse por separado.
-
-Los mantenedores del proyecto que no sigan o no cumplan con el Código de Conducta de buena fe, o que no apliquen este Código de Conducta de manera justa, pueden enfrentar acciones disciplinarias temporales o permanentes a discreción de los otros miembros del liderazgo del proyecto.
-
----
-
-## 📝 Atribución
-
-Este Código de Conducta está adaptado del [Código de Conducta del Contribuyente](https://www.contributor-covenant.org), versión 1.4, disponible en [https://www.contributor-covenant.org/version/1/4/code-of-conduct.html](https://www.contributor-covenant.org/version/1/4/code-of-conduct.html)
-
----
-
-**Gracias por ayudar a mantener nuestra comunidad acogedora y respetuosa. 🙏**
+Thank you for helping keep our community welcoming and respectful.

@@ -1,0 +1,49 @@
+name: Native builds
+on:
+  push:
+    paths: ['platforms/**', '.github/workflows/native.yml']
+  pull_request:
+    paths: ['platforms/**', '.github/workflows/native.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+      - run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+      - run: gradle -p platforms/android testDebugUnitTest lintDebug assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wave-android-debug-test-only
+          path: platforms/android/app/build/outputs/apk/debug/*.apk
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - run: dotnet build platforms/windows/Wave.Windows/Wave.Windows.csproj -c Release
+      - run: dotnet publish platforms/windows/Wave.Windows/Wave.Windows.csproj -c Release -r win-x64 --self-contained false -o artifacts/windows
+      - shell: pwsh
+        run: |
+          Copy-Item LICENSE artifacts/windows/LICENSE-Wave.txt
+          Copy-Item THIRD_PARTY_NOTICES.md artifacts/windows/
+          Copy-Item platforms/windows/THIRD_PARTY_NOTICES.md artifacts/windows/NativeNotices.md
+          Copy-Item platforms/windows/LICENSE-DotNet.txt artifacts/windows/
+          Copy-Item platforms/windows/THIRD-PARTY-NOTICES-DotNet.txt artifacts/windows/
+          Compress-Archive artifacts/windows/* artifacts/Wave-Windows-x64-unsigned.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wave-windows-unsigned-test-only
+          path: artifacts/Wave-Windows-x64-unsigned.zip
