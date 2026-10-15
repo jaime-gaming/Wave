@@ -68,6 +68,11 @@ public partial class MainWindow : Window
         LibraryView.Visibility = page is "Now playing" or "Settings" ? Visibility.Collapsed : Visibility.Visible;
         NowView.Visibility = expanded ? Visibility.Visible : Visibility.Collapsed;
         SettingsView.Visibility = page == "Settings" ? Visibility.Visible : Visibility.Collapsed;
+        if (NavigationPanel.Content is StackPanel navigation) foreach (var button in navigation.Children.OfType<Button>()) {
+            bool selected = Equals(button.Tag, page == "Daily mix" ? "Home" : page);
+            button.SetResourceReference(Control.BackgroundProperty, selected ? "TonalBrush" : "BackgroundBrush");
+            button.FontWeight = selected ? FontWeights.SemiBold : FontWeights.Normal;
+        }
         UpdateDock();
         if (page == "Settings") RenderSettings(); else if (!expanded) Refresh();
         if (preferences.Animations) LibraryView.BeginAnimation(OpacityProperty, new DoubleAnimation(.35, 1, TimeSpan.FromMilliseconds(180)));
@@ -87,6 +92,8 @@ public partial class MainWindow : Window
             tracks = repository.Load(); Notify($"{added} tracks added; identical files skipped."); Refresh();
         } catch (Exception error) { tracks = repository.Load(); Refresh(); Notify(error.Message); }
     }
+    private void ArtworkPlayClick(object sender, MouseButtonEventArgs e) { if (sender is Border { Tag: Song song }) { PlayCollection(visible, song.Id); e.Handled = true; } }
+    private void ToggleArtwork(object sender, MouseButtonEventArgs e) { ToggleClick(sender, e); e.Handled = true; }
     private void SongPlayClick(object sender, RoutedEventArgs e) { if (sender is Button { Tag: Song song }) PlayCollection(visible, song.Id); }
     private void SongDoubleClick(object sender, MouseButtonEventArgs e) { if (e.OriginalSource is DependencyObject source && FindParent<Button>(source) == null && Songs.SelectedItem is Song song) PlayCollection(visible, song.Id); }
     private static T? FindParent<T>(DependencyObject? node) where T : DependencyObject { while (node != null) { if (node is T found) return found; node = VisualTreeHelper.GetParent(node); } return null; }

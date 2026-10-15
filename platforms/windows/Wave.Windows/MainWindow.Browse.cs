@@ -7,10 +7,10 @@ public partial class MainWindow
 {
     private static string AlbumKey(Song song) => song.Artist + "\u001f" + song.Album;
     private static TextBlock Label(string text, double size = 15) => new() { Text = text, FontSize = size, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(4, 6, 4, 6) };
-    private static Button ActionButton(string text, Action action)
+    private Button ActionButton(string text, Action action)
     {
         var button = new Button { Content = text };
-        button.Click += (_, _) => action(); return button;
+        button.Click += (_, _) => Safe(action); return button;
     }
     private void Refresh()
     {

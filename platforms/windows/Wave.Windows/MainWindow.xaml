@@ -36,12 +36,12 @@
               <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
               <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="390"><StackPanel x:Name="CollectionHeader"/></ScrollViewer>
               <ListBox x:Name="Songs" Grid.Row="1" BorderThickness="0" Background="Transparent" ScrollViewer.HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" ScrollViewer.CanContentScroll="True" MouseDoubleClick="SongDoubleClick">
-                <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Padding" Value="0"/><Setter Property="Margin" Value="0,3"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/></Style></ListBox.ItemContainerStyle>
+                <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Padding" Value="0"/><Setter Property="Margin" Value="0,3"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/><Style.Triggers><Trigger Property="IsSelected" Value="True"><Setter Property="Background" Value="{DynamicResource TonalBrush}"/></Trigger></Style.Triggers></Style></ListBox.ItemContainerStyle>
                 <ListBox.ItemTemplate><DataTemplate>
                   <Grid Margin="4,6">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="150"/><ColumnDefinition Width="52"/><ColumnDefinition Width="52"/></Grid.ColumnDefinitions>
                     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="56"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                      <Border Background="{DynamicResource TonalBrush}" CornerRadius="12" Width="48" Height="48"><Grid><TextBlock Text="♪" FontSize="25" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource AccentBrush}"/><Border CornerRadius="12"><Border.Background><ImageBrush ImageSource="{Binding Artwork}" Stretch="UniformToFill"/></Border.Background></Border></Grid></Border>
+                      <Border Background="{DynamicResource TonalBrush}" CornerRadius="12" Width="48" Height="48" Tag="{Binding}" Cursor="Hand" MouseLeftButtonUp="ArtworkPlayClick"><Grid><TextBlock Text="♪" FontSize="25" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource AccentBrush}"/><Border CornerRadius="12"><Border.Background><ImageBrush ImageSource="{Binding Artwork}" Stretch="UniformToFill"/></Border.Background></Border></Grid></Border>
                       <StackPanel Grid.Column="1" VerticalAlignment="Center" MinWidth="0">
                         <Button Content="{Binding Title}" Tag="{Binding}" Click="SongPlayClick" Style="{StaticResource TextButton}" ToolTip="{Binding Title}"/>
                         <Button Content="{Binding Artist}" Tag="{Binding}" Click="SongArtistClick" Style="{StaticResource TextButton}" FontSize="13" Foreground="{DynamicResource MutedBrush}"/>
@@ -61,7 +61,7 @@
               <Grid Grid.Row="1" Margin="0,20">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition x:Name="LyricsWidth" Width="*"/></Grid.ColumnDefinitions>
                 <Grid Margin="24" SizeChanged="ArtHostChanged"><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                  <Border x:Name="NowArt" MaxWidth="430" MaxHeight="430" CornerRadius="32" Background="{DynamicResource TonalBrush}"><TextBlock x:Name="ArtPlaceholder" Text="♪" FontSize="96" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource AccentBrush}"/></Border>
+                  <Border x:Name="NowArt" MouseLeftButtonUp="ToggleArtwork" Cursor="Hand" MaxWidth="430" MaxHeight="430" CornerRadius="32" Background="{DynamicResource TonalBrush}"><TextBlock x:Name="ArtPlaceholder" Text="♪" FontSize="96" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource AccentBrush}"/></Border>
                   <StackPanel Grid.Row="1" Margin="0,20,0,0"><TextBlock x:Name="NowTitle" FontSize="28" FontWeight="Bold" TextTrimming="CharacterEllipsis" TextAlignment="Center"/><Button x:Name="NowArtist" Click="NowArtistClick" Style="{StaticResource TextButton}" HorizontalAlignment="Center"/></StackPanel>
                 </Grid>
                 <ScrollViewer x:Name="LyricsScroll" Grid.Column="1" VerticalScrollBarVisibility="Auto" Padding="24"><StackPanel x:Name="LyricsLines"/></ScrollViewer>

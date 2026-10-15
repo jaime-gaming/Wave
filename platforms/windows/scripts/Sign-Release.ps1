@@ -10,7 +10,8 @@ if ($TimestampServer.Scheme -ne 'https') { throw 'Use an HTTPS timestamp service
 $root = (Resolve-Path $Directory).Path
 $certificate = Get-Item "Cert:\CurrentUser\My\$CertificateThumbprint"
 if (-not $certificate.HasPrivateKey -or $certificate.NotAfter -le (Get-Date)) { throw 'A current code-signing certificate with its private key is required.' }
-if (-not ($certificate.EnhancedKeyUsageList.ObjectId.Value -contains '1.3.6.1.5.5.7.3.3')) { throw 'The certificate must permit code signing.' }
+$usages = @($certificate.Extensions | Where-Object { $_ -is [System.Security.Cryptography.X509Certificates.X509EnhancedKeyUsageExtension] } | ForEach-Object { $_.EnhancedKeyUsages } | ForEach-Object { $_.Value })
+if (-not ($usages -contains '1.3.6.1.5.5.7.3.3')) { throw 'The certificate must permit code signing.' }
 foreach ($name in @('Wave.Windows.exe', 'Wave.Windows.dll')) {
   $path = Join-Path $root $name
   if (-not (Test-Path $path)) { throw "Missing release binary: $name" }
