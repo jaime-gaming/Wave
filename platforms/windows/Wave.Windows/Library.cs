@@ -3,15 +3,17 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 namespace Wave.Windows;
-public record Song(string Id,string Title,string Artist,string Album,string FileName,string Path,double Duration=0,bool Favorite=false,string Lyrics="",long CheckedAt=0) { public string Caption => $"{Artist} · {Album} · {FileName}"; }
-public record Preferences(double Crossfade=0,bool OnlineLyrics=false);
+public record Song(string Id,string Title,string Artist,string Album,string FileName,string Path,double Duration=0,bool Favorite=false,string Lyrics="",long CheckedAt=0,string? Artwork=null) { public string Caption => $"{Artist} · {Album} · {FileName}"; }
+public record Preferences(double Crossfade=0, bool OnlineLyrics=false, bool? Mix=null,
+ bool Autoplay=true, double Volume=.8, string Theme="dark", bool LargerText=false,
+ bool Editor=false, bool Animations=true);
 public sealed class Library {
  public string Folder { get; } = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Wave");
  private string Index=>System.IO.Path.Combine(Folder,"library.json");
  public Library(){Directory.CreateDirectory(System.IO.Path.Combine(Folder,"audio"));}
  public List<Song> Load()=>File.Exists(Index)?JsonSerializer.Deserialize<List<Song>>(File.ReadAllText(Index))??[]:[];
  public void Save(List<Song> songs){var temp=Index+".tmp";File.WriteAllText(temp,JsonSerializer.Serialize(songs));File.Move(temp,Index,true);}
- public Preferences LoadPreferences(){var path=System.IO.Path.Combine(Folder,"preferences.json");return File.Exists(path)?JsonSerializer.Deserialize<Preferences>(File.ReadAllText(path))??new():new();}
+ public Preferences LoadPreferences(){var path=System.IO.Path.Combine(Folder,"preferences.json");return File.Exists(path)?JsonSerializer.Deserialize<Preferences>(File.ReadAllText(path))??new(Mix:true):new(Mix:true);}
  public void SavePreferences(Preferences value){var path=System.IO.Path.Combine(Folder,"preferences.json");File.WriteAllText(path+".tmp",JsonSerializer.Serialize(value));File.Move(path+".tmp",path,true);}
  public async Task<int> Import(IEnumerable<string> paths){var songs=Load();int count=0;foreach(var path in paths){var info=new FileInfo(path);if(info.Length is <=0 or >209715200)throw new IOException("Choose a nonempty file up to 200 MB.");await using var stream=File.OpenRead(path);var hash=Convert.ToHexString(await SHA256.HashDataAsync(stream)).ToLowerInvariant();if(songs.Any(song=>song.Id==hash))continue;var destination=System.IO.Path.Combine(Folder,"audio",hash+info.Extension.ToLowerInvariant());File.Copy(path,destination,true);var metadata=Metadata.Read(path);var song=new Song(hash,metadata.Title??System.IO.Path.GetFileNameWithoutExtension(path),metadata.Artist??"Unknown artist",metadata.Album??"Unknown album",info.Name,destination,metadata.Duration);songs.Add(song);try{Save(songs);}catch{File.Delete(destination);throw;}count++;}return count;}
 }

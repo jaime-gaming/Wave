@@ -1,41 +1,237 @@
 using System.IO;
-using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Media.Animation;
+using System.Windows.Media.Effects;
 using System.Windows.Threading;
 using Microsoft.Win32;
 namespace Wave.Windows;
-public partial class MainWindow : Window {
- private readonly Library repository=new();private readonly LyricsClient client=new();private List<Song> tracks=[];private List<Song> queue=[];private int index=-1;private string page="Home";private MediaPlayer active=new();private MediaPlayer? spare;private MediaPlayer? outgoing;private bool ready,spareReady,playing;private double fadeLength;private Preferences preferences=new();private bool initialized;private readonly DispatcherTimer timer=new(){Interval=TimeSpan.FromMilliseconds(33)};private List<(double Time,string Text)> lines=[];private int highlighted=-2;private bool lookingUp;
- private Song? Current=>index>=0&&index<queue.Count?queue[index]:null;
- public MainWindow(){InitializeComponent();try{tracks=repository.Load();preferences=repository.LoadPreferences();}catch(Exception error){Message.Text="Could not open local storage: "+error.Message;}Fade.Value=preferences.Crossfade;Online.IsChecked=preferences.OnlineLyrics;initialized=true;FadeLabel.Text=$"Crossfade: {preferences.Crossfade:0} s";ShowPage("Home");timer.Tick+=Tick;timer.Start();}
- private void ShowPage(string value){page=value;bool expanded=value=="Now playing";SidebarWidth.Width=new GridLength(expanded?0:196);MiniHeight.Height=new GridLength(expanded?0:88);NavigationPanel.Visibility=expanded?Visibility.Collapsed:Visibility.Visible;MiniPlayer.Visibility=expanded?Visibility.Collapsed:Visibility.Visible;Heading.Text=value;SettingsView.Visibility=value=="Settings"?Visibility.Visible:Visibility.Collapsed;NowView.Visibility=value=="Now playing"?Visibility.Visible:Visibility.Collapsed;LibraryView.Visibility=value is not("Settings" or "Now playing")?Visibility.Visible:Visibility.Collapsed;StorageText.Text=$"{tracks.Count} original files stored in {repository.Folder}. Keep your originals; deleting this folder removes the library.";Refresh();}
- private void Refresh(){var query=Search.Text??"";Songs.ItemsSource=tracks.Where(song=>(page!="Favorites"||song.Favorite)&&(song.Title+" "+song.Artist+" "+song.Album).Contains(query,StringComparison.OrdinalIgnoreCase)).ToList();}
- private void HomeClick(object sender,RoutedEventArgs e)=>ShowPage("Home");private void LibraryClick(object sender,RoutedEventArgs e)=>ShowPage("Library");private void FavoritesClick(object sender,RoutedEventArgs e)=>ShowPage("Favorites");private void SettingsClick(object sender,RoutedEventArgs e)=>ShowPage("Settings");private void NowClick(object sender,RoutedEventArgs e){if(Current!=null){LyricsDisclosure.IsExpanded=true;ShowPage("Now playing");}}private void SearchChanged(object sender,TextChangedEventArgs e){if(initialized)Refresh();}
- private async void ImportClick(object sender,RoutedEventArgs e){var picker=new OpenFileDialog{Multiselect=true,Filter="Audio|*.mp3;*.wav;*.flac;*.m4a;*.aac;*.ogg;*.wma;*.aiff"};if(picker.ShowDialog()!=true)return;try{var added=await repository.Import(picker.FileNames);tracks=repository.Load();Message.Text=$"{added} tracks added; identical files skipped.";Refresh();}catch(Exception error){tracks=repository.Load();Refresh();Message.Text=error.Message;}}
- private void SongSelected(object sender,SelectionChangedEventArgs e){if(Songs.SelectedItem is not Song song)return;queue=((IEnumerable<Song>)Songs.ItemsSource).ToList();Play(queue.FindIndex(item=>item.Id==song.Id));}
- private MediaPlayer Create(Song song){var player=new MediaPlayer();player.MediaEnded+=(_,_)=>{if(ReferenceEquals(active,player))Next();};player.MediaFailed+=(_,args)=>{Message.Text="This file cannot be decoded: "+args.ErrorException.Message;if(ReferenceEquals(active,player))playing=false;};return player;}
- private void Play(int position){if(position<0||position>=queue.Count)return;CancelFade();active.Close();spare?.Close();spare=null;spareReady=false;ready=false;index=position;LyricsDisclosure.IsExpanded=true;var song=queue[index];active=Create(song);var selected=active;selected.MediaOpened+=async(_,_)=>{if(!ReferenceEquals(selected,active))return;ready=true;Seek.Maximum=active.NaturalDuration.HasTimeSpan?active.NaturalDuration.TimeSpan.TotalSeconds:Math.Max(1,song.Duration);active.Volume=1;active.Play();playing=true;PrepareNext();if(preferences.OnlineLyrics&&song.Lyrics.Length==0)await Lookup();};selected.Open(new Uri(song.Path));MiniTitle.Text=NowTitle.Text=song.Title;MiniArtist.Text=NowArtist.Text=song.Artist;MiniToggle.Content=NowToggle.Content="Pause";RenderLyrics();}
- private void PrepareNext(){if(outgoing!=null||preferences.Crossfade<=0||index+1>=queue.Count)return;spare?.Close();spareReady=false;spare=Create(queue[index+1]);var next=spare;next.Volume=0;next.MediaOpened+=(_,_)=>{if(ReferenceEquals(spare,next))spareReady=true;};next.Open(new Uri(queue[index+1].Path));}
- private void CancelFade(){outgoing?.Close();outgoing=null;active.Volume=1;}
- private void Tick(object? sender,EventArgs e){if(!ready)return;double time=active.Position.TotalSeconds;if(!Seek.IsMouseCaptureWithin)Seek.Value=time;
- if(playing&&outgoing!=null){double fraction=Math.Clamp(time/fadeLength,0,1);outgoing.Volume=Math.Cos(fraction*Math.PI/2);active.Volume=Math.Sin(fraction*Math.PI/2);if(fraction>=1){outgoing.Close();outgoing=null;PrepareNext();}}
- else if(playing&&spareReady&&spare!=null&&active.NaturalDuration.HasTimeSpan&&spare.NaturalDuration.HasTimeSpan){double remaining=active.NaturalDuration.TimeSpan.TotalSeconds-time;if(remaining>0&&remaining<=preferences.Crossfade){fadeLength=Math.Min(remaining,spare.NaturalDuration.TimeSpan.TotalSeconds/2);if(fadeLength>.1){outgoing=active;active=spare;spare=null;spareReady=false;index++;LyricsDisclosure.IsExpanded=true;active.Position=TimeSpan.Zero;active.Volume=0;active.Play();MiniTitle.Text=NowTitle.Text=Current!.Title;MiniArtist.Text=NowArtist.Text=Current.Artist;Seek.Maximum=active.NaturalDuration.TimeSpan.TotalSeconds;RenderLyrics();if(preferences.OnlineLyrics&&Current.Lyrics.Length==0)_=Lookup();}}}
- int at=lines.FindLastIndex(line=>line.Time<=time);if(at!=highlighted){highlighted=at;for(int i=0;i<LyricsLines.Children.Count;i++)if(LyricsLines.Children[i] is TextBlock text){text.Foreground=new SolidColorBrush(i==at?Color.FromRgb(176,199,255):Color.FromRgb(172,178,196));text.FontWeight=i==at?FontWeights.Bold:FontWeights.Normal;}}
- }
- private void ToggleClick(object sender,RoutedEventArgs e){if(!ready)return;CancelFade();if(playing)active.Pause();else active.Play();playing=!playing;MiniToggle.Content=NowToggle.Content=playing?"Pause":"Play";}
- private void Next(){if(index+1<queue.Count)Play(index+1);else{if(playing&&ready)active.Pause();playing=false;CancelFade();MiniToggle.Content=NowToggle.Content="Play";}}private void NextClick(object sender,RoutedEventArgs e)=>Next();private void PreviousClick(object sender,RoutedEventArgs e){if(active.Position.TotalSeconds>3)active.Position=TimeSpan.Zero;else if(index>0)Play(index-1);}
- private void SeekReleased(object sender,MouseButtonEventArgs e){if(ready){CancelFade();active.Position=TimeSpan.FromSeconds(Seek.Value);}}private void SeekKey(object sender,KeyEventArgs e){if(ready){CancelFade();active.Position=TimeSpan.FromSeconds(Seek.Value);}}
- private void FavoriteClick(object sender,RoutedEventArgs e){if(Current==null)return;Update(Current with{Favorite=!Current.Favorite});}
- private void Update(Song song){tracks=tracks.Select(item=>item.Id==song.Id?song:item).ToList();repository.Save(tracks);queue=queue.Select(item=>item.Id==song.Id?song:item).ToList();Refresh();}
- private async Task Lookup(){var song=Current;if(song==null||lookingUp)return;lookingUp=true;try{var text=await client.Find(song);var latest=tracks.Find(item=>item.Id==song.Id);if(latest!=null&&latest.Title==song.Title&&latest.Artist==song.Artist&&latest.Lyrics.Length==0)Update(latest with{Lyrics=text,CheckedAt=DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()});if(Current?.Id==song.Id)RenderLyrics();Message.Text=text.Length==0?"No matching lyrics.":"";}catch(Exception error){Message.Text=error.Message;}finally{lookingUp=false;}}
- private async void LyricsClick(object sender,RoutedEventArgs e)=>await Lookup();
- private void RenderLyrics(){LyricsLines.Children.Clear();lines=LyricsClient.Parse(Current?.Lyrics??"");highlighted=-2;if(lines.Count==0){LyricsLines.Children.Add(new TextBlock{Text=string.IsNullOrWhiteSpace(Current?.Lyrics)?"No lyrics yet.":Current!.Lyrics,TextWrapping=TextWrapping.Wrap,FontSize=21});return;}foreach(var line in lines){var text=new TextBlock{Text=line.Text.Length==0?"♪":line.Text,FontSize=25,Margin=new Thickness(0,10,0,10),TextWrapping=TextWrapping.Wrap,Cursor=Cursors.Hand};text.MouseLeftButtonUp+=(_,_)=>{if(ready){CancelFade();active.Position=TimeSpan.FromSeconds(line.Time);}};LyricsLines.Children.Add(text);}}
- private void FadeChanged(object sender,RoutedPropertyChangedEventArgs<double> e){if(!initialized)return;preferences=preferences with{Crossfade=e.NewValue};repository.SavePreferences(preferences);FadeLabel.Text=$"Crossfade: {e.NewValue:0} s";if(ready)PrepareNext();}
- private void OnlineChanged(object sender,RoutedEventArgs e){if(!initialized)return;preferences=preferences with{OnlineLyrics=Online.IsChecked==true};repository.SavePreferences(preferences);}
- private void FolderClick(object sender,RoutedEventArgs e)=>Process.Start(new ProcessStartInfo(repository.Folder){UseShellExecute=true});
- private void EditClick(object sender,RoutedEventArgs e){if(Current==null)return;var song=Current;var window=new Window{Title="Edit song",Owner=this,Width=440,Height=520,Background=new SolidColorBrush(Color.FromRgb(29,34,48)),WindowStartupLocation=WindowStartupLocation.CenterOwner};var panel=new StackPanel{Margin=new Thickness(20)};var title=new TextBox{Text=song.Title};var artist=new TextBox{Text=song.Artist};var album=new TextBox{Text=song.Album};var lyrics=new TextBox{Text=song.Lyrics,AcceptsReturn=true,TextWrapping=TextWrapping.Wrap,Height=150,VerticalScrollBarVisibility=ScrollBarVisibility.Auto};foreach(var pair in new[]{("Title",title),("Artist",artist),("Album",album),("Lyrics / LRC",lyrics)}){panel.Children.Add(new TextBlock{Text=pair.Item1,Margin=new Thickness(0,8,0,4)});panel.Children.Add(pair.Item2);}var save=new Button{Content="Save"};save.Click+=(_,_)=>{if(string.IsNullOrWhiteSpace(title.Text)||lyrics.Text.Length>100000)return;try{Update(song with{Title=title.Text.Trim(),Artist=artist.Text.Trim(),Album=album.Text.Trim(),Lyrics=lyrics.Text,CheckedAt=0});MiniTitle.Text=NowTitle.Text=title.Text;MiniArtist.Text=NowArtist.Text=artist.Text;RenderLyrics();window.Close();}catch(Exception error){Message.Text=error.Message;}};panel.Children.Add(save);window.Content=panel;window.ShowDialog();}
- private void ClosingWindow(object? sender,System.ComponentModel.CancelEventArgs e){timer.Stop();active.Close();spare?.Close();outgoing?.Close();client.Dispose();}
+
+public partial class MainWindow : Window
+{
+    private readonly Library repository = new();
+    private readonly LyricsClient client = new();
+    private List<Song> tracks = [], queue = [], visible = [];
+    private List<NativePlaylist> playlists = [];
+    private int index = -1;
+    private string page = "Home", previousPage = "Home", repeat = "off";
+    private string? collection;
+    private MediaPlayer active = new();
+    private MediaPlayer? spare, outgoing;
+    private bool ready, spareReady, playing, initialized, lookingUp, lyricsVisible = true, preferencesDirty;
+    private double fadeLength, volume = .8;
+    private Preferences preferences = new(Mix: true);
+    private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromMilliseconds(50) };
+    private DateTime lastSave = DateTime.UtcNow;
+    private List<(double Time, string Text)> lines = [];
+    private int highlighted = -2;
+    private Song? Current => index >= 0 && index < queue.Count ? queue[index] : null;
+    private bool MixEnabled => preferences.Mix ?? preferences.Crossfade > 0;
+    private TextBox? searchBox;
+    private string searchQuery = "";
+
+    public MainWindow()
+    {
+        InitializeComponent();
+        try {
+            tracks = repository.Load(); preferences = repository.LoadPreferences();
+            playlists = NativeCollections.Load<List<NativePlaylist>>(repository.Folder, "playlists.json") ?? [];
+        } catch (Exception error) { Notify("Could not open local storage: " + error.Message); }
+        ApplyTheme(); volume = Math.Clamp(preferences.Volume, 0, 1); Volume.Value = volume;
+        initialized = true; ShowPage("Home"); timer.Tick += Tick; timer.Start();
+        try {
+            var session = NativeCollections.Load<ListeningSession>(repository.Folder, "session.json");
+            if (session != null) {
+                queue = NativeCollections.Resolve(session.Queue, tracks);
+                int restored = queue.FindIndex(s => s.Id == session.CurrentId);
+                if (restored >= 0) StartSong(restored, false, session.Position);
+            }
+        } catch (Exception error) { Notify("Could not restore your listening session: " + error.Message); }
+    }
+    private void Notify(string text) { Message.Text = text; Message.Visibility = text.Length == 0 ? Visibility.Collapsed : Visibility.Visible; }
+    private void Safe(Action action) { try { action(); } catch (Exception error) { Notify(error.Message); } }
+    private void NavigateClick(object sender, RoutedEventArgs e) { if (sender is Button { Tag: string destination }) ShowPage(destination); }
+    private void ShowPage(string destination, string? group = null)
+    {
+        if (destination != "Now playing" && destination != "Settings") previousPage = destination;
+        page = destination; collection = group;
+        bool expanded = page == "Now playing";
+        SidebarWidth.Width = new GridLength(expanded ? 0 : 216);
+        NavigationPanel.Visibility = PageHeader.Visibility = expanded ? Visibility.Collapsed : Visibility.Visible;
+        Heading.Text = collection ?? page;
+        Summary.Text = $"{tracks.Count} songs · {tracks.Select(s => s.Album).Distinct().Count()} albums";
+        LibraryView.Visibility = page is "Now playing" or "Settings" ? Visibility.Collapsed : Visibility.Visible;
+        NowView.Visibility = expanded ? Visibility.Visible : Visibility.Collapsed;
+        SettingsView.Visibility = page == "Settings" ? Visibility.Visible : Visibility.Collapsed;
+        UpdateDock();
+        if (page == "Settings") RenderSettings(); else if (!expanded) Refresh();
+        if (preferences.Animations) LibraryView.BeginAnimation(OpacityProperty, new DoubleAnimation(.35, 1, TimeSpan.FromMilliseconds(180)));
+    }
+    private void UpdateDock()
+    {
+        bool show = Current != null && page != "Now playing";
+        MiniPlayer.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        MiniHeight.Height = new GridLength(show ? 92 : 0);
+    }
+    private async void ImportClick(object sender, RoutedEventArgs e)
+    {
+        var picker = new OpenFileDialog { Multiselect = true, Filter = "Audio|*.mp3;*.wav;*.flac;*.m4a;*.aac;*.ogg;*.wma;*.aiff" };
+        if (picker.ShowDialog() != true) return;
+        try {
+            Notify("Adding your music…"); int added = await repository.Import(picker.FileNames);
+            tracks = repository.Load(); Notify($"{added} tracks added; identical files skipped."); Refresh();
+        } catch (Exception error) { tracks = repository.Load(); Refresh(); Notify(error.Message); }
+    }
+    private void SongPlayClick(object sender, RoutedEventArgs e) { if (sender is Button { Tag: Song song }) PlayCollection(visible, song.Id); }
+    private void SongDoubleClick(object sender, MouseButtonEventArgs e) { if (e.OriginalSource is DependencyObject source && FindParent<Button>(source) == null && Songs.SelectedItem is Song song) PlayCollection(visible, song.Id); }
+    private static T? FindParent<T>(DependencyObject? node) where T : DependencyObject { while (node != null) { if (node is T found) return found; node = VisualTreeHelper.GetParent(node); } return null; }
+    private void SongArtistClick(object sender, RoutedEventArgs e) { if (sender is Button { Tag: Song song }) ShowPage("Artists", song.Artist); }
+    private void SongAlbumClick(object sender, RoutedEventArgs e) { if (sender is Button { Tag: Song song }) ShowPage("Albums", AlbumKey(song)); }
+    private void SongFavoriteClick(object sender, RoutedEventArgs e) { if (sender is Button { Tag: Song song }) Safe(() => Update(song with { Favorite = !song.Favorite })); }
+    private void PlayCollection(IEnumerable<Song> songs, string id) { queue = songs.ToList(); Play(queue.FindIndex(s => s.Id == id)); }
+    private void Play(int position) => StartSong(position, true, 0);
+    private MediaPlayer Create()
+    {
+        var player = new MediaPlayer();
+        player.MediaEnded += (_, _) => { if (ReferenceEquals(active, player)) Advance(true); };
+        player.MediaFailed += (_, args) => { if (!ReferenceEquals(active, player)) return; playing = false; UpdatePlaybackLabels(); Notify("This file cannot be decoded: " + args.ErrorException.Message); };
+        return player;
+    }
+    private void StartSong(int position, bool startPlaying, double restored)
+    {
+        if (position < 0 || position >= queue.Count) return;
+        CancelFade(); active.Close(); spare?.Close(); spare = null; spareReady = ready = false;
+        index = position; active = Create(); var selected = active; var song = queue[index];
+        selected.MediaOpened += async (_, _) => {
+            if (!ReferenceEquals(selected, active)) return;
+            ready = true; double duration = selected.NaturalDuration.HasTimeSpan ? selected.NaturalDuration.TimeSpan.TotalSeconds : song.Duration;
+            Seek.Maximum = Math.Max(1, duration); selected.Position = TimeSpan.FromSeconds(Math.Clamp(double.IsFinite(restored) ? restored : 0, 0, Math.Max(0, duration - .1)));
+            selected.Volume = volume; playing = startPlaying;
+            if (startPlaying) selected.Play();
+            PrepareNext(); UpdatePlaybackLabels();
+            if (preferences.OnlineLyrics && song.Lyrics.Length == 0) await Lookup(song);
+        };
+        selected.Open(new Uri(song.Path)); playing = false; UpdateCurrent(); UpdateDock();
+    }
+    private void PrepareNext()
+    {
+        if (outgoing != null) return;
+        spare?.Close(); spare = null; spareReady = false;
+        if (!MixEnabled || repeat == "one" || index + 1 >= queue.Count) return;
+        spare = Create(); var next = spare; next.Volume = 0;
+        next.MediaOpened += (_, _) => { if (ReferenceEquals(spare, next)) spareReady = true; };
+        next.Open(new Uri(queue[index + 1].Path));
+    }
+    private void CancelFade() { outgoing?.Close(); outgoing = null; active.Volume = volume; }
+    private void Tick(object? sender, EventArgs e)
+    {
+        if (!ready) return;
+        double time = active.Position.TotalSeconds;
+        if (!Seek.IsMouseCaptureWithin && !Seek.IsKeyboardFocusWithin) Seek.Value = time;
+        Elapsed.Text = Clock(time); Duration.Text = Clock(Seek.Maximum);
+        if (playing && outgoing != null) {
+            double fraction = Math.Clamp(time / fadeLength, 0, 1);
+            outgoing.Volume = volume * Math.Cos(fraction * Math.PI / 2); active.Volume = volume * Math.Sin(fraction * Math.PI / 2);
+            if (fraction >= 1) { outgoing.Close(); outgoing = null; PrepareNext(); }
+        } else if (playing && spareReady && spare != null && active.NaturalDuration.HasTimeSpan && spare.NaturalDuration.HasTimeSpan) {
+            double window = NativeCollections.MixWindow(active.NaturalDuration.TimeSpan.TotalSeconds, spare.NaturalDuration.TimeSpan.TotalSeconds);
+            double remaining = active.NaturalDuration.TimeSpan.TotalSeconds - time;
+            if (remaining > 0 && remaining <= window) {
+                fadeLength = remaining; outgoing = active; active = spare; spare = null; spareReady = false; index++;
+                active.Position = TimeSpan.Zero; active.Volume = 0; active.Play(); Seek.Maximum = active.NaturalDuration.TimeSpan.TotalSeconds;
+                UpdateCurrent(); time = 0;
+                if (preferences.OnlineLyrics && Current is { Lyrics.Length: 0 } song) _ = Lookup(song);
+            }
+        }
+        int at = lines.FindLastIndex(line => line.Time <= time);
+        if (at != highlighted) {
+            highlighted = at;
+            for (int i = 0; i < LyricsLines.Children.Count; i++) if (LyricsLines.Children[i] is TextBlock text) {
+                text.SetResourceReference(TextBlock.ForegroundProperty, i == at ? "AccentBrush" : "MutedBrush");
+                text.FontWeight = i == at ? FontWeights.Bold : FontWeights.Normal;
+                text.Effect = i != at && preferences.Animations ? new BlurEffect { Radius = 1.5 } : null;
+                if (i == at && page == "Now playing") text.BringIntoView();
+            }
+        }
+        if (at >= 0 && at < LyricsLines.Children.Count && LyricsLines.Children[at] is TextBlock currentLine) {
+            double end = at + 1 < lines.Count ? lines[at + 1].Time : Seek.Maximum;
+            double fill = Math.Clamp((time - lines[at].Time) / Math.Max(.1, end - lines[at].Time), 0, 1);
+            Color accent = ((SolidColorBrush)Application.Current.Resources["AccentBrush"]).Color;
+            Color muted = ((SolidColorBrush)Application.Current.Resources["MutedBrush"]).Color;
+            currentLine.Foreground = new LinearGradientBrush(new GradientStopCollection { new(accent, Math.Max(0, fill - .02)), new(muted, Math.Min(1, fill + .02)) }, 0);
+        }
+        if (DateTime.UtcNow - lastSave > TimeSpan.FromSeconds(5)) { SaveSession(); lastSave = DateTime.UtcNow; }
+    }
+    private static string Clock(double seconds) { if (!double.IsFinite(seconds) || seconds < 0) seconds = 0; return $"{(int)seconds / 60}:{(int)seconds % 60:00}"; }
+    private void UpdatePlaybackLabels() { MiniToggle.Content = NowToggle.Content = playing ? "Pause" : "Play"; }
+    private void UpdateCurrent()
+    {
+        if (Current == null) return;
+        MiniTitle.Text = NowTitle.Text = Current.Title; MiniArtist.Text = Current.Artist; NowArtist.Content = Current.Artist;
+        NowArt.Background = ArtworkBrush(Current.Artwork); ArtPlaceholder.Visibility = Current.Artwork == null ? Visibility.Visible : Visibility.Collapsed;
+        UpdatePlaybackLabels(); RenderLyrics();
+    }
+    private ImageBrush? LoadImage(string? path) { try { if (path == null || !File.Exists(path)) return null; var image = new BitmapImage(); image.BeginInit(); image.CacheOption = BitmapCacheOption.OnLoad; image.DecodePixelWidth = 600; image.UriSource = new Uri(path); image.EndInit(); image.Freeze(); return new ImageBrush(image) { Stretch = Stretch.UniformToFill }; } catch { return null; } }
+    private Brush ArtworkBrush(string? path) => LoadImage(path) ?? (Brush)Application.Current.Resources["TonalBrush"];
+    private void ToggleClick(object sender, RoutedEventArgs e) { if (!ready) return; CancelFade(); if (playing) active.Pause(); else { if (active.Position.TotalSeconds >= Seek.Maximum - .1) active.Position = TimeSpan.Zero; active.Play(); PrepareNext(); } playing = !playing; UpdatePlaybackLabels(); }
+    private void Advance(bool ended = false)
+    {
+        if (ended && repeat == "one") { active.Position = TimeSpan.Zero; active.Play(); return; }
+        if (index + 1 < queue.Count) Play(index + 1);
+        else if (repeat == "all" && queue.Count > 0) Play(0);
+        else if (preferences.Autoplay && tracks.Any(s => s.Id != Current?.Id)) {
+            var recent = queue.TakeLast(6).Select(s => s.Id).ToHashSet();
+            var candidates = tracks.Where(s => !recent.Contains(s.Id)).ToList();
+            if (candidates.Count == 0) candidates = tracks.Where(s => s.Id != Current?.Id).ToList();
+            var next = candidates[Random.Shared.Next(candidates.Count)]; queue.Add(next); Play(queue.Count - 1);
+        } else { active.Pause(); playing = false; CancelFade(); UpdatePlaybackLabels(); }
+    }
+    private void NextClick(object sender, RoutedEventArgs e) => Advance();
+    private void PreviousClick(object sender, RoutedEventArgs e) { if (!ready) return; CancelFade(); if (active.Position.TotalSeconds > 3 || index == 0) active.Position = TimeSpan.Zero; else if (index > 0) Play(index - 1); }
+    private void SeekReleased(object sender, MouseButtonEventArgs e) => SeekToSlider();
+    private void SeekKey(object sender, KeyEventArgs e) => SeekToSlider();
+    private void SeekToSlider() { if (!ready) return; CancelFade(); active.Position = TimeSpan.FromSeconds(Seek.Value); }
+    private void VolumeChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { if (!initialized) return; volume = e.NewValue; preferences = preferences with { Volume = volume }; preferencesDirty = true; if (outgoing == null) active.Volume = volume; }
+    private void FavoriteClick(object sender, RoutedEventArgs e) { if (Current != null) Safe(() => Update(Current with { Favorite = !Current.Favorite })); }
+    private void ShuffleClick(object sender, RoutedEventArgs e) { if (Current == null) return; var id = Current.Id; queue = new[] { Current }.Concat(queue.Where(s => s.Id != id).OrderBy(_ => Random.Shared.Next())).ToList(); index = 0; CancelFade(); PrepareNext(); Notify("Upcoming songs shuffled."); }
+    private void RepeatClick(object sender, RoutedEventArgs e) { repeat = repeat == "off" ? "all" : repeat == "all" ? "one" : "off"; RepeatButton.Content = "Repeat: " + repeat; PrepareNext(); }
+    private void NowClick(object sender, RoutedEventArgs e) { if (Current != null) ShowPage("Now playing"); }
+    private void CollapseClick(object sender, RoutedEventArgs e) => ShowPage(previousPage);
+    private void NowArtistClick(object sender, RoutedEventArgs e) { if (Current != null) ShowPage("Artists", Current.Artist); }
+    private void LyricsToggleClick(object sender, RoutedEventArgs e) { lyricsVisible = !lyricsVisible; SetLyricsVisibility(); }
+    private void SetLyricsVisibility() { bool show = lyricsVisible && Current?.Lyrics.Length > 0; LyricsScroll.Visibility = show ? Visibility.Visible : Visibility.Collapsed; LyricsWidth.Width = new GridLength(show ? 1 : 0, GridUnitType.Star); }
+    private void ArtHostChanged(object sender, SizeChangedEventArgs e) { double side = Math.Max(64, Math.Min(e.NewSize.Width, e.NewSize.Height - 100)); NowArt.Width = NowArt.Height = side; }
+    private void Update(Song song)
+    {
+        var updated = tracks.Select(item => item.Id == song.Id ? song : item).ToList(); repository.Save(updated); tracks = updated;
+        queue = queue.Select(item => item.Id == song.Id ? song : item).ToList();
+        Refresh(); if (Current?.Id == song.Id) UpdateCurrent();
+    }
+    private async Task Lookup(Song song)
+    {
+        if (lookingUp) return; lookingUp = true;
+        try { string text = await client.Find(song); var latest = tracks.Find(s => s.Id == song.Id);
+            if (latest != null && latest.Title == song.Title && latest.Artist == song.Artist && latest.Lyrics.Length == 0) Update(latest with { Lyrics = text, CheckedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() });
+            Notify(text.Length == 0 ? "No matching lyrics." : "Lyrics saved for offline listening.");
+        } catch (Exception error) { Notify(error.Message); } finally { lookingUp = false; }
+    }
+    private void RenderLyrics()
+    {
+        LyricsLines.Children.Clear(); lines = LyricsClient.Parse(Current?.Lyrics ?? ""); highlighted = -2; SetLyricsVisibility();
+        if (lines.Count == 0) { if (!string.IsNullOrWhiteSpace(Current?.Lyrics)) LyricsLines.Children.Add(Label(Current.Lyrics, 24)); return; }
+        foreach (var line in lines) {
+            var text = Label(line.Text, 26); text.Margin = new Thickness(0, 14, 0, 14); text.Cursor = Cursors.Hand;
+            text.MouseLeftButtonUp += (_, _) => { if (ready) { CancelFade(); active.Position = TimeSpan.FromSeconds(line.Time); } };
+            LyricsLines.Children.Add(text);
+        }
+    }
+    private void SaveSession() => Safe(() => {
+        if (Current != null && ready) NativeCollections.Save(repository.Folder, "session.json", new ListeningSession(queue.Select(s => s.Id).ToList(), Current.Id, active.Position.TotalSeconds));
+        if (preferencesDirty) { repository.SavePreferences(preferences); preferencesDirty = false; }
+    });
+    private void WindowKey(object sender, KeyEventArgs e) { if (e.OriginalSource is TextBox) return; if (e.Key == Key.Space && Keyboard.Modifiers == ModifierKeys.None) { ToggleClick(this, e); e.Handled = true; } else if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control) { ShowPage("Search"); searchBox?.Focus(); e.Handled = true; } }
+    private void ClosingWindow(object? sender, System.ComponentModel.CancelEventArgs e) { SaveSession(); timer.Stop(); active.Close(); spare?.Close(); outgoing?.Close(); client.Dispose(); }
 }
