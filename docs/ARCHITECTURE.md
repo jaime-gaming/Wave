@@ -1,8 +1,10 @@
 # Wave Architecture
 
+**Version: 0.1.0 · Release date: 16 October 2026.**
+
 ## Scope and platform decision
 
-Wave's first implementation is a browser application built with React and TypeScript. It is now accompanied by independent Kotlin/Compose Android and C#/WPF Windows projects; see PLATFORMS.md for native architecture and incomplete build/parity status. PixelPlayer remains a reference for local-library organization and playback interactions, not an implementation dependency.
+Wave's first implementation is a browser application built with React and TypeScript. It is now accompanied by independent Kotlin/Compose Android and C#/WPF Windows projects; see PLATFORMS.md for native architecture and verified build status and remaining parity differences. PixelPlayer remains a reference for local-library organization and playback interactions, not an implementation dependency.
 
 The first milestone is a working vertical slice: import local music, persist it, browse and search it, then play it, organize playlists, and optionally edit local metadata. There is no backend or authentication. Optional automatic lyrics uses LRCLIB directly from the browser; audio remains local.
 
@@ -258,3 +260,9 @@ Home no longer duplicates the selected session. `dailyMixes` partitions unique l
 The lyric editor owns a separate abortable search and result preview. Automatic lookup defers while editing so a background request cannot silently replace a draft. Only explicit Use/Save actions change text/storage, and source attribution survives an unchanged downloaded draft. All LRCLIB callers consult the same persisted provider cooldown. Editing does not depend on a selected/playing decoder.
 
 Import-worker jobs now time out after thirty seconds, clear settled timers, dispose idle workers and handle message transport failure. Timeout fallback retains the importer's filename/source-Blob path without repeating the same potentially stuck parse on the UI thread; later imports can create a fresh worker.
+
+## 0.1.0 independent Windows structure
+
+The Windows client keeps WPF and OS decoders, not the React bundle. `MainWindow` owns native playback/session state, `MainWindow.Browse` builds collections/search/playlists/queue views, and `MainWindow.Settings` owns the six settings destinations and editor. `Collections.cs` contains dependency-free playlist resolution, queue movement, bounded Mix windows, tag-based daily groups and atomic JSON helpers. A separate console contracts runner exercises these rules; an isolated WPF smoke entry point captures real native layouts without accessing the user's library. Optional lyrics remains the only provider flow.
+
+Web daily mix views retain an explicit selection snapshot, resolve it against current tracks and persist saved copies through one IndexedDB transaction. The Home card is navigation, not an implicit play action. Promotional captures use an isolated demo browser context and original assets, never a real user library.

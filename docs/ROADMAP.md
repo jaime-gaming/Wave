@@ -1,5 +1,7 @@
 # Wave Roadmap
 
+**Version: 0.1.0 · Release date: 16 October 2026.**
+
 ## Vision
 
 Build a welcoming, private home for local music: quick browsing, reliable playback, and useful organization without requiring a streaming subscription. PixelPlayer informs the experience, while Wave remains an independent web implementation.
@@ -116,7 +118,7 @@ Local smart mixes and advanced search may be explored after library and playback
 
 Use the [issue tracker](https://github.com/jaime-gaming/Wave/issues) to propose or discuss work. Include the user benefit, browser constraints, privacy impact, and a test plan. See [CONTRIBUTING.md](../CONTRIBUTING.md).
 
-The application is currently an unreleased `0.1.0` development build. There is no released `1.0.0`, fixed delivery date, or completed Android version.
+Release 0.1.0 is dated 16 October 2026; publication awaits approved merge/tag/Release. There is no released 1.0.0 or completed Android parity.
 
 Immediate import persistence, exact-byte renamed-file deduplication, compact covers/lyrics and browser-controlled eviction protection are implemented. Portable backup/export and lossless reduction of original audio storage are not implemented; original bytes necessarily occupy their original size.
 
@@ -124,16 +126,18 @@ Immediate import persistence, exact-byte renamed-file deduplication, compact cov
 
 Home is the initial web page; Settings is now a full page, not a dialog. Lyrics starts open in a collapsible section each time Now Playing expands or the song changes. Redundant source/playback status text is removed. The original curved W mark replaces generic waveform bars. Online automatic lyrics is optional/off initially, while manual one-song lookup remains available. Exact/search requests validate artist/title/duration, identify the client, and honor provider cooldowns; availability cannot be guaranteed. Crossfade uses incoming media time and equal-power gains, not elapsed wall time. Duplicate cleanup merges only confirmed byte-identical records, preserving references; same-name groups are reviewed non-destructively.
 
-Separate native Android (Kotlin/Compose) and Windows (C#/WPF) source implementations exist; prior web-only scope statements apply to the web architecture, not the entire project. They are early, uncompiled in this workspace and lack full web parity. [PLATFORMS](PLATFORMS.md) is the authoritative build/status matrix. [Privacy](../PRIVACY.md) describes data flows, rights and unresolved public-release obligations.
+Separate native Android (Kotlin/Compose) and Windows (C#/WPF) source implementations exist; prior web-only scope statements apply to the web architecture, not the entire project. Hosted compilation now passes. Windows has additional contract and isolated WPF layout smoke tests, but native device/audio validation and full parity remain outstanding. [PLATFORMS](PLATFORMS.md) is the authoritative build/status matrix. [Privacy](../PRIVACY.md) describes data flows, rights and unresolved public-release obligations.
 
 ## Native delivery gates
 
 - [x] Independent Android Kotlin/Compose and Windows C#/WPF source projects (no web wrappers).
 - [x] Explicit SDK build workflows and reduced-functionality platform matrix.
-- [ ] Run native builds/unit/lint remotely and test actual target devices.
+- [x] Run native build/unit/lint checks remotely.
+- [ ] Complete real Android/Windows target-device playback and accessibility checks.
 - [ ] Bring playlists, ordering, artwork/profile editing, queue operations and lyric glyph fill to native parity.
 - [ ] Add Android foreground service/audio focus/media session and rotation-safe playback lifecycle.
-- [ ] Add Windows contract tests, desktop/system integration and signed installer.
+- [x] Add Windows contract tests, playlists/queue/session persistence and WPF layout smoke tests.
+- [ ] Complete Windows system integration and trusted release signing/installer.
 - [ ] Complete runtime/dependency notices, controller identity/contact, provider terms/rights and distribution/signing review before production releases.
 
 ## Listening follow-up
@@ -142,7 +146,7 @@ Separate native Android (Kotlin/Compose) and Windows (C#/WPF) source implementat
 - [ ] Port and validate these listening/session features independently on Android and Windows.
 - [ ] Evaluate synchronized lyric accuracy across real recording editions and providers; word timestamps cannot be inferred exactly from ordinary LRC.
 
-## 0.1.0 web candidate freeze
+## Release 0.1.0 · 16 October 2026
 
 - [x] Explicit lyric search in the editor without playback; preview and save remain separate.
 - [x] Your collection followed by up to three coherent, fully local daily mixes; sparse libraries show fewer.
@@ -150,4 +154,11 @@ Separate native Android (Kotlin/Compose) and Windows (C#/WPF) source implementat
 - [x] Larger-text preference and narrow-screen input/touch/focus refinements.
 - [x] Worker deadline/recovery and provider-cooldown/body-cancellation review.
 - [ ] Complete draft PR review and hosted checks before merging or publishing a release.
-- [ ] Validate native builds and parity independently; the web candidate does not certify them.
+- [x] Verify native compilation separately from the web suite.
+- [ ] Complete remaining native parity and physical-device verification.
+
+- [x] Daily mixes open browsable playlist views and save independent ordered snapshots.
+- [x] Mobile Home shows all collection destinations without hidden horizontal shortcuts.
+- [x] Windows native navigation, collections, six Settings menus and expanded/compact player redesign.
+- [x] User-oriented README, actual screenshots and captioned MP4 promotion.
+- [ ] Publish the approved merged revision as tag/Release v0.1.0; documentation/media alone do not publish it.

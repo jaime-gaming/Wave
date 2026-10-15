@@ -1,6 +1,12 @@
 # Changelog
 
-## 0.1.0 web release candidate — 2026-10-15 (unreleased)
+## 0.1.0 — 16 October 2026
+
+- Make daily mixes browsable playlist views with explicit playback and atomic saved snapshots.
+- Show every mobile collection shortcut in a balanced grid; reset detail-page scroll and reinforce narrow action layouts.
+- Rebuild the independent Windows interface around web-like navigation, collections, playlists, a persistent editable queue, paused position restoration, six Settings sections and expanded Now Playing.
+- Add native contracts and isolated WPF UI smoke captures, conventional package metadata, hashes, conditional Defender scan and opt-in trusted signing.
+- Replace the technical-first README with a visual getting-started guide and an original captioned 1080p MP4 demo.
 
 - Search LRCLIB from Edit lyrics without selecting/playing the song. Preview matched text, explicitly use/save it, retain drafts on failure/cancel and preserve provider attribution for unchanged results.
 - Share provider cooldowns across callers, reject pre-aborted requests and cancel oversized advertised response bodies.
@@ -10,9 +16,9 @@
 - Keep lyric-editor dismissal/save actions visible while its body scrolls, including larger text at 320×360. Prevent padding clicks and selection drags from dismissing native dialogs.
 - Reject punctuation-only artist labels when generating Daily mixes.
 - Repair native build checks: import Windows I/O types and use the Android SDK provided by the pinned Ubuntu runner. Improve native diagnostics, Windows dark edit-field contrast, rounded controls, long-label containment and wrapping playback actions.
-- Freeze the web candidate for draft review. No release tag, merge, production deployment or native parity certification is included.
+- Release publication awaits the approved merge, tag and GitHub Release. Native feature parity and physical-device certification are not claimed.
 
-## Unreleased — focused settings and mobile library (web)
+### Pre-release implementation — focused settings and mobile library (web)
 
 - Remove catalogue lookup, verification consent UI and online cover completion; keep local checks, original audio, prior saved data and independent lyric search. Update the metadata privacy section with approval.
 - Replace the long Settings sheet with six focused menus, contextual Back and keyboard focus return.
@@ -20,7 +26,7 @@
 - Contain long/unbroken text with shrinkable grid/flex children, safe wrapping, two-line song/card labels and compact-credit ellipsis, without changing stored strings.
 - Replace ornamental playlist defaults with flat list/note labels, restrained tones, member-color spines and contrast-aware glyph ink. Resolve member artwork through a memoized ID map; retain custom covers.
 
-## Unreleased — verified imports and automatic listening (web)
+### Pre-release implementation — verified imports and automatic listening (web)
 
 - Inspect and normalize local metadata during import, validate embedded front covers, retain year/genre and report missing fields. Parse tags in a reusable same-origin worker, preserving immediate original-byte storage and duplicate rules.
 - Replace manual overlap duration and mode controls with one **Mix** switch that chooses a bounded per-pair window automatically. Retain native decoders, staged gains, safe cue fallback and original pitch/tempo/bytes.
@@ -29,7 +35,7 @@
 - Bound root playback rerenders, memoize seek geometry/Search/artwork, defer search filtering, cancel hidden/unfocused visual RAF, avoid heavy row layout animation for large collections and add rendering containment.
 - Add restrained row entrance staggering, tonal hover feedback, paged metadata review and larger phone queue/context targets. Native projects remain unchanged.
 
-## Unreleased — illumination, queue control and mixing (web)
+### Pre-release implementation — illumination, queue control and mixing (web)
 
 - Replace background wave silhouettes with three soft radial light fields, preserving spectral response and motion/pause/mute safeguards. The curved seek remains a progress control, not background decoration.
 - Reorder the active queue using drag handles, arrows or Alt-arrow keys; retain native playback position/identity, save the order and reset its shuffle baseline.
@@ -39,7 +45,7 @@
 - Blend artwork palette colors along the actual audio overlap with a restrained stage light animation; honor motion opt-out, avoid stale updates and persist the final palette without a second reveal.
 - Retain existing storage and legal notices; native projects are unchanged.
 
-## Unreleased — matte spectral listening and queue refinement (web)
+### Pre-release implementation — matte spectral listening and queue refinement (web)
 
 - Replace bright tonal lights with three matte, independently moving frequency-driven fields; do not claim voice/instrument stem isolation or alter audio output.
 - Share the curved seek across compact/full playback, including narrow phone bars, and smooth supported path-state changes.
@@ -50,7 +56,7 @@
 - Cancel stale palette callbacks, transition top-layer listening surfaces, respect animation opt-out, and follow Wave appearance changes on Privacy & Rights without editing its legal text.
 - Fit/recenter active lyrics in one layout pass with bounded search, reduce unnecessary lyric-row redraws, reset timing and recover controls after save failure.
 
-## Unreleased — bounded player stage and measured light (web)
+### Pre-release implementation — bounded player stage and measured light (web)
 
 - Replace fixed-width seek art with a full-width responsive Material-style wavy track, separated bounded thumb, continuous travel and native keyboard seeking.
 - Isolate the record/reader/transport layout, remove obsolete competing player rules and bound cover/icon geometry across narrow, short, landscape and wide viewports.
@@ -59,7 +65,7 @@
 - Retry browser network failures with a safelisted GET to LRCLIB, normalize apostrophe/music-video identities and underscore-delimited filenames, and invalidate pre-fix cached misses without replacing saved lyrics.
 - Preserve consent, local/embedded precedence, recording/duration checks and provider cooldowns. Live LRCLIB access remains unverified from this restricted workspace.
 
-## Unreleased — expressive playback and lyric recovery (web)
+### Pre-release implementation — expressive playback and lyric recovery (web)
 
 - Open Now Playing from all compact song information, including the artist; retain independent bar controls and expanded-only metadata navigation.
 - Group enlarged-player cover/credits into a centered responsive record surface beside a rounded tonal lyric reader and separate transport. Make the large cover a playback action; animate record positioning and preserve short-screen control fit.
@@ -70,7 +76,7 @@
 - Fall back from rejected exact lyric requests to structured search, search directly without known duration, improve featured-credit handling and accept additional common LRC formatting variants.
 - Leave native source projects, audio storage and legal/consent documents unchanged. No native binaries or feature-parity claim.
 
-## Unreleased — discovery and album-first playback (web)
+### Pre-release implementation — discovery and album-first playback (web)
 
 - Add a centered local Wave mark and repository documentation links to the README.
 - Give Search its own composer, category chips, browse shortcuts and grouped songs/artists/albums/playlists. Remove search from Home and relocate desktop collection filters below the library header.
@@ -81,7 +87,7 @@
 - Replace stacked-initial playlist covers with deterministic musical symbols, member-color gradients and a name signature; custom covers still win.
 - These changes are web-only; native builds and feature parity remain pending.
 
-## Unreleased — visual listening redesign (web)
+### Pre-release implementation — visual listening redesign (web)
 
 - Recompose Now Playing into artwork/metadata, a full lyric reader and a separate interactive bottom transport; keep the outer viewport fixed.
 - Show complete active lyric text with soft-focus neighboring verses; improve short and narrow layouts.
@@ -90,7 +96,7 @@
 - Generate deterministic playlist icons and mix local member-cover colors; preserve uploaded covers and original audio storage.
 - Restyle and expand Privacy & Rights with owner-approved local session/appearance explanations, without new restrictions or consent/license changes.
 
-## Unreleased — listening stage and session restoration (web)
+### Pre-release implementation — listening stage and session restoration (web)
 
 - Bound Now Playing to the viewport, including narrow phones and landscape; keep essential controls reachable without outer scrolling.
 - Persist selected song, queue/order, repeat/shuffle and playback positions, restoring paused after library hydration.
@@ -100,7 +106,7 @@
 - Remove the standalone legal-analysis document and dangling links as requested. Leave existing privacy/license/lookup-consent behavior in place; new legally motivated changes require owner approval.
 - Leave audio storage, conversion and deduplication behavior unchanged. Native feature parity remains pending.
 
-## Unreleased — three-platform update
+### Pre-release implementation — three-platform update
 
 - Open Home initially; replace Settings modal with a responsive page and focus-restoring Back action.
 - Replace generic waveform branding with an original curved W vector mark.

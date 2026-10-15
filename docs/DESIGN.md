@@ -1,156 +1,169 @@
-# Wave Interface Design
+# Wave Architecture
 
-## Direction
+**Version: 0.1.0 · Release date: 16 October 2026.**
 
-Wave follows the Material 3 / Material Expressive direction of the original project documentation, with [PixelPlayer](https://github.com/PixelPlayerHQ/PixelPlayer) as the visual reference. The web interface adapts that language to larger screens; it is not a marketing page and is not a pixel-for-pixel copy of an Android application.
+## Scope and platform decision
 
-The approved direction is a library-first interface, rounded tonal surfaces, clear type hierarchy, large playback controls, and album artwork as the visual focus. Do not introduce promotional banners, decorative records, invented recommendations, or filler collections.
+Wave's first implementation is a browser application built with React and TypeScript. It is now accompanied by independent Kotlin/Compose Android and C#/WPF Windows projects; see PLATFORMS.md for native architecture and verified build status and remaining parity differences. PixelPlayer remains a reference for local-library organization and playback interactions, not an implementation dependency.
 
-## Layout
+The first milestone is a working vertical slice: import local music, persist it, browse and search it, then play it, organize playlists, and optionally edit local metadata. There is no backend or authentication. Optional automatic lyrics uses LRCLIB directly from the browser; audio remains local.
 
-### Desktop, wider than 1100 px
+## Layers and responsibilities
 
-- A compact navigation rail contains Home, Search, and Library.
-- The main library has a blue tonal header, a large page title and category pills. There is no collection filter in Library; the search composer belongs only to Search.
-- A dark, rounded library surface holds playback actions, sorting, and song rows or album groups.
-- Keep the library full width beside the rail. A compact fixed bottom player contains the current track, transport, progress, volume, modes, and queue access where space allows. Clicking track information opens Now playing across the full viewport, with artwork/credits on the left, a lyric reader on the right and an independent bottom transport.
+```text
+React interface
+    ├── App: library views, filters, dialogs, import entry points
+    └── components: artwork, player controls, accessible dialogs
+            │
+Application hooks
+    ├── useLibrary: loading, import, favorites, removal, metadata overrides
+    ├── usePlaylists: loading, ordered membership, CRUD, errors
+    └── usePlayer: audio lifecycle, queue dispatch, Media Session
+            │
+Domain                        Data / browser adapters
+    ├── Track / Playlist models               ├── IndexedDB repository
+    ├── search / formatting       ├── metadata importer
+    ├── pure playlist mutations    ├── artwork validation / crop
+    └── pure queue reducer        └── HTMLAudioElement
+```
 
-### Tablet, 701–1100 px
+The domain layer has no React or storage dependencies. Data modules do not render interface elements. Hooks coordinate side effects and expose state to components. For this initial milestone, screen navigation and grouping live in `App.tsx`; routing and feature-specific screens can be extracted when the application grows.
 
-- Keep the navigation rail and main library.
-- Keep the compact floating player; hide secondary bar controls when space is constrained.
-- Open the full now-playing view from the compact player's track information.
+## Directory layout
 
-### Mobile, up to 700 px
+```text
+src/
+├── components/
+│   ├── Artwork.tsx
+│   ├── ArtworkPicker.tsx
+│   ├── TrackEditor.tsx
+│   ├── PlaylistDialog.tsx
+│   ├── PlaylistCollection.tsx
+│   ├── AnimatedListItem.tsx
+│   ├── LibraryContent.tsx
+│   ├── Navigation.tsx
+│   ├── Modal.tsx
+│   └── PlayerBar.tsx
+├── data/
+│   ├── artwork.ts
+│   ├── import.ts
+│   └── library.ts
+├── domain/
+│   ├── playlists.ts
+│   ├── player.ts
+│   └── types.ts
+├── hooks/
+│   ├── usePlaylists.ts
+│   ├── useLibrary.ts
+│   └── usePlayer.ts
+├── ui/               # shared motion preferences/tokens
+├── test/
+├── App.tsx
+├── main.tsx
+└── styles.css
+```
 
-- Use a three-destination bottom navigation bar: Home, Search, Library.
-- Position a compact player immediately above navigation.
-- Keep the library title, settings/import actions, and horizontally scrollable category pills.
-- Put text search on the Search screen rather than taking space away from the song list.
-- Hide desktop-only columns and keep artwork and song information visible. Use a circular overflow button for song actions on mobile, opening song options for favorites, playlist membership, opt-in editing, and confirmed library removal. The same menu is available on desktop.
-- Open Now Playing as an opaque, bounded full-viewport dialog without outer scrolling. Stack artwork/controls on narrow screens; scale spacing and artwork to available height. Prioritize the active lyric and essential controls on short screens. Keep collapse/queue reachable, and never show the library through the player.
+## Data flow
 
-Home contains collection counts/shortcuts, actual recently imported albums and songs, playlists, and artists. The compact player owns current-session access; do not duplicate it in Home. Local daily mixes follow Your collection only when actual tags support coherent groups. Search searches the whole local collection. Library contains Songs, Albums, Artists, Playlists, and Favorites. Do not expose empty, unimplemented destinations such as equalizer controls. The Lyrics disclosure below playback controls starts expanded; no separate captions-toggle button is needed.
+1. A user explicitly selects or drops files. The browser cannot silently scan the device's music folders.
+2. `useLibrary` validates extensions, size, and duplicate identity.
+3. The importer reads embedded metadata locally, falling back to conservative two-part spaced-dash filename inference and unknown artist/album labels. Valid embedded tags take precedence; filename artist inference must agree with an embedded title. Explicit track/disc prefixes are stripped, not genuine numeric titles.
+4. Each track and its audio Blob are saved in IndexedDB before being added to interface state.
+5. The interface derives visible tracks from search, view, group, and sort settings.
+6. Selecting a track loads a snapshot of visible track IDs into the queue reducer.
+7. `usePlayer` resolves the active ID to a track, creates temporary Blob URLs, and controls the native decoder engine.
+8. Browser events update duration and position or advance the queue. Audio errors pause playback and show an actionable message.
 
-### Artist destination
+Import is sequential to limit concurrent parsing and storage pressure. Successful files are committed individually; if storage becomes full, earlier successful imports remain available. Import progress describes processed files, not transferred bytes.
 
-Use rounded artist cards with local initials, song/album counts, and a small stack of owned album covers when available. Do not treat album covers as artist photographs or invent biographies, verification badges, followers, or remote content. A profile contains a back action, name, known duration/counts, direct Play/Shuffle, an album shelf, and songs. Keep the back action available if editing/deletion empties a profile. Artist/album pairs identify albums; equal titles from different artists remain separate.
+## Models and persistence
 
-## Visual system
+`Track` includes an ID, title, artist, album, duration in seconds, filename, size, import timestamp, favorite flag, audio Blob, and optional artwork data URL. See the [API reference](API_REFERENCE.md) for exact fields.
 
-### Color
+The `wave-library` IndexedDB database is at schema version 3. `tracks`, `playlists`, and `albumOrders` are keyed by `id`; `artists` is keyed by exact `name`. The conditional upgrade adds `playlists` when migrating version 1, leaving existing tracks and favorites intact. Version 3 conditionally adds artist profiles and album orders to version-1/2 libraries; no audio record is recreated. Connections close on blocking/version changes so later upgrades can proceed. New IDs and optional `contentHash` are full-file SHA-256 digests. Renamed/redated exact byte copies are skipped; different file tags or encodings produce different hashes. Legacy IDs remain unchanged to preserve playlists. Same-size legacy candidates are hashed lazily and their hashes saved before deduplication. Hashing reads one complete file into memory, bounded by the 200 MB import limit; very large libraries still need worker profiling.
 
-Dark-theme foundation:
+Audio Blobs are copied into storage so tracks survive reloads without asking for file access again. Embedded artwork is limited to 2 MB and JPEG, PNG, or WebP images. User-selected artwork is limited to 5 MB and 40 million decoded pixels, then center-cropped/downsampled to a JPEG of at most 512 square pixels per side, quality 0.8, without upscaling. Temporary image URLs are revoked on success and failure. The original audio file is never modified. Favorites are stored alongside each track. Theme, editor opt-in (default off), and animation preference (default on) use localStorage; settings remain usable for the current session if localStorage is unavailable.
 
-| Role                         | Value     |
-| ---------------------------- | --------- |
-| Background / library surface | `#10141f` |
-| Library header               | `#0b2c51` |
-| Song / navigation container  | `#1d2230` |
-| Higher container             | `#282e3e` |
-| Primary                      | `#b0c7ff` |
-| On primary                   | `#092e62` |
-| Primary container            | `#324773` |
-| Secondary container          | `#484168` |
-| Primary text                 | `#e3e5f1` |
-| Secondary text               | `#acb2c4` |
+Import commits original audio before updating the UI; playback is not required. Persistent storage is requested automatically and via Settings, with unsupported/denied cases handled. The storage panel distinguishes approximate library sizes from browser-reported origin usage/quota; audio still consumes its original size and database overhead varies. Stored music is origin- and profile-specific. Browser quota, eviction, private browsing, or clearing site data can remove it. There is no backup/export feature yet. Future database changes must increment the version and explicitly migrate existing records.
 
-Light and system themes use equivalent tonal roles, not inverted dark colors. CSS variables define the palette. Surfaces use tonal colors; avoid arbitrary decorative gradients, large shadows and border-heavy dashboard styling. A low-opacity tonal light layer may respond to measured source amplitude; it must not become an unrelated looping decoration.
+### Playlists and non-destructive edits
 
-Now playing uses a local, coarse artwork color sample to derive its tonal background and controls. The palette keeps fixed lightness ranges for legible text. Missing, grayscale, or unreadable artwork uses a neutral blue-tonal fallback. Sampling is not a remote service and does not recolor the original artwork.
+A `Playlist` has a UUID, name, description, optional artwork, ordered unique track IDs, and creation/update timestamps. Playlist mutations read the latest record in a transaction and validate membership against stored tracks. Deleting a library track and pruning all playlist references share one read/write transaction, also pruning saved album orders. The app prunes the in-memory collection and playback queue only after successful deletion. Deleting a playlist or membership never deletes the referenced audio.
 
-### Typography
+`Track.originalMetadata` captures title, artist, album, and artwork at the first edit; subsequent edits retain that snapshot. `editedAt` records the last edit. Restore reapplies the snapshot and removes both fields. Favorites and metadata updates read fresh database records atomically, preventing a stale favorite click from overwriting saved edits. The hook merges returned records while retaining the existing audio Blob reference so these updates do not restart playback.
 
-Use self-hosted Nunito Sans Variable. Fonts are bundled with the application, not fetched from a font CDN.
+Playlist name/membership management is always available. Song edits and custom playlist descriptions/covers require the Settings opt-in. Disabling it retains saved values; no file tags are rewritten and no export is implemented. Changes become visible only after successful writes. Failed saves leave the form and stored data available for retry.
 
-- Desktop page title: 68 px; mobile: 56 px.
-- Section titles: 24–25 px.
-- Song title: 16 px on desktop, 15 px on mobile.
-- Secondary track information: 14 px on desktop, 13 px on mobile.
-- Primary action labels: 14–15 px.
-- Avoid tiny all-caps labels, tracking-heavy headings, and repeated slogans.
+## Playback state
 
-### Shape and spacing
+`playerReducer` owns:
 
-Use a small set of shapes rather than a different radius for every element:
+- Queue IDs and the current index.
+- Play/pause intent.
+- Repeat mode: `off`, `all`, or `one`.
+- Whether the queue is shuffled.
 
-- Major desktop surfaces: 36 px radius.
-- Dialogs, artwork, and library surfaces: 28–32 px radius.
-- Song rows: 24–26 px radius.
-- Category pills and tonal buttons: fully rounded.
-- Playback controls: circles; the active pause button changes to a rounded square.
+The hook owns transient browser state: elapsed time, actual duration, buffering, and playback errors. Volume and the last audible level use localStorage; queue and position are not persisted across reloads.
 
-Use approximately 8 px spacing increments. Song rows are 84–88 px tall, with 52–56 px artwork. Preserve room for real track titles instead of decorating the row.
+At the end of a queue, repeat-off stops, repeat-all wraps, and repeat-one restarts the current track. Manual next ignores repeat-one. Previous restarts the current track if more than three seconds have elapsed, otherwise it selects the previous track. Removing the active queue entry selects the next available position or the previous last entry; removing the final entry resets playback.
 
-## Content and states
+Shuffle preserves the current track while randomizing the rest. The reducer retains `orderedQueue`, the original filtered/sorted snapshot. Turning shuffle off restores that order for IDs still in the queue; queue removal also prunes the saved order. Shuffle is not a listening-history feature.
 
-Use direct interface language: Library, Add music, No songs yet, Now playing, Queue is empty. State what the user can do; do not add lifestyle or subscription advertising.
+The audio engine revokes old object URLs, releases both native decoders and its timer on unmount, and ignores playback promises superseded by later state changes. React Strict Mode remains enabled to expose lifecycle problems during development.
 
-An empty library is genuinely empty. A missing cover uses a neutral music-note placeholder, not invented album art. Unsupported media and failed storage produce visible errors. Controls that cannot operate are disabled.
+## Browser integration
 
-## Interaction and accessibility
+Media Session metadata and actions are registered only when supported. Supported system actions include play, pause, next, previous, and absolute seek. Unsupported actions are ignored. This does not guarantee uninterrupted background playback on every mobile browser; operating-system and browser policies still apply.
 
-- Use labeled semantic buttons and native modal focus containment/restoration.
-- Keep a visible focus outline and respect reduced motion.
-- Preserve the selected destination and category visually and semantically.
-- Search supports Ctrl/Command K, including from a focused button.
-- Category pills scroll horizontally on narrow screens instead of shrinking into unreadable labels; selection stays in view after switching or resizing.
-- Reserve bottom space with app-shell padding, not a collapsible final-child margin, so content can scroll above fixed playback/navigation on every screen. Notifications must sit above the bar, never intercept its controls.
-- The full player and queue remain usable without dismissing the active playback session.
-- Touch targets should remain at least 44 px where possible; dense row actions may be narrower and need further real-device review.
+`AudioInfo` optionally stores codec, sample rate, bits per sample, bitrate, and lossless metadata read during import. Legacy records remain valid without it; no schema version change is required. Source technical metadata is retained internally but no verbose source/state block is rendered in Now Playing. The audio Blob is neither re-encoded nor processed when importing or editing. Native audio decoding is used. No codec conversion, FFmpeg, Android service or Web Audio output processing is included. Visual amplitude analysis first reads a `captureStream()` of the selected native element through a disposable `MusicAnalyzer`. Its MediaStream source connects only to an analyser, never to a destination; the original element remains the sole audible output. No microphone, system-audio capture or media-element source rerouting is used. Unsupported capture falls back to a bounded OfflineAudioContext envelope. Native volume is clamped to [0, 1], defaults to 1, and remembers the pre-mute level. Seeking requires a positive finite browser duration. Waiting/playing/canplay events expose buffering; Media Session position reporting is guarded for optional support. Sequential track transitions and opt-in crossfade are supported; universal gapless playback is not promised.
 
-## Motion language
+## Interface and accessibility
 
-Material 3 Expressive distinguishes spatial spring motion from non-bouncing visual effects [1](https://m3.material.io/styles/motion/overview/how-it-works). Wave adapts that principle to the web with Motion for React; these are Wave tokens, not native Android/Compose tokens.
+The approved visual direction is documented in [Interface Design](DESIGN.md): Material 3-style tonal surfaces, category pills, and a compact playback bar on all screens. Now playing is a full-viewport modal with a two-column desktop layout and stacked mobile layout. Home shows collection shortcuts, recent albums/songs, playlists, artists, and local daily mixes; Search exposes collection-wide search; Library handles category browsing.
 
-- Spatial default: spring stiffness 420, damping 26, mass 0.9. Used for view entry, list layout, dialog movement, and playlist press/hover feedback.
-- Spatial fast: stiffness 650, damping 29, mass 0.7. Used for selected navigation/category indicators and control shape.
-- Effects: 160 ms with easing `[0.2, 0, 0, 1]`, used for opacity. Do not spring opacity past its valid range.
-- Shared-layout selection follows the active destination rather than flashing on/off.
-- View surfaces use a short effect exit before a spatial entry; old surfaces are inert. Artist cards enter with a capped stagger and reposition with layout springs. Album/collection actions use subtle lift and press feedback. Song rows enter gently, reposition when ordered, and exit before removal. Exiting content is inert so it cannot be activated or reached by assistive technology.
-- The main play/pause control changes between circular and rounded-square forms. Playback glyphs crossfade/slide independently of button shape, using consistent pixel radius units. Artwork changes crossfade; the seek wave and small equalizer indicate actual playback rather than decorate every idle row.
-- Favorite feedback is brief. Avoid continuous animation except meaningful playback indicators.
-- Settings exposes **Animations**, default on. **Both** the off setting and the system reduced-motion preference remove spatial/decorative motion. CSS and JavaScript honor the same preference. Do not make motion necessary to understand state.
+CSS custom properties define dark and light palettes. Nunito Sans is self-hosted. `useArtworkColor` samples a small local canvas to derive the player hue, with fixed tonal lightness and a neutral fallback. Artwork sampling does not modify the library or send image data to a service. System theme observes `prefers-color-scheme`. Layouts adapt the navigation rail to a mobile bottom bar. The compact player opens a full-viewport dialog at every width; app-shell padding reserves scrollable space behind fixed controls, and notifications sit above playback. Controls use semantic buttons, accessible labels, and visible focus indicators. Dialogs use native modal focus handling. Motion for React provides reusable spatial springs for position, layout, selection, press feedback, and playback-control shape; short non-spring effects control opacity. `useWaveMotion` combines the Settings preference with system reduced motion. CSS playing/favorite indicators obey both preferences. Exiting list rows and dialogs are inert and hidden from accessibility queries. Dialog cleanup closes the native modal before restoring focus; the full player explicitly supplies its initiating Home/bar button. If that button has been deleted, disabled, or made inert, focus returns to the main workspace without scrolling. Full-player collapse/queue actions sit in a sticky header.
 
-## Playlist and editor surfaces
+Play/pause shortcuts avoid editable controls, buttons, and open dialogs. The search shortcut also works from focused controls and opens Search when needed. Search and library views are stateful sections rather than separate URLs in this milestone.
 
-Playlist cards reuse album-group surfaces. A custom cover takes priority; otherwise use the first song's cover, then the neutral placeholder. Detail views keep the rounded library surface, cover, title, optional description, and direct Add songs/Edit/Delete actions. Saved order has an explicit sort option. Move-up/down buttons keep reordering usable without drag gestures.
+### Collection views and rendering
 
-Library editing is deliberately off by default. Settings explains the opt-in. Song options expose the editor only when enabled, and playlist dialogs gate descriptions/artwork while keeping basic naming available. Editors use labeled fields, a local artwork picker, save/cancel states, and inline errors. Song edits explain that originals are unchanged and offer restoration of the first imported information. Disable saving while a cover is being processed or a write is pending.
+`collectAlbums` keys groups by the artist/album pair, chooses available local artwork, and records the latest import date. `collectArtists` derives alphabetical groups, album counts, and the sum of known finite durations. Neither invents remote artist data nor mutates inputs. Home memoizes grouping/recent-song derivation; collection views are memoized with stable navigation/import/favorite callbacks so elapsed-time updates do not redraw unrelated library rows.
 
-Destructive actions require confirmation. Removing a playlist or membership is explicitly distinct from deleting a stored song. Failed writes do not silently dismiss editors or pretend changes were saved.
+`LibrarySurface` coordinates old/new views under AnimatePresence with a short effect exit and spatial entry. Exiting surfaces are inert and hidden from accessibility queries. Artist cards use bounded stagger/layout/press feedback. Playback glyphs animate separately from control shape; seek progress uses non-overshooting effects. Reduced motion disables spatial/decorative movement.
 
-## Validation
+## Privacy and security
 
-Check empty and populated libraries, tagged and untagged artwork, dark/light themes, long titles, and widths of 320, 390, 768, 1024, and 1440 px. Browser tests cover navigation, the compact/full player, queue access, editor gating, artwork errors, playlist persistence, motion preferences, focus, and overflow in addition to playback behavior.
+There are no music uploads, analytics requests, API keys, or accounts. Dependencies and assets are bundled locally. Automatic lyrics sends only title/artist and known album/duration to LRCLIB with omitted credentials and referrer; it can be disabled in Settings. Network failures never masquerade as a confirmed missing result. Metadata is rendered as text through React, never inserted as HTML. Only supported raster artwork formats are displayed. Deployment should use HTTPS to provide Web Crypto and a secure origin.
 
-The reference screenshots are inspected during development but are not shipped with Wave. Original implementation, licensed fonts/icons, and the user's own artwork are the only visual resources in the app.
+Malformed media is treated as untrusted input: metadata failure uses a fallback and decoding failure reports an error. The 200 MB per-file import limit is a resource safeguard, not a guarantee against every expensive parser input. Very large libraries and parsing off the main thread need further profiling.
 
-## Lyrics and customization
+### Collection views
 
-Lyrics appear beside or below playback controls in an initially open, accessible button-controlled disclosure. Artwork remains visible and transport stays available. Use a rounded tonal surface, a complete scrollable lyric document with a centered sharp active verse and softly blurred neighbors, active timestamp emphasis, paging/follow controls and seekable synchronized lines. Missing lyrics show the requested friendly “¡Oh, oh!” message with a clear import/paste action, never fabricated lyrics. Plain text is labeled **Text lyrics**, distinct from seekable synchronized lines; keep timestamp precision descriptions in accessible text/tooltips rather than permanent technical captions. Fixed queue/collapse controls remain reachable on narrow/short screens.
+`collectAlbums` keys groups by the artist/album pair, chooses an available local cover, and records the latest import date. `collectArtists` derives alphabetical groups, album counts, and the sum of known finite durations. These selectors never invent remote artist data or mutate tracks. Home and artist/detail components are separate from the app shell; Home limits recent song rows to six and memoizes group derivation.
 
-A manually chosen artist portrait replaces initials/album stacks across gallery, Home and detail, cropped to the existing round avatar. Keep the photo-edit action secondary to Play/Shuffle; use a separate local photo picker, not album artwork or invented verification/biography content.
+`LibrarySurface` coordinates old/new view transitions under AnimatePresence with a short effect exit and spatial entry. Exiting surfaces, rows, and dialogs are inert. Artist cards have bounded staggered entry and spring layout/press feedback. Playback symbols crossfade/move separately from control shape; progress uses non-overshooting linear effects rather than a spring. Reduced motion disables spatial/decorative movement.
 
-Collection reordering uses rounded rows with drag handles, cover/title/artist and accessible up/down alternatives. Use spatial reordering motion and respect reduced motion. Keep saving explicit, errors recoverable and pointer drag confined to the handle. Crossfade is an audio setting, independent from decorative animation preferences.
+## Testing and future boundaries
 
-### Expressive overlap and lyric focus
+Unit tests exercise pure queue/playlist transitions, filtering, formatting, validation, version-1 migration, atomic pruning, original restoration, concurrent metadata/favorite writes, and persistence. Component tests cover browsing, search, and settings. Real-browser tests import generated audio, play it, reload the page, and check narrow-screen layout, editor gating, cover processing/errors, playlist ordering/persistence, playback continuity during editing, motion preferences, fullscreen bounds/opaque surfaces, artist ownership, Home navigation, pre-mute persistence, selected queue-order restoration, and byte-for-byte preservation of a 24-bit WAV fixture.
 
-Use distinct spatial spring schemes for fast presses/selection and slower content entry. Cards enter with restrained rise/scale, navigation icons respond to selection, and mini-player artwork overlaps on source changes. Do not turn idle surfaces into looping decoration.
+Next boundaries to extract are feature-specific screens, import workers, backup/export, and an offline application shell. Spotify/Deezer connections and Firebase remain deferred; no authentication or remote-import code is included. New abstractions should follow concrete needs, not duplicate the original Android interfaces.
 
-During real audio overlap, fade the incoming cover over the outgoing cover using the engine's actual fraction. Do not rotate or scale the covers, display a current-to-next banner, draw a mix progress meter or add a compact-bar transition indicator. The audio fade and source information change are sufficient. Completion/cancellation cleanly returns to a single cover.
+## Lyrics, profiles and collection customization
 
-The lyric focus shifts gently to the active timestamp with readable neighboring lines and manual paging/follow controls; only the lyric reader may scroll; the outer listening stage stays fixed. The letters themselves fill in reading order across words and wrapped text; no bars, underlines or separate elapsed indicators are drawn. Enhanced LRC uses supplied word timestamps; unknown segment ends use the following line/native duration as a fallback. Ordinary LRC interpolates the supplied line interval, using native duration for the final line, and must not be described as exact word-timed karaoke. Seeking recalculates it, pausing freezes it, plain text never gains artificial synchronization. Quick ±100 ms controls supplement the editor. LRCLIB results display provenance/offline availability. Distinguish searching, actual missing matches, instrumentals and connection failures. Keep manual LRC/paste available and never invent text or timing.
+`Lyrics` stores bounded raw text, parsed lines, a manual millisecond offset, and local/embedded/LRCLIB provenance. LRC timestamps (including repeated timestamps and fractional seconds) are sorted. The file-header offset is applied during parsing; the user offset is applied during playback. Millisecond SYLT tags are supported; MPEG-frame tags and unsynchronized text are not presented as synchronized. A binary search finds the active timestamp from the active HTMLAudioElement clock; duplicate timestamps highlight together. General player state samples the native clock at 50 ms while playing; lyric panels additionally read that clock per animation frame without a synthetic timer, subject to browser scheduling/precision. `lyricFillProgress` derives visual fill from the active native time, offsets, next distinct timestamp or final native duration. `lyricFillTokens` preserves Unicode text/whitespace and apportions the fill across word spans, allowing natural wrapping. CSS clips the bright/muted gradient to glyphs rather than drawing an auxiliary bar; plain text stays unsynchronized and forced-colors mode uses readable system text. Enhanced LRC retains supplied word timestamps and optional ends, including repeated line/header offsets. Ordinary LRC remains visual line interpolation, not invented word timestamps. The normal reader keeps all lyrics with internal scrolling and follows the active native timestamp. ResizeObserver fits the active verse; cinema keeps neighboring context without ellipsizing the current text. Outer Now Playing never scrolls. Parsed lines are reconstructed from bounded raw text on load, rather than stored twice. `useAutomaticLyrics` serializes delayed LRCLIB metadata lookups, defers during import, prioritizes the current song, cancels on opt-out/metadata changes, and backs off 60 seconds after provider errors. The persisted `wave-auto-lyrics` preference defaults off and also requires the web `wave-lyrics-consent-v1` flag for automatic requests. Manual one-track lookup is independent of automatic activation. The API is bounded to 600 KB and a 15-second overall timeout; normalized title/artist must match. Known duration differences above eight seconds are rejected; synchronized text requires a known duration, a difference of at most three seconds and a valid in-recording timeline. Smaller non-synchronized matches can supply plain text. An album-specific exact miss retries without album, then structured/free-text search examines up to twenty validated candidates, ranked by album/duration/text. Requests carry Lrclib-Client identity, wait 250 ms between subrequests and honor Retry-After cooldowns. A browser network TypeError retries a safelisted GET to the same provider; subsequent requests in that lookup retain simple headers. HTTP throttles do not trigger this fallback. Apostrophes normalize consistently with provider identity, official music-video decorations are removed conservatively, and versioned lookup keys invalidate pre-fix misses without touching saved lyrics. Manual/embedded lyrics always win in atomic repository writes; metadata edits invalidate downloaded lyrics. Misses cache one day, instrumental statuses seven days and errors fifteen minutes; eligibility is checked on relevant library/selection changes, with explicit retry available. Cached lyrics stay usable indefinitely offline. Lyrics writes read the latest track atomically and retain in-memory audio Blob identity.
 
-Settings explains metadata-only external lookup, its persistent opt-out and browser storage accounting/protection. Unknown artists require metadata rather than guessed matches.
+Manual artist profiles store separately processed raster artwork. `useCustomizations` loads/saves profiles and album orders; gallery, Home and artist detail share the photo map. Album order writes validate a full permutation against current owned artist/album-pair tracks in a transaction. Stale deleted/moved IDs are ignored during derivation; new tracks append by disc/track number then import date. Playlist reorder uses the same permutation check. Reorder dialogs work from complete collections rather than filtered lists; drafts save only on confirmation. Motion Reorder handles pointer drag, with buttons and Alt-arrow keyboard alternatives.
 
-### Home, navigation and collapsed playback
+## Native Mix engine
 
-At desktop widths of at least 1100 px, use a 208 px labeled sidebar with a quiet brand, shared selection pill, collection shortcuts/counts and Settings at the bottom. Tablet widths retain an 88 px rail; phones keep a 68 px bottom navigation. Hidden collection shortcuts must not obstruct mobile content.
+`MixAudio` owns a primary native Audio deck and lazily creates one spare when crossfade is enabled. It preloads only the next eligible queue entry. With finite durations, a decoded incoming source and remaining time within the fade window, it starts the incoming element, validates that the playing queue target is still current, promotes its identity, and applies media-clocked equal-power gains (`cos(pπ/2)` / `sin(pπ/2)`) over at most the automatically selected pair window, remaining outgoing duration and half incoming duration. A 20 ms timer updates gains, with native-position/blend reporting approximately every 50–60 ms; volume and mute affect both decks. Blend state exposes the original outgoing/incoming Blobs, elapsed fraction and actual fade duration for opacity-only artwork fades in the full and compact players. No transition meters or banners are rendered. Cancellation/completion clears that state; the transition has no spatial cover movement, including under reduced motion. Outgoing media events cannot advance or error the new current song. Preparation/play rejection retains the outgoing song and falls back to normal transitions. Generation tokens discard stale pending starts; pause/seek/source replacement cancel overlap. Removed outgoing queue/library entries cancel their tail. Repeat-one and single-entry repeat bypass crossfade. Blob bytes are not processed or re-encoded. Browser restrictions and throttled background timers can limit ramp smoothness.
 
-Home starts with compact real collection counts, then up to three tag-based local daily mixes and an album shelf. At widths of at least 1280 px, recent songs and playlist/artist panels form two columns; narrower screens stack them. Mobile count shortcuts scroll horizontally with snap hints. Do not add promotional banners, invented recommendations or an oversized now-playing card.
+## Compact chrome and Home composition
 
-The closed player is 64 px tall with a 40 px cover. Keep its title/artist, playback controls and desktop seek/volume/queue functionality usable, but leave large artwork and controls to the explicitly opened full-screen player. Reserve scroll space and safe-area clearance for the smaller player and mobile navigation.
+Navigation receives existing derived album/artist/playlist/favorite counts and the same `browse` callback as Home; no duplicate data loading or simulated collections are introduced. Desktop collection shortcuts preserve the established clearing of stale group/search state. The main navigation stays a single accessible landmark; collection actions are a labeled group with distinct accessible names.
+
+Home memoizes real groups/recent tracks, uses local daily mixes and a responsive song/secondary-panel dashboard. Album shelves and mobile shortcuts scroll within their containers rather than overflowing the document. The 64 px collapsed player preserves all desktop actions and the explicit full-screen opener/focus-return behavior.
 
 ## Three-platform update
 
@@ -158,60 +171,104 @@ Home is the initial web page; Settings is now a full page, not a dialog. Lyrics 
 
 Separate native Android (Kotlin/Compose) and Windows (C#/WPF) source implementations exist; prior web-only scope statements apply to the web architecture, not the entire project. They are early, uncompiled in this workspace and lack full web parity. [PLATFORMS](PLATFORMS.md) is the authoritative build/status matrix. [Privacy](../PRIVACY.md) describes data flows, rights and unresolved public-release obligations.
 
-## Listening session and inactivity
+## Reload restoration and listening stage
 
-Save queue/order, current selection, repeat/shuffle and per-song positions locally. Restore paused after IndexedDB hydration and seek only after native metadata is available. Track deletion must prune references without interrupting unrelated playback. Failed or unavailable browser storage must not break listening.
+`playbackSession` validates versioned localStorage session data before reducer restoration. Library hydration prunes missing IDs and reconstructs queue/order before audio loading. Restored playback is always paused; `loadedmetadata` applies the selected position, clamped to the native duration. Periodic and page lifecycle saves include the decoder clock rather than a fabricated timer. Queue reconciliation preserves play intent for surviving tracks.
 
-After 30 seconds without activity while audio is playing (not buffering), replace the normal view with an opaque immersive stage. Put a large song title behind the artwork and keep lyrics prominent, without buttons, progress bars or editing instructions. Cinema lyric rows are read-only, not focusable seek buttons. Do not enter over an editor/queue dialog or in a hidden tab. Pointer movement/down, touch, keyboard and wheel restore the previous compact/expanded view immediately; none of these actions restarts audio.
+The decoder reports duration with its source track ID, so late metadata cannot overwrite another song. Significant corrections update metadata and invalidate only stale online-lyric caches, never local lyrics or the stored audio bytes. Exact lookup uses cleaned/inferred title and artist; recording editions, duration and the resulting timeline constrain synchronization.
 
-Song title/cover actions in collection rows play. Artist/album metadata actions navigate instead, with no accidental row-play propagation. Player artist/album links preserve playback and navigate to the corresponding local page.
+`PlayerBar` owns the open lyric disclosure and `useIdleListening` owns the 30-second activity timer. The bounded listening grid is separate from the read-only cinematic stage. Activity clears immersion without changing the player reducer or engine source. No second audio element/clock is introduced by cinema.
 
-## Palette and listening redesign
+Lyric rows use size-container typography and whole-line clamping instead of clipping half-glyphs. The missing-lyrics state removes redundant controls/hints on short screens so import/retry remain reachable. Focused text editors outside dialogs also block immersive entry.
 
-Use a cover/header plus a large lyric reader above an independent bottom transport dock. Desktop puts credits below artwork beside the lyric reader. Phones keep a rounded cover/metadata row above the reader, reducing it on short screens; collapsing lyrics centers and enlarges the record. Short landscape uses the two-column stage instead of squeezing three vertical regions. Collapsing lyrics removes the unused column and enlarges the song stage. Seek, times, previous/play/next, repeat/shuffle/favorite and volume must have real, unoccluded hit targets. Do not rely on hidden overflow as evidence of a working layout.
+## Global tones and playlist identity
 
-Use artwork hue across navigation, content surfaces and controls, with separate dark/light luminance roles. Native View Transitions reveal the newly toned document through a circle expanding from bottom center. Respect disabled/system-reduced motion; unsupported browsers change directly.
+`useAppPalette` samples the playing local artwork (or restores neutral roles on pause) and updates root tonal variables. `document.startViewTransition` snapshots the CSS change; the new root clips from a bottom-centered circle. The initial neutral state, reduced motion, unavailable API and hidden documents avoid animation. `wave-palette` stores only hue/saturation for consistent standalone privacy-page appearance.
 
-Lyrics are not ellipsized. The active verse fits its available reader height; inactive lines blur gently, but keyboard focus/hover removes blur. Normal mode retains the complete document and internal scrolling. Cinema shows a full current verse with neighboring context; no-lyrics cinema centers music metadata and never shows a missing-lyrics panel. Browser visibility and actual document focus gate entry, and blur exits immediately.
+`playlistIcon` creates escaped deterministic SVG data URIs. `usePlaylistVisual` samples up to twelve distinct member artworks locally, shares a bounded 64-entry promise cache and computes a multicolor icon in memory. Explicit artwork bypasses generation. `useArtworkColor` tones the resulting playlist surfaces independently from the global current-song palette. No database migration or audio-storage change is needed.
 
-Playlist icons are deterministic SVG compositions using the playlist identity/name and a bounded local sample of member cover colors. The same generated identity appears on Home, collection, detail and playlist picker. Uploaded covers win, and no fabricated artist photographs or new stored media are introduced.
+## Discovery refinement (web)
 
-## Dedicated discovery and identity refinement
+`SearchPage` owns a composer, local result-category state and grouped derived song/artist/album/playlist results. The App retains query/navigation state and clears stale collection state when changing destinations. Only Search has a composer; Home, Settings and Library have no repeated search/filter field. `musicIdentity` centralizes accent/case/punctuation normalization and order-independent token matching; songs and playlist filters share it. No schema, audio-storage migration or remote search service is introduced.
 
-Search is a destination, not a repeated field on Home or Settings. Its composer, category chips, real collection shortcuts and grouped results preserve the existing tonal surfaces and rounded Wave language. Search words ignore accents, case and punctuation and match in any order; there is no remote recommendation feed or invented listening history. Library has no repeated filter field. Search remains global; collection ordering always uses the complete collection.
+Import and lyric lookup share conservative filename identity parsing. Metadata-only inference is not acoustic fingerprinting. Existing saved metadata is not silently migrated or overwritten. Lyric query cleaning preserves numeric titles and edition descriptors while removing presentation/featured-credit decorations. Each provider candidate is parsed in isolation; malformed timing falls back to valid plain text, or is skipped so the next verified candidate can be tried. A rejected album-specific exact response retries without album, with the existing request spacing, bounds and recording guards.
 
-Playlist covers use original deterministic musical-symbol vectors, a small name signature and locally sampled member-color gradients. Never replace user artwork. Artwork source changes use a restrained spring rise/scale/rotation; opening lyrics uses a short opacity/position effect. Play state morphs the main transport shape. Search category/card presses respond without continuous decorative loops. Both motion preferences suppress these effects.
+## Motion, energy and lookup lifecycle
 
-## Expressive playback refinement
+`StartupAnimation` is a short initial W/line/wave/W morph, bounded by library hydration and one initial presentation. Reduced/disabled motion removes the artificial dwell. `useInteractionRipples` attaches one delegated pointer listener, creates only short-lived noninteractive spans inside eligible controls, and cancels active effects during cleanup. `useWaveMotion` subscribes to native reduced-motion changes via `useSyncExternalStore` in addition to the application preference.
 
-Treat the record as a layout group: cover and credits stay together while the reader occupies a distinct rounded tonal surface and transport owns the bottom shelf. The cover is an accessible play/pause action. In the compact bar, song information opens the full player; artist/album navigation belongs to the expanded metadata and collection rows, not the compact artist label. Short layouts prioritize complete visible controls and internally scrollable lyrics. Collapsing the reader centers the whole record group, not just its cover.
+`amplitudeEnvelope` reduces decoded channel samples to ten RMS-amplitude bins per second without phase cancellation. `useMusicEnergy` analyzes supported source Blobs separately with OfflineAudioContext at 22,050 Hz, caches compact envelopes in a Blob-keyed WeakMap and reads the active native clock. Sources over 24 MB or a known 20-minute duration are skipped; decoding failures are silent visual fallbacks. The extra decode is never connected to playback and never stored or uploaded. At most 25 visual updates per second smooth attack/release and update root CSS variables; pause, hidden/unfocused state, buffering, volume/mute and both motion preferences gate the effect. Visuals represent the selected source, not microphone/device output or the sum of crossfading decoders.
 
-During initial hydration, animate the original W into a line, a volume-like wave and back to W. Keep the mark brief, with no slogans or forced dwell under reduced motion. Press feedback is a local pointer-origin ink ripple; it is clipped to its control, noninteractive and removed on completion or motion opt-out. State layers and button shape changes supplement spatial springs. Native `matchMedia` changes feed `useWaveMotion` through `useSyncExternalStore`, so system motion settings apply immediately.
+The lyric hook now uses request generations and abort checks so a canceled request cannot clear a newer request's loading state. Manual requests survive interrupted imports; pending work is visible immediately. Explicit retries bypass generic automatic-error backoff but not persisted provider Retry-After. Automatic reconnect retries only an eligible failed current song. Missing/inaccessible/invalid Retry-After receives a finite minimum 60-second cooldown rather than NaN. The UI exposes the remaining pause. Unknown-duration lookup starts at structured search; exact 400/422 responses fall through instead of ending the whole lookup. Featured-credit parentheses and common LRC single-second/comma/offset-whitespace/line-ending variants are accepted without relaxing recording identity or duration/timeline guards.
 
-Artwork tones exist only during playback. Pausing restores the neutral Wave roles. The moving background derives energy from actual local source samples, not random CSS keyframes or guessed BPM; seeking and volume/mute affect it. Disable it in hidden/unfocused tabs, when buffering, on pause and under either reduced-motion setting. Do not change the playback audio graph to produce a visual effect.
+## Bounded player stage and measured light
 
-The expanded stage uses one owned stylesheet/namespace rather than accumulating transport overrides. Seek wave geometry follows actual track width, with a bounded separate thumb and a fixed-period seamless translation; do not stretch a fixed-width animated SVG inside the filled percentage. Center playback glyphs in their own bounded slot throughout transitions. Keep artist/album controls usable without allowing their text to expand the stage.
+`src/styles/player.css` owns the expanded stage/transport namespace, replacing obsolete competing player selectors. Record/reader/transport have explicit grid areas; the artwork size is bounded by its actual record container, including short landscape. `PlaySymbol` has a fixed icon slot during presence transitions. The seek component observes its rendered width: the full SVG path extends beyond both edges and travels by exactly one 32 px period inside a progress clip. The thumb is outside that clip, stays inside the SVG and retains a transparent native range hit target with standard keyboard behavior. Pause flattens the path; reduced motion stops translation.
 
-Show a quiet provider link, not “saved offline”, word-timing jargon or a permanent milliseconds row. Follow and editing remain recognizable icon controls; **Adjust lyric timing** reveals the timing popover on demand. The measured tonal light must be perceptible behind both normal and immersive content, never above hit targets, and must disappear during silence/mute/pause or reduced motion.
+`useMusicEnergy` samples live RMS every 40 ms, compresses dynamic range for quiet passages and smooths attack/release. Capture initialization has bounded retries; unavailable/suspended analysis can use the existing envelope fallback (24 MiB / 20-minute advertised-duration bound). Capture tracks, source/analyser connections and context are disposed on pause, source replacement, unmount or motion opt-out. Blur/visibility suspends visual analysis. Root variables drive a tonal modal light layer above its background paint and below interactive content; silence/mute/pause make it transparent. This is source-amplitude visualization, not device-output measurement or BPM detection.
 
-## Diffuse illumination and contextual sheets
+Lyric text stays primary. Synchronized precision is available through accessible descriptions/tooltips, plain text is labeled **Text lyrics**, and LRCLIB attribution remains linked. Editing/follow/paging use compact controls. Native details reveal timing adjustments deliberately and block idle immersion while open.
 
-The background is illumination, not waves: use restrained radial falloffs with no SVG silhouettes, sharp contours, blur filters or screen blending. Low/mid/high frequency bands move separate soft light sources; do not label them as actual vocal or instrument isolation. Larger movement comes from continuous energy-driven phase, not a random beat loop. Silence, mute, pause and motion/visibility rules retain priority.
+## Spectral listening, album verification and asynchronous ownership
 
-Use the same curved seek geometry in the compact bar; narrow screens get a slim track contained by the bar rather than an extra status panel. Queue belongs to the listening system: a rounded tonal desktop side sheet/mobile bottom sheet, quiet duration/count, independent list scrolling, legible current state, and real add/remove actions. Preserve song position when selecting the current row.
+`MusicAnalyzer.readBands()` measures a 2048-point spectrum alongside RMS. `spectrumBands` sums finite spectral power in 35–250 Hz, 250–2500 Hz and 2500–12000 Hz bands and bounds the visual result. These bands do not identify instruments or separate vocal stems. Independent phases advance from measured band energy, moving three soft radial light falloffs in `MusicLighting`, without SVG wave silhouettes, filters, synthetic BPM or an audio destination connection. The envelope fallback has only amplitude information and makes no spectral-separation claim. A resume grace period avoids eagerly decoding fallback audio while live capture is starting.
 
-The absence view must actually hide normal playback controls, not merely make them inert. Give artwork, song credits and the complete current verse distinct quiet regions, with blurred neighboring context and a restrained entrance. Keep source playback independent of entrance, wake and resizing.
+`WaveSeek` is shared with the compact player. Small screens expose a slim, in-bar track while preserving the 64 px bar and independent transport. Queue is a separate `QueuePanel` in a themed modal sheet; it keeps a scrolling list, marks the selected row, shows real total duration, and dispatches a current-row jump without seeking to zero.
 
-Timing adjustment must stay linked to following/recentering, show the saved value, offer reset and recover from storage errors. Fit the verse before the single centering operation to avoid a visible snap over a smooth scroll. Palette transitions must not apply stale colors after rapid track changes or pause; reading Privacy & Rights uses the same Wave roles, without music-driven animation or changes to explanatory/legal text.
+Album comparison preserves the original request metadata but canonicalizes common bracketed deluxe/reissue suffixes for ranking. An album match outranks duration-only candidates. A conflicting performance edition is rejected; other conflicting albums cannot authorize timestamps, and their otherwise verified plain text is deferred until album-free exact and structured/free-text searches have been examined. Unknown album metadata is not invented. Cache identity v3 retries old misses without replacing local/embedded or already saved lyrics. Actual live provider availability remains outside controlled-response test coverage.
 
-### Queue editing, contextual actions and mix color
+Native playback has a play-intent token distinct from crossfade generation. Old play rejections cannot stop a newer play intent; stale transition promises cannot pause a deck now owned by a newer command or clear its pending state. Restore cleanup captures its original element rather than querying a later active deck. Native output, gain policy and source bytes remain unchanged.
 
-Queue order changes immediately through handles, up/down buttons or Alt-arrow keys. Keep the selected source and elapsed position stable; announce keyboard moves and provide a clear Done state. The queue's order is independent of playlist and album order.
+Palette transitions cancel obsolete reveals and generation-guard update callbacks. Named listening snapshots and tonal surface transitions cover the full player; motion opt-out disables the added transitions. Privacy reads only appearance preferences, shares the exact Wave background roles and listens for system/storage appearance changes. No legal text, permission or provider was added.
 
-Right-click menus are rounded tonal top-layer surfaces, not default browser styling. Clamp their untransformed dimensions before entrance so all animation frames fit the viewport; reclamp after resize. Arrow/Home/End skip disabled actions, Escape/Tab close and focus returns to the originating control. Preserve native behavior for selected text, editable fields, links and Shift-right-click. Destructive library actions still use the existing confirmation flow.
+Lyric-clock rendering is limited to about 30 updates per second; unchanged neighboring rows avoid time-driven rerenders. Active-line fitting resets prior fitted sizes, uses bounded binary search and recenters once after sizing, rather than starting a smooth scroll then immediately snapping it. Offset writes resume following, support reset and recover after false/rejected saves. Cinema pauses the hidden reader's extra clock, explicitly hides the normal view and keeps source playback independent.
 
-During overlap, interpolate artwork hue via its shortest arc and saturation from the outgoing to incoming recording using actual media progress. A single restrained bloom may accompany the handover. Do not create a View Transition every frame, add mix meters or alter audio for visual effects. Pause restores neutral roles; reduced motion switches directly. Hide the whole underlying application during absence, including bottom UI and any descendants with explicit visibility.
+## Media-clocked mix and contextual interaction
 
-### Larger-text candidate review
+`wave-mix-v2` is the single automatic Mix switch, enabled for fresh installations; legacy disabled overlap preferences remain disabled. There is no duration slider or classic/staged mode selector. `mixGains` applies a smooth staged phase to complementary sine/cosine gains: entrance, central overlap and tail release. The public Mix path always uses the staged phase. The mode is captured at overlap start so changing the setting cannot jump an existing fade's gains.
 
-Appearance offers a persisted Larger text switch for collection labels, song titles, credits and explanatory copy. Mobile edit/search inputs use at least sixteen-pixel text to avoid unwanted focus zoom; viewport markup continues to allow user zoom. Touch targets and visible focus are reinforced, including short-screen dialogs. Reader/stage geometry remains viewport-bounded. These are tested usability improvements, not a formal accessibility conformance certification.
+`sourceEnvelope` shares one bounded decode Promise per original Blob with visual fallback (24 MiB / 20 minutes). `amplitudeEnvelope` includes all decoded samples so a periodic tone cannot alias into apparent silence. `mixCues` considers only very low source RMS, recordings at least eight seconds long, skips at most four seconds of leading/trailing silence with safety margins, and requires at least 350 ms of savings. Missing/unsupported analysis keeps 0–duration. The active source's effective tail controls handover timing; incoming progress subtracts its cue, while lyrics, seeking and session positions continue using the original recording clock. No output audio graph, tempo/pitch modification, beat matching or Blob rewrite is introduced.
+
+The queue reducer validates permutations, preserves selected ID and play intent, writes the new `orderedQueue` and exits shuffle. `QueuePanel` uses a controlled Motion reorder group plus non-drag alternatives. Existing session persistence saves the result. A target guard rejects a pending handover if queue edits changed its destination.
+
+App-level context delegation resolves `data-track-id` on song rows, Queue and player surfaces. `ContextMenu` uses a native modal dialog for top-layer placement and focus containment, viewport-clamped pointer/keyboard placement, enabled-item keyboard navigation and focus return. Selected text, edit fields, links, Shift-right-click and other editing dialogs retain native behavior. Library deletion is available only through the existing options/confirmation flow.
+
+`useAppPalette` consumes actual blend progress, caches the displayed outgoing origin until artwork is decoded and interpolates the shortest hue arc plus saturation without per-frame snapshots or storage writes. It persists the final palette and cancels stale reveals. Reduced motion applies the target directly. Root `data-immersive` hides workspace, navigation, compact player and toast while the normal-stage subtree is explicitly hidden; audio ownership and clock are unaffected.
+
+## Import verification, continuous listening and rendering budget
+
+A reusable same-origin module worker parses embedded metadata off the UI thread; unavailable workers retain the direct parser. File-level bad tags do not disable workers for later files. Import still saves each original Blob immediately and sequentially, preserves content-hash deduplication and yields low-priority UI updates. Supported embedded front covers are preferred; bad artwork cannot discard good tags. Local checks report completeness without claiming recording identity.
+
+Catalogue verification and external cover completion have been removed from the service, hooks, Settings and library mutation API. Legacy verification preferences/check suggestions are inert. Previously stored user data stays intact; no deletion or re-import migration is run. The local review derives completeness from current fields. LRCLIB remains an independent opt-in lyric service.
+
+Autoplay prepares a continuation at the final recording's boundary, retaining its source/time for Mix preloading. Native ended also has an ordinary-transition fallback. The reducer replaces exhausted queue history with current plus unique next IDs, avoiding repeated-ID ambiguity; original per-track positions remain local. Context weights favor artist/album, genre, era, duration and favorites, with randomness and recent alternatives. Repeat and pause cannot trigger continuation. A library containing only the current song stops unless repeat applies.
+
+Playback root time updates are bounded near 10 Hz, while actual gain/overlap reporting and local lyric clocks remain independent. Seek paths rebuild only on geometry/play-state changes, artwork decodes lazily/asynchronously, Search is memoized with deferred filtering, and queue ID resolution is indexed. Collections over 120 entries use plain rows rather than per-row layout animation; CSS off-screen containment reduces painting but does not virtualize the DOM. Visual RAF is canceled on blur/hidden state and resumed on focus. Phone touch targets and paged metadata review bound the new controls; short entrance staggering respects reduced motion.
+
+## Settings hub and bounded collection labels
+
+`SettingsPage` keeps a local selected-section state and mounts only that section's controls; expensive storage/audit work is deferred until Storage opens. Six keyboard-accessible cards replace the long options sheet. Opening a submenu focuses its heading; returning focuses the originating card. The existing app-level Back still restores the original Settings opener. Player ownership is unchanged.
+
+Phone Library categories wrap instead of requiring horizontal discovery; counts are derived from the actual collections. Flex/grid children explicitly shrink, long prose breaks safely and two-line card/song clamps coexist with single-line compact credits. Original strings are never shortened in storage; full metadata stays in accessible labels, detail pages and Song options. With no selected song, the empty fixed player is hidden and bottom clearance adapts, retaining navigation access. Playback-stage viewport bounds remain independent.
+
+Playlist defaults are flat local SVG labels with a consistent glyph, restrained deterministic tones and a member-color spine; no gradient, randomized decorative mark or rotation is used. Custom artwork wins. A memoized ID map replaces repeated whole-library scans while resolving member artwork.
+
+## Local daily mixes and editor lookup
+
+Home no longer duplicates the selected session. `dailyMixes` partitions unique local songs by their first useful genre tag, then by main artist only when no genre is available. Generic/unknown tags are excluded. It chooses up to three sufficiently populated groups, limits each to thirty songs, rotates the first track daily and seeds the rest from group/day. No guessed mood/style, audio upload or persistent generated playlist is created. The component refreshes at local midnight and on return to the tab; existing queues stay intact.
+
+The lyric editor owns a separate abortable search and result preview. Automatic lookup defers while editing so a background request cannot silently replace a draft. Only explicit Use/Save actions change text/storage, and source attribution survives an unchanged downloaded draft. All LRCLIB callers consult the same persisted provider cooldown. Editing does not depend on a selected/playing decoder.
+
+Import-worker jobs now time out after thirty seconds, clear settled timers, dispose idle workers and handle message transport failure. Timeout fallback retains the importer's filename/source-Blob path without repeating the same potentially stuck parse on the UI thread; later imports can create a fresh worker.
+
+## 0.1.0 independent Windows structure
+
+The Windows client keeps WPF and OS decoders, not the React bundle. `MainWindow` owns native playback/session state, `MainWindow.Browse` builds collections/search/playlists/queue views, and `MainWindow.Settings` owns the six settings destinations and editor. `Collections.cs` contains dependency-free playlist resolution, queue movement, bounded Mix windows, tag-based daily groups and atomic JSON helpers. A separate console contracts runner exercises these rules; an isolated WPF smoke entry point captures real native layouts without accessing the user's library. Optional lyrics remains the only provider flow.
+
+Web daily mix views retain an explicit selection snapshot, resolve it against current tracks and persist saved copies through one IndexedDB transaction. The Home card is navigation, not an implicit play action. Promotional captures use an isolated demo browser context and original assets, never a real user library.
+
+## Release 0.1.0 refinements
+
+On phones, Home's collection shortcuts use a balanced three-plus-two grid; no category is hidden behind a horizontal shelf. Daily mixes open a playlist-like page with artwork, label, count/duration, explicit Play/Shuffle, Save as playlist and ordinary song rows. Reset scrolling on entry so a previously scrolled Home does not crop the new heading. Wrap actions at narrow widths and retain at least 44 px targets.
+
+The independent Windows UI follows the same hierarchy with native controls: rail, rounded main surface, collection cards, row metadata navigation, compact dock, artwork/lyrics stage and six Settings destinations. Its platform-specific dialogs and reduced feature set are documented rather than presented as pixel-perfect web parity. Dark/light ink, caret and selected-row colors are explicit.

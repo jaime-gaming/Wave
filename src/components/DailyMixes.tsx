@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Play } from 'lucide-react';
-import { dailyMixes, localDayKey } from '../domain/dailyMixes';
+import { ArrowUpRight } from 'lucide-react';
+import { dailyMixes, localDayKey, type DailyMix } from '../domain/dailyMixes';
 import { playlistIcon } from '../domain/playlistVisual';
 import type { Track } from '../domain/types';
 import { Artwork } from './Artwork';
 export function DailyMixes({
   tracks,
-  onPlay,
+  onOpen,
 }: {
   tracks: Track[];
-  onPlay: (tracks: Track[], id: string) => void;
+  onOpen: (mix: DailyMix, number: number) => void;
 }) {
   const [day, setDay] = useState(localDayKey);
   useEffect(() => {
@@ -43,8 +43,8 @@ export function DailyMixes({
           <button
             key={mix.id}
             className="daily-mix-card"
-            aria-label={`Play Daily mix ${index + 1}: ${mix.label}`}
-            onClick={() => onPlay(mix.tracks, mix.tracks[0].id)}
+            aria-label={`Open Daily mix ${index + 1}: ${mix.label}`}
+            onClick={() => onOpen(mix, index + 1)}
           >
             <Artwork
               track={{
@@ -61,7 +61,7 @@ export function DailyMixes({
                 {mix.tracks.length} songs · {mix.basis === 'genre' ? 'Genre tags' : 'Artist tags'}
               </small>
             </span>
-            <Play size={20} aria-hidden="true" />
+            <ArrowUpRight size={20} aria-hidden="true" />
           </button>
         ))}
       </div>

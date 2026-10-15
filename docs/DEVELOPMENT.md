@@ -1,5 +1,7 @@
 # Wave Development Guide
 
+**Version: 0.1.0 · Release date: 16 October 2026.**
+
 ## Requirements
 
 | Tool    | Requirement                         |
@@ -203,7 +205,7 @@ Validate 64 px collapsed-player geometry, explicit full-screen opening and focus
 
 Home is the initial web page; Settings is now a full page, not a dialog. Lyrics starts open in a collapsible section each time Now Playing expands or the song changes. Redundant source/playback status text is removed. The original curved W mark replaces generic waveform bars. Online automatic lyrics is optional/off initially, while manual one-song lookup remains available. Exact/search requests validate artist/title/duration, identify the client, and honor provider cooldowns; availability cannot be guaranteed. Crossfade uses incoming media time and equal-power gains, not elapsed wall time. Duplicate cleanup merges only confirmed byte-identical records, preserving references; same-name groups are reviewed non-destructively.
 
-Separate native Android (Kotlin/Compose) and Windows (C#/WPF) source implementations exist; prior web-only scope statements apply to the web architecture, not the entire project. They are early, uncompiled in this workspace and lack full web parity. [PLATFORMS](PLATFORMS.md) is the authoritative build/status matrix. [Privacy](../PRIVACY.md) describes data flows, rights and unresolved public-release obligations.
+Separate native Android (Kotlin/Compose) and Windows (C#/WPF) source implementations exist; prior web-only scope statements apply to the web architecture, not the entire project. Hosted native compilation now passes; Windows additionally runs contract and WPF layout smoke checks. Physical-device playback and full web parity remain separate gates. [PLATFORMS](PLATFORMS.md) is the authoritative build/status matrix. [Privacy](../PRIVACY.md) describes data flows, rights and unresolved public-release obligations.
 
 ## Listening-stage and restoration QA
 
@@ -279,7 +281,7 @@ Run `release-010.spec.ts` for offline daily genre groups and native queue cohere
 
 ## Merge-time 0.1.0 publication
 
-The candidate stays in a draft pull request until merge is explicitly requested. Keep its description to Highlights; detailed QA belongs in this document and `VALIDATION.md`.
+Release 0.1.0 is dated 16 October 2026. Its PR stays draft until merge is explicitly requested. Keep its description to Highlights; detailed QA belongs in this document and `VALIDATION.md`.
 
 When proceeding with the approved merge:
 
@@ -290,3 +292,15 @@ When proceeding with the approved merge:
 5. Native debug/unsigned CI artifacts are test builds, not signed installers. Do not silently relabel or attach them as production-ready packages.
 
 Tagging, publishing and deployment are not part of preparing or updating the draft PR. Successful compilation does not establish Android/Windows UI or playback parity with the web client.
+
+## Release media
+
+The README's PNGs and `docs/media/wave-0.1.0-promo.mp4` are the intentional exception to the generated-artifact rule. Do not commit raw recordings or browser/tool binaries. To recreate them, start the web dev server, install Playwright Chromium/FFmpeg (`npx playwright install chromium ffmpeg`) and provide a normal FFmpeg executable for final MP4 encoding:
+
+```sh
+FFMPEG_BIN=ffmpeg node --experimental-strip-types scripts/create-promo.ts
+```
+
+Optional `WAVE_URL` selects the dev origin and `CHROMIUM_EXECUTABLE_PATH` selects a browser. The script creates a disposable browser profile, imports original demo tones, adds original demo covers/lyrics and films real UI interactions. The clip is silent, captioned, H.264/yuv420p, 1920×1080 at 30 fps, with fast-start metadata. Watch the whole output before posting; it describes the web client, not native feature parity. No social post is made by this script.
+
+Windows release signing and security-scan limitations are in `WINDOWS_RELEASE.md`. Never store signing keys in the repository, create protection exclusions or mislabel an unsigned artifact.

@@ -154,18 +154,25 @@ export async function getPlaylists(): Promise<Playlist[]> {
     db.close();
   }
 }
-export async function createPlaylist(details: PlaylistDetails): Promise<Playlist> {
+export async function createPlaylist(
+  details: PlaylistDetails,
+  trackIds: string[] = [],
+): Promise<Playlist> {
   const now = Date.now();
   const playlist = validatePlaylist({
     ...details,
     id: crypto.randomUUID(),
-    trackIds: [],
+    trackIds,
     createdAt: now,
     updatedAt: now,
   });
   const db = await openLibrary();
   try {
-    await db.add('playlists', playlist);
+    const tx = db.transaction(['tracks', 'playlists'], 'readwrite');
+    const known = new Set(await tx.objectStore('tracks').getAllKeys());
+    playlist.trackIds = playlist.trackIds.filter((id) => known.has(id));
+    await tx.objectStore('playlists').add(playlist);
+    await tx.done;
     return playlist;
   } finally {
     db.close();

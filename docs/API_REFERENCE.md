@@ -1,5 +1,7 @@
 # Wave Internal API Reference
 
+**Version: 0.1.0 · Release date: 16 October 2026.**
+
 This document describes the implemented TypeScript modules. Wave has no HTTP API or backend. These interfaces are internal and may change during `0.x` development.
 
 Earlier Kotlin examples for `MediaPlayerController`, `MusicLibrary`, playlists, and settings managers were proposals, not working APIs. Their relevant behavior is now represented by the modules below; unimplemented features remain on the [roadmap](ROADMAP.md).
@@ -141,7 +143,7 @@ toggleTrackFavorite(id: string): Promise<Track>
 editTrackMetadata(id: string, metadata: TrackMetadata): Promise<Track>
 restoreTrackMetadata(id: string): Promise<Track>
 getPlaylists(): Promise<Playlist[]>
-createPlaylist(details: PlaylistDetails): Promise<Playlist>
+createPlaylist(details: PlaylistDetails, trackIds?: string[]): Promise<Playlist>
 updatePlaylist(id: string, change: PlaylistChange): Promise<Playlist>
 deletePlaylist(id: string): Promise<void>
 ```
@@ -458,3 +460,7 @@ Idle entry now additionally requires `document.hasFocus()`. `blur` wakes the pla
 - `wave-lyrics-provider-retry-at` shares provider Retry-After across editor/player/background callers. Pre-aborted lookups reject; oversized advertised bodies are canceled. Existing recording/version/timeline verification remains unchanged.
 - `wave-large-text` persists the Appearance larger-label preference. It neither changes stored metadata nor adds any external request.
 - Metadata-worker requests have a thirty-second deadline, clear completed timers, release idle workers and recover on a later file without retrying a timed-out parse on the UI thread.
+
+## Daily mix playlist views
+
+`DailyMixes.onOpen(mix, number)` opens `DailyMixPage` without dispatching playback. The view resolves the selected IDs against the latest library, preserving the day's order while reflecting edits/deletions. Play/Shuffle are explicit. Save calls `usePlaylists.create(details, ids)`: the repository validates/deduplicates the snapshot, filters absent IDs and writes the playlist in one tracks/playlists transaction. Saving never rewrites the generated daily mix or any audio Blob.

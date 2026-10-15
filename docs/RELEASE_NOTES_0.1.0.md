@@ -1,34 +1,28 @@
-# Wave 0.1.0 — web release candidate
+# Wave 0.1.0
 
-Status: **unreleased; draft review**, 15 October 2026. This candidate freezes the web feature set. It does not publish a release or certify independent native editions.
+**Release date: 16 October 2026.** These are the release notes for 0.1.0. Publication is pending the approved merge, `v0.1.0` tag and GitHub Release; a date in documentation does not publish a package.
 
 ## Highlights
 
-- Local audio import with original-byte storage, content-hash deduplication, metadata/embedded-artwork checks and off-thread tag parsing. No catalogue verification or cover-download service.
-- Library, dedicated Search, real artist/album profiles, favorites and ordered playlists, with local editing, custom covers and non-destructive duplicate review.
-- Native-decoder playback with queue editing, shuffle/repeat, remembered positions/volume, Media Session support, one automatic Mix control and local contextual Autoplay.
-- Synchronized local/embedded/optional LRCLIB lyrics. **Edit lyrics → Search online** also works before playback: inspect a match, use it in the draft and explicitly Save. Nothing is silently pasted or saved; cancellation/failure retains the draft. Provider cooldowns are shared.
-- Home begins with **Your collection**, then up to three **Daily mixes** using only real local genre/artist tags. Groups are disjoint, need at least three songs and cap at thirty. Ordering refreshes by local calendar day. Fewer groups appear when the library cannot support three; no mood is invented or audio analyzed/uploaded.
-- Six focused Settings menus, dark/light/system appearance, local artwork palettes, responsive mobile navigation, Larger text, reduced motion and bounded long-text layouts. The compact player replaces the removed duplicate Home session row.
+- Bring your own audio, keep the original quality, and browse a local collection without an account or subscription.
+- Daily mixes are now browsable playlist views. See all songs before playback, choose Play/Shuffle, or save an independent, editable playlist snapshot.
+- Mobile Home shows every collection shortcut in a balanced grid. Narrow layouts, larger text, dialogs and playback controls have additional regression coverage.
+- Search for lyrics from the editor without starting the song. Preview a match, explicitly use it, and save it for offline listening. Drafts survive failures and incidental clicks.
+- Native Windows now follows the web's navigation and surface hierarchy: Home, Search, albums/artists, playlists, favorites, six Settings sections, a compact player and expanded Now Playing.
+- Windows adds saved playlist ordering, editable queue, restored paused listening position, Mix/Autoplay controls, local cover overrides and explicit unplayed-song lyric search.
+- Windows packaging includes version/publisher metadata, normal unpacked binaries, SHA-256 checksums, conditional Defender scanning and an opt-in trusted-certificate signing script. No antivirus bypasses or guaranteed false-positive claims.
+- A shorter README with real screenshots and a captioned, animated 1080p demo video.
 
-## Reliability review
+## Using a daily mix
 
-- Silent metadata-worker jobs expire after thirty seconds, release their resources and allow a later file to recover. Timed-out work is not repeated on the UI thread.
-- Lyric searches reject pre-canceled requests, cancel oversized response bodies and retain recording/version/timeline checks and local/manual precedence.
-- The lyric editor scrolls its body independently of Close/Cancel/Save, including short phone viewports. Dialog padding clicks and selection drags do not discard drafts.
-- Punctuation-only artist tags cannot produce a Daily mix.
-- Native build setup and Windows I/O imports are repaired. Windows controls receive rounded surfaces, explicit dark-field text/caret colors, contained long labels and wrapping playback actions. These are source/build improvements, not device-runtime certification.
-- Draft saves, generated queues and UI layout changes preserve original audio and existing stored library data.
+Open a card on Home to browse its songs. No playback starts until you choose a song, Play mix or Shuffle. Save as playlist preserves the current order; daily refreshes will not change that saved copy. Groups use local genre/artist tags, need at least three songs and contain up to thirty. Fewer appear when the library cannot support three.
 
-## Validation
+## Platform status
 
-See [VALIDATION.md](VALIDATION.md) for current complete automated-run totals, production-path smoke checks and their limits. Tests use owned tones and controlled provider fixtures, not copyrighted bundled music or live-catalogue guarantees.
+The web client remains the most complete. Windows is independent C#/WPF, not a web wrapper: hosted contracts, build/publish and automated WPF layout smoke checks pass. Android unit/lint/debug assembly checks pass. Native artifacts are unsigned/debug test packages, not signed installers. Windows still lacks several web-specific features, including word-stamped LRC, spectral illumination, automatic artwork extraction, system media controls and immersive idle mode. Android has a smaller feature set. See [PLATFORMS](PLATFORMS.md).
 
-## Known limitations / review gates
+## Validation and known limits
 
-- Browser codec/storage/Media Session and audio policies vary. Mix is not beat matching or guaranteed gapless/clipping-free playback; Autoplay can be switched off.
-- Daily mix quality depends on local tags. A single artist with missing genres is labeled artist-based, not asserted to be a musical style. These mixes are temporary selections, not automatically saved playlists; ordinary queue/repeat/Autoplay behavior applies.
-- Live LRCLIB availability/coverage is not verified in the restricted build workspace. Lyrics/artwork rights and deployment-specific legal compliance are not certified.
-- The main JavaScript bundle retains Vite's advisory size warning. No device/FPS benchmark or formal accessibility conformance claim is made.
-- Android and Windows are independent native source foundations with incomplete web parity; their build/runtime review remains separate. No signed packages are released here.
-- This draft must pass hosted checks and human review before merge, tagging or deployment.
+See [VALIDATION](VALIDATION.md) for the latest measured runs. Browser codecs/storage vary. Mix does not promise beat matching, gapless playback or bit-perfect device output. Local Autoplay can be disabled. Live LRCLIB availability and coverage remain provider-dependent and unverified in this workspace. Original audio/storage and legal notices are unchanged.
+
+Unsigned Windows downloads can still receive warnings. A successful Defender scan is only one engine/definition snapshot, not universal antivirus approval or publisher reputation. Signing requires a real trusted certificate and remains a publication gate. The existing main JavaScript bundle-size advisory remains.

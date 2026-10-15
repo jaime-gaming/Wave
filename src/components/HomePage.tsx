@@ -1,3 +1,4 @@
+import type { DailyMix } from '../domain/dailyMixes';
 import { DailyMixes } from './DailyMixes';
 import { memo, useMemo } from 'react';
 import { motion } from 'motion/react';
@@ -20,6 +21,7 @@ export const HomePage = memo(function HomePage({
   loading,
   busy,
   onImport,
+  onMix,
   onView,
   onAlbum,
   onArtist,
@@ -37,6 +39,7 @@ export const HomePage = memo(function HomePage({
   loading: boolean;
   busy: boolean;
   onImport: () => void;
+  onMix: (mix: DailyMix, number: number) => void;
   onView: (view: LibraryView) => void;
   onAlbum: (id: string) => void;
   onArtist: (name: string) => void;
@@ -91,7 +94,7 @@ export const HomePage = memo(function HomePage({
           ))}
         </div>
       </section>
-      <DailyMixes tracks={tracks} onPlay={onPlay} />
+      <DailyMixes tracks={tracks} onOpen={onMix} />
       {albums.length > 0 && (
         <section aria-label="Recently added albums" className="home-albums">
           <div className="section-heading">

@@ -23,9 +23,9 @@ export function usePlaylists() {
       active = false;
     };
   }, []);
-  const create = useCallback(async (details: PlaylistDetails) => {
+  const create = useCallback(async (details: PlaylistDetails, trackIds: string[] = []) => {
     try {
-      const saved = await createPlaylist(details);
+      const saved = await createPlaylist(details, trackIds);
       setPlaylists((current) => [...current, saved]);
       return saved;
     } catch {

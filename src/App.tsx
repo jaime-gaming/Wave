@@ -1,3 +1,4 @@
+import { DailyMixPage, type MixSelection } from './components/DailyMixPage';
 import { SettingsPage } from './components/SettingsPage';
 import { LocalMetadataReview } from './components/LocalMetadataReview';
 import { ContextMenu, type ContextAction } from './components/ContextMenu';
@@ -156,6 +157,7 @@ function WaveApp({
   }, [decodedDuration, currentDuration, currentId, player.durationTrackId, acceptDuration]);
   const { dispatch } = player;
   const [page, setPage] = useState<Page>('home');
+  const [dailySelection, setDailySelection] = useState<MixSelection | null>(null);
   const [view, setView] = useState<LibraryView>('songs');
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState('recent');
@@ -349,6 +351,7 @@ function WaveApp({
     setSort('playlist');
   }, []);
   const changePage = (next: Page) => {
+    setDailySelection(null);
     setPage(next);
     setPlaylistId(null);
     setGroup(null);
@@ -594,7 +597,9 @@ function WaveApp({
             <div>
               <h1>
                 {page === 'home'
-                  ? 'Home'
+                  ? dailySelection
+                    ? 'Daily mixes'
+                    : 'Home'
                   : page === 'search'
                     ? 'Search'
                     : page === 'settings'
@@ -652,7 +657,9 @@ function WaveApp({
           )}
         </header>
         <AnimatePresence mode="wait" initial={false}>
-          <LibrarySurface key={`${page}:${view}:${group ?? ''}:${playlistId ?? ''}`}>
+          <LibrarySurface
+            key={`${page}:${dailySelection?.mix.id ?? ''}:${view}:${group ?? ''}:${playlistId ?? ''}`}
+          >
             {page === 'settings' ? (
               <SettingsPage
                 onBack={closeSettings}
@@ -886,6 +893,35 @@ function WaveApp({
                 onBrowse={browse}
                 onImport={chooseFiles}
               />
+            ) : page === 'home' && dailySelection ? (
+              <DailyMixPage
+                selection={dailySelection}
+                tracks={library.tracks}
+                currentId={player.current?.id}
+                playing={player.state.playing}
+                onBack={() => setDailySelection(null)}
+                onPlay={player.play}
+                onShuffle={shuffleCollection}
+                onFavorite={favoriteTrack}
+                onMore={setTrackOptions}
+                onArtist={openArtist}
+                onAlbum={(track) => openAlbum(albumKey(track))}
+                onSave={async (songs) => {
+                  const saved = await collections.create(
+                    {
+                      name: `Daily mix ${dailySelection.number} · ${dailySelection.mix.label}`.slice(
+                        0,
+                        100,
+                      ),
+                      description: `Saved from your local ${dailySelection.mix.basis}-based daily mix.`,
+                    },
+                    songs.map((t) => t.id),
+                  );
+                  if (!saved) return false;
+                  openPlaylist(saved.id);
+                  return true;
+                }}
+              />
             ) : page === 'home' ? (
               <HomePage
                 tracks={library.tracks}
@@ -903,6 +939,7 @@ function WaveApp({
                 onFavorite={favoriteTrack}
                 onMore={setTrackOptions}
                 artistPhotos={artistPhotos}
+                onMix={(mix, number) => setDailySelection({ mix, number })}
               />
             ) : view === 'artists' && !group ? (
               <Artists

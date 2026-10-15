@@ -123,3 +123,17 @@ describe('persistent playlists and edits', () => {
     expect((await getTracks())[0].title).toBe('Signal');
   });
 });
+
+it('creates a daily-mix snapshot atomically with only existing, unique song IDs', async () => {
+  await saveTrack(makeTrack());
+  await saveTrack(makeTrack({ id: 'second' }));
+  const mix = await createPlaylist({ name: 'Daily mix', description: 'Saved selection' }, [
+    'second',
+    'signal',
+    'signal',
+    'missing',
+  ]);
+  expect(mix.trackIds).toEqual(['second', 'signal']);
+  expect(await getPlaylists()).toMatchObject([{ id: mix.id, trackIds: ['second', 'signal'] }]);
+  expect(await getTracks()).toHaveLength(2);
+});

@@ -115,6 +115,9 @@ test('Home shows three local genre mixes after collection, with coherent native 
   await expect(page.locator('.daily-mix-card')).toHaveCount(3);
   expect(await page.locator('.daily-mix-card').allTextContents()).toEqual(labels);
   await page.locator('.daily-mix-card').filter({ hasText: 'Rock' }).click();
+  await expect(page.getByRole('region', { name: /Daily mix .* playlist/ })).toBeVisible();
+  await expect(page.getByRole('contentinfo', { name: 'Music player' })).not.toBeVisible();
+  await page.getByRole('button', { name: 'Play mix', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Current session' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Show queue', exact: true }).click();
@@ -217,3 +220,73 @@ test('lyric editor keeps Close, Cancel, Remove and Save reachable at 320px with 
     'Saved original verse',
   );
 });
+
+test('daily mixes open a browsable playlist without playback and save an independent ordered snapshot', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page.getByLabel('Import audio files').setInputFiles(
+    Array.from({ length: 4 }, (_, i) => ({
+      name: `Rock${i}.wav`,
+      mimeType: 'audio/wav',
+      buffer: wav(`Rock ${i}`, 90, 8000, 16, 'Local band', 'Morning', 'Rock'),
+    })),
+  );
+  await expect(page.getByRole('status')).toContainText('4 tracks added');
+  await page.getByRole('button', { name: 'Open Daily mix 1: Rock', exact: true }).click();
+  const mix = page.getByRole('region', { name: 'Daily mix 1 playlist', exact: true });
+  await expect(mix.locator('.song-row')).toHaveCount(4);
+  await expect(page.getByRole('contentinfo', { name: 'Music player' })).not.toBeVisible();
+  const order = await mix.locator('.song-name strong').allTextContents();
+  await mix.getByRole('button', { name: 'Save as playlist', exact: true }).click();
+  await expect(page.locator('.playlist-detail h2')).toHaveText('Daily mix 1 · Rock');
+  expect(await page.locator('.song-name strong').allTextContents()).toEqual(order);
+  await page.reload();
+  await page.locator('.home-shortcut').filter({ hasText: 'Playlists' }).click();
+  await page.locator('.playlist-card').filter({ hasText: 'Daily mix 1 · Rock' }).click();
+  expect(await page.locator('.song-name strong').allTextContents()).toEqual(order);
+  await expect(page.getByRole('contentinfo', { name: 'Music player' })).not.toBeVisible();
+});
+
+for (const width of [320, 390, 430])
+  test(`mobile Home and daily playlist keep all destinations and actions in bounds at ${width}px`, async ({
+    page,
+  }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('wave-large-text', 'true');
+      localStorage.setItem('wave-theme', 'light');
+    });
+    await page.setViewportSize({ width, height: 740 });
+    await page.goto('/');
+    await page.getByLabel('Import audio files').setInputFiles(
+      Array.from({ length: 3 }, (_, i) => ({
+        name: `Local${i}.wav`,
+        mimeType: 'audio/wav',
+        buffer: wav(`Local song ${i}`, 90, 8000, 16, 'Local band', 'Morning', 'Rock'),
+      })),
+    );
+    await expect(page.getByRole('status')).toContainText('3 tracks added');
+    for (const button of await page.locator('.home-shortcut').all()) {
+      await expect(button).toBeVisible();
+      const box = (await button.boundingBox())!;
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(width);
+    }
+    expect(
+      await page.locator('.home-shortcuts').evaluate((el) => el.scrollWidth <= el.clientWidth + 1),
+    ).toBe(true);
+    await page.getByRole('button', { name: 'Open Daily mix 1: Rock', exact: true }).click();
+    for (const name of ['Play mix', 'Shuffle', 'Save as playlist']) {
+      const button = page.getByRole('button', { name, exact: true });
+      await button.scrollIntoViewIfNeeded();
+      const box = (await button.boundingBox())!;
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(width);
+      expect(box.height).toBeGreaterThanOrEqual(44);
+    }
+    await page.getByRole('button', { name: 'Back to Home', exact: true }).click();
+    await expect(page.locator('.daily-mix-card')).toHaveCount(1);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+  });
