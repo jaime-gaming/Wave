@@ -4,8 +4,22 @@ namespace Wave.Windows;
 
 public record NativePlaylist(string Id, string Name, string Description, List<string> TrackIds);
 public record ListeningSession(List<string> Queue, string? CurrentId, double Position);
+public record NativeMix(string Id, string Label, List<Song> Songs);
 public static class NativeCollections
 {
+    public static List<NativeMix> DailyMixes(IEnumerable<Song> songs, DateOnly day)
+    {
+        string? Tag(string? value) => !string.IsNullOrWhiteSpace(value) &&
+            System.Text.RegularExpressions.Regex.IsMatch(value, @"\p{L}") &&
+            !new[] { "unknown", "unknown artist", "unknown genre", "other", "misc", "miscellaneous", "general" }.Contains(value.Trim().ToLowerInvariant()) ? value.Trim() : null;
+        return songs.DistinctBy(s => s.Id)
+            .Select(s => new { Song = s, Genre = Tag(s.Genre), Artist = Tag(s.Artist) })
+            .Where(x => x.Genre != null || x.Artist != null)
+            .GroupBy(x => (x.Genre != null ? "genre:" : "artist:") + (x.Genre ?? x.Artist)!.ToLowerInvariant())
+            .Where(g => g.Count() >= 3).OrderBy(g => g.Key.StartsWith("genre:") ? 0 : 1).ThenByDescending(g => g.Count()).ThenBy(g => g.Key, StringComparer.Ordinal).Take(3)
+            .Select(g => new NativeMix(g.Key, g.First().Genre ?? g.First().Artist!,
+                g.Select(x => x.Song).OrderBy(s => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(day.ToString("yyyy-MM-dd") + s.Id))), StringComparer.Ordinal).Take(30).ToList())).ToList();
+    }
     public static List<Song> Resolve(IEnumerable<string> ids, IEnumerable<Song> songs)
     {
         var known = songs.ToDictionary(s => s.Id);

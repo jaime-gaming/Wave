@@ -65,6 +65,18 @@ jobs:
           dotnet-version: '10.0.x'
       - run: dotnet run --project platforms/windows/Wave.Contracts.Tests -c Release
       - run: dotnet build platforms/windows/Wave.Windows/Wave.Windows.csproj -c Release
+      - name: Exercise native Windows interface
+        shell: pwsh
+        run: |
+          New-Item artifacts/windows-ui -ItemType Directory -Force | Out-Null
+          $output = (Resolve-Path artifacts/windows-ui).Path
+          $process = Start-Process platforms/windows/Wave.Windows/bin/Release/net10.0-windows/Wave.Windows.exe -ArgumentList @('--smoke-test', $output) -Wait -PassThru
+          if ($process.ExitCode -ne 0) { Get-Content artifacts/windows-ui/error.txt; throw 'Native UI smoke failed' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: wave-windows-ui-smoke
+          path: artifacts/windows-ui/
       - run: dotnet publish platforms/windows/Wave.Windows/Wave.Windows.csproj -c Release -r win-x64 --self-contained false -o artifacts/windows
       - name: Scan Windows output when Defender is available
         shell: pwsh

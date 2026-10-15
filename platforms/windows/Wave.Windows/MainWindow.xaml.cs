@@ -12,7 +12,7 @@ namespace Wave.Windows;
 
 public partial class MainWindow : Window
 {
-    private readonly Library repository = new();
+    private readonly Library repository;
     private readonly LyricsClient client = new();
     private List<Song> tracks = [], queue = [], visible = [];
     private List<NativePlaylist> playlists = [];
@@ -33,8 +33,10 @@ public partial class MainWindow : Window
     private TextBox? searchBox;
     private string searchQuery = "";
 
-    public MainWindow()
+    public MainWindow() : this(null) { }
+    public MainWindow(string? folder)
     {
+        repository = new Library(folder);
         InitializeComponent();
         try {
             tracks = repository.Load(); preferences = repository.LoadPreferences();

@@ -128,11 +128,7 @@ public partial class MainWindow
         }
         CollectionHeader.Children.Add(actions);
     }
-    private sealed record LocalMix(string Id, string Label, List<Song> Songs);
-    private List<LocalMix> DailyGroups() => tracks
-        .Where(s => s.Artist != "Unknown artist" && LyricsClient.Canonical(s.Artist).Length > 0)
-        .GroupBy(s => s.Artist).Where(g => g.Count() >= 3).OrderByDescending(g => g.Count()).ThenBy(g => g.Key, StringComparer.Ordinal).Take(3)
-        .Select(g => new LocalMix(g.Key, g.Key, g.OrderBy(s => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(DateTime.Today.ToString("yyyy-MM-dd") + s.Id))), StringComparer.Ordinal).Take(30).ToList())).ToList();
+    private List<NativeMix> DailyGroups() => NativeCollections.DailyMixes(tracks, DateOnly.FromDateTime(DateTime.Today));
     private void SavePlaylists(List<NativePlaylist> updated) { NativeCollections.Save(repository.Folder, "playlists.json", updated); playlists = updated; }
     private Window Dialog(string title, double height = 540) => new() { Owner = this, Title = title, Width = 520, Height = height, MinWidth = 400, MinHeight = 320, WindowStartupLocation = WindowStartupLocation.CenterOwner, Background = (Brush)Application.Current.Resources["SurfaceBrush"], Foreground = (Brush)Application.Current.Resources["InkBrush"], FontFamily = FontFamily, FontSize = FontSize };
     private void EditPlaylist(NativePlaylist? playlist)

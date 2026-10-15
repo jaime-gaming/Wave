@@ -15,3 +15,7 @@ try {
     NativeCollections.Save(folder, "playlists.json", new[] { new NativePlaylist("mix", "Daily mix", "Snapshot", new() { "a", "b" }) });
     Check(NativeCollections.Load<List<NativePlaylist>>(folder, "playlists.json")![0].TrackIds.Count == 2, "playlist snapshot round trip");
 } finally { if (Directory.Exists(folder)) Directory.Delete(folder, true); }
+
+var tagged = Enumerable.Range(0, 4).Select(i => a with { Id = i.ToString(), Genre = "Rock" }).ToList();
+Check(NativeCollections.DailyMixes(tagged, new DateOnly(2026, 10, 16)).Single().Label == "Rock", "daily mix uses actual genre tags");
+Check(NativeCollections.DailyMixes(tagged.Select(s => s with { Genre = null, Artist = "---" }), new DateOnly(2026, 10, 16)).Count == 0, "unknown styles are not fabricated");
