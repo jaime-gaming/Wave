@@ -195,7 +195,7 @@ public partial class MainWindow : Window
             var recent = queue.TakeLast(6).Select(s => s.Id).ToHashSet();
             var candidates = tracks.Where(s => !recent.Contains(s.Id)).ToList();
             if (candidates.Count == 0) candidates = tracks.Where(s => s.Id != Current?.Id).ToList();
-            var next = candidates[Random.Shared.Next(candidates.Count)]; queue.Add(next); Play(queue.Count - 1);
+            var next = candidates[Random.Shared.Next(candidates.Count)]; queue.RemoveAll(s => s.Id == next.Id); queue.Add(next); Play(queue.Count - 1);
         } else { active.Pause(); playing = false; CancelFade(); UpdatePlaybackLabels(); }
     }
     private void NextClick(object sender, RoutedEventArgs e) => Advance();
