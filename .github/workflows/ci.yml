@@ -22,7 +22,11 @@ jobs:
       - run: npm run format:check
       - run: npm run lint
       - run: npm test
-      - run: npm run build
+      - run: npm run build:pages
+      - name: Verify committed Pages site
+        run: |
+          git diff --exit-code -- docs
+          test -z "$(git ls-files --others --exclude-standard docs)"
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
       - uses: actions/upload-artifact@v4

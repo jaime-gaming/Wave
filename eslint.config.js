@@ -5,7 +5,17 @@ import refresh from 'eslint-plugin-react-refresh';
 import globals from 'globals';
 
 export default tseslint.config(
-  { ignores: ['dist', 'coverage', 'playwright-report', '.cache', 'test-results'] },
+  {
+    ignores: [
+      'dist',
+      'docs/site-assets',
+      'docs/privacy-theme.js',
+      'coverage',
+      'playwright-report',
+      '.cache',
+      'test-results',
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

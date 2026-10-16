@@ -8,3 +8,11 @@ package-lock.json
 LICENSE
 platforms/android
 platforms/windows
+
+# Generated branch-based Pages site
+docs/site-assets
+docs/index.html
+docs/privacy*
+docs/fonts
+docs/licenses
+docs/wave.svg
