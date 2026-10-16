@@ -5380,3 +5380,67 @@ select {
     padding-right: 94px;
   }
 }
+
+/* Phone ergonomics: prevent iOS input zoom and keep controls finger-sized. */
+@media (max-width: 700px) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']),
+  textarea,
+  select {
+    font-size: 16px;
+  }
+  .icon-button,
+  .compact-transport .mini-play,
+  .compact-transport .mini-next,
+  .compact-transport .mini-previous {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .modal {
+    overscroll-behavior: contain;
+    scroll-padding-block: 16px;
+  }
+  .modal-heading {
+    min-width: 0;
+  }
+  .modal-heading h2 {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .modal-heading > .icon-button {
+    flex-shrink: 0;
+  }
+  .modal-actions {
+    flex-wrap: wrap;
+  }
+  .modal-actions > button {
+    min-height: 44px;
+  }
+  .workspace {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  .navigation-shell,
+  .player-bar {
+    left: max(12px, env(safe-area-inset-left));
+    right: max(12px, env(safe-area-inset-right));
+  }
+}
+/* Short landscape phones should not lose a third of the viewport to the rail. */
+@media (max-width: 700px) and (max-height: 500px) {
+  .navigation-shell {
+    height: 56px;
+    padding-block: 2px;
+  }
+  .app-navigation button {
+    min-height: 48px;
+  }
+  .player-bar {
+    bottom: calc(76px + env(safe-area-inset-bottom));
+  }
+  .app-shell {
+    padding-bottom: calc(152px + env(safe-area-inset-bottom));
+  }
+  .without-track.app-shell {
+    padding-bottom: calc(84px + env(safe-area-inset-bottom));
+  }
+}

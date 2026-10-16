@@ -35,7 +35,7 @@ Screenshots and video show the web app with original demo artwork and lyric text
 
 ## Start listening
 
-**In a browser:** run the web app locally using the short instructions below. A hosted version can be enabled through GitHub Pages; this README does not assume a deployment is already live.
+**In a browser:** run the web app locally using the short instructions below. A hosted version can be enabled through GitHub Pages by selecting **Deploy from a branch → main → /docs** after merging (see [deployment instructions](docs/PLATFORMS.md#browser-and-github-pages)); this README does not assume a deployment is already live.
 
 **On Windows:** the native app follows the web's layout: Home, Search, collections, playlists, Settings and Now Playing. CI produces a portable **unsigned test ZIP**; install the .NET 10 Windows Desktop Runtime and run `Wave.Windows.exe`. It is a real C#/WPF application, not a website wrapper. Device/audio integration is still under review.
 

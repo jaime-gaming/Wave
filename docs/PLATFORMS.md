@@ -23,7 +23,9 @@
 
 Use Node.js 22.12+ or 24 and `npm ci && npm run dev`. Production: `npm run build`. For a repository path, use `WAVE_BASE_PATH=/Wave/ npm run build` and serve it below `/Wave/`.
 
-To deploy, a maintainer selects GitHub Actions in repository Settings → Pages and sets the Actions repository variable `PAGES_ENABLED` to `true` in Settings → Secrets and variables → Actions → Variables. The main workflow always validates/builds the site, but deployment is opt-in; editing this document does not enable or publish a site. Repository visibility is never changed by the workflow. Browser libraries are specific to a site origin and profile. HTTPS is needed for Web Crypto/persistence. No backend or API keys are needed.
+To deploy **without a custom Actions workflow**, select **Settings → Pages → Build and deployment → Source: Deploy from a branch**, then **Branch: main**, **Folder: /docs**, and Save after merging the PR. The compiled site is committed in `docs/index.html` and `docs/site-assets/`; `.nojekyll` disables Jekyll processing. Do not select the repository root: its index is Vite source, not the production site. GitHub may show its built-in Pages deployment job; no Wave deployment workflow or `PAGES_ENABLED` variable is needed.
+
+After any web source or public asset change, run `npm ci && npm run build:pages` and commit the generated `docs` changes alongside the source. This cross-platform command uses relative URLs (repository paths and custom domains both work), replaces generated site assets, and preserves Markdown documentation. Preview with `npx vite preview --host 0.0.0.0` after building. CI checks that the committed site matches a fresh build. No repository setting, visibility, tag or release is changed by the build command. Browser libraries are specific to a site origin and profile. HTTPS is needed for Web Crypto/persistence. No backend or API keys are needed.
 
 ## Windows
 
