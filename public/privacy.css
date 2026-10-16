@@ -1,0 +1,183 @@
+:root {
+  color-scheme: dark;
+  --hue: 226;
+  --bg: hsl(var(--hue) 18% 9%);
+  --surface: hsl(var(--hue) 18% 12%);
+  --ink: hsl(var(--hue) 25% 94%);
+  --muted: hsl(var(--hue) 18% 74%);
+  --accent: hsl(var(--hue) 58% 80%);
+  --line: hsl(var(--hue) 18% 28%);
+  font:
+    16px/1.75 'Nunito Sans',
+    system-ui,
+    sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+}
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg: hsl(var(--hue) 25% 96%);
+  --surface: hsl(var(--hue) 30% 99%);
+  --ink: hsl(var(--hue) 28% 15%);
+  --muted: hsl(var(--hue) 18% 36%);
+  --accent: hsl(var(--hue) 48% 35%);
+  --line: hsl(var(--hue) 25% 85%);
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  max-width: 1100px;
+  margin: auto;
+  padding: 24px clamp(16px, 5vw, 64px) 48px;
+}
+a {
+  color: var(--accent);
+  text-underline-offset: 4px;
+  overflow-wrap: anywhere;
+}
+a:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 5px;
+}
+.privacy-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+.back-link {
+  text-decoration: none;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  padding: 8px 18px;
+}
+.wordmark {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 21px;
+  font-weight: 800;
+}
+.wordmark img {
+  width: 36px;
+  height: 36px;
+}
+.privacy-hero {
+  padding: 64px 0 28px;
+  max-width: 780px;
+}
+.eyebrow {
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  font-weight: 750;
+  color: var(--accent);
+}
+h1 {
+  font-size: clamp(36px, 6vw, 68px);
+  line-height: 1.08;
+  letter-spacing: -0.04em;
+  margin: 12px 0 20px;
+}
+h2 {
+  font-size: clamp(21px, 3vw, 28px);
+  line-height: 1.25;
+  margin: 0 0 16px;
+  letter-spacing: -0.02em;
+}
+.intro {
+  font-size: clamp(18px, 2.4vw, 23px);
+  color: var(--muted);
+  line-height: 1.5;
+}
+.updated {
+  font-size: 12px;
+  color: var(--muted);
+}
+.notice {
+  padding: 20px 24px;
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  border: 1px solid var(--line);
+  font-size: 14px;
+  margin: 0 0 24px;
+}
+.privacy-topic {
+  background: var(--surface);
+  padding: clamp(20px, 4vw, 36px);
+  border: 1px solid var(--line);
+  border-radius: 26px;
+  margin: 16px 0;
+}
+.privacy-topic p {
+  margin: 12px 0 0;
+}
+.control-list {
+  padding-left: 20px;
+  margin: 0;
+}
+.control-list li {
+  padding: 8px 0 8px 4px;
+}
+.privacy-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 32px 0 0;
+}
+.privacy-footer span {
+  font-size: 13px;
+  color: var(--muted);
+}
+@media (max-width: 480px) {
+  body {
+    padding-top: 16px;
+  }
+  .privacy-hero {
+    padding-top: 40px;
+  }
+  .wordmark {
+    font-size: 18px;
+  }
+  .back-link {
+    padding: 6px 12px;
+    font-size: 14px;
+  }
+}
+@font-face {
+  font-family: 'Nunito Sans';
+  font-style: normal;
+  font-weight: 200 900;
+  font-display: swap;
+  src: url('./fonts/nunito-sans-latin.woff2') format('woff2');
+}
+:root[data-theme='light'] {
+  --accent: hsl(var(--hue) 48% 28%);
+}
+
+/* Same tonal roles as Wave, without music-driven motion on a reading page. */
+body {
+  transition: color 0.25s ease;
+}
+:root {
+  transition:
+    background-color 0.35s ease,
+    color 0.25s ease;
+}
+.privacy-card,
+.notice,
+.back-link {
+  transition:
+    background-color 0.35s ease,
+    border-color 0.35s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  :root,
+  body,
+  .privacy-card,
+  .notice,
+  .back-link {
+    transition: none;
+  }
+}

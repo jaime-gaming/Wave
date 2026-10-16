@@ -1,0 +1,4 @@
+# Keep upstream license/notice copies verbatim, including their whitespace.
+platforms/android/app/src/main/assets/licenses/*.txt -whitespace
+platforms/windows/LICENSE-DotNet.txt -whitespace
+platforms/windows/THIRD-PARTY-NOTICES-DotNet.txt -whitespace

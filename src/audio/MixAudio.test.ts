@@ -1,0 +1,267 @@
+import { sourceEnvelope } from './sourceEnvelope';
+import { mixGains } from '../domain/mix';
+vi.mock('./sourceEnvelope', () => ({ sourceEnvelope: vi.fn().mockResolvedValue(undefined) }));
+import { beforeEach, afterEach, it, expect, vi } from 'vitest';
+import { MixAudio } from './MixAudio';
+let elements: HTMLAudioElement[], engine: MixAudio;
+const callbacks = () => ({
+  time: vi.fn(),
+  duration: vi.fn(),
+  buffering: vi.fn(),
+  ended: vi.fn(),
+  error: vi.fn(),
+  tick: vi.fn(),
+  warning: vi.fn(),
+  reset: vi.fn(),
+});
+beforeEach(() => {
+  vi.mocked(sourceEnvelope).mockResolvedValue(undefined);
+  vi.useFakeTimers();
+  elements = [];
+  vi.stubGlobal(
+    'Audio',
+    class {
+      constructor() {
+        const element = document.createElement('audio');
+        Object.defineProperty(element, 'duration', { value: 4, writable: true });
+        Object.defineProperty(element, 'readyState', { value: 4, writable: true });
+        elements.push(element);
+        return element;
+      }
+    },
+  );
+});
+afterEach(() => {
+  engine?.destroy();
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
+it('overlaps two native sources, advances their identity and applies complementary gains', async () => {
+  const events = callbacks();
+  engine = new MixAudio(events);
+  const a = new Blob(['a']),
+    b = new Blob(['b']);
+  engine.load(a);
+  await engine.play();
+  engine.prepare(b);
+  elements[0].currentTime = 2;
+  const started = vi.fn();
+  engine.transition(b, 2, () => true, started);
+  await Promise.resolve();
+  expect(started).toHaveBeenCalledOnce();
+  expect(engine.element).toBe(elements[1]);
+  expect(engine.transitioning).toBe(true);
+  expect(engine.outgoingBlob).toBe(a);
+  elements[1].currentTime = 1;
+  vi.advanceTimersByTime(1000);
+  expect(elements[0].volume).toBeCloseTo(Math.SQRT1_2);
+  expect(elements[1].volume).toBeCloseTo(Math.SQRT1_2);
+  engine.setVolume(0.37);
+  expect(Math.hypot(elements[0].volume, elements[1].volume)).toBeCloseTo(0.37);
+  engine.setVolume(0);
+  expect(elements.map((element) => element.volume)).toEqual([0, 0]);
+  expect(elements.every((element) => element.muted)).toBe(true);
+  engine.setVolume(0.37);
+  elements[1].currentTime = 2;
+  vi.advanceTimersByTime(1000);
+  expect(engine.transitioning).toBe(false);
+  expect(elements[0].hasAttribute('src')).toBe(false);
+  expect(elements[1].volume).toBeCloseTo(0.37);
+});
+it('cancels the outgoing tail on seek/pause and revokes all source URLs on destruction', async () => {
+  engine = new MixAudio(callbacks());
+  engine.load(new Blob(['a']));
+  await engine.play();
+  const next = new Blob(['b']);
+  engine.prepare(next);
+  elements[0].currentTime = 2;
+  engine.transition(
+    next,
+    2,
+    () => true,
+    () => {},
+  );
+  await Promise.resolve();
+  engine.seek(1);
+  expect(engine.transitioning).toBe(false);
+  expect(elements[0].hasAttribute('src')).toBe(false);
+  expect(engine.element.currentTime).toBe(1);
+  expect(engine.element.volume).toBe(1);
+  engine.pause();
+  engine.destroy();
+  expect(elements.every((element) => !element.hasAttribute('src'))).toBe(true);
+  expect(URL.revokeObjectURL).toHaveBeenCalled();
+});
+it('does not advance for rejected incoming playback and falls back to ordinary transitions', async () => {
+  const events = callbacks();
+  engine = new MixAudio(events);
+  engine.load(new Blob(['a']));
+  await engine.play();
+  const next = new Blob(['b']);
+  engine.prepare(next);
+  elements[0].currentTime = 2;
+  elements[1].play = vi.fn().mockRejectedValue(new DOMException('Blocked', 'NotAllowedError'));
+  const started = vi.fn();
+  engine.transition(next, 2, () => true, started);
+  await Promise.resolve();
+  await Promise.resolve();
+  expect(started).not.toHaveBeenCalled();
+  expect(engine.element).toBe(elements[0]);
+  expect(engine.element.volume).toBe(1);
+  expect(events.warning).toHaveBeenCalledOnce();
+});
+it('discards a pending transition when the queue changes or playback is paused', async () => {
+  engine = new MixAudio(callbacks());
+  engine.load(new Blob(['a']));
+  await engine.play();
+  const next = new Blob(['b']);
+  engine.prepare(next);
+  elements[0].currentTime = 2;
+  const started = vi.fn();
+  engine.transition(next, 2, () => false, started);
+  await Promise.resolve();
+  expect(started).not.toHaveBeenCalled();
+  expect(engine.element).toBe(elements[0]);
+  engine.transition(next, 2, () => true, started);
+  engine.pause();
+  await Promise.resolve();
+  expect(started).not.toHaveBeenCalled();
+});
+it('ignores outgoing ended/errors and switches current lyric clock to the incoming element', async () => {
+  const events = callbacks();
+  engine = new MixAudio(events);
+  engine.load(new Blob(['a']));
+  await engine.play();
+  const next = new Blob(['b']);
+  engine.prepare(next);
+  elements[0].currentTime = 2;
+  engine.transition(
+    next,
+    2,
+    () => true,
+    () => {},
+  );
+  await Promise.resolve();
+  elements[0].dispatchEvent(new Event('ended'));
+  elements[0].dispatchEvent(new Event('error'));
+  expect(events.ended).not.toHaveBeenCalled();
+  expect(events.error).not.toHaveBeenCalled();
+  elements[1].currentTime = 0.25;
+  elements[1].dispatchEvent(new Event('timeupdate'));
+  expect(events.time).toHaveBeenLastCalledWith(0.25);
+});
+it('uses equal-power gains and reports real mix progress, clearing it on cancellation', async () => {
+  const events = { ...callbacks(), blend: vi.fn() };
+  engine = new MixAudio(events);
+  const a = new Blob(['a']),
+    b = new Blob(['b']);
+  engine.load(a);
+  await engine.play();
+  engine.prepare(b);
+  elements[0].currentTime = 2;
+  engine.transition(
+    b,
+    2,
+    () => true,
+    () => {},
+  );
+  await Promise.resolve();
+  elements[1].currentTime = 0.5;
+  vi.advanceTimersByTime(500);
+  expect(elements[1].volume).toBeCloseTo(Math.sin(Math.PI / 8));
+  expect(elements[0].volume).toBeCloseTo(Math.cos(Math.PI / 8));
+  expect(Math.hypot(elements[0].volume, elements[1].volume)).toBeCloseTo(1);
+  expect(events.blend).toHaveBeenLastCalledWith(
+    expect.objectContaining({ outgoing: a, incoming: b, seconds: 2, progress: expect.any(Number) }),
+  );
+  engine.pause();
+  expect(events.blend).toHaveBeenLastCalledWith(null);
+});
+it('a stale incoming play resolution cannot pause a newer transition on the same deck', async () => {
+  engine = new MixAudio(callbacks());
+  const a = new Blob(['a']),
+    b = new Blob(['b']);
+  engine.load(a);
+  await engine.play();
+  engine.prepare(b);
+  elements[0].currentTime = 2;
+  let oldResolve!: () => void, newResolve!: () => void;
+  vi.spyOn(elements[1], 'play')
+    .mockImplementationOnce(() => new Promise<void>((r) => (oldResolve = r)))
+    .mockImplementationOnce(() => new Promise<void>((r) => (newResolve = r)));
+  const pause = vi.spyOn(elements[1], 'pause'),
+    oldStarted = vi.fn(),
+    newStarted = vi.fn();
+  engine.transition(b, 2, () => true, oldStarted);
+  engine.cancelTransition();
+  const pauses = pause.mock.calls.length;
+  engine.transition(b, 2, () => true, newStarted);
+  oldResolve();
+  await Promise.resolve();
+  expect(pause).toHaveBeenCalledTimes(pauses);
+  expect(oldStarted).not.toHaveBeenCalled();
+  newResolve();
+  await Promise.resolve();
+  expect(newStarted).toHaveBeenCalledOnce();
+  expect(engine.element).toBe(elements[1]);
+});
+it('an obsolete play rejection cannot cancel a fresh play intent', async () => {
+  engine = new MixAudio(callbacks());
+  engine.load(new Blob(['a']));
+  let rejectOld!: (e: Error) => void;
+  vi.spyOn(elements[0], 'play')
+    .mockImplementationOnce(() => new Promise<void>((_, reject) => (rejectOld = reject)))
+    .mockResolvedValue(undefined);
+  const stale = engine.play();
+  engine.pause();
+  await engine.play();
+  rejectOld(new DOMException('Old request', 'NotAllowedError'));
+  await expect(stale).resolves.toBeUndefined();
+  const b = new Blob(['b']);
+  engine.prepare(b);
+  elements[0].currentTime = 2;
+  const started = vi.fn();
+  engine.transition(b, 2, () => true, started);
+  await Promise.resolve();
+  expect(started).toHaveBeenCalledOnce();
+});
+
+it('mixes from conservative cue points with the unshifted recording clock and original native blobs', async () => {
+  const values = new Float32Array(200);
+  values.fill(0.1, 20, 180);
+  vi.mocked(sourceEnvelope).mockResolvedValue({ step: 0.1, values });
+  const events = { ...callbacks(), blend: vi.fn() };
+  engine = new MixAudio(events);
+  const a = new Blob(['original a']),
+    b = new Blob(['original b']);
+  engine.load(a);
+  Object.defineProperty(elements[0], 'duration', { value: 20 });
+  engine.setMixEnabled(true);
+  await engine.play();
+  engine.prepare(b);
+  Object.defineProperty(elements[1], 'duration', { value: 20 });
+  elements[1].dispatchEvent(new Event('loadedmetadata'));
+  await Promise.resolve();
+  elements[0].currentTime = 16.2;
+  expect(engine.mixRemaining).toBeCloseTo(2);
+  engine.transition(
+    b,
+    2,
+    () => true,
+    () => {},
+  );
+  await Promise.resolve();
+  expect(elements[1].currentTime).toBeCloseTo(1.85);
+  expect(engine.active.blob).toBe(b);
+  elements[1].currentTime = 2.15;
+  vi.advanceTimersByTime(100);
+  expect(elements[1].volume).toBeCloseTo(mixGains(0.15, true).incoming);
+  expect(Math.hypot(...elements.map((a) => a.volume))).toBeCloseTo(1);
+  expect(events.time).toHaveBeenLastCalledWith(2.15);
+  expect(events.blend).toHaveBeenLastCalledWith(
+    expect.objectContaining({ progress: expect.closeTo(0.15), outgoing: a, incoming: b }),
+  );
+  engine.pause();
+  engine.setMixEnabled(false);
+  expect(engine.mixRemaining).toBeCloseTo(17.85);
+});

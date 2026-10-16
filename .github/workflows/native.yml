@@ -1,0 +1,114 @@
+name: Native builds
+on:
+  push:
+    paths: ['platforms/**', '.github/workflows/native.yml']
+  pull_request:
+    paths: ['platforms/**', '.github/workflows/native.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  android:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Verify runner Android SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${ANDROID_HOME:?The runner must provide its Android SDK}"
+          if [[ ! -f "$ANDROID_HOME/platforms/android-36/android.jar" || ! -d "$ANDROID_HOME/build-tools/36.0.0" ]]; then
+            "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$ANDROID_HOME" 'platforms;android-36' 'build-tools;36.0.0'
+          fi
+          test -f "$ANDROID_HOME/platforms/android-36/android.jar"
+          test -d "$ANDROID_HOME/build-tools/36.0.0"
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '8.13'
+      - name: Test, lint and assemble Android
+        shell: bash
+        run: |
+          set -o pipefail
+          gradle -p platforms/android testDebugUnitTest lintDebug assembleDebug --console=plain --stacktrace 2>&1 | tee android-build.log
+      - name: Report Android diagnostics
+        if: failure()
+        shell: bash
+        run: |
+          if [[ -f android-build.log ]]; then
+            tail -n 100 android-build.log >> "$GITHUB_STEP_SUMMARY"
+            while IFS= read -r line; do
+              echo "::error::$line"
+            done < <(grep '^e: ' android-build.log || true)
+          fi
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: wave-android-diagnostics
+          path: |
+            android-build.log
+            platforms/android/app/build/reports/
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wave-android-debug-test-only
+          path: platforms/android/app/build/outputs/apk/debug/*.apk
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+      - run: dotnet run --project platforms/windows/Wave.Contracts.Tests -c Release
+      - run: dotnet build platforms/windows/Wave.Windows/Wave.Windows.csproj -c Release
+      - name: Exercise native Windows interface
+        shell: pwsh
+        run: |
+          New-Item artifacts/windows-ui -ItemType Directory -Force | Out-Null
+          $output = (Resolve-Path artifacts/windows-ui).Path
+          $process = Start-Process platforms/windows/Wave.Windows/bin/Release/net10.0-windows/Wave.Windows.exe -ArgumentList @('--smoke-test', $output) -Wait -PassThru
+          if ($process.ExitCode -ne 0) { Get-Content artifacts/windows-ui/error.txt; throw 'Native UI smoke failed' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: wave-windows-ui-smoke
+          path: artifacts/windows-ui/
+      - run: dotnet publish platforms/windows/Wave.Windows/Wave.Windows.csproj -c Release -r win-x64 --self-contained false -o artifacts/windows
+      - name: Scan Windows output when Defender is available
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $result = @{ scanned = $false; reason = 'Defender unavailable on this runner' }
+          if (Get-Command Get-MpComputerStatus -ErrorAction SilentlyContinue) {
+            $status = Get-MpComputerStatus
+            if ($status.AMServiceEnabled -and $status.AntivirusEnabled) {
+              $scanPath = (Resolve-Path artifacts/windows).Path
+              Start-MpScan -ScanType CustomScan -ScanPath $scanPath
+              $threats = @(Get-MpThreatDetection | Where-Object { ($_.Resources -join ' ') -like "*$scanPath*" })
+              if ($threats.Count -gt 0) { throw 'Defender reported a detection in the Windows output. Review it before publishing.' }
+              $result = @{ scanned = $true; engine = $status.AMEngineVersion; definitions = $status.AntivirusSignatureVersion; reason = 'No detections reported' }
+            }
+          }
+          if (-not $result.scanned) { Write-Output '::warning::Windows output was not scanned: Defender is unavailable or inactive. Scan on a protected Windows machine before publishing.' }
+          $result | ConvertTo-Json | Set-Content artifacts/windows/security-scan.json
+          $result | ConvertTo-Json | Add-Content $env:GITHUB_STEP_SUMMARY
+      - shell: pwsh
+        run: |
+          Copy-Item LICENSE artifacts/windows/LICENSE-Wave.txt
+          Copy-Item THIRD_PARTY_NOTICES.md artifacts/windows/
+          Copy-Item platforms/windows/THIRD_PARTY_NOTICES.md artifacts/windows/NativeNotices.md
+          Copy-Item platforms/windows/LICENSE-DotNet.txt artifacts/windows/
+          Copy-Item platforms/windows/THIRD-PARTY-NOTICES-DotNet.txt artifacts/windows/
+          Get-ChildItem artifacts/windows -File | Sort-Object Name | ForEach-Object {
+            "{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name
+          } | Set-Content artifacts/windows/SHA256SUMS.txt
+          Compress-Archive artifacts/windows/* artifacts/Wave-Windows-x64-unsigned.zip
+          Get-FileHash artifacts/Wave-Windows-x64-unsigned.zip -Algorithm SHA256 | Format-List | Out-String | Add-Content $env:GITHUB_STEP_SUMMARY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wave-windows-unsigned-test-only
+          path: artifacts/Wave-Windows-x64-unsigned.zip
