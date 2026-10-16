@@ -286,7 +286,7 @@ Release 0.1.0 is dated 17 October 2026. Publication requires maintainer authoriz
 When proceeding with the approved merge:
 
 1. Run `npm run test:release` and `npm run release:check -- v0.1.0`. They reject inconsistent web/native versions, a wrong tag name or missing/mismatched release notes without publishing anything. Require successful web and native checks on the latest PR revision and review the remaining device/runtime limitations.
-2. Mark PR #1 ready, then merge with `gh pr merge 1 --merge --match-head-commit <validated-head-sha>`. Preserve the feature branch as a recovery reference. Do not bypass failing checks or create a release from an unmerged candidate SHA.
+2. Mark PR #1 ready, then merge with `gh pr merge 1 --squash --subject "Wave 0.1.0 Release" --body "" --match-head-commit <validated-head-sha>`. Use the exact squash commit title `Wave 0.1.0 Release`. Preserve the feature branch as a recovery reference. Do not bypass failing checks or create a release from an unmerged candidate SHA.
 3. Read the actual merge commit from the merged PR and confirm it matches the final `main` revision. Create the annotated `v0.1.0` tag at that commit through GitHub. Never force-update an existing tag; inspect it first if retrying a partially completed publication.
 4. Prepare/update the draft GitHub Release with the reviewed `RELEASE_NOTES_0.1.0.md`. Verify its target and dereferenced tag match the merge commit before publishing. A draft does not publish a tag. Build web assets from that exact revision; include source-commit metadata and SHA-256 checksums.
 5. Native debug/unsigned CI artifacts are test builds, not signed installers. Do not silently relabel or attach them as production-ready packages.
