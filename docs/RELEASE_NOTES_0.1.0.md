@@ -1,9 +1,11 @@
 # Wave 0.1.0
 
-**Release date: 17 October 2026.** These are the release notes for 0.1.0. Publication is pending the approved merge, `v0.1.0` tag and GitHub Release; a date in documentation does not publish a package.
+**Release date: 17 October 2026.** This initial release provides the source and web client. Published assets and the exact tagged revision are listed on the [GitHub Release](https://github.com/jaime-gaming/Wave/releases/tag/v0.1.0). Native debug/unsigned CI packages remain test artifacts, not official signed installers.
 
 ## Highlights
 
+- Keep both Mix covers full-size in expanded Now Playing, including narrow phones with lyrics collapsed, without changing compact-player artwork or the audio path.
+- Check web/Android/Windows version identity and release notes before publication; pin web/Pages runners to Ubuntu 24.04 and use current checkout/Node action runtimes.
 - Lyrics requests share a queue, avoid unnecessary preflight/duplicate requests and honor provider retry deadlines without an artificial minute-long minimum. Identical concurrent requests share work, and supported browsers coordinate same-origin tabs. Existing saved lyrics remain available offline.
 
 - Bring your own audio, keep the original quality, and browse a local collection without an account or subscription.

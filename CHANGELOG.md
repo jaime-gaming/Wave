@@ -2,6 +2,8 @@
 
 ## 0.1.0 — 17 October 2026
 
+- Keep both Mix covers full-size in expanded Now Playing, including narrow phones with lyrics collapsed, without changing compact-player artwork or the audio path.
+- Check web/Android/Windows version identity and release notes before publication; pin web/Pages runners to Ubuntu 24.04 and use current checkout/Node action runtimes.
 - Reduce lyric-service request bursts with a shared queue, cross-tab coordination and concurrent lookup deduplication; avoid custom-header preflight, honor short/date Retry-After deadlines and resume automatic eligibility without a fifteen-minute penalty.
 - Align native request spacing; Windows honors HTTP-date/short Retry-After responses rather than imposing a minute, and Android no longer truncates longer provider deadlines.
 - Expand the product film to 60 seconds with real UI, motion presentation and a soft acoustic-piano score.
@@ -20,7 +22,7 @@
 - Keep lyric-editor dismissal/save actions visible while its body scrolls, including larger text at 320×360. Prevent padding clicks and selection drags from dismissing native dialogs.
 - Reject punctuation-only artist labels when generating Daily mixes.
 - Repair native build checks: import Windows I/O types and use the Android SDK provided by the pinned Ubuntu runner. Improve native diagnostics, Windows dark edit-field contrast, rounded controls, long-label containment and wrapping playback actions.
-- Release publication awaits the approved merge, tag and GitHub Release. Native feature parity and physical-device certification are not claimed.
+- Native feature parity and physical-device certification are not claimed.
 
 ### Pre-release implementation — focused settings and mobile library (web)
 

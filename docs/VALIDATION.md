@@ -1,6 +1,6 @@
 # Validation record
 
-Release 0.1.0 · 17 October 2026 · publication pending. Historical run dates are retained below.
+Release 0.1.0 · 17 October 2026. Historical run dates are retained below.
 
 ## Web
 
@@ -164,3 +164,13 @@ Checks below were executed on 16 October 2026 against the upcoming release; olde
 - Root production build, ESLint, full Prettier check and diff whitespace check passed. The pre-existing JavaScript chunk-size advisory remains.
 - Windows now serializes bounded lyric requests and honors short/date Retry-After values. Android maintains 500 ms spacing without truncating longer provider deadlines. Four Windows retry-deadline contracts and four Android retry tests were added. **Native SDKs are unavailable in this sandbox, so these new native changes/contracts were not compiled or run locally**; earlier native CI results do not certify this revision.
 - Release/documentation/About dates are 17 October 2026. Privacy notice edits are date-only; legal policy text, providers, consent and original audio storage are unchanged. The improved 60-second film and reproducible production tools are included in this revision. No merge, tag, release or social publication is performed.
+
+## Final merge candidate · 17 October 2026
+
+- Expanded Mix had a separate, reproducible sizing defect in Chromium 153: both covers were 56×56 inside a 287×287 stage. `MixVisual` now accepts the appropriate artwork style for each context; expanded playback uses the responsive stage style, while compact playback retains its thumbnail style. A stage-specific override removes the legacy mobile thumbnail cap. No decoder, original audio storage, queue or lyric-provider policy was changed by this correction.
+- The native-decoder overlap regression now measures both artwork layers, their Mix frame and the outer stage cover at 1280×720, 390×844 and 320×568. Both phone cases collapse lyrics to exercise the larger cover. All three passed with motion enabled, while retaining actual simultaneous decoder/gain checks, pause and persisted Mix settings. Two additional component tests protect expanded and compact artwork classes.
+- The historical 98/99 result above used the sandbox's Chromium 143 build. Its visibility failure was not reproduced with Chromium 153 before the sizing correction. This distinction does not certify every older browser or erase the historical result.
+- Six release-metadata tests cover matching versions, Windows line endings and rejection of wrong tags, stale lockfiles, divergent native versions and mismatched notes. CI and Pages run this guard before building; it has no publishing side effects.
+- GitHub web, Android and Windows checks all passed on `0ada8a0` (web runs 38972387409/38972382762; native runs 38972387783/38972382724). That includes the native lyric changes previously unverified locally. New candidate checks must pass again before merge. SDK/device/signing limitations remain as documented; successful CI is not physical-device certification.
+- Full candidate verification: **218 unit tests in 45 files**, **101 Chromium 153 browser tests** (7.3 minutes, two workers), and **6 release-metadata tests** passed. Production build, ESLint, Prettier and whitespace checks passed. The existing >500 kB bundle advisory remains; it is not a build failure.
+- Release preparation preserves the feature branch, matches the validated PR head at merge, and targets the annotated tag and release at the actual merge commit. GitHub Pages has a separate deployment result; the repository reports private visibility and `has_pages=false`. Detailed Pages configuration could not be inspected through the session integration (HTTP 403). Deployment now requires explicit `PAGES_ENABLED=true` after Pages is configured, rather than failing an unconfigured main-branch deployment. Build artifacts remain available without publishing a site or changing visibility.

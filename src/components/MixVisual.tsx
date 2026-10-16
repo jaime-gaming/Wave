@@ -1,6 +1,12 @@
 import { Artwork } from './Artwork';
 import type { usePlayer } from '../hooks/usePlayer';
-export function MixVisual({ blend }: { blend: ReturnType<typeof usePlayer>['blend'] }) {
+export function MixVisual({
+  blend,
+  artworkClassName = 'player-artwork',
+}: {
+  blend: ReturnType<typeof usePlayer>['blend'];
+  artworkClassName?: string;
+}) {
   if (!blend) return null;
   return (
     <div className="mix-artwork" aria-hidden="true">
@@ -10,7 +16,7 @@ export function MixVisual({ blend }: { blend: ReturnType<typeof usePlayer>['blen
           opacity: 1,
         }}
       >
-        <Artwork track={blend.from} className="player-artwork" />
+        <Artwork track={blend.from} className={artworkClassName} />
       </div>
       <div
         className="mix-incoming"
@@ -18,7 +24,7 @@ export function MixVisual({ blend }: { blend: ReturnType<typeof usePlayer>['blen
           opacity: blend.progress,
         }}
       >
-        <Artwork track={blend.to} className="player-artwork" />
+        <Artwork track={blend.to} className={artworkClassName} />
       </div>
     </div>
   );

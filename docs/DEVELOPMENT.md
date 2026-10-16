@@ -281,17 +281,17 @@ Run `release-010.spec.ts` for offline daily genre groups and native queue cohere
 
 ## Merge-time 0.1.0 publication
 
-Release 0.1.0 is dated 17 October 2026. Its PR stays draft until merge is explicitly requested. Keep its description to Highlights; detailed QA belongs in this document and `VALIDATION.md`.
+Release 0.1.0 is dated 17 October 2026. Publication requires maintainer authorization and successful checks on the exact candidate. Keep its description to Highlights; detailed QA belongs in this document and `VALIDATION.md`.
 
 When proceeding with the approved merge:
 
-1. Require successful web and native checks on the latest PR revision and review the remaining device/runtime limitations.
-2. Merge PR #1 using its explicit number. Do not create a release from an unmerged candidate SHA.
-3. Read the actual merge commit from the merged PR, create the annotated `v0.1.0` tag at that commit, and push that tag.
-4. Create the GitHub Release for `v0.1.0` using the reviewed `RELEASE_NOTES_0.1.0.md`. Verify that the tag and release point to the merged revision.
+1. Run `npm run test:release` and `npm run release:check -- v0.1.0`. They reject inconsistent web/native versions, a wrong tag name or missing/mismatched release notes without publishing anything. Require successful web and native checks on the latest PR revision and review the remaining device/runtime limitations.
+2. Mark PR #1 ready, then merge with `gh pr merge 1 --merge --match-head-commit <validated-head-sha>`. Preserve the feature branch as a recovery reference. Do not bypass failing checks or create a release from an unmerged candidate SHA.
+3. Read the actual merge commit from the merged PR and confirm it matches the final `main` revision. Create the annotated `v0.1.0` tag at that commit through GitHub. Never force-update an existing tag; inspect it first if retrying a partially completed publication.
+4. Prepare/update the draft GitHub Release with the reviewed `RELEASE_NOTES_0.1.0.md`. Verify its target and dereferenced tag match the merge commit before publishing. A draft does not publish a tag. Build web assets from that exact revision; include source-commit metadata and SHA-256 checksums.
 5. Native debug/unsigned CI artifacts are test builds, not signed installers. Do not silently relabel or attach them as production-ready packages.
 
-Tagging, publishing and deployment are not part of preparing or updating the draft PR. Successful compilation does not establish Android/Windows UI or playback parity with the web client.
+PR preparation alone does not authorize publication. GitHub Releases and Pages are separate: verify the Pages workflow/deployment rather than treating a successful tag operation as proof of hosting. Pages deployment additionally requires repository Pages configuration and `PAGES_ENABLED=true`; without that opt-in the workflow only builds an artifact. Do not change repository visibility as a side effect of release preparation. Successful compilation does not establish Android/Windows UI or playback parity with the web client.
 
 ## Release media
 

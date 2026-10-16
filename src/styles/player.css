@@ -100,6 +100,10 @@
   height: 100%;
   aspect-ratio: 1;
 }
+/* The stage already bounds its square; legacy thumbnail caps must not shrink Mix. */
+.stage-cover .mix-artwork {
+  max-width: none;
+}
 .stage-cover .stage-artwork {
   width: 100%;
   height: 100%;

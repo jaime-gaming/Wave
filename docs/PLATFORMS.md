@@ -1,6 +1,6 @@
 # Wave platforms · 0.1.0
 
-**Release date: 17 October 2026. Publication pending approved merge/tag/Release.** Wave has three independent implementations, not WebView/Electron wrappers. The web client is the most complete; Windows follows its structure with native C#/WPF controls, while Android uses Kotlin/Compose. Libraries are separate and never synchronized or silently migrated.
+**Release date: 17 October 2026.** Wave has three independent implementations, not WebView/Electron wrappers. The web client is the most complete; Windows follows its structure with native C#/WPF controls, while Android uses Kotlin/Compose. Libraries are separate and never synchronized or silently migrated.
 
 | Capability                                | Web                                     | Windows                                 | Android                      |
 | ----------------------------------------- | --------------------------------------- | --------------------------------------- | ---------------------------- |
@@ -23,7 +23,7 @@
 
 Use Node.js 22.12+ or 24 and `npm ci && npm run dev`. Production: `npm run build`. For a repository path, use `WAVE_BASE_PATH=/Wave/ npm run build` and serve it below `/Wave/`.
 
-To deploy, a maintainer selects GitHub Actions in repository Settings → Pages. The Pages workflow builds/deploys on main; editing this document does not enable or publish a site. Browser libraries are specific to a site origin and profile. HTTPS is needed for Web Crypto/persistence. No backend or API keys are needed.
+To deploy, a maintainer selects GitHub Actions in repository Settings → Pages and sets the Actions repository variable `PAGES_ENABLED` to `true` in Settings → Secrets and variables → Actions → Variables. The main workflow always validates/builds the site, but deployment is opt-in; editing this document does not enable or publish a site. Repository visibility is never changed by the workflow. Browser libraries are specific to a site origin and profile. HTTPS is needed for Web Crypto/persistence. No backend or API keys are needed.
 
 ## Windows
 

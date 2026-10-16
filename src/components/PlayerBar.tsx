@@ -104,7 +104,7 @@ function PlayerDetails({
             onClick={() => dispatch({ type: 'toggle' })}
           >
             {player.blend ? (
-              <MixVisual blend={player.blend} />
+              <MixVisual blend={player.blend} artworkClassName="stage-artwork" />
             ) : (
               <AnimatePresence mode="wait" initial={false}>
                 {' '}

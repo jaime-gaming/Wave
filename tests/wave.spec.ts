@@ -1275,107 +1275,143 @@ test('reorders complete playlists and albums with accessible controls and persis
   }
 });
 
-test('crossfade really overlaps two native decoders, remembers duration and stops both when paused', async ({
-  page,
-}, info) => {
-  await page.addInitScript(() => {
-    const Native = window.Audio;
-    const elements: HTMLAudioElement[] = [];
-    Object.defineProperty(window, '__waveTestAudio', { value: elements });
-    window.Audio = class extends Native {
-      constructor(src?: string) {
-        super(src);
-        elements.push(this);
-      }
-    };
-  });
-  await page.goto('/');
-  await expect(page.getByText('No songs yet')).toBeVisible();
-  await page
-    .getByRole('navigation', { name: 'Main navigation' })
-    .getByRole('button', { name: 'Library', exact: true })
-    .click();
-  await page
-    .getByLabel('Import audio files')
-    .setInputFiles(
-      await Promise.all(
-        ['A', 'B', 'C'].map((title) => createFixture(info.outputPath(title + '.wav'), title, 8)),
-      ),
-    );
-  await expect(page.getByRole('status')).toContainText('3 tracks added');
-  await page.getByRole('button', { name: 'Open settings' }).click();
-  await settingsMenu(page, 'Playback');
-  const settings = page.getByRole('region', { name: 'Settings' });
-  const mix = settings.getByRole('switch', { name: 'Mix', exact: true });
-  await mix.click();
-  await expect(mix).toHaveAttribute('aria-checked', 'true');
-  await closeSettings(page);
-  await page.getByRole('combobox', { name: 'Sort tracks' }).selectOption('title');
-  await page.getByRole('button', { name: 'Play all songs' }).click();
-  await expect
-    .poll(() =>
-      page.evaluate(() => {
-        const audios = (window as unknown as { __waveTestAudio: HTMLAudioElement[] })
-          .__waveTestAudio;
-        return audios.some((a) => !a.paused && a.currentTime > 0.1);
-      }),
-    )
-    .toBe(true);
-  await page.getByRole('button', { name: 'Open now playing' }).click();
-  await page.evaluate(() => {
-    const playing = (
-      window as unknown as { __waveTestAudio: HTMLAudioElement[] }
-    ).__waveTestAudio.find((a) => !a.paused)!;
-    playing.currentTime = 6.05;
-  });
-  await expect
-    .poll(() =>
-      page.evaluate(() => {
-        const playing = (
-          window as unknown as { __waveTestAudio: HTMLAudioElement[] }
-        ).__waveTestAudio.filter((a) => !a.paused);
-        return playing.length === 2 && playing.every((a) => a.volume > 0 && a.volume < 1);
-      }),
-    )
-    .toBe(true);
-  const full = page.getByRole('dialog', { name: 'Now playing' });
-  await expect(full.locator('.stage-track h3')).toHaveText('B');
-  await expect(full.getByRole('progressbar', { name: 'Crossfade progress' })).toHaveCount(0);
-  await expect(full.locator('.crossfade-status,.compact-crossfade')).toHaveCount(0);
-  await expect
-    .poll(async () => {
-      const opacity = Number(
-        await full.locator('.mix-incoming').evaluate((el) => getComputedStyle(el).opacity),
-      );
-      return opacity > 0 && opacity < 1;
-    })
-    .toBe(true);
-  await expect(full.locator('.mix-artwork')).toBeVisible();
-  const gains = await page.evaluate(() =>
-    (window as unknown as { __waveTestAudio: HTMLAudioElement[] }).__waveTestAudio
-      .filter((a) => !a.paused)
-      .reduce((sum, a) => sum + a.volume * a.volume, 0),
-  );
-  expect(gains).toBeCloseTo(1, 3);
-  await full.getByRole('button', { name: 'Pause', exact: true }).click();
-  await expect(full.getByRole('progressbar', { name: 'Crossfade progress' })).toHaveCount(0);
-  await expect
-    .poll(() =>
-      page.evaluate(() =>
-        (window as unknown as { __waveTestAudio: HTMLAudioElement[] }).__waveTestAudio.every(
-          (a) => a.paused,
+for (const viewport of [
+  { name: 'desktop', width: 1280, height: 720 },
+  { name: 'phone with collapsed lyrics', width: 390, height: 844 },
+  { name: 'narrow phone with collapsed lyrics', width: 320, height: 568 },
+]) {
+  test(`Mix keeps full-size covers, overlaps native decoders and pauses both (${viewport.name})`, async ({
+    page,
+  }, info) => {
+    await page.setViewportSize(viewport);
+    await page.addInitScript(() => {
+      const Native = window.Audio;
+      const elements: HTMLAudioElement[] = [];
+      Object.defineProperty(window, '__waveTestAudio', { value: elements });
+      window.Audio = class extends Native {
+        constructor(src?: string) {
+          super(src);
+          elements.push(this);
+        }
+      };
+    });
+    await page.goto('/');
+    await expect(page.getByText('No songs yet')).toBeVisible();
+    await page
+      .getByRole('navigation', { name: 'Main navigation' })
+      .getByRole('button', { name: 'Library', exact: true })
+      .click();
+    await page
+      .getByLabel('Import audio files')
+      .setInputFiles(
+        await Promise.all(
+          ['A', 'B', 'C'].map((title) => createFixture(info.outputPath(title + '.wav'), title, 8)),
         ),
-      ),
-    )
-    .toBe(true);
-  await page.reload();
-  await page.getByRole('button', { name: 'Open settings' }).click();
-  await settingsMenu(page, 'Playback');
-  await expect(page.getByRole('switch', { name: 'Mix', exact: true })).toHaveAttribute(
-    'aria-checked',
-    'true',
-  );
-});
+      );
+    await expect(page.getByRole('status')).toContainText('3 tracks added');
+    await page.getByRole('button', { name: 'Open settings' }).click();
+    await settingsMenu(page, 'Playback');
+    const settings = page.getByRole('region', { name: 'Settings' });
+    const mix = settings.getByRole('switch', { name: 'Mix', exact: true });
+    await mix.click();
+    await expect(mix).toHaveAttribute('aria-checked', 'true');
+    await closeSettings(page);
+    await page.getByRole('combobox', { name: 'Sort tracks' }).selectOption('title');
+    await page.getByRole('button', { name: 'Play all songs' }).click();
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const audios = (window as unknown as { __waveTestAudio: HTMLAudioElement[] })
+            .__waveTestAudio;
+          return audios.some((a) => !a.paused && a.currentTime > 0.1);
+        }),
+      )
+      .toBe(true);
+    await page.getByRole('button', { name: 'Open now playing' }).click();
+    if (viewport.width <= 700) {
+      await page
+        .getByRole('dialog', { name: 'Now playing' })
+        .getByRole('button', { name: 'Lyrics', exact: true })
+        .click();
+      await expect(page.locator('.stage-lyrics')).toHaveAttribute('data-open', 'false');
+    }
+    await page.evaluate(() => {
+      const playing = (
+        window as unknown as { __waveTestAudio: HTMLAudioElement[] }
+      ).__waveTestAudio.find((a) => !a.paused)!;
+      playing.currentTime = 6.05;
+    });
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const playing = (
+            window as unknown as { __waveTestAudio: HTMLAudioElement[] }
+          ).__waveTestAudio.filter((a) => !a.paused);
+          return playing.length === 2 && playing.every((a) => a.volume > 0 && a.volume < 1);
+        }),
+      )
+      .toBe(true);
+    const full = page.getByRole('dialog', { name: 'Now playing' });
+    await expect(full.locator('.stage-track h3')).toHaveText('B');
+    await expect(full.getByRole('progressbar', { name: 'Crossfade progress' })).toHaveCount(0);
+    await expect(full.locator('.crossfade-status,.compact-crossfade')).toHaveCount(0);
+    await expect
+      .poll(async () => {
+        const opacity = Number(
+          await full.locator('.mix-incoming').evaluate((el) => getComputedStyle(el).opacity),
+        );
+        return opacity > 0 && opacity < 1;
+      })
+      .toBe(true);
+    await expect(full.locator('.mix-artwork')).toBeVisible();
+    const coverSizes = await full.locator('.mix-artwork').evaluate((element) => {
+      const frame = element.getBoundingClientRect();
+      const cover = element.closest('.stage-cover')!.getBoundingClientRect();
+      return [...element.querySelectorAll('.artwork')].map((artwork) => {
+        const box = artwork.getBoundingClientRect();
+        return {
+          width: box.width,
+          height: box.height,
+          frameWidth: frame.width,
+          frameHeight: frame.height,
+          coverWidth: cover.width,
+          coverHeight: cover.height,
+        };
+      });
+    });
+    expect(coverSizes).toHaveLength(2);
+    for (const size of coverSizes) {
+      expect(size.width).toBeCloseTo(size.frameWidth, 0);
+      expect(size.height).toBeCloseTo(size.frameHeight, 0);
+      expect(size.frameWidth).toBeCloseTo(size.coverWidth, 0);
+      expect(size.frameHeight).toBeCloseTo(size.coverHeight, 0);
+    }
+    const gains = await page.evaluate(() =>
+      (window as unknown as { __waveTestAudio: HTMLAudioElement[] }).__waveTestAudio
+        .filter((a) => !a.paused)
+        .reduce((sum, a) => sum + a.volume * a.volume, 0),
+    );
+    expect(gains).toBeCloseTo(1, 3);
+    await full.getByRole('button', { name: 'Pause', exact: true }).click();
+    await expect(full.getByRole('progressbar', { name: 'Crossfade progress' })).toHaveCount(0);
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          (window as unknown as { __waveTestAudio: HTMLAudioElement[] }).__waveTestAudio.every(
+            (a) => a.paused,
+          ),
+        ),
+      )
+      .toBe(true);
+    await page.reload();
+    await page.getByRole('button', { name: 'Open settings' }).click();
+    await settingsMenu(page, 'Playback');
+    await expect(page.getByRole('switch', { name: 'Mix', exact: true })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+  });
+}
 
 test('downloads matching lyrics without playing and retains compact synchronized lyrics offline after reload', async ({
   page,

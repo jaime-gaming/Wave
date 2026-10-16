@@ -41,7 +41,7 @@ Screenshots and video show the web app with original demo artwork and lyric text
 
 **On Android:** an independent native app is available as an experimental debug build, with a smaller feature set. It is not yet a replacement for the web edition.
 
-Check [Releases](https://github.com/jaime-gaming/Wave/releases) for published downloads and [the platform guide](docs/PLATFORMS.md) for build instructions and current differences. **Publication of 0.1.0 is pending the approved merge, tag and GitHub Release.** The release date above is not a claim that packages are already published.
+Check [Releases](https://github.com/jaime-gaming/Wave/releases) for published downloads and [the platform guide](docs/PLATFORMS.md) for build instructions and current differences. Release notes and attached assets identify what is published; native CI downloads are still unsigned/test-only, not official signed installers.
 
 ### Try the web app locally
 
