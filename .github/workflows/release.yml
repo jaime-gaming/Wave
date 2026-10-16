@@ -1,0 +1,65 @@
+name: Release assets
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to package
+        required: true
+        default: v0.1.0
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-assets-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  web:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: refs/tags/${{ github.event.release.tag_name || inputs.tag }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Validate the tagged source
+        run: |
+          npm run test:release
+          python3 -m unittest discover -s scripts -p test_package_release.py
+          npm run release:check -- "$RELEASE_TAG"
+          test "$(git rev-parse HEAD)" = "$(git rev-parse "$RELEASE_TAG^{commit}")"
+          git merge-base --is-ancestor HEAD origin/main
+      - name: Build the portable web client
+        run: npm run build
+        env:
+          WAVE_BASE_PATH: ./
+      - name: Package web client and release media
+        run: python3 scripts/package_release.py --output "$RUNNER_TEMP/wave-release"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wave-web-release-${{ env.RELEASE_TAG }}
+          path: ${{ runner.temp }}/wave-release/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Attach release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$RELEASE_TAG" "$RUNNER_TEMP/wave-release/"* --clobber
+      - name: Record source and hashes
+        run: |
+          echo "Release assets built from $(git rev-parse HEAD). Native test binaries are not included." >> "$GITHUB_STEP_SUMMARY"
+          cat "$RUNNER_TEMP/wave-release/SHA256SUMS.txt" >> "$GITHUB_STEP_SUMMARY"
