@@ -30,3 +30,7 @@ artifacts/
 # Native build trees and additional private signing formats.
 **/build/
 *.p12
+
+# Python media-production caches.
+__pycache__/
+*.pyc

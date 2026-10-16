@@ -1,6 +1,6 @@
 # Wave Development Guide
 
-**Version: 0.1.0 · Release date: 16 October 2026.**
+**Version: 0.1.0 · Release date: 17 October 2026.**
 
 ## Requirements
 
@@ -243,7 +243,7 @@ Do not count invisible native-details descendants as visible hit targets. Closed
 
 The real-audio tests require `data-music-analysis="live"` and a perceptible computed light opacity, then verify that native time advances without source/volume changes and that pause releases live analysis. A separate unsupported-capture test requires the envelope fallback and mute/unmute response. Source fixtures are generated waveforms, not licensed music.
 
-For lyric recovery, abort the headered request and inspect the next request: same URL, no custom preflight header, no credentials or audio payload. Reload must reuse the saved verified result without a new request. Keep separate tests for HTTP throttles and recording mismatches. Mock success does not demonstrate live service availability. The browser and command-line live checks in this restricted workspace both failed to connect to LRCLIB; neither establishes a provider outage or a CORS misconfiguration.
+For lyric recovery, inspect the first request: no custom preflight header, credentials or audio payload. A TypeError must not cause a duplicate GET. Exercise simultaneous automatic/editor callers, independent cancellation, two tabs, queued throttles, short and HTTP-date Retry-After values, and storage-denied fallback. Verify automatic eligibility resumes at the actual provider deadline, not fifteen minutes later. Reload must reuse the saved verified result without a new request. Keep separate tests for HTTP throttles and recording mismatches. Mock success does not demonstrate live service availability. The browser and command-line live checks in this restricted workspace both failed to connect to LRCLIB; neither establishes a provider outage or a CORS misconfiguration.
 
 ## Spectral, queue and native-command regression checks
 
@@ -281,7 +281,7 @@ Run `release-010.spec.ts` for offline daily genre groups and native queue cohere
 
 ## Merge-time 0.1.0 publication
 
-Release 0.1.0 is dated 16 October 2026. Its PR stays draft until merge is explicitly requested. Keep its description to Highlights; detailed QA belongs in this document and `VALIDATION.md`.
+Release 0.1.0 is dated 17 October 2026. Its PR stays draft until merge is explicitly requested. Keep its description to Highlights; detailed QA belongs in this document and `VALIDATION.md`.
 
 When proceeding with the approved merge:
 
@@ -295,12 +295,8 @@ Tagging, publishing and deployment are not part of preparing or updating the dra
 
 ## Release media
 
-The README's PNGs and `docs/media/wave-0.1.0-promo.mp4` are the intentional exception to the generated-artifact rule. Do not commit raw recordings or browser/tool binaries. To recreate them, start the web dev server, install Playwright Chromium/FFmpeg (`npx playwright install chromium ffmpeg`) and provide a normal FFmpeg executable for final MP4 encoding:
+The README's PNGs and `docs/media/wave-0.1.0-promo.mp4` are the intentional exception to the generated-artifact rule. The current film is 60 seconds, 1920×1080, H.264/yuv420p at 30 fps, with stereo AAC acoustic-piano music and fast-start metadata. It uses English captions and actual web/mobile-viewport interactions in an isolated demo library. It does not establish native feature parity or live-provider availability.
 
-```sh
-FFMPEG_BIN=ffmpeg node --experimental-strip-types scripts/create-promo.ts
-```
-
-Optional `WAVE_URL` selects the dev origin and `CHROMIUM_EXECUTABLE_PATH` selects a browser. The script creates a disposable browser profile, imports original demo tones, adds original demo covers/lyrics and films real UI interactions. The clip is silent, captioned, H.264/yuv420p, 1920×1080 at 30 fps, with fast-start metadata. Watch the whole output before posting; it describes the web client, not native feature parity. No social post is made by this script.
+See [promo production](media/PROMO_PRODUCTION.md) for the approved storyboard, reproducible capture/composition commands, sample provenance and validation procedure. Keep raw recordings, piano samples, tool binaries and temporary renders under ignored `.cache/`. The earlier `scripts/create-promo.ts` creates the superseded short silent version, not the current film. No script posts to social media.
 
 Windows release signing and security-scan limitations are in `WINDOWS_RELEASE.md`. Never store signing keys in the repository, create protection exclusions or mislabel an unsigned artifact.

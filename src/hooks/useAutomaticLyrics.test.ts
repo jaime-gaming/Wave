@@ -145,3 +145,27 @@ it('retains a manual request interrupted by import and resumes afterward', async
   await act(() => vi.advanceTimersByTimeAsync(450));
   expect(lookupLyrics).toHaveBeenCalledTimes(1);
 });
+
+it('automatically resumes a throttled track at the server deadline', async () => {
+  vi.useFakeTimers();
+  const deadline = Date.now() + 2000;
+  const track = makeTrack({
+    lyricsLookup: {
+      key: lyricsKey(makeTrack()),
+      status: 'error',
+      checkedAt: Date.now(),
+      retryAt: deadline,
+    },
+  });
+  vi.mocked(lookupLyrics).mockResolvedValue({
+    lookup: { key: lyricsKey(track), checkedAt: deadline, status: 'not-found' },
+  });
+  const saved = vi.fn().mockResolvedValue(undefined);
+  renderHook(() => useAutomaticLyrics([track], true, false, saved));
+  await act(() => vi.advanceTimersByTimeAsync(1999));
+  expect(lookupLyrics).not.toHaveBeenCalled();
+  await act(() => vi.advanceTimersByTimeAsync(26));
+  await act(() => vi.advanceTimersByTimeAsync(450));
+  expect(lookupLyrics).toHaveBeenCalledTimes(1);
+  expect(saved).toHaveBeenCalledTimes(1);
+});

@@ -1,6 +1,10 @@
 # Changelog
 
-## 0.1.0 — 16 October 2026
+## 0.1.0 — 17 October 2026
+
+- Reduce lyric-service request bursts with a shared queue, cross-tab coordination and concurrent lookup deduplication; avoid custom-header preflight, honor short/date Retry-After deadlines and resume automatic eligibility without a fifteen-minute penalty.
+- Align native request spacing; Windows honors HTTP-date/short Retry-After responses rather than imposing a minute, and Android no longer truncates longer provider deadlines.
+- Expand the product film to 60 seconds with real UI, motion presentation and a soft acoustic-piano score.
 
 - Make daily mixes browsable playlist views with explicit playback and atomic saved snapshots.
 - Show every mobile collection shortcut in a balanced grid; reset detail-page scroll and reinforce narrow action layouts.

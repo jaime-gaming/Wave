@@ -19,3 +19,9 @@ try {
 var tagged = Enumerable.Range(0, 4).Select(i => a with { Id = i.ToString(), Genre = "Rock" }).ToList();
 Check(NativeCollections.DailyMixes(tagged, new DateOnly(2026, 10, 16)).Single().Label == "Rock", "daily mix uses actual genre tags");
 Check(NativeCollections.DailyMixes(tagged.Select(s => s with { Genre = null, Artist = "---" }), new DateOnly(2026, 10, 16)).Count == 0, "unknown styles are not fabricated");
+
+var retryNow = new DateTime(2026, 10, 17, 12, 0, 0, DateTimeKind.Utc);
+Check(LyricsClient.RetryDeadline(retryNow, new System.Net.Http.Headers.RetryConditionHeaderValue(TimeSpan.FromSeconds(2))) == retryNow.AddSeconds(2), "short lyric Retry-After does not impose a minute");
+Check(LyricsClient.RetryDeadline(retryNow, new System.Net.Http.Headers.RetryConditionHeaderValue(new DateTimeOffset(retryNow.AddSeconds(5)))) == retryNow.AddSeconds(5), "HTTP-date lyric Retry-After is honored");
+Check(LyricsClient.RetryDeadline(retryNow, null) == retryNow.AddSeconds(60), "missing lyric Retry-After uses a conservative fallback");
+Check(LyricsClient.RetryDeadline(retryNow, new System.Net.Http.Headers.RetryConditionHeaderValue(TimeSpan.Zero)) == retryNow.AddSeconds(1), "expired/zero lyric Retry-After avoids an immediate retry loop");

@@ -1,6 +1,6 @@
 # Validation record
 
-15 October 2026 · unreleased development source.
+Release 0.1.0 · 17 October 2026 · publication pending. Historical run dates are retained below.
 
 ## Web
 
@@ -134,11 +134,33 @@ The web candidate is suitable for **draft review**, not an assertion of defect-f
 
 Original audio/storage and legal notices were not changed. The PR remains draft with Highlights only. The annotated `v0.1.0` tag and GitHub Release are deferred until the approved merge, and must target its actual merged commit; see `DEVELOPMENT.md`.
 
-## Release 0.1.0 · 16 October 2026 — playlist/mobile/Windows/media
+## Release 0.1.0 · 17 October 2026 — playlist/mobile/Windows/media
 
 The release date identifies the documentation set, not a completed publication. Tag/Release creation remains tied to the approved merge.
 
 - Web: **203 unit/component tests across 43 files** passed after atomic daily-mix snapshot creation was added. The focused release suite passed **10 Chromium tests**, including unplayed mix browsing, saved order after reload and 320/390/430 px Larger text layouts. **The complete 95-test Chromium suite also passed in one 8.0-minute run.** Final unit run: 203/43 files. A compiled `/Wave/` smoke also passed: ten metadata-worker imports, three mixes, explicit editor preview/save, native lyric playback, local assets and Privacy return, without page/asset errors. ESLint, Prettier, TypeScript and root plus `/Wave/` builds passed; the existing main-chunk size advisory remains.
 - Hosted [native run 38816714860](https://github.com/jaime-gaming/Wave/actions/runs/38816714860) passed Android unit/lint/debug assembly and Windows contracts, build, WPF UI smoke, publish and conditional Defender scan. Windows contracts cover playlist resolution, stable queue mutation, old disabled preferences, bounded Mix timing, persistence and genre-group rules. The smoke uses an isolated temporary library and captures Home, mix, playlist, Settings and a narrow light layout; it is not an interactive physical-device playback test.
 - Visual review covered actual web screenshots and extracted promotional-video frames. The silent MP4 is 1920×1080 H.264/yuv420p, 30 fps, approximately 39 seconds, with fast-start metadata; a full decode reported no errors. It shows real web interactions with original demo assets, not native parity footage.
-- The README and release notes use **0.1.0 · 16 October 2026**. Original audio storage and legal notices remain unchanged. Signed Windows publication, complete native parity, physical-device audio/accessibility checks and live provider coverage remain explicit limits. Antivirus results are a snapshot, not a zero-false-positive guarantee.
+- The README and release notes use **0.1.0 · 17 October 2026**. Original audio storage and legal notices remain unchanged. Signed Windows publication, complete native parity, physical-device audio/accessibility checks and live provider coverage remain explicit limits. Antivirus results are a snapshot, not a zero-false-positive guarantee.
+
+## Revised product film for release 0.1.0
+
+This replaces the earlier 39-second silent promotional MP4 described above; it does not change application behavior or replace the application test results.
+
+- All twelve real-UI capture scenes completed in an isolated browser context: collection/import, daily mixes, search/metadata, playlist ordering, expanded playback, queue, Mix/Autoplay, lyrics, lyric editor, appearance and two mobile viewports.
+- The revised file is **60.000 seconds**, **1920×1080**, **30 fps / 1,800 frames**, **H.264/yuv420p**, with **stereo AAC at 48 kHz**, and is **7,309,815 bytes**. Its `moov` atom precedes `mdat` for progressive playback.
+- A complete FFmpeg audio/video decode reported **no errors**. Post-encode audio measurement reported **−17.12 LUFS integrated** and **−1.76 dBTP**; the soundtrack is a soft acoustic-piano arrangement using recorded CC0 samples, with no narration or chiptune oscillators.
+- Representative final decoded frames were visually reviewed for collection, editing, playback, queue focus, lyric close-up, mobile composition and the closing repository address. This is web/mobile-viewport footage, not native-parity certification; the lyric-search response is a controlled original demo fixture.
+- ESLint and Prettier passed for the new capture script; the three Python production tools passed Ruff lint/format and bytecode compilation. Sample downloads were verified against their pinned Git blob identities.
+- Reproduction and source provenance are in [promo production](media/PROMO_PRODUCTION.md). Raw takes, samples, tooling and intermediate renders remain ignored. No social post, merge, tag or release was performed.
+
+## Lyric request coordination for release 0.1.0 · 17 October 2026
+
+Checks below were executed on 16 October 2026 against the upcoming release; older run timestamps above are historical, not release dates.
+
+- Full unit suite: **216 tests in 44 files passed**. Coverage includes global request spacing, already-queued throttles, independent cancellation and result isolation for shared lookups, short numeric and HTTP-date retry deadlines, invalid/missing header fallback, storage-quota fallback, and automatic retry eligibility at the actual deadline.
+- Four new real-Chromium regressions passed: two same-origin tabs observe shared request spacing; an exposed two-second Retry-After reenables manual search without a minute-long penalty; a throttle blocks the other tab's queued request; and a CORS-unexposed header retains the conservative fallback without a retry loop. Provider responses were controlled fixtures, not live-service certification.
+- Complete Chromium suite: **98 of 99 passed**. The remaining existing `crossfade really overlaps two native decoders…` test fails its `.mix-artwork` visibility assertion. Two isolated retries reproduced it; the same failure was then reproduced with the four modified lyric implementation files temporarily restored to their committed baseline. Current changes were restored afterward. The unrelated player/visual code and its assertion were deliberately left unchanged.
+- Root production build, ESLint, full Prettier check and diff whitespace check passed. The pre-existing JavaScript chunk-size advisory remains.
+- Windows now serializes bounded lyric requests and honors short/date Retry-After values. Android maintains 500 ms spacing without truncating longer provider deadlines. Four Windows retry-deadline contracts and four Android retry tests were added. **Native SDKs are unavailable in this sandbox, so these new native changes/contracts were not compiled or run locally**; earlier native CI results do not certify this revision.
+- Release/documentation/About dates are 17 October 2026. Privacy notice edits are date-only; legal policy text, providers, consent and original audio storage are unchanged. The improved 60-second film and reproducible production tools are included in this revision. No merge, tag, release or social publication is performed.

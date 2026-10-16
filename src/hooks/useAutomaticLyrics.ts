@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import { lyricsCooldown } from '../services/lyricsCooldown';
 import type { Track } from '../domain/types';
 import { canLookup, lyricsKey, needsLyrics } from '../domain/lyricsLookup';
 import { lookupLyrics, type LyricsResult } from '../services/lyrics';
@@ -58,6 +59,7 @@ export function useAutomaticLyrics(
       450,
       (forcedId ? 0 : nextAllowed.current) - Date.now(),
       providerRetryAt - Date.now(),
+      lyricsCooldown() - Date.now(),
     );
     const start = setTimeout(() => {
       void lookupLyrics(track, controller.signal)
@@ -65,7 +67,7 @@ export function useAutomaticLyrics(
           if (controller.signal.aborted || generation.current !== requestId) return;
           if (forced.current === forcedId) forced.current = null;
           if (result.lookup.status === 'error')
-            nextAllowed.current = Math.max(Date.now() + 60_000, result.lookup.retryAt ?? 0);
+            nextAllowed.current = result.lookup.retryAt ?? Date.now() + 60_000;
           await onResult(track.id, result);
         })
         .catch(() => {
@@ -81,6 +83,21 @@ export function useAutomaticLyrics(
       controller.abort();
     };
   }, [signature, enabled, busy, retry, onResult, priority]);
+  useEffect(() => {
+    if (!enabled || busy) return;
+    const now = Date.now();
+    const deadlines = tracks
+      .filter((t) => !t.lyrics && canLookup(t) && t.lyricsLookup?.status === 'error')
+      .map((t) => t.lyricsLookup?.retryAt)
+      .filter((time): time is number => Number.isFinite(time) && time! > now);
+    if (!deadlines.length) return;
+    // Re-evaluate eligibility at the provider deadline, not fifteen minutes later.
+    const timer = setTimeout(
+      () => setRetry((value) => value + 1),
+      Math.min(2_147_483_647, Math.min(...deadlines) - now + 25),
+    );
+    return () => clearTimeout(timer);
+  }, [tracks, enabled, busy]);
   useEffect(() => {
     const online = () => {
       if (!enabled) return;

@@ -25,6 +25,7 @@ export function needsLyrics(track: Track, now = Date.now()) {
   if (!canLookup(track) || track.lyrics?.lines.length) return false;
   const cached = track.lyricsLookup;
   if (!cached || cached.key !== lyricsKey(track)) return true;
+  if (cached.status === 'error' && Number.isFinite(cached.retryAt)) return now >= cached.retryAt!;
   const ttl =
     cached.status === 'error'
       ? 15 * 60_000

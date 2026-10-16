@@ -1,6 +1,6 @@
 # Wave Roadmap
 
-**Version: 0.1.0 · Release date: 16 October 2026.**
+**Version: 0.1.0 · Release date: 17 October 2026.**
 
 ## Vision
 
@@ -118,7 +118,7 @@ Local smart mixes and advanced search may be explored after library and playback
 
 Use the [issue tracker](https://github.com/jaime-gaming/Wave/issues) to propose or discuss work. Include the user benefit, browser constraints, privacy impact, and a test plan. See [CONTRIBUTING.md](../CONTRIBUTING.md).
 
-Release 0.1.0 is dated 16 October 2026; publication awaits approved merge/tag/Release. There is no released 1.0.0 or completed Android parity.
+Release 0.1.0 is dated 17 October 2026; publication awaits approved merge/tag/Release. There is no released 1.0.0 or completed Android parity.
 
 Immediate import persistence, exact-byte renamed-file deduplication, compact covers/lyrics and browser-controlled eviction protection are implemented. Portable backup/export and lossless reduction of original audio storage are not implemented; original bytes necessarily occupy their original size.
 
@@ -146,7 +146,7 @@ Separate native Android (Kotlin/Compose) and Windows (C#/WPF) source implementat
 - [ ] Port and validate these listening/session features independently on Android and Windows.
 - [ ] Evaluate synchronized lyric accuracy across real recording editions and providers; word timestamps cannot be inferred exactly from ordinary LRC.
 
-## Release 0.1.0 · 16 October 2026
+## Release 0.1.0 · 17 October 2026
 
 - [x] Explicit lyric search in the editor without playback; preview and save remain separate.
 - [x] Your collection followed by up to three coherent, fully local daily mixes; sparse libraries show fewer.

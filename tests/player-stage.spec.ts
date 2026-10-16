@@ -198,7 +198,7 @@ test('artwork remains square, controls and icons stay bounded, and lyric timing 
   await expect(later).toBeHidden();
   await expect(full.getByText(/Word-timed|saved offline/)).toHaveCount(0);
 });
-test('a blocked headered lyric request retries without preflight and keeps the result offline', async ({
+test('a lyric request avoids custom preflight headers and keeps the result offline', async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -231,16 +231,14 @@ test('a blocked headered lyric request retries without preflight and keeps the r
     'href',
     'https://lrclib.net/lyrics/541',
   );
-  expect(requests).toHaveLength(2);
-  expect(requests[0].url).toBe(requests[1].url);
-  expect(requests[0].headers).toHaveProperty('lrclib-client');
-  expect(requests[1].headers).not.toHaveProperty('lrclib-client');
+  expect(requests).toHaveLength(1);
+  expect(requests[0].headers).not.toHaveProperty('lrclib-client');
   await page.reload();
   await page.getByRole('button', { name: 'Open now playing', exact: true }).click();
   await expect(
     page.getByRole('button', { name: 'Seek to lyric: A verified saved line' }),
   ).toBeVisible();
-  expect(requests).toHaveLength(2);
+  expect(requests).toHaveLength(1);
 });
 test('a real native-audio signal visibly drives the modal without changing output or retaining capture on pause', async ({
   page,

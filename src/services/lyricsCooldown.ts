@@ -1,10 +1,14 @@
+let sessionRetryAt = 0;
 const KEY = 'wave-lyrics-provider-retry-at';
 export function lyricsCooldown() {
   try {
     const time = Number(localStorage.getItem(KEY));
-    return Number.isFinite(time) && time > Date.now() ? time : 0;
+    return Math.max(
+      Number.isFinite(time) && time > Date.now() ? time : 0,
+      sessionRetryAt > Date.now() ? sessionRetryAt : 0,
+    );
   } catch {
-    return 0;
+    return sessionRetryAt > Date.now() ? sessionRetryAt : 0;
   }
 }
 export function rememberLyricsCooldown(time?: number) {
@@ -12,6 +16,6 @@ export function rememberLyricsCooldown(time?: number) {
   try {
     localStorage.setItem(KEY, String(Math.max(lyricsCooldown(), time)));
   } catch {
-    /* Session result still retains the deadline. */
+    sessionRetryAt = Math.max(sessionRetryAt, time);
   }
 }

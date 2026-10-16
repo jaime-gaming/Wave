@@ -42,3 +42,18 @@ it('retries misses cached before matching fixes without replacing existing local
   expect(needsLyrics(cached)).toBe(true);
   expect(needsLyrics({ ...cached, lyrics: parseLyrics('[00:01]Keep my words') })).toBe(false);
 });
+
+it('rechecks provider-throttled tracks at their actual deadline, without a fifteen-minute penalty', () => {
+  const track = makeTrack();
+  const paused = {
+    ...track,
+    lyricsLookup: {
+      key: lyricsKey(track),
+      status: 'error' as const,
+      checkedAt: 1000,
+      retryAt: 3000,
+    },
+  };
+  expect(needsLyrics(paused, 2999)).toBe(false);
+  expect(needsLyrics(paused, 3000)).toBe(true);
+});

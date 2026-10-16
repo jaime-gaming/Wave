@@ -130,7 +130,7 @@ it('rejects user cancellation so no cancelled result can be saved', async () => 
   controller.abort();
   await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
 });
-it('uses identified structured search after exact misses and ranks verified candidates', async () => {
+it('uses safelisted structured search after exact misses and ranks verified candidates', async () => {
   const fetcher = vi
     .fn()
     .mockResolvedValueOnce(response({}, 404))
@@ -140,7 +140,7 @@ it('uses identified structured search after exact misses and ranks verified cand
   const result = await lookupLyrics(makeTrack(), new AbortController().signal);
   expect(result.lookup.status).toBe('found');
   expect(new URL(fetcher.mock.calls[2][0]).pathname).toBe('/api/search');
-  expect(fetcher.mock.calls[0][1].headers['Lrclib-Client']).toContain('Wave/');
+  expect(fetcher.mock.calls[0][1].headers).toEqual({ Accept: 'application/json' });
 });
 it('honors Retry-After even when an edge error response is not JSON', async () => {
   vi.stubGlobal(
@@ -244,19 +244,15 @@ it.each([null, 'not-a-date'])(
   },
 );
 
-it('retries a browser network/preflight failure with a safelisted GET to the same provider', async () => {
-  const fetcher = vi
-    .fn()
-    .mockRejectedValueOnce(new TypeError('Failed to fetch'))
-    .mockResolvedValueOnce(response());
+it('uses a safelisted GET immediately and does not duplicate a network failure', async () => {
+  const fetcher = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
   vi.stubGlobal('fetch', fetcher);
   const result = await lookupLyrics(makeTrack(), new AbortController().signal);
-  expect(result.lookup.status).toBe('found');
-  expect(fetcher).toHaveBeenCalledTimes(2);
-  expect(fetcher.mock.calls[0][0]).toBe(fetcher.mock.calls[1][0]);
-  expect(fetcher.mock.calls[0][1].headers).toHaveProperty('Lrclib-Client');
-  expect(fetcher.mock.calls[1][1].headers).toEqual({ Accept: 'application/json' });
-  expect(fetcher.mock.calls[1][1]).toMatchObject({
+  expect(result.lookup.status).toBe('error');
+  expect(result.lookup.retryAt).toBeUndefined();
+  expect(fetcher).toHaveBeenCalledTimes(1);
+  expect(fetcher.mock.calls[0][1]).toMatchObject({
+    headers: { Accept: 'application/json' },
     credentials: 'omit',
     referrerPolicy: 'no-referrer',
   });
@@ -330,4 +326,102 @@ it('persists provider cooldown across manual callers without sending another req
   );
   expect(second.lookup.retryAt).toBe(first.lookup.retryAt);
   expect(fetcher).toHaveBeenCalledTimes(1);
+});
+
+it.each(['2', '0', '-1', '1e308'])(
+  'bounds and respects a numeric Retry-After: %s',
+  async (value) => {
+    vi.useFakeTimers();
+    const fetcher = vi
+      .fn()
+      .mockResolvedValue(new Response('Busy', { status: 429, headers: { 'Retry-After': value } }));
+    vi.stubGlobal('fetch', fetcher);
+    const start = Date.now();
+    const pending = lookupLyrics(makeTrack(), new AbortController().signal);
+    await vi.advanceTimersByTimeAsync(500);
+    const result = await pending;
+    const expected = value === '2' ? 2000 : value === '0' ? 1000 : 60_000;
+    expect(result.lookup.retryAt).toBeGreaterThanOrEqual(start + expected);
+    expect(result.lookup.retryAt).toBeLessThanOrEqual(start + 500 + expected);
+  },
+);
+it('honors a short HTTP-date Retry-After instead of imposing a minute', async () => {
+  vi.useFakeTimers();
+  const start = Date.now();
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockResolvedValue(
+      new Response('Busy', {
+        status: 503,
+        headers: { 'Retry-After': new Date(start + 6000).toUTCString() },
+      }),
+    ),
+  );
+  const pending = lookupLyrics(makeTrack(), new AbortController().signal);
+  await vi.advanceTimersByTimeAsync(500);
+  const result = await pending;
+  expect(result.lookup.retryAt).toBeGreaterThan(start + 4000);
+  expect(result.lookup.retryAt).toBeLessThanOrEqual(start + 6000);
+});
+it('shares an identical lookup without sharing cancellation or mutable results', async () => {
+  vi.useFakeTimers();
+  let finish!: (r: Response) => void;
+  const fetcher = vi.fn().mockImplementation(
+    () =>
+      new Promise<Response>((resolve) => {
+        finish = resolve;
+      }),
+  );
+  vi.stubGlobal('fetch', fetcher);
+  const cancelled = new AbortController(),
+    alive = new AbortController();
+  const first = lookupLyrics(makeTrack(), cancelled.signal);
+  const rejection = expect(first).rejects.toMatchObject({ name: 'AbortError' });
+  const second = lookupLyrics(makeTrack({ id: 'copy' }), alive.signal);
+  const third = lookupLyrics(makeTrack({ id: 'another' }), new AbortController().signal);
+  await vi.advanceTimersByTimeAsync(500);
+  cancelled.abort();
+  await rejection;
+  expect(fetcher.mock.calls[0][1].signal.aborted).toBe(false);
+  finish(response());
+  const [a, b] = await Promise.all([second, third]);
+  expect(fetcher).toHaveBeenCalledTimes(1);
+  a.lyrics!.lines[0].text = 'Changed';
+  expect(b.lyrics!.lines[0].text).toBe('First line');
+});
+it('serializes different lookups and propagates a throttle to already queued callers', async () => {
+  vi.useFakeTimers();
+  let finish!: (r: Response) => void;
+  const fetcher = vi.fn().mockImplementation(
+    () =>
+      new Promise<Response>((resolve) => {
+        finish = resolve;
+      }),
+  );
+  vi.stubGlobal('fetch', fetcher);
+  const first = lookupLyrics(makeTrack(), new AbortController().signal);
+  const second = lookupLyrics(makeTrack({ title: 'Other' }), new AbortController().signal);
+  await vi.advanceTimersByTimeAsync(500);
+  expect(fetcher).toHaveBeenCalledTimes(1);
+  finish(new Response('Busy', { status: 429, headers: { 'Retry-After': '2' } }));
+  const [a, b] = await Promise.all([first, second]);
+  expect(a.lookup.retryAt).toBe(b.lookup.retryAt);
+  expect(fetcher).toHaveBeenCalledTimes(1);
+});
+it('spaces independent lookups globally, not just subrequests of one song', async () => {
+  vi.useFakeTimers();
+  const times: number[] = [];
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockImplementation(() => {
+      times.push(Date.now());
+      return Promise.resolve(response());
+    }),
+  );
+  const first = lookupLyrics(makeTrack(), new AbortController().signal);
+  const second = lookupLyrics(makeTrack({ duration: 91 }), new AbortController().signal);
+  await vi.advanceTimersByTimeAsync(2000);
+  await Promise.all([first, second]);
+  expect(times).toHaveLength(2);
+  expect(times[1] - times[0]).toBeGreaterThanOrEqual(500);
 });

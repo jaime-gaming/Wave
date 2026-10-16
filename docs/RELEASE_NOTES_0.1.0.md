@@ -1,8 +1,10 @@
 # Wave 0.1.0
 
-**Release date: 16 October 2026.** These are the release notes for 0.1.0. Publication is pending the approved merge, `v0.1.0` tag and GitHub Release; a date in documentation does not publish a package.
+**Release date: 17 October 2026.** These are the release notes for 0.1.0. Publication is pending the approved merge, `v0.1.0` tag and GitHub Release; a date in documentation does not publish a package.
 
 ## Highlights
+
+- Lyrics requests share a queue, avoid unnecessary preflight/duplicate requests and honor provider retry deadlines without an artificial minute-long minimum. Identical concurrent requests share work, and supported browsers coordinate same-origin tabs. Existing saved lyrics remain available offline.
 
 - Bring your own audio, keep the original quality, and browse a local collection without an account or subscription.
 - Daily mixes are now browsable playlist views. See all songs before playback, choose Play/Shuffle, or save an independent, editable playlist snapshot.
@@ -11,7 +13,7 @@
 - Native Windows now follows the web's navigation and surface hierarchy: Home, Search, albums/artists, playlists, favorites, six Settings sections, a compact player and expanded Now Playing.
 - Windows adds saved playlist ordering, editable queue, restored paused listening position, Mix/Autoplay controls, local cover overrides and explicit unplayed-song lyric search.
 - Windows packaging includes version/publisher metadata, normal unpacked binaries, SHA-256 checksums, conditional Defender scanning and an opt-in trusted-certificate signing script. No antivirus bypasses or guaranteed false-positive claims.
-- A shorter README with real screenshots and a captioned, animated 1080p demo video.
+- A shorter README with real screenshots and a 60-second, captioned, animated 1080p product film with soft acoustic-piano music.
 
 ## Using a daily mix
 

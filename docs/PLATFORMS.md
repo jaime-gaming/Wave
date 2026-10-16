@@ -1,6 +1,6 @@
 # Wave platforms · 0.1.0
 
-**Release date: 16 October 2026. Publication pending approved merge/tag/Release.** Wave has three independent implementations, not WebView/Electron wrappers. The web client is the most complete; Windows follows its structure with native C#/WPF controls, while Android uses Kotlin/Compose. Libraries are separate and never synchronized or silently migrated.
+**Release date: 17 October 2026. Publication pending approved merge/tag/Release.** Wave has three independent implementations, not WebView/Electron wrappers. The web client is the most complete; Windows follows its structure with native C#/WPF controls, while Android uses Kotlin/Compose. Libraries are separate and never synchronized or silently migrated.
 
 | Capability                                | Web                                     | Windows                                 | Android                      |
 | ----------------------------------------- | --------------------------------------- | --------------------------------------- | ---------------------------- |
@@ -59,3 +59,7 @@ Output: `platforms/android/app/build/outputs/apk/debug/app-debug.apk`, a debug t
 ## Publication gates
 
 Run checks at the latest revision, perform real target-device playback/accessibility/DPI checks, state the reduced native scope, review exact runtime notices and sign using credentials kept outside the repository. At the approved merge, tag its actual merged commit as `v0.1.0` and create the GitHub Release. Never include signing keys or personal music. [Privacy](../PRIVACY.md) and existing rights restrictions remain applicable.
+
+### Lyric-service traffic
+
+The clients retain LRCLIB as the only online lyric provider. Web requests use a shared 500 ms queue, same-origin Web Locks when supported, concurrent lookup sharing and safelisted headers. Native Windows serializes requests per client with bounded cancellation; Android retains its synchronized queue. Both native clients space request starts by 500 ms. Windows accepts short numeric and HTTP-date retry deadlines; Android preserves deadlines longer than one day. None of these measures removes provider-side/IP limits. Native retry-deadline contracts have been added; the latest local web validation does not certify a new native build.

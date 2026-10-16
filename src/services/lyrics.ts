@@ -1,3 +1,4 @@
+import { lyricsRequest, LyricsPaused } from './lyricsRequests';
 import { lyricsCooldown, rememberLyricsCooldown } from './lyricsCooldown';
 import { parseLyrics, validLyricTimeline, type Lyrics } from '../domain/lyrics';
 import { lyricsKey, type LyricsLookup } from '../domain/lyricsLookup';
@@ -41,7 +42,7 @@ async function boundedJson(response: Response): Promise<unknown> {
   }
   return JSON.parse(new TextDecoder().decode(bytes));
 }
-export async function lookupLyrics(track: Track, signal: AbortSignal): Promise<LyricsResult> {
+async function fetchLyrics(track: Track, signal: AbortSignal): Promise<LyricsResult> {
   if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
   const lookup: LyricsLookup = {
     key: lyricsKey(track),
@@ -66,66 +67,40 @@ export async function lookupLyrics(track: Track, signal: AbortSignal): Promise<L
       params.set('album_name', track.album.trim());
     if (track.duration >= 1 && track.duration <= 3600)
       params.set('duration', String(track.duration));
-    let count = 0;
-    let simpleRequests = false;
-    const request = async (path: string, query: URLSearchParams) => {
-      if (count++)
-        await new Promise<void>((resolve, reject) => {
-          const timer = setTimeout(() => {
-            controller.signal.removeEventListener('abort', cancel);
-            resolve();
-          }, 250);
-          const cancel = () => {
-            clearTimeout(timer);
-            reject(new DOMException('Aborted', 'AbortError'));
-          };
-          controller.signal.addEventListener('abort', cancel, { once: true });
-          if (controller.signal.aborted) cancel();
-        });
-      const fetchResponse = () =>
-        fetch(`${ROOT}/${path}?${query}`, {
+    const request = (path: string, query: URLSearchParams) =>
+      lyricsRequest(controller.signal, async () => {
+        const response = await fetch(`${ROOT}/${path}?${query}`, {
           signal: controller.signal,
           credentials: 'omit',
           referrerPolicy: 'no-referrer',
-          headers: simpleRequests
-            ? { Accept: 'application/json' }
-            : {
-                Accept: 'application/json',
-                'Lrclib-Client': 'Wave/0.1.0 (https://github.com/jaime-gaming/Wave)',
-              },
+          // Safelisted headers avoid an OPTIONS preflight and a duplicate network retry.
+          headers: { Accept: 'application/json' },
         });
-      let response: Response;
-      try {
-        response = await fetchResponse();
-      } catch (error) {
-        // Some browser extensions/edge caches reject preflight even though LRCLIB
-        // permits this header. Retry a safelisted GET, never another provider.
-        if (!(error instanceof TypeError) || controller.signal.aborted || simpleRequests)
-          throw error;
-        simpleRequests = true;
-        await new Promise((resolve) => setTimeout(resolve, 250));
-        if (controller.signal.aborted) throw error;
-        response = await fetchResponse();
-      }
-      if (response.status === 404 || (path === 'get' && [400, 422].includes(response.status)))
-        return undefined;
-      if (response.status === 429 || response.status === 503) {
-        const value = response.headers.get('Retry-After');
-        const seconds = Number(value);
-        const date = Date.parse(value ?? '');
-        const delay =
-          value && Number.isFinite(seconds)
-            ? seconds * 1000
-            : Number.isFinite(date)
-              ? Math.max(0, date - Date.now())
-              : 60_000;
-        lookup.retryAt = Date.now() + Math.max(60_000, delay);
-        rememberLyricsCooldown(lookup.retryAt);
-        throw Error('Service cooldown.');
-      }
-      if (!response.ok) throw Error('Service unavailable.');
-      return boundedJson(response);
-    };
+        if (response.status === 404 || (path === 'get' && [400, 422].includes(response.status))) {
+          await response.body?.cancel().catch(() => undefined);
+          return undefined;
+        }
+        if (response.status === 429 || response.status === 503) {
+          const value = response.headers.get('Retry-After');
+          const seconds = Number(value);
+          const date = Date.parse(value ?? '');
+          const delay =
+            value?.trim() && Number.isFinite(seconds * 1000) && seconds >= 0
+              ? seconds * 1000
+              : value?.trim() && !Number.isFinite(seconds) && Number.isFinite(date)
+                ? Math.max(0, date - Date.now())
+                : 60_000;
+          lookup.retryAt = Math.max(lyricsCooldown(), Date.now() + Math.max(1000, delay));
+          rememberLyricsCooldown(lookup.retryAt);
+          await response.body?.cancel().catch(() => undefined);
+          throw Error('Service cooldown.');
+        }
+        if (!response.ok) {
+          await response.body?.cancel().catch(() => undefined);
+          throw Error('Service unavailable.');
+        }
+        return boundedJson(response);
+      });
     const resultFor = (match: ReturnType<typeof recordingMatch>): LyricsResult | undefined => {
       if (!match) return;
       const { record, synchronized } = match;
@@ -198,9 +173,58 @@ export async function lookupLyrics(track: Track, signal: AbortSignal): Promise<L
     return deferred ?? { lookup };
   } catch (error) {
     if (signal.aborted) throw error;
+    if (error instanceof LyricsPaused) lookup.retryAt = error.retryAt;
     return { lookup: { ...lookup, status: 'error' } };
   } finally {
     clearTimeout(timer);
     signal.removeEventListener('abort', abort);
   }
+}
+
+interface PendingLookup {
+  controller: AbortController;
+  promise: Promise<LyricsResult>;
+  users: number;
+}
+const pending = new Map<string, PendingLookup>();
+
+/** Share identical concurrent work, while keeping every caller's cancellation independent. */
+export function lookupLyrics(track: Track, signal: AbortSignal): Promise<LyricsResult> {
+  if (signal.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'));
+  // Include inferred identity and exact duration; never coalesce different recording identities.
+  const metadata = lookupMetadata(track);
+  const key = JSON.stringify([lyricsKey(track), metadata.title, metadata.artist, track.duration]);
+  let entry = pending.get(key);
+  if (!entry) {
+    const controller = new AbortController();
+    entry = { controller, promise: fetchLyrics(track, controller.signal), users: 0 };
+    pending.set(key, entry);
+    const current = entry;
+    const remove = () => {
+      if (pending.get(key) === current) pending.delete(key);
+    };
+    void entry.promise.then(remove, remove);
+  }
+  const current = entry;
+  current.users++;
+  return new Promise((resolve, reject) => {
+    let finished = false;
+    const settle = (action: () => void) => {
+      if (finished) return;
+      finished = true;
+      signal.removeEventListener('abort', abort);
+      if (--current.users === 0) {
+        if (pending.get(key) === current) pending.delete(key);
+        current.controller.abort();
+      }
+      action();
+    };
+    const abort = () => settle(() => reject(new DOMException('Aborted', 'AbortError')));
+    signal.addEventListener('abort', abort, { once: true });
+    void current.promise.then(
+      (result) => settle(() => resolve(structuredClone(result))),
+      (error: unknown) => settle(() => reject(error)),
+    );
+    if (signal.aborted) abort();
+  });
 }

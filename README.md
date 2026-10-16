@@ -1,7 +1,7 @@
 <p align="center"><img src="public/wave.svg" alt="Wave" width="100" height="80" /></p>
 <h1 align="center">Wave</h1>
 <p align="center"><strong>A home for the music you already own.</strong></p>
-<p align="center">Release <strong>0.1.0</strong> · <strong>16 October 2026</strong></p>
+<p align="center">Release <strong>0.1.0</strong> · <strong>17 October 2026</strong></p>
 <p align="center"><a href="#start-listening">Start listening</a> · <a href="docs/media/wave-0.1.0-promo.mp4">Watch the demo</a> · <a href="docs/RELEASE_NOTES_0.1.0.md">What's new</a></p>
 
 ![Wave Home with a local collection, album artwork and daily mixes](docs/media/home-desktop.png)
@@ -27,7 +27,9 @@ Daily mixes use your existing genre and artist tags, not a remote recommendation
 
 <p align="center"><img src="docs/media/home-mobile.png" alt="Wave on a phone, with all five collection shortcuts visible" width="300" /></p>
 
-[Watch the 39-second demo →](docs/media/wave-0.1.0-promo.mp4)
+[Watch the 60-second demo →](docs/media/wave-0.1.0-promo.mp4)
+
+Lyric searches reuse saved results, coordinate requests and respect provider retry times. LRCLIB can still be temporarily busy; imported LRC files and saved lyrics work offline.
 
 Screenshots and video show the web app with original demo artwork and lyric text. Your own collection starts empty.
 
