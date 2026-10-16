@@ -17,6 +17,10 @@
 - Windows packaging includes version/publisher metadata, normal unpacked binaries, SHA-256 checksums, conditional Defender scanning and an opt-in trusted-certificate signing script. No antivirus bypasses or guaranteed false-positive claims.
 - A shorter README with real screenshots and a 60-second, captioned, animated 1080p product film with soft acoustic-piano music.
 
+## Downloads
+
+The `Release assets` workflow attaches `Wave-0.1.0-web.zip`, the product film and `SHA256SUMS.txt` after publication. The web ZIP supports root or subdirectory hosting through relative asset URLs. Extract it and serve its directory over HTTP(S); do not open `index.html` directly. Its `release.json` identifies the source commit. Source archives are also available from GitHub. These are not signed native installers, and checksums are not publisher signatures.
+
 ## Using a daily mix
 
 Open a card on Home to browse its songs. No playback starts until you choose a song, Play mix or Shuffle. Save as playlist preserves the current order; daily refreshes will not change that saved copy. Groups use local genre/artist tags, need at least three songs and contain up to thirty. Fewer appear when the library cannot support three.
