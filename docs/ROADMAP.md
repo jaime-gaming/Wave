@@ -2,6 +2,9 @@
 
 **Version: 0.1.0 · Release date: 17 October 2026.**
 
+Wave 1.1 scope (device sync, YouTube links and playlist import) is specified in
+[SPEC_1.1](SPEC_1.1.md); its foundation is implemented but not user-facing yet.
+
 ## Vision
 
 Build a welcoming, private home for local music: quick browsing, reliable playback, and useful organization without requiring a streaming subscription. PixelPlayer informs the experience, while Wave remains an independent web implementation.
@@ -145,6 +148,45 @@ Separate native Android (Kotlin/Compose) and Windows (C#/WPF) source implementat
 - [x] Web: bounded Now Playing, paused queue/progress restoration, enhanced LRC word stamps, metadata navigation and 30-second activity-controlled immersion.
 - [ ] Port and validate these listening/session features independently on Android and Windows.
 - [ ] Evaluate synchronized lyric accuracy across real recording editions and providers; word timestamps cannot be inferred exactly from ordinary LRC.
+
+## Milestone 5 — Wave 1.1: sync, YouTube and playlist import
+
+Planned scope agreed on 27 October 2026 and specified in
+[SPEC_1.1](SPEC_1.1.md). Foundation modules, protocol and tests are implemented;
+no interface, provider client or Android port exists yet.
+
+**Device sync (hybrid)**
+
+- [x] Versioned sync protocol with total frame validation and 96 KiB frame ceiling.
+- [x] ECDH P-256 + HKDF pairing with a six-digit confirmation code and 120 s expiry.
+- [x] AES-GCM sealed frames, chunked transfer and SHA-256 verification before storage.
+- [x] Temporary loans bounded by **space** (default 2 GB / 2 000 songs), least-recently-used eviction of unpinned loans and per-device summaries.
+- [x] Separate `wave-sync` IndexedDB store; library schema untouched.
+- [ ] WebRTC data channel, LAN pairing and cross-network signalling relay (no audio in the relay).
+- [ ] On-demand playback of a song that lives on a paired device.
+- [ ] Settings → Devices, "Offline devices" list and borrowed-space budget.
+- [ ] Android port of the protocol, loan store and foreground transfer.
+- [ ] Real two-device transfer, interrupted-transfer recovery and TURN/privacy review.
+
+**Songs from YouTube (official embed only)**
+
+- [x] Link parsing for watch/youtu.be/shorts/embed/live/music, playlists and start times.
+- [x] Privacy-enhanced embed URL and validated player-event handling.
+- [ ] Provider row type (`source: youtube`) and schema-v4 migration that keeps existing playlist membership.
+- [ ] Embedded playback mode that pauses the native element and disables crossfade, lyrics fill and loans.
+- [ ] Explicit offline-unavailable messaging; no extraction, proxying or downloading of audio.
+
+**Playlist import (match only)**
+
+- [x] Spotify and YouTube link parsing, including URIs, locale prefixes and short-link refusal.
+- [x] Deterministic title/artist/duration matching with ambiguity, ties, manual reassignment and gap reporting.
+- [ ] Spotify PKCE client with `playlist-read-private`/`playlist-read-collaborative` (own or collaborative playlists only) and YouTube Data API playlist reads with a restricted key.
+- [ ] Review screen that writes nothing until the user confirms.
+- [ ] Provider privacy text, consent and quota/backoff handling.
+
+Provider limits are part of the scope, not an implementation detail: new Spotify
+applications cannot read playlists owned by other accounts, and Wave never
+downloads Spotify audio. YouTube audio is never extracted.
 
 ## Release 0.1.0 · 17 October 2026
 

@@ -26,6 +26,18 @@ Online catalogue verification and cover downloading have been removed. Imports a
 
 Opening a GitHub Pages deployment downloads the app from GitHub and may disclose IP/device/request information to GitHub. See https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement. “Local-first” describes the library, not an assertion that hosts/providers collect no information. A different host has its own processing and notice. Fonts are bundled locally; no font CDN is used.
 
+## Wave 1.1 (planned, not active)
+
+Release 0.1.0 has no sync, no accounts and no provider playlist import. The 1.1
+foundation in the source tree is not connected to the interface, so none of the
+following data flows is active yet. Before any of it ships, this file must list
+each one explicitly: borrowed audio copies on a second device and how to delete
+them; the signalling relay (encrypted pairing messages and connection metadata,
+never audio); a TURN relay, which does forward encrypted audio; and the Spotify
+and YouTube playlist requests, with their scopes, provider identity and
+retention. See [SPEC_1.1](docs/SPEC_1.1.md) for the threat model and the open
+questions.
+
 ## Contact and rights
 
 Project maintenance: https://github.com/jaime-gaming/Wave. Public issues are visible to others; do not attach music, private metadata, logs with personal information or credentials. Before deployment, specify an appropriate private privacy contact and controller identity, legal bases, purposes, recipients, retention and applicable rights/complaint channels. GDPR access, erasure, objection, restriction, portability and consent withdrawal depend on the actual processing and legal basis; a device-only library is not a remotely accessible controller database.
