@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased — Wave 1.1 foundation
+
+- Add the versioned sync protocol: total frame validation, 96 KiB frame ceiling, 48 KiB audio chunks, SHA-256 verification and rejection of duplicate, missing or oversized chunks before anything is stored.
+- Add ECDH P-256 + HKDF pairing with a six-digit confirmation code, 120 s invite expiry, AES-GCM sealed frames and a transport-agnostic state machine that never applies data from a mismatched or tampered peer.
+- Add temporary device loans bounded by space rather than time, with least-recently-used eviction of unpinned loans, per-device summaries, manual deletion and revocation.
+- Persist loans and their verified audio atomically in a separate `wave-sync` database; the `wave-library` schema is unchanged and audio is stored as checked bytes.
+- Add YouTube link parsing (watch, youtu.be, shorts, embed, live, music, playlists, start times), privacy-enhanced embed URLs and validated player events. Audio is never extracted.
+- Add Spotify/YouTube playlist link parsing and deterministic matching against the local collection, reporting matched, ambiguous and missing songs without writing anything until confirmation.
+- Document scope, provider limits, threat model and remaining phases in [SPEC_1.1](docs/SPEC_1.1.md). No interface, provider client or Android port is wired yet.
+
 ## 0.1.0 — 17 October 2026
 
 - Keep both Mix covers full-size in expanded Now Playing, including narrow phones with lyrics collapsed, without changing compact-player artwork or the audio path.

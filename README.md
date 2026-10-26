@@ -68,6 +68,7 @@ Unsigned downloads can trigger SmartScreen or antivirus warnings. Wave uses norm
 - [Platforms and downloads](docs/PLATFORMS.md)
 - [Development and tests](docs/DEVELOPMENT.md)
 - [Roadmap](docs/ROADMAP.md)
+- [Wave 1.1 specification: sync, YouTube and playlist import](docs/SPEC_1.1.md) — foundation only, not user-facing yet
 - [Privacy and data flow](PRIVACY.md)
 - [All validation results and limits](docs/VALIDATION.md)
 
