@@ -174,7 +174,9 @@ export function LyricsPanel({
     let frame = 0,
       last = 0;
     const sample = (now: number) => {
-      if (!document.hidden && now - last >= 32) {
+      // ~20 Hz is smooth for a word fill and keeps the reader off the
+      // main thread's critical path on a slow device.
+      if (!document.hidden && now - last >= 48) {
         setNativeTime(readTime());
         last = now;
       }
@@ -246,9 +248,11 @@ export function LyricsPanel({
       if (!line) return;
       const max = Number.parseFloat(getComputedStyle(line).fontSize),
         // With three framed rows each line owns a third of the reader.
-        budget = el.clientHeight * (framed ? (cinematic ? 0.3 : 0.32) : 0.9);
+        budget = el.clientHeight * (framed ? 0.3 : 0.9);
       if (line.scrollHeight > budget) {
-        let low = 12,
+        // Long lines shrink, but never below a size you can actually read; past
+        // that the text is clamped instead.
+        let low = Math.min(Math.floor(max), 18),
           high = Math.floor(max);
         while (low < high) {
           const middle = Math.ceil((low + high) / 2);

@@ -1,5 +1,4 @@
-import { DailyMixPage, type MixSelection } from './components/DailyMixPage';
-import { SettingsPage } from './components/SettingsPage';
+import type { MixSelection } from './components/DailyMixPage';
 import { LocalMetadataReview } from './components/LocalMetadataReview';
 import { ContextMenu, type ContextAction } from './components/ContextMenu';
 import { MusicLighting } from './components/MusicLighting';
@@ -27,7 +26,7 @@ import { usePlaylists } from './hooks/usePlaylists';
 import { PlaylistCollection, PlaylistHeader } from './components/PlaylistCollection';
 import { PlaylistDialog, AddSongsDialog, AddToPlaylistDialog } from './components/PlaylistDialog';
 import { TrackEditor } from './components/TrackEditor';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Music2,
   Disc3,
@@ -54,6 +53,18 @@ import {
 import { useLibrary } from './hooks/useLibrary';
 import { useAppPalette } from './hooks/useAppPalette';
 import { usePlayer } from './hooks/usePlayer';
+
+/*
+ * Views that most sessions never open are downloaded when they are first
+ * needed, so the first screen on a phone is not paying for the settings page,
+ * the metadata review or a daily mix.
+ */
+const SettingsPage = lazy(() =>
+  import('./components/SettingsPage').then((module) => ({ default: module.SettingsPage })),
+);
+const DailyMixPage = lazy(() =>
+  import('./components/DailyMixPage').then((module) => ({ default: module.DailyMixPage })),
+);
 import { Artwork } from './components/Artwork';
 import { LibraryContent } from './components/LibraryContent';
 import { Navigation, type Page } from './components/Navigation';
@@ -681,216 +692,218 @@ function WaveApp({
             key={`${page}:${dailySelection?.mix.id ?? ''}:${view}:${group ?? ''}:${playlistId ?? ''}`}
           >
             {page === 'settings' ? (
-              <SettingsPage
-                onBack={closeSettings}
-                appearance={
-                  <>
-                    <div className="theme-options">
-                      {(['dark', 'light', 'system'] as const).map((option) => (
+              <Suspense fallback={<div className="empty-state" aria-busy="true" />}>
+                <SettingsPage
+                  onBack={closeSettings}
+                  appearance={
+                    <>
+                      <div className="theme-options">
+                        {(['dark', 'light', 'system'] as const).map((option) => (
+                          <button
+                            key={option}
+                            className={theme === option ? 'chosen' : ''}
+                            aria-pressed={theme === option}
+                            onClick={() => setTheme(option)}
+                          >
+                            {option[0].toUpperCase() + option.slice(1)}
+                            {theme === option && <Check size={18} />}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="settings-switch-row">
+                        <div>
+                          <strong>Larger text</strong>
+                        </div>
                         <button
-                          key={option}
-                          className={theme === option ? 'chosen' : ''}
-                          aria-pressed={theme === option}
-                          onClick={() => setTheme(option)}
+                          type="button"
+                          className="material-switch"
+                          role="switch"
+                          aria-label="Larger text"
+                          aria-checked={largeText}
+                          onClick={() => setLargeText(!largeText)}
                         >
-                          {option[0].toUpperCase() + option.slice(1)}
-                          {theme === option && <Check size={18} />}
+                          <motion.span layout transition={animation.fast}>
+                            {largeText && <Check size={15} />}
+                          </motion.span>
                         </button>
-                      ))}
-                    </div>
-                    <div className="settings-switch-row">
-                      <div>
-                        <strong>Larger text</strong>
                       </div>
-                      <button
-                        type="button"
-                        className="material-switch"
-                        role="switch"
-                        aria-label="Larger text"
-                        aria-checked={largeText}
-                        onClick={() => setLargeText(!largeText)}
-                      >
-                        <motion.span layout transition={animation.fast}>
-                          {largeText && <Check size={15} />}
-                        </motion.span>
-                      </button>
-                    </div>
-                    <div className="settings-switch-row">
-                      <div>
-                        <strong>Animations</strong>
+                      <div className="settings-switch-row">
+                        <div>
+                          <strong>Animations</strong>
+                        </div>
+                        <button
+                          type="button"
+                          className="material-switch"
+                          role="switch"
+                          aria-label="Animations"
+                          aria-checked={animations}
+                          onClick={() => onAnimations(!animations)}
+                        >
+                          <motion.span layout transition={animation.fast}>
+                            {animations && <Check size={15} />}
+                          </motion.span>
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        className="material-switch"
-                        role="switch"
-                        aria-label="Animations"
-                        aria-checked={animations}
-                        onClick={() => onAnimations(!animations)}
-                      >
-                        <motion.span layout transition={animation.fast}>
-                          {animations && <Check size={15} />}
-                        </motion.span>
-                      </button>
-                    </div>
-                  </>
-                }
-                playback={
-                  <>
-                    <div className="settings-switch-row">
-                      <div>
-                        <strong>Mix</strong>
+                    </>
+                  }
+                  playback={
+                    <>
+                      <div className="settings-switch-row">
+                        <div>
+                          <strong>Mix</strong>
+                        </div>
+                        <button
+                          type="button"
+                          className="material-switch"
+                          role="switch"
+                          aria-label="Mix"
+                          aria-checked={player.mixEnabled}
+                          onClick={() => player.setMixEnabled(!player.mixEnabled)}
+                        >
+                          <motion.span layout transition={animation.fast}>
+                            {player.mixEnabled && <Check size={15} />}
+                          </motion.span>
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        className="material-switch"
-                        role="switch"
-                        aria-label="Mix"
-                        aria-checked={player.mixEnabled}
-                        onClick={() => player.setMixEnabled(!player.mixEnabled)}
-                      >
-                        <motion.span layout transition={animation.fast}>
-                          {player.mixEnabled && <Check size={15} />}
-                        </motion.span>
-                      </button>
-                    </div>
-                    <div className="settings-switch-row">
-                      <div>
-                        <strong>Video clip</strong>
+                      <div className="settings-switch-row">
+                        <div>
+                          <strong>Video clip</strong>
+                        </div>
+                        <button
+                          type="button"
+                          className="material-switch"
+                          role="switch"
+                          aria-label="Video clip"
+                          aria-checked={videoClip}
+                          onClick={() => setVideoClip(!videoClip)}
+                        >
+                          <motion.span layout transition={animation.fast}>
+                            {videoClip && <Check size={15} />}
+                          </motion.span>
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        className="material-switch"
-                        role="switch"
-                        aria-label="Video clip"
-                        aria-checked={videoClip}
-                        onClick={() => setVideoClip(!videoClip)}
-                      >
-                        <motion.span layout transition={animation.fast}>
-                          {videoClip && <Check size={15} />}
-                        </motion.span>
-                      </button>
-                    </div>
-                    <div className="settings-switch-row">
-                      <div>
-                        <strong>Autoplay</strong>
+                      <div className="settings-switch-row">
+                        <div>
+                          <strong>Autoplay</strong>
+                        </div>
+                        <button
+                          type="button"
+                          className="material-switch"
+                          role="switch"
+                          aria-label="Autoplay"
+                          aria-checked={player.autoplay}
+                          onClick={() => player.setAutoplay(!player.autoplay)}
+                        >
+                          <motion.span layout transition={animation.fast}>
+                            {player.autoplay && <Check size={15} />}
+                          </motion.span>
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        className="material-switch"
-                        role="switch"
-                        aria-label="Autoplay"
-                        aria-checked={player.autoplay}
-                        onClick={() => player.setAutoplay(!player.autoplay)}
-                      >
-                        <motion.span layout transition={animation.fast}>
-                          {player.autoplay && <Check size={15} />}
-                        </motion.span>
-                      </button>
-                    </div>
-                  </>
-                }
-                lyrics={
-                  <>
-                    <div className="settings-switch-row">
-                      <div>
-                        <strong>Word-level lyric sources</strong>
-                        <p className="settings-warning">
-                          Unofficial sources. Only the title and artist are sent.
-                        </p>
+                    </>
+                  }
+                  lyrics={
+                    <>
+                      <div className="settings-switch-row">
+                        <div>
+                          <strong>Word-level lyric sources</strong>
+                          <p className="settings-warning">
+                            Unofficial sources. Only the title and artist are sent.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          className="material-switch"
+                          role="switch"
+                          aria-label="Word-level lyric sources"
+                          aria-checked={wordSources}
+                          onClick={() => {
+                            const next = !wordSources;
+                            setWordSources(next);
+                            setExtendedLyrics(next);
+                          }}
+                        >
+                          <motion.span layout transition={animation.fast}>
+                            {wordSources && <Check size={15} />}
+                          </motion.span>
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        className="material-switch"
-                        role="switch"
-                        aria-label="Word-level lyric sources"
-                        aria-checked={wordSources}
-                        onClick={() => {
-                          const next = !wordSources;
-                          setWordSources(next);
-                          setExtendedLyrics(next);
+                      <div className="settings-switch-row">
+                        <div>
+                          <strong>Automatic lyrics</strong>
+                        </div>
+                        <button
+                          className="material-switch"
+                          role="switch"
+                          aria-label="Automatic lyrics"
+                          aria-checked={automaticLyrics}
+                          onClick={() => {
+                            setAutomaticLyrics((value) => !value);
+                            try {
+                              localStorage.setItem('wave-lyrics-consent-v1', 'true');
+                            } catch {
+                              /* Session-only consent. */
+                            }
+                          }}
+                        >
+                          <motion.span layout transition={animation.fast}>
+                            {automaticLyrics && <Check size={15} />}
+                          </motion.span>
+                        </button>
+                      </div>
+                    </>
+                  }
+                  library={
+                    <>
+                      {' '}
+                      <div className="settings-switch-row">
+                        <div>
+                          <strong>Library editing</strong>
+                        </div>
+                        <button
+                          type="button"
+                          className="material-switch"
+                          role="switch"
+                          aria-label="Library editing"
+                          aria-checked={editorEnabled}
+                          onClick={() => setEditorEnabled(!editorEnabled)}
+                        >
+                          <motion.span layout transition={animation.fast}>
+                            {editorEnabled && <Check size={15} />}
+                          </motion.span>
+                        </button>
+                      </div>
+                      <LocalMetadataReview tracks={library.tracks} />
+                    </>
+                  }
+                  storage={
+                    <>
+                      <LibraryMaintenance
+                        tracks={library.tracks}
+                        currentId={player.current?.id}
+                        onMerged={async () => {
+                          await library.reload();
+                          await collections.reload();
+                          await customizations.reload();
                         }}
+                      />
+                      <StorageSettings tracks={library.tracks} />
+                    </>
+                  }
+                  about={
+                    <>
+                      <a
+                        className="settings-source"
+                        href="https://github.com/jaime-gaming/Wave"
+                        target="_blank"
+                        rel="noreferrer"
                       >
-                        <motion.span layout transition={animation.fast}>
-                          {wordSources && <Check size={15} />}
-                        </motion.span>
-                      </button>
-                    </div>
-                    <div className="settings-switch-row">
-                      <div>
-                        <strong>Automatic lyrics</strong>
-                      </div>
-                      <button
-                        className="material-switch"
-                        role="switch"
-                        aria-label="Automatic lyrics"
-                        aria-checked={automaticLyrics}
-                        onClick={() => {
-                          setAutomaticLyrics((value) => !value);
-                          try {
-                            localStorage.setItem('wave-lyrics-consent-v1', 'true');
-                          } catch {
-                            /* Session-only consent. */
-                          }
-                        }}
-                      >
-                        <motion.span layout transition={animation.fast}>
-                          {automaticLyrics && <Check size={15} />}
-                        </motion.span>
-                      </button>
-                    </div>
-                  </>
-                }
-                library={
-                  <>
-                    {' '}
-                    <div className="settings-switch-row">
-                      <div>
-                        <strong>Library editing</strong>
-                      </div>
-                      <button
-                        type="button"
-                        className="material-switch"
-                        role="switch"
-                        aria-label="Library editing"
-                        aria-checked={editorEnabled}
-                        onClick={() => setEditorEnabled(!editorEnabled)}
-                      >
-                        <motion.span layout transition={animation.fast}>
-                          {editorEnabled && <Check size={15} />}
-                        </motion.span>
-                      </button>
-                    </div>
-                    <LocalMetadataReview tracks={library.tracks} />
-                  </>
-                }
-                storage={
-                  <>
-                    <LibraryMaintenance
-                      tracks={library.tracks}
-                      currentId={player.current?.id}
-                      onMerged={async () => {
-                        await library.reload();
-                        await collections.reload();
-                        await customizations.reload();
-                      }}
-                    />
-                    <StorageSettings tracks={library.tracks} />
-                  </>
-                }
-                about={
-                  <>
-                    <a
-                      className="settings-source"
-                      href="https://github.com/jaime-gaming/Wave"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Wave {__WAVE_VERSION__} · Source code
-                      <ArrowUpRight size={16} />
-                    </a>
-                  </>
-                }
-              />
+                        Wave {__WAVE_VERSION__} · Source code
+                        <ArrowUpRight size={16} />
+                      </a>
+                    </>
+                  }
+                />
+              </Suspense>
             ) : page === 'search' ? (
               <SearchPage
                 tracks={library.tracks}
@@ -914,34 +927,36 @@ function WaveApp({
                 onImport={chooseFiles}
               />
             ) : page === 'home' && dailySelection ? (
-              <DailyMixPage
-                selection={dailySelection}
-                tracks={library.tracks}
-                currentId={player.current?.id}
-                playing={player.state.playing}
-                onBack={() => setDailySelection(null)}
-                onPlay={player.play}
-                onShuffle={shuffleCollection}
-                onFavorite={favoriteTrack}
-                onMore={setTrackOptions}
-                onArtist={openArtist}
-                onAlbum={(track) => openAlbum(albumKey(track))}
-                onSave={async (songs) => {
-                  const saved = await collections.create(
-                    {
-                      name: `Daily mix ${dailySelection.number} · ${dailySelection.mix.label}`.slice(
-                        0,
-                        100,
-                      ),
-                      description: `Saved from your local ${dailySelection.mix.basis}-based daily mix.`,
-                    },
-                    songs.map((t) => t.id),
-                  );
-                  if (!saved) return false;
-                  openPlaylist(saved.id);
-                  return true;
-                }}
-              />
+              <Suspense fallback={<div className="empty-state" aria-busy="true" />}>
+                <DailyMixPage
+                  selection={dailySelection}
+                  tracks={library.tracks}
+                  currentId={player.current?.id}
+                  playing={player.state.playing}
+                  onBack={() => setDailySelection(null)}
+                  onPlay={player.play}
+                  onShuffle={shuffleCollection}
+                  onFavorite={favoriteTrack}
+                  onMore={setTrackOptions}
+                  onArtist={openArtist}
+                  onAlbum={(track) => openAlbum(albumKey(track))}
+                  onSave={async (songs) => {
+                    const saved = await collections.create(
+                      {
+                        name: `Daily mix ${dailySelection.number} · ${dailySelection.mix.label}`.slice(
+                          0,
+                          100,
+                        ),
+                        description: `Saved from your local ${dailySelection.mix.basis}-based daily mix.`,
+                      },
+                      songs.map((t) => t.id),
+                    );
+                    if (!saved) return false;
+                    openPlaylist(saved.id);
+                    return true;
+                  }}
+                />
+              </Suspense>
             ) : page === 'home' ? (
               <HomePage
                 tracks={library.tracks}

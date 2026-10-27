@@ -5748,3 +5748,14 @@ h1 {
   font-size: 12.5px;
   line-height: 1.5;
 }
+
+/* Long lists: skip layout and paint for rows that are off screen. */
+.song-list[data-virtual='true'] > .song-row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 68px;
+}
+@media (max-width: 700px) {
+  .song-list[data-virtual='true'] > .song-row {
+    contain-intrinsic-size: auto 76px;
+  }
+}

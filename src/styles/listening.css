@@ -793,3 +793,25 @@ body,
   font-size: 13px;
   line-height: 1.45;
 }
+
+/* Phones pay for every pixel of these gradients twice, so the light is smaller
+   and cheaper there instead of covering the screen at full size. */
+@media (max-width: 700px) {
+  .music-lighting i {
+    width: 62vmax;
+    height: 52vmax;
+  }
+  .music-lighting__bass {
+    left: -30vmax;
+    bottom: -30vmax;
+  }
+  .music-lighting__body {
+    right: -30vmax;
+    bottom: -22vmax;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .music-lighting {
+    display: none;
+  }
+}

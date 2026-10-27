@@ -1,5 +1,5 @@
 import { automaticMixSeconds } from '../domain/mix';
-import { isUsablePlan, planTransition } from '../domain/mixPlanner';
+import { isUsablePlan, planTransitionCached } from '../domain/mixPlanner';
 import { analyzeTrack, cachedAnalysis } from '../audio/mixAnalysis';
 import { continuationQueue } from '../domain/continuation';
 import { readPlaybackSession, writePlaybackSession } from '../domain/playbackSession';
@@ -8,6 +8,7 @@ import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { playerReducer, shuffleQueue } from '../domain/player';
 import { resolvePlayable } from '../domain/youtubeTrack';
 import { planEdgeHandover } from '../domain/edgeMix';
+import { PlaybackClock } from './playbackClock';
 import type { Track } from '../domain/types';
 
 function savedVolume(key = 'wave-volume') {
@@ -46,7 +47,11 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
   const resumeId = useRef<string | undefined>(saved.state.queue[saved.state.index]);
   const readyRef = useRef(libraryReady);
   const [state, dispatch] = useReducer(playerReducer, saved.state);
-  const [time, setTime] = useState(0);
+  /**
+   * Position lives in a store, not in state: see `playbackClock.ts`. The interface
+   * no longer re-renders on every playback tick.
+   */
+  const [clock] = useState(() => new PlaybackClock());
   const [blend, setBlend] = useState<{
     outgoing: Blob;
     incoming: Blob;
@@ -245,11 +250,15 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
       return context.current.tracks.find((track) => track.id === latest.queue[index]);
     };
     const player = new MixAudio({
-      time: (value) =>
-        setTime((previous) =>
-          value === 0 || Math.abs(value - previous) >= 0.09 ? value : previous,
+      time: (value) => clock.set(value),
+      // The blend drives a visual crossfade; a couple of dozen steps are plenty
+      // and every one of them re-renders the bar it is drawn in.
+      blend: (next) =>
+        setBlend((previous) =>
+          !next || !previous || Math.abs(next.progress - previous.progress) >= 0.02
+            ? next
+            : previous,
         ),
-      blend: setBlend,
       duration: (seconds) => {
         setDuration(seconds);
         setDurationTrackId(
@@ -290,6 +299,10 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
         const element = player.element,
           remaining = player.mixRemaining;
         if (!Number.isFinite(element.duration) || element.duration <= 0 || remaining <= 0) return;
+        // Hard floor, independent of the analysis: a song gets at least half of
+        // its own length before the next one starts. This is what separates a
+        // mix from skipping the song.
+        if (element.duration > 45 && element.currentTime < element.duration * 0.5) return;
         const from = stateRef.current.queue[stateRef.current.index];
         const stillTarget = () => {
           if (stateRef.current.queue[stateRef.current.index] !== from) return false;
@@ -299,28 +312,28 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
         const onStarted = () => dispatch({ type: 'jump', id: next.id });
         const outgoingAnalysis = cachedAnalysis(player.active.blob);
         const incomingAnalysis = cachedAnalysis(next.blob);
+        const window = automaticMixSeconds(
+          element.duration,
+          player.preparedDuration || next.duration,
+        );
         if (outgoingAnalysis && incomingAnalysis) {
-          const plan = planTransition(outgoingAnalysis, incomingAnalysis, {
-            fallbackSeconds: automaticMixSeconds(
-              element.duration,
-              player.preparedDuration || next.duration,
-            ),
+          const plan = planTransitionCached(outgoingAnalysis, incomingAnalysis, {
+            fallbackSeconds: window,
           });
-          if (isUsablePlan(plan, remaining) && element.currentTime >= plan.startAt - 0.05)
+          // Both conditions matter: we are at the planned mix point *and* that
+          // point is really near the end of this song. A plan that points at the
+          // middle of the song is a bad measurement, not an instruction.
+          if (
+            isUsablePlan(plan, remaining) &&
+            element.currentTime >= plan.startAt - 0.05 &&
+            remaining <= plan.seconds + 1
+          ) {
             player.transitionWithPlan(next.blob, plan, stillTarget, onStarted);
-          return;
+            return;
+          }
         }
-        // No analysis yet: fall back to a plain equal-power overlap timed by length.
-        if (
-          remaining <=
-          automaticMixSeconds(element.duration, player.preparedDuration || next.duration)
-        )
-          player.transition(
-            next.blob,
-            automaticMixSeconds(element.duration, player.preparedDuration || next.duration),
-            stillTarget,
-            onStarted,
-          );
+        // No usable plan: an equal-power overlap timed by the two lengths.
+        if (remaining <= window) player.transition(next.blob, window, stillTarget, onStarted);
       },
     });
     engine.current = player;
@@ -441,13 +454,13 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
     const restore = () => {
       if (!Number.isFinite(player.element.duration) || player.element.duration <= 0) return;
       player.seek(Math.min(position, player.element.duration));
-      setTime(Math.min(position, player.element.duration));
+      clock.set(Math.min(position, player.element.duration), true);
       resumeId.current = undefined;
     };
     element.addEventListener('loadedmetadata', restore);
     restore();
     return () => element.removeEventListener('loadedmetadata', restore);
-  }, [blob, current?.id]);
+  }, [blob, current?.id, clock]);
   /**
    * Browsers only start an audio context inside a gesture. Any click or key
    * brings a suspended graph back, so the interface cannot get stuck silent.
@@ -496,25 +509,28 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
     () => updateVolume((value) => (value > 0 ? 0 : lastAudible.current)),
     [],
   );
-  const seek = useCallback((seconds: number) => {
-    if (!Number.isFinite(seconds)) return;
-    if (youTubeRef.current) {
-      const next = Math.max(0, seconds);
-      setYouTubeClock((value) => ({
-        id: currentIdRef.current,
-        time: next,
-        duration: value.duration,
-      }));
-      setYouTubeSeek((value) => ({ seconds: next, nonce: value.nonce + 1 }));
-      return;
-    }
-    const player = engine.current;
-    if (!player || !Number.isFinite(player.element.duration) || player.element.duration <= 0)
-      return;
-    const next = Math.max(0, Math.min(seconds, player.element.duration));
-    player.seek(next);
-    setTime(next);
-  }, []);
+  const seek = useCallback(
+    (seconds: number) => {
+      if (!Number.isFinite(seconds)) return;
+      if (youTubeRef.current) {
+        const next = Math.max(0, seconds);
+        setYouTubeClock((value) => ({
+          id: currentIdRef.current,
+          time: next,
+          duration: value.duration,
+        }));
+        setYouTubeSeek((value) => ({ seconds: next, nonce: value.nonce + 1 }));
+        return;
+      }
+      const player = engine.current;
+      if (!player || !Number.isFinite(player.element.duration) || player.element.duration <= 0)
+        return;
+      const next = Math.max(0, Math.min(seconds, player.element.duration));
+      player.seek(next);
+      clock.set(next, true);
+    },
+    [clock],
+  );
   const previous = useCallback(() => {
     const position = youTubeRef.current
       ? youTubeTimeRef.current
@@ -591,18 +607,24 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
 
   useEffect(() => {
     if (!('mediaSession' in navigator) || !navigator.mediaSession.setPositionState) return;
-    try {
-      if (duration > 0 && Number.isFinite(duration))
-        navigator.mediaSession.setPositionState({
-          duration,
-          playbackRate: 1,
-          position: Math.max(0, Math.min(time, duration)),
-        });
-      else navigator.mediaSession.setPositionState();
-    } catch {
-      /* Position reporting is optional. */
-    }
-  }, [time, duration]);
+    const report = () => {
+      try {
+        if (duration > 0 && Number.isFinite(duration))
+          navigator.mediaSession.setPositionState({
+            duration,
+            playbackRate: 1,
+            position: Math.max(0, Math.min(clock.get(), duration)),
+          });
+        else navigator.mediaSession.setPositionState();
+      } catch {
+        /* Position reporting is optional. */
+      }
+    };
+    report();
+    // Once a second is all the OS needs; the store keeps the rest off the render path.
+    const timer = setInterval(report, 1000);
+    return () => clearInterval(timer);
+  }, [clock, duration]);
 
   const enqueue = useCallback(
     (ids: string[]) =>
@@ -699,7 +721,10 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
     buffering,
     toggleMute,
     current,
-    time: youTube ? youTubeTime : time,
+    clock,
+    get time() {
+      return youTube ? youTubeTime : clock.get();
+    },
     duration: youTube ? youTubeDuration || (current?.duration ?? 0) : duration,
     volume,
     /** A row without stored audio explains itself instead of looking silent. */

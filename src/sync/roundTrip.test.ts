@@ -6,7 +6,14 @@ import { identicalBytes, verifyCopy, wrapWav24 } from './integrity';
 import { clearSyncStore, commitLoan, getLoanedBytes, getLoans, getSyncUsage } from './store';
 import { DEFAULT_LOAN_POLICY } from './loan';
 
-const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
+/**
+ * Waits for queued delivery and the asynchronous seal/open calls. Several short
+ * ticks rather than one: under a full parallel run the crypto promises can take
+ * longer than a single macrotask, which made this suite flaky.
+ */
+const settle = async () => {
+  for (let i = 0; i < 6; i += 1) await new Promise((resolve) => setTimeout(resolve, 10));
+};
 
 /** Purchases a WAV fixture and drives it through the real transfer path. */
 async function loanFixture(fixture: Uint8Array, capacityBytes = 40 * 1024 * 1024) {
