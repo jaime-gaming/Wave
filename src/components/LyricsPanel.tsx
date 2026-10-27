@@ -189,46 +189,12 @@ export function LyricsPanel({
   const pane = useRef<HTMLDivElement>(null);
   const [follow, setFollow] = useState(true),
     [adjusting, setAdjusting] = useState(false);
-  const [pageStart, setPageStart] = useState(0);
   const animation = useWaveMotion();
   const lyrics = track.lyrics,
     index = lyrics ? activeLyricIndex(lyrics, time) : -1,
     activeTime = index >= 0 ? lyrics?.lines[index].time : undefined;
-  /**
-   * The framed reader always shows exactly three lines: the one being sung and
-   * its neighbours. It never grows with the window, because a fourth line makes
-   * the current one harder to find.
-   */
-  const framed = stage || cinematic;
-  const windowCount = 3;
   const synchronized = lyrics?.lines[0]?.time !== undefined;
-  const windowStart =
-    follow && synchronized
-      ? Math.min(
-          Math.max(0, index - Math.floor(windowCount / 2)),
-          Math.max(0, (lyrics?.lines.length ?? 0) - windowCount),
-        )
-      : pageStart;
   const lineProgress = lyrics ? lyricFillProgress(lyrics, time, duration) : 0;
-  const browsePage = (direction: number) => {
-    if (!lyrics) return;
-    const next = Math.max(
-      0,
-      Math.min(
-        lyrics.lines.length - 1,
-        (follow ? windowStart : pageStart) + direction * windowCount,
-      ),
-    );
-    setFollow(false);
-    setPageStart(next);
-    const el = pane.current,
-      row = el?.querySelectorAll<HTMLElement>('.lyric-line')[next];
-    if (el && row)
-      el.scrollTo({
-        top: row.offsetTop - el.clientHeight / 2 + row.clientHeight / 2,
-        behavior: animation.enabled ? 'smooth' : 'instant',
-      });
-  };
   const seek = useCallback(
     (seconds: number) => {
       onSeek(Math.max(0, seconds + (lyrics?.offsetMs ?? 0) / 1000));
@@ -247,8 +213,8 @@ export function LyricsPanel({
       const line = el.querySelector<HTMLElement>('.lyric-line.active');
       if (!line) return;
       const max = Number.parseFloat(getComputedStyle(line).fontSize),
-        // With three framed rows each line owns a third of the reader.
-        budget = el.clientHeight * (framed ? 0.3 : 0.9);
+        // The reader scrolls, so a line only has to fit the reader, not a row.
+        budget = el.clientHeight * 0.9;
       if (line.scrollHeight > budget) {
         // Long lines shrink, but never below a size you can actually read; past
         // that the text is clamped instead.
@@ -273,16 +239,7 @@ export function LyricsPanel({
     observer.observe(el);
     fit(true);
     return () => observer.disconnect();
-  }, [
-    cinematic,
-    activeTime,
-    lyrics?.raw,
-    lyrics?.offsetMs,
-    follow,
-    animation.enabled,
-    framed,
-    windowCount,
-  ]);
+  }, [cinematic, activeTime, lyrics?.raw, lyrics?.offsetMs, follow, animation.enabled]);
   const [timingError, setTimingError] = useState('');
   const adjustOffset = async (delta: number) => {
     if (!lyrics || !onOffset || adjusting) return;
@@ -336,13 +293,12 @@ export function LyricsPanel({
           {!cinematic && synchronized && <p className="lyrics-caption">Tap a line to seek</p>}
           <div
             ref={pane}
-            className={`lyrics-scroll${framed ? ' lyrics-scroll--framed' : ''}`}
-            onWheel={framed ? undefined : () => setFollow(false)}
-            onTouchMove={framed ? undefined : () => setFollow(false)}
+            className="lyrics-scroll"
+            onWheel={() => setFollow(false)}
+            onTouchMove={() => setFollow(false)}
           >
             {lyrics.lines.map((line, i) =>
-              framed && (i < windowStart || i >= windowStart + windowCount) ? null : line.time !==
-                undefined ? (
+              line.time !== undefined ? (
                 <LyricRow
                   readOnly={cinematic}
                   key={i}
@@ -358,10 +314,7 @@ export function LyricsPanel({
                   karaoke={karaoke}
                 />
               ) : (
-                <p
-                  key={i}
-                  className={`lyric-line plain ${framed && i === windowStart ? 'active' : ''}`}
-                >
+                <p key={i} className="lyric-line plain">
                   <span className="lyric-text">{line.text}</span>
                 </p>
               ),
@@ -373,24 +326,6 @@ export function LyricsPanel({
                 <button className="icon-button" aria-label="Edit lyrics" onClick={onEdit}>
                   <Pencil size={18} />
                 </button>
-              )}
-              {stage && lyrics.lines.length > windowCount && (
-                <div className="lyrics-pages">
-                  <button
-                    className="icon-button"
-                    aria-label="Previous lyric lines"
-                    onClick={() => browsePage(-1)}
-                  >
-                    <Minus size={16} />
-                  </button>
-                  <button
-                    className="icon-button"
-                    aria-label="Next lyric lines"
-                    onClick={() => browsePage(1)}
-                  >
-                    <Plus size={16} />
-                  </button>
-                </div>
               )}
               {synchronized && (
                 <button

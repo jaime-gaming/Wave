@@ -149,29 +149,39 @@ it('highlights each word individually, with a line-level fallback', () => {
   }
 });
 
-it('frames exactly three lines in the stage reader, whatever the height', () => {
+it('shows the whole lyric, not a three-line window, and centres the sung line', () => {
   const previous = HTMLElement.prototype.scrollTo;
-  HTMLElement.prototype.scrollTo = vi.fn();
+  const previousObserver = globalThis.ResizeObserver;
+  // jsdom has no ResizeObserver; the reader uses one to re-fit the text.
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  } as unknown as typeof ResizeObserver;
+  const scrolled: number[] = [];
+  HTMLElement.prototype.scrollTo = vi.fn((options?: ScrollToOptions) => {
+    if (typeof options?.top === 'number') scrolled.push(options.top);
+  }) as unknown as typeof HTMLElement.prototype.scrollTo;
   try {
     const raw = Array.from(
-      { length: 12 },
-      (_, i) => `[00:${String(i * 4).padStart(2, '0')}]Line ${i + 1}`,
+      { length: 40 },
+      (_, i) =>
+        `[${String(Math.floor((i * 4) / 60)).padStart(2, '0')}:${String((i * 4) % 60).padStart(2, '0')}]Line ${i + 1}`,
     );
     const track = makeTrack({ lyrics: parseLyrics(raw.join('\n')) });
-    const { container, rerender } = render(
-      <LyricsPanel stage track={track} time={24} duration={60} onSeek={vi.fn()} onEdit={vi.fn()} />,
-    );
-    const lines = () => container.querySelectorAll('.lyric-line');
-    expect(lines()).toHaveLength(3);
-    // The line being sung sits in the middle of the three.
-    expect(lines()[1]).toHaveAttribute('aria-current', 'true');
-    expect(lines()[1].textContent).toBe('Line 7');
-    rerender(
-      <LyricsPanel stage track={track} time={8} duration={60} onSeek={vi.fn()} onEdit={vi.fn()} />,
-    );
-    expect(lines()).toHaveLength(3);
-    expect(container.querySelector('.lyrics-scroll--framed')).not.toBeNull();
+    const props = { stage: true as const, track, duration: 200, onSeek: vi.fn(), onEdit: vi.fn() };
+    const { container, rerender } = render(<LyricsPanel {...props} time={80} />);
+    const lines = container.querySelectorAll('.lyric-line');
+    expect(lines).toHaveLength(40);
+    expect(container.querySelector('.lyrics-scroll--framed')).toBeNull();
+    const active = [...lines].filter((line) => line.getAttribute('aria-current') === 'true');
+    expect(active).toHaveLength(1);
+    expect(active[0].textContent).toBe('Line 21');
+    expect(scrolled.length).toBeGreaterThan(0);
+    rerender(<LyricsPanel {...props} time={8} />);
+    expect(container.querySelectorAll('.lyric-line')).toHaveLength(40);
   } finally {
     HTMLElement.prototype.scrollTo = previous;
+    globalThis.ResizeObserver = previousObserver;
   }
 });

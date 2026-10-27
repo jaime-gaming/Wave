@@ -6,7 +6,7 @@ Release 0.1.1 · 27 October 2026. Historical run dates are retained below.
 
 - `npm run format:check`: passed.
 - `npm run lint`: passed.
-- `npm test`: **428 tests passed across 73 files** (latest run; 200 tests across 42 files at the 0.1.0 release).
+- `npm test`: **430 tests passed across 73 files** (latest run; 200 tests across 42 files at the 0.1.0 release).
 - `npm run test:e2e`: **89 Chromium browser tests passed** in the final complete run (7.6 minutes).
 - `npm run build`: passed. Vite reports its advisory 500 KB chunk-size warning (main chunk approximately 547 KB, gzip 172 KB); this is not a build failure.
 - `npm run build -- --base=/Wave/`: passed; a production static-server smoke test verified Home, Settings, fonts/assets, `/Wave/wave.svg`, the privacy page and its return link under the repository path without HTTP/page errors.
@@ -45,12 +45,13 @@ Browser coverage includes paused restoration of saved queue/native position, art
 
 ### 0.1.1 corrections: performance, the mix point and lyric size
 
-- `npx tsc -b`, `npx eslint .`, `npx prettier --check .`, `npm run build` and `npm test` (428 tests across 73 files) pass.
+- `npx tsc -b`, `npx eslint .`, `npx prettier --check .`, `npm run build` and `npm test` (430 tests across 73 files) pass.
+- Clip search: `clipSearch` (6 tests) proves the first matching host is used, another host is asked when one fails, a host that failed is skipped on the next search, an explicit retry clears that memory, an empty answer is remembered for a day and the whole search stops at its budget when no host answers. **No request was made to Piped or Invidious**: whether each of the eight instances is alive, allows cross-origin reads and still returns the documented shape is unverified from this workspace, and community instances change without notice.
 - Mix: `mixPlanner` proves the incoming song enters within six seconds of its own start even when it has a 45 s intro or starts with a vocal, that the overlap is four bars at 120 BPM (two when both sides sing), and that a plan is reused for the same pair. A generated-signal run through the real analyser put the cue at 0.3 s and the overlap inside the last 8 s of a three-minute song. **Nothing was listened to**: no browser engine and no audio device here, so "the mix sounds better" is not verified, only that the entry is no longer deep inside the song and that it cannot start before half of the track has played.
 - Performance: `playbackClock` (4 tests) proves the position is delivered at most ten times a second and that a seek is immediate; `usePlayer` proves that six consecutive engine ticks while a song plays cause **zero** re-renders of the hook's owner. The change itself is architectural — the position is no longer React state at the app root — and was not profiled on a real phone; there is no performance trace in this workspace. The settings page and daily-mix page are now separate chunks; the initial JavaScript is about 188 KiB gzipped instead of 190 KiB, so the size win is small and the real win is that playback no longer re-renders the library.
-- Lyrics: sizes were raised in the stage (28–44 px), cinema (30–62 px) and phone (23–32 px) readers. `LyricsPanel` still proves exactly three framed rows. The visual result was **not** screenshotted and was not compared side by side with 0.1.0 on a device.
+- Lyrics: the reader went back to the 0.1.0 shape (one scrolling page of text, centred on the sung line) at larger sizes than 0.1.0 used: 22–34 px in the stage, 24–52 px in the cinema view and 19–28 px on phones. `LyricsPanel` proves that every line is rendered, that exactly one line is current, that the list is not windowed and that the reader scrolls the sung line into the middle. The visual result was **not** screenshotted and was not compared side by side with 0.1.0 on a device.
 
-### 0.1.1 corrections: sound on every song, three framed lines, layering
+### 0.1.1 corrections: sound on every song, lyric framing, layering
 
 - `npx tsc -b`, `npx eslint .`, `npx prettier --check .`, `npm run build` and `npm test` (421 tests across 72 files) pass.
 - Silence: `mixGraph` proves the context reports whether it can run and that a refused resume is reported; `MixAudio` proves a song stays on the native element — no `createMediaElementSource`, volume untouched, unmuted — when the context cannot run, and that routing only happens once the context is running. **Nothing was heard**: there is no browser engine here, so the claim is that the code cannot produce a muted graph, not that a device was listened to.
