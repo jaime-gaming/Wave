@@ -6,7 +6,7 @@ Release 0.1.0 · 17 October 2026. Historical run dates are retained below.
 
 - `npm run format:check`: passed.
 - `npm run lint`: passed.
-- `npm test`: **200 tests passed across 42 files**.
+- `npm test`: **377 tests passed across 67 files** (latest Mix/YouTube run; 200 tests across 42 files at the 0.1.0 release).
 - `npm run test:e2e`: **89 Chromium browser tests passed** in the final complete run (7.6 minutes).
 - `npm run build`: passed. Vite reports its advisory 500 KB chunk-size warning (main chunk approximately 547 KB, gzip 172 KB); this is not a build failure.
 - `npm run build -- --base=/Wave/`: passed; a production static-server smoke test verified Home, Settings, fonts/assets, `/Wave/wave.svg`, the privacy page and its return link under the repository path without HTTP/page errors.
@@ -14,6 +14,16 @@ Release 0.1.0 · 17 October 2026. Historical run dates are retained below.
 - `git diff --check`: passed.
 
 Browser coverage includes paused restoration of saved queue/native position, artist/album navigation without audio restart, enhanced word stamps, no-scroll lyric/control fit, 30-second cinema/wake and real native decoder overlap, media-clock lyric fill without bars, Settings page/Back focus, fresh Home, default-off lyric lookup, persistence, playlists, artwork, album/playlist order, source-byte preservation and explicit legacy duplicate merging with reference/favorite/local-lyric preservation. Visual QA checked Home/sidebar/compact playback at 320, 390, 768, 1024 and 1440 px, both themes, and lyric fill. Additional actual Chromium screenshots/geometry checks covered enhanced, plain, missing and long lyrics/metadata plus read-only cinema at 1440×900, 1024×768, 768×700, 390×844, 320×568 and 844×390. Controls stayed within the viewport, with no outer scroll; durable tests also verify actual hit targets and lyric text visibility. The compact bar remained 64 px without document overflow.
+
+### Mix, clip discovery and YouTube songs (web, latest run)
+
+- `npx tsc -b`, `npx eslint .`, `npx prettier --check .` and `npm run build`: passed.
+- Mix: `dsp` (14), `mixPlanner` (12), `mixGraph` (5) and `MixAudio` (12) tests cover tempo/phase estimation, silence trimming, energy segments, vocal regions, bar-aligned planning, the ±8 % stretch window, vocal-aware cue relocation, bass-swap curves, graph wiring and plan execution. These are synthetic-signal and engine tests: **no real recording was judged by ear**, and the analysis cost was measured on generated PCM, not on a large local library.
+- Clip discovery: `clipSearch` domain (6) and service (4) tests cover ranking, rejection of karaoke/cover/reaction uploads, provider payload parsing, provider fallback, caching and offline failure. Providers are community services: availability, rate limits and terms were **not** verified against the live hosts from this workspace.
+- YouTube songs: `youtubeTrack` (4), `YouTubeStage` (3), `AddMusicDialog` (3) and `useLibrary` (8) tests cover link validation, title splitting, records without local bytes, embed options, transport commands, message-source validation and duplicate refusal. **No live YouTube playback or oEmbed request was made**; browser autoplay policy on a real device is unverified.
+- Video sync: 9 tests cover pause/play, the new rate nudging, hard-drift seeking, cooldown and offset clamping. Real embed drift on slow connections remains unmeasured.
+- Import: FLAC now passes the whitelist (`import`/`useLibrary` tests). Browser FLAC decoding was not exercised here.
+- Word-by-word lyrics: the panel test proves the built-in word view and the line-level fallback; the removed toggle is not a hidden setting.
 
 LRCLIB tests use controlled responses to verify exact/search matching, client identification, size/time bounds and Retry-After. They do **not** establish current live provider availability, coverage, latency or a copyright license. Rendering tests are not a substitute for audible crossfade assessment across browsers/recordings; correlated audio can peak during equal-power mixing. No bit-perfect/gapless claim is made.
 

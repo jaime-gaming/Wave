@@ -11,6 +11,7 @@ import {
   type VideoState,
 } from '../domain/videoSync';
 import { getClip, loadClips, removeClip, saveClip, type StoredClip } from '../domain/videoClips';
+import { findClip, rememberClip } from '../services/clipSearch';
 import type { Track } from '../domain/types';
 
 const OFFLINE: VideoState = { position: 0, playing: false, ready: false };
@@ -46,7 +47,30 @@ export function VideoBackdrop({
   const [clips, setClips] = useState(() => loadClips());
   const [draft, setDraft] = useState('');
   const [error, setError] = useState('');
+  const [search, setSearch] = useState<'searching' | 'empty' | 'unavailable' | 'manual'>(
+    'searching',
+  );
+  const [attempt, setAttempt] = useState(0);
   const clip = getClip(track.id, clips);
+
+  // The clip is discovered, not pasted: search once per song and open the match.
+  // Only title and artist leave the device; the result is remembered locally.
+  useEffect(() => {
+    if (clip) return;
+    const controller = new AbortController();
+    void findClip(
+      { title: track.title, artist: track.artist, duration: track.duration },
+      { signal: controller.signal, refresh: attempt > 0 },
+    ).then((result) => {
+      if (controller.signal.aborted) return;
+      if (result.status === 'found' && rememberClip(track.id, result.candidate)) {
+        setClips(loadClips());
+        return;
+      }
+      setSearch(result.status === 'empty' ? 'empty' : 'unavailable');
+    });
+    return () => controller.abort();
+  }, [clip, track.id, track.title, track.artist, track.duration, attempt]);
 
   const add = () => {
     const result = saveClip(track.id, draft);
@@ -82,10 +106,28 @@ export function VideoBackdrop({
         <p>
           <strong>Video clip</strong>
           <span>
-            Paste the YouTube link for this song. The clip is muted and Wave keeps its own controls;
-            audio still comes from your file.
+            {search === 'searching'
+              ? 'Looking for this song on YouTube…'
+              : search === 'empty'
+                ? 'No clip matched this song closely enough. Paste a link if you know one.'
+                : search === 'unavailable'
+                  ? 'Clip search is unreachable right now. Paste a link, or try again later.'
+                  : 'Paste the YouTube link for this song.'}{' '}
+            The clip is muted and Wave keeps its own controls; audio still comes from your file.
           </span>
         </p>
+        {search !== 'searching' && (
+          <button
+            type="button"
+            className="text-button"
+            onClick={() => {
+              setSearch('searching');
+              setAttempt((n) => n + 1);
+            }}
+          >
+            Search again
+          </button>
+        )}
         <div className="video-clip-form">
           <label>
             <Link2 size={16} aria-hidden="true" />
@@ -163,14 +205,22 @@ function ClipPlayer({
           break;
         case 'seek':
           post('seekTo', [next.to, true]);
+          post('setPlaybackRate', [1]);
           cooldown.current = Date.now() + VIDEO_CORRECTION_COOLDOWN_MS;
-          publish({ ...latest.current, position: next.to });
+          publish({ ...latest.current, position: next.to, rate: 1 });
           break;
         case 'seek-and-play':
           post('seekTo', [next.to, true]);
+          post('setPlaybackRate', [1]);
           post('playVideo');
           cooldown.current = Date.now() + VIDEO_CORRECTION_COOLDOWN_MS;
-          publish({ ...latest.current, position: next.to, playing: true });
+          publish({ ...latest.current, position: next.to, playing: true, rate: 1 });
+          break;
+        case 'nudge':
+          // Small drift is closed by playing the muted clip slightly faster or
+          // slower for a moment, so the picture never jumps.
+          post('setPlaybackRate', [next.rate]);
+          publish({ ...latest.current, rate: next.rate });
           break;
         default:
           break;

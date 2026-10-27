@@ -907,3 +907,81 @@
     width: 62px;
   }
 }
+
+/* Add music: choosing a source ------------------------------------------------ */
+.add-music-modal {
+  max-width: 560px;
+}
+.add-music-choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin: 16px 0 8px;
+}
+.add-music-choice {
+  display: grid;
+  gap: 6px;
+  padding: 16px;
+  text-align: left;
+  border-radius: 18px;
+  border: 1px solid var(--outline, rgba(255, 255, 255, 0.12));
+  background: var(--container, rgba(255, 255, 255, 0.06));
+  color: var(--text);
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease;
+}
+.add-music-choice:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: var(--primary);
+}
+.add-music-choice:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.add-music-choice strong {
+  font-size: 15px;
+}
+.add-music-choice span {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+.add-music-footer {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 10px;
+}
+
+/* Mix information ------------------------------------------------------------ */
+.mix-plan-block p {
+  color: var(--muted);
+  line-height: 1.5;
+}
+.settings-note {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--container, rgba(255, 255, 255, 0.05));
+}
+.settings-note p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+  font-size: 13px;
+}
+
+/* YouTube songs: the video is the source, so the veil stays light ------------ */
+.video-backdrop--source .video-backdrop-veil {
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.15) 0%,
+    rgba(0, 0, 0, 0.05) 45%,
+    rgba(0, 0, 0, 0.55) 100%
+  );
+}
+.video-backdrop--source .video-backdrop-frame {
+  pointer-events: none;
+}

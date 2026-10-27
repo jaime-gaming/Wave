@@ -28,6 +28,8 @@ export function LibraryMaintenance({
           try {
             const map = new Map<string, Track[]>();
             for (const track of tracks) {
+              // Songs played from YouTube have no local bytes to compare.
+              if (!track.blob) continue;
               const hash = await contentIdentity(track.blob);
               map.set(hash, [...(map.get(hash) ?? []), track]);
             }

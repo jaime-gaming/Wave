@@ -1,11 +1,7 @@
 import { mixCues, mixGains, type MixCues } from '../domain/mix';
-import {
-  clampCrossfadeSeconds,
-  crossfadeGains,
-  CROSSFADE_DEFAULT_SECONDS,
-  planCrossfade,
-  type MixStyle,
-} from '../domain/mixPlan';
+import { planGains, type TransitionPlan } from '../domain/mixPlanner';
+import { bassShelfDb, MixGraph, stretchRate } from './mixGraph';
+import type { TrackAnalysis } from './dsp';
 import { sourceEnvelope } from './sourceEnvelope';
 interface Deck {
   element: HTMLAudioElement;
@@ -35,12 +31,14 @@ export class MixAudio {
     start: number;
     seconds: number;
     cue: number;
-    style: MixStyle;
     mixed: boolean;
+    /** Bass swap only when the plan asked for it and Web Audio is available. */
+    bassSwap: boolean;
+    bassSwapAt: number;
   };
   private mixEnabled = false;
-  private mixStyle: MixStyle = 'blend';
-  private crossfadeSeconds = CROSSFADE_DEFAULT_SECONDS;
+  private graph: MixGraph | null = null;
+  private analyses = new WeakMap<Blob, TrackAnalysis>();
   private profiles = new WeakMap<Blob, MixCues>();
   private requested = new WeakSet<Blob>();
   private pending = false;
@@ -77,21 +75,28 @@ export class MixAudio {
   get transitioning() {
     return !!this.fading;
   }
-  /** Apple-style equal-power crossfade or Wave's staged blend. */
-  setMixStyle(style: MixStyle) {
-    this.mixStyle = style === 'crossfade' ? 'crossfade' : 'blend';
+  /** Analysis results used to plan transitions; never mutates the audio. */
+  setAnalysis(blob: Blob, analysis: TrackAnalysis) {
+    this.analyses.set(blob, analysis);
   }
-  get style() {
-    return this.mixStyle;
+  analysisFor(blob: Blob | undefined) {
+    return blob ? this.analyses.get(blob) : undefined;
   }
-  setCrossfadeSeconds(seconds: number) {
-    this.crossfadeSeconds = clampCrossfadeSeconds(seconds);
+  /** Playback rate that matches a deck to `bpm`, inside the 8 % window. */
+  stretchFor(blob: Blob | undefined, bpm: number) {
+    return stretchRate(blob ? this.analyses.get(blob) : undefined, bpm);
   }
-  get crossfadeLength() {
-    return this.crossfadeSeconds;
+  get bassSwapAvailable() {
+    return !!this.graph?.available;
   }
   setMixEnabled(enabled: boolean) {
     this.mixEnabled = enabled;
+    if (enabled && !this.graph) this.graph = MixGraph.create();
+    if (this.graph) {
+      void this.graph.resume();
+      this.attachGraph(this.active);
+      if (this.spare) this.attachGraph(this.spare);
+    }
     if (enabled) {
       this.prime(this.active);
       if (this.spare) this.prime(this.spare);
@@ -114,12 +119,31 @@ export class MixAudio {
     });
   }
   private cues(deck: Deck) {
-    return this.mixEnabled && deck.blob
-      ? (this.profiles.get(deck.blob) ?? { start: 0, end: deck.element.duration })
-      : { start: 0, end: deck.element.duration };
+    const duration = deck.element.duration;
+    if (!this.mixEnabled || !deck.blob) return { start: 0, end: duration };
+    // The worker analysis knows where the audio actually starts and ends.
+    const analysis = this.analyses.get(deck.blob);
+    if (analysis) return { start: analysis.trimmed.start, end: analysis.trimmed.end };
+    return this.profiles.get(deck.blob) ?? { start: 0, end: duration };
   }
   get mixRemaining() {
     return Math.min(this.element.duration, this.cues(this.active).end) - this.element.currentTime;
+  }
+  private attachGraph(deck: Deck) {
+    if (!this.graph) return;
+    const chain = this.graph.chain(deck.element);
+    if (!chain) return;
+    // The element keeps only the master volume; the mix curve lives in the graph.
+    this.graph.setGain(deck.element, 1);
+    this.graph.setBass(deck.element, 0);
+  }
+  private applyDeckGain(deck: Deck, gain: number) {
+    if (this.graph) {
+      this.graph.setGain(deck.element, gain);
+      deck.element.volume = this.volume;
+    } else {
+      deck.element.volume = gain * this.volume;
+    }
   }
   private createDeck(): Deck {
     const deck: Deck = { element: new Audio() };
@@ -180,6 +204,7 @@ export class MixAudio {
     deck.url = URL.createObjectURL(blob);
     deck.element.src = deck.url;
     deck.element.currentTime = 0;
+    this.attachGraph(deck);
   }
   private report() {
     this.callbacks.time(Number.isFinite(this.element.currentTime) ? this.element.currentTime : 0);
@@ -261,7 +286,34 @@ export class MixAudio {
       this.spare.element.volume = 0;
     }
   }
+  /**
+   * Executes a planned transition: beat-aligned overlap, optional tempo match and
+   * a bass swap in the middle. `plan.seconds` is the overlap the planner chose.
+   */
+  transitionWithPlan(
+    blob: Blob,
+    plan: TransitionPlan,
+    guard: () => boolean,
+    onStarted: () => void,
+  ) {
+    if (plan.mode === 'cut' || plan.seconds < 0.5) return;
+    this.startTransition(blob, plan.seconds, guard, onStarted, {
+      cue: plan.cue,
+      rate: plan.incomingRate,
+      bassSwap: plan.mode === 'beatmatched' && !!this.graph?.available,
+      bassSwapAt: plan.bassSwapAt,
+    });
+  }
   transition(blob: Blob, seconds: number, guard: () => boolean, onStarted: () => void) {
+    this.startTransition(blob, seconds, guard, onStarted, {});
+  }
+  private startTransition(
+    blob: Blob,
+    seconds: number,
+    guard: () => boolean,
+    onStarted: () => void,
+    options: { cue?: number; rate?: number; bassSwap?: boolean; bassSwapAt?: number },
+  ) {
     const incoming = this.spare,
       outgoing = this.active;
     if (
@@ -276,28 +328,17 @@ export class MixAudio {
       !this.playing
     )
       return;
-    const outgoingCues = this.cues(outgoing),
-      incomingCues = this.cues(incoming);
-    let cue = incomingCues.start;
-    let length = Math.min(seconds, this.mixRemaining, (incoming.element.duration - cue) / 2);
-    if (this.mixStyle === 'crossfade') {
-      // Equal-power overlap of the length the user chose, kept inside audible
-      // audio and never longer than what is actually left of the outgoing song.
-      const plan = planCrossfade({
-        outgoingDuration: outgoing.element.duration,
-        incomingDuration: incoming.element.duration,
-        outgoingCues,
-        incomingCues,
-        requestedSeconds: this.crossfadeSeconds,
-      });
-      cue = plan.cue;
-      length = Math.min(plan.seconds, this.mixRemaining);
-    }
+    const incomingCues = this.cues(incoming);
+    const cue = options.cue ?? incomingCues.start;
+    const length = Math.min(seconds, this.mixRemaining, incoming.element.duration - cue);
     if (length < 0.1) return;
     this.pending = true;
     const generation = this.generation;
     incoming.element.currentTime = cue;
-    incoming.element.volume = 0;
+    const rate = options.rate ?? 1;
+    incoming.element.preservesPitch = true;
+    incoming.element.playbackRate = rate;
+    this.applyDeckGain(incoming, 0);
     void incoming.element
       .play()
       .then(() => {
@@ -317,8 +358,9 @@ export class MixAudio {
           start: performance.now(),
           seconds: length,
           cue,
-          style: this.mixStyle,
           mixed: this.mixEnabled,
+          bassSwap: options.bassSwap === true,
+          bassSwapAt: options.bassSwapAt ?? 0.5,
         };
         this.callbacks.buffering(false);
         this.report();
@@ -340,6 +382,15 @@ export class MixAudio {
       this.release(this.fading.outgoing);
       this.fading = undefined;
     } else this.spare?.element.pause();
+    for (const deck of [this.active, this.spare]) {
+      if (!deck) continue;
+      deck.element.playbackRate = 1;
+      deck.element.preservesPitch = true;
+      if (this.graph) {
+        this.graph.setBass(deck.element, 0);
+        this.graph.setGain(deck.element, 1);
+      }
+    }
     this.active.element.volume = this.volume;
   }
   setVolume(volume: number) {
@@ -349,6 +400,12 @@ export class MixAudio {
   }
   private applyGains() {
     if (!this.fading) {
+      for (const deck of [this.active, this.spare]) {
+        if (deck && this.graph) {
+          this.graph.setBass(deck.element, 0);
+          this.graph.setGain(deck.element, 1);
+        }
+      }
       this.active.element.volume = this.volume;
       return;
     }
@@ -359,20 +416,29 @@ export class MixAudio {
         (this.fading.incoming.element.currentTime - this.fading.cue) / this.fading.seconds,
       ),
     );
-    const gains =
-      this.fading.style === 'crossfade'
-        ? crossfadeGains(progress)
-        : mixGains(progress, this.fading.mixed);
-    this.fading.outgoing.element.volume = this.volume * gains.outgoing;
-    this.fading.incoming.element.volume = this.volume * gains.incoming;
+    const gains = this.fading.bassSwap
+      ? planGains(progress)
+      : mixGains(progress, this.fading.mixed);
+    this.applyDeckGain(this.fading.outgoing, gains.outgoing);
+    this.applyDeckGain(this.fading.incoming, gains.incoming);
+    if (this.fading.bassSwap && this.graph) {
+      // Cross point near the middle: A's lows close as B's open, so the kick never
+      // disappears between the two songs.
+      this.graph.setBass(this.fading.outgoing.element, bassShelfDb('outgoing', progress));
+      this.graph.setBass(this.fading.incoming.element, bassShelfDb('incoming', progress));
+    }
     if (progress >= 1) {
-      this.release(this.fading.outgoing);
+      const finished = this.fading;
+      this.release(finished.outgoing);
+      finished.incoming.element.playbackRate = 1;
+      if (this.graph) this.graph.setBass(finished.incoming.element, 0);
       this.fading = undefined;
       this.callbacks.blend?.(null);
     }
   }
   destroy() {
     clearInterval(this.timer);
+    void this.graph?.close();
     this.playIntent++;
     this.playing = false;
     this.cancelTransition();

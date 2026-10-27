@@ -92,6 +92,23 @@ export function saveClip(
   return { ok: true, clip };
 }
 
+/** Saves a clip Wave found itself, with a validated video id. */
+export function storeClip(
+  trackId: string,
+  videoId: string,
+  startAt = 0,
+  store: Storage | null = storage(),
+): StoredClip | null {
+  if (!trackId || !/^[A-Za-z0-9_-]{11}$/u.test(videoId)) return null;
+  const clip: StoredClip = {
+    videoId,
+    startAt: Number.isFinite(startAt) && startAt > 0 ? Math.floor(startAt) : 0,
+    addedAt: Date.now(),
+  };
+  persist({ ...loadClips(store), [trackId]: clip }, store);
+  return clip;
+}
+
 export function removeClip(trackId: string, store: Storage | null = storage()): ClipMap {
   const map = loadClips(store);
   delete map[trackId];

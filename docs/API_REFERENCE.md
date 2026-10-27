@@ -259,8 +259,14 @@ player.time; // Elapsed seconds
 player.duration; // Browser-reported seconds, or zero
 player.volume; // Persisted number from 0 to 1, default 1
 player.buffering; // Browser waiting state
-player.mixEnabled; // Single persisted automatic Mix switch, fresh default true
-player.setMixEnabled(enabled); // Automatic window, staged handover and conservative cues
+player.mixEnabled; // Single persisted Mix switch, fresh default true
+player.setMixEnabled(enabled); // Analysis, planning, bass swap and time-stretch
+player.mixBars; // 8 or 16: the preferred overlap in bars (persisted as wave-mix-bars)
+player.setMixBars(bars); // Only 8 or 16 are accepted
+player.tempo; // Detected BPM of the current song, once its analysis lands
+player.analyzing; // True while the current song is being analysed in the worker
+player.mixPlan; // TransitionPlan for current → next, or undefined without analysis
+player.youTube; // {seek, time, onTime, onDuration, onEnded, onError} or null
 player.autoplay; // Persisted, default true; repeat takes priority
 player.setAutoplay(enabled); // Local patterned continuation at queue completion
 player.reorderQueue(ids); // Valid queue permutation; retain selected source/time, reset shuffle
@@ -435,16 +441,22 @@ Idle entry now additionally requires `document.hasFocus()`. `blur` wakes the pla
 
 ### Mix and context surfaces
 
-- `mixCues(envelope, duration): {start, end}` returns conservative original-recording cue times or full boundaries when unavailable; does not rewrite audio.
-- `mixGains(progress, mix): {outgoing, incoming}` provides bounded complementary equal-power gains with staged or classic phase.
-- `MixAudio.setMixEnabled(enabled)` opts into staged curves and cue analysis; `mixRemaining` reads the effective outgoing duration minus original media time.
+- `analyzePcm(samples, sampleRate): TrackAnalysis` is the DSP core: FFT frames, band energies, onset envelope, tempo (autocorrelation, 120 BPM prior, parabolic refinement), beat phase, silence bounds, energy segments and vocal regions. `introEnd`/`outroStart`/`overlapsRegion` read that result.
+- `analyzeTrack(blob)` decodes a downmixed mono copy at 11 025 Hz off the main thread (worker with a main-thread fallback), caches per `Blob`, and `primeAnalysis(blob)` warms it up.
+- `planTransition(outgoing, incoming, {bars, fallbackSeconds, minSeconds, vocalTolerance, maxStretch}): TransitionPlan` returns `{mode, seconds, startAt, cue, incomingRate, stretched, bassSwapAt, bars, phaseAligned, notes}`. Modes are `beatmatched`, `crossfade` and `cut`; `isUsablePlan(plan, remaining)` gates execution.
+- `planGains(progress)` and `bassSwapGains(progress)` are equal-power `cos/sin` curves. `MixGraph` builds source → lowshelf (180 Hz, `bassShelfDb`) → gain → destination per element; `stretchRate(analysis, bpm)` returns the ±8 % rate or 1.
+- `mixCues(envelope, duration)` still supplies conservative cues when no analysis is available; `mixGains(progress, mix)` remains for the legacy equal-power overlap.
+- `MixAudio.setMixEnabled(enabled)` opts into the Web Audio graph and cue analysis; `setAnalysis(blob, analysis)`, `transitionWithPlan(blob, plan, guard, onStarted)` and `cancelTransition()` drive a planned handover. `mixRemaining` reads the effective outgoing end minus media time.
 - `useAppPalette(artwork?, blend?)` follows actual overlap colors; blend accepts `{from: {artwork?}, progress, seconds}` or null. Reduced motion applies the incoming target directly.
 - `ContextMenu({x, y, title, actions, onClose, returnFocus?})` provides top-layer, edge-clamped keyboard-accessible actions. Each action contains `label`, `icon`, optional `disabled` and `run`.
 - Queue reorder is independent of saved playlist/album order. Permutations with missing, foreign or duplicate IDs are rejected. Native source/time are retained for the selected song.
 
 ### Automatic Mix, continuation and metadata checks
 
-- `automaticMixSeconds(outgoingDuration, incomingDuration)` returns the automatic finite handover window, bounded by the shorter recording and eight seconds. No manual duration control remains.
+- `automaticMixSeconds(outgoingDuration, incomingDuration)` returns the fallback handover window used when a song has no trusted beat grid, bounded by the shorter recording and eight seconds.
+- `findClip({title, artist, duration}, options)` searches Piped then Invidious with a timeout, caches found and empty answers (`wave-clip-search-v1`) and returns `found`, `empty` or `unavailable`; `rememberClip(trackId, candidate)` stores the choice. `clipQuery`/`pickClip`/`scoreClip` are the pure ranking rules, and `storeClip(trackId, videoId, startAt)` validates the id.
+- `youtubeTrack({videoId, title, artist, duration}, id)` builds a library record with `source: 'youtube'` and no `blob`; `youTubeVideoOf(link)` rejects playlists; `isYouTubeTrack(track)` is the single check used by playback, analysis and storage. `fetchVideoMeta(videoId)` reads the public oEmbed title with a timeout and never throws.
+- `planVideoSync` now returns `nudge` for drift between 0.15 s and 1.1 s (rate 0.9/1.1) and `seek` above that; `VideoState.rate` avoids repeating the same nudge. `YouTubeStage` treats the embed as the master clock and posts `playVideo`/`pauseVideo`/`seekTo`/`setVolume`/`setPlaybackRate`.
 - `continuationQueue(tracks, current, recent, random?, limit?)` selects unique local IDs by contextual weighted variety, preferring alternatives outside the last twelve recent IDs. A single-song library yields no continuation. Reducer `continue` is accepted only at a playing, repeat-off queue boundary.
 - `parseLocalMetadata(file)` uses one reusable module worker, disposed after idle, and falls back to direct parsing when workers are unavailable. `readTrack` records `genres`, `year` and local `metadataCheck` alongside existing tags and audio Blob.
 - `metadataIssues(track)` identifies incomplete local title/artist/album/duration/artwork. Completeness is not authoritative recording identification.

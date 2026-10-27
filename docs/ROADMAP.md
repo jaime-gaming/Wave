@@ -157,11 +157,14 @@ no interface, provider client or Android port exists yet.
 
 **Listening, lyrics and clips (Wave 1.1 UI)**
 
-- [x] Apple Music style equal-power crossfade with a user-chosen 1–12 s length; original audio untouched.
-- [x] Word-by-word lyric highlighting from provider word stamps, with a deterministic, clearly labelled estimate otherwise.
-- [x] Muted YouTube clip backdrop with hidden player chrome, Wave transport control, drift correction and per-song local clip storage.
-- [x] Import restricted to MP3, WAV, M4A and OGG; already-stored other formats keep playing.
+- [x] **Mix** (formerly crossfade): background DSP analysis, an adaptive beat/frase-aligned planner, equal-power gains, a mid-transition bass swap and playback-only time-stretching inside ±8 %.
+- [x] Word-by-word lyric highlighting built in (no toggle), from provider word stamps or a deterministic, labelled estimate; the line-level view remains as the fallback.
+- [x] Automatic clip discovery (Piped/Invidious), ranked by title, channel and length; muted embed with hidden chrome, rate-based drift correction and local per-song storage. Manual link entry stays as a fallback.
+- [x] Import MP3, WAV, M4A, OGG and FLAC; FLAC is stored and played untouched.
+- [x] Add music asks **From this device** or **From YouTube**; YouTube songs play through the official embed with Wave's transport.
 - [ ] Real-device drift measurement for the clip on slow connections, and a screenshot-level review of the backdrop on small phones.
+- [ ] Mix against real DJ material with long intros, rubato sections and half/double-time false positives.
+- [ ] Review the clip-search providers' availability and terms, and allow a user-supplied instance.
 
 **Device sync (hybrid)**
 
@@ -180,9 +183,11 @@ no interface, provider client or Android port exists yet.
 
 - [x] Link parsing for watch/youtu.be/shorts/embed/live/music, playlists and start times.
 - [x] Privacy-enhanced embed URL and validated player-event handling.
-- [ ] Provider row type (`source: youtube`) and schema-v4 migration that keeps existing playlist membership.
-- [ ] Embedded playback mode that pauses the native element and disables crossfade, lyrics fill and loans.
-- [ ] Explicit offline-unavailable messaging; no extraction, proxying or downloading of audio.
+- [x] Provider row type (`source: youtube`) stored in the existing `tracks` store — no schema change, `blob` is simply absent, so existing playlist membership is untouched.
+- [x] Embedded playback mode: the native element is released, Mix analysis and blending are skipped, and lyrics keep working against the embed clock.
+- [x] Explicit provider labelling and an "open on YouTube" link; no extraction, proxying or downloading of audio.
+- [ ] Offline-unavailable messaging for a YouTube song played without a connection.
+- [ ] Loan/sync exclusion for YouTube songs on the paired-device path.
 
 **Playlist import (match only)**
 

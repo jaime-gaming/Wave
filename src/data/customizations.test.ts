@@ -78,7 +78,7 @@ it('saves only complete album permutations and atomically prunes deleted members
 });
 it('serializes lyric, metadata and favorite edits while retaining source bytes and independent fields', async () => {
   await saveTrack(makeTrack());
-  const original = (await getTracks())[0].blob;
+  const original = (await getTracks())[0].blob ?? new Blob();
   await Promise.all([
     saveTrackLyrics('signal', parseLyrics('[00:01.500]One')),
     editTrackMetadata('signal', { title: 'New', artist: 'Wave Tests', album: 'First light' }),
@@ -88,7 +88,7 @@ it('serializes lyric, metadata and favorite edits while retaining source bytes a
   expect(saved.title).toBe('New');
   expect(saved.favorite).toBe(true);
   expect(saved.lyrics?.lines).toEqual([{ text: 'One', time: 1.5 }]);
-  expect(saved.blob.size).toBe(original.size);
+  expect(saved.blob?.size).toBe(original.size);
   await saveTrackLyrics('signal');
   expect((await getTracks())[0].lyrics).toBeUndefined();
 });

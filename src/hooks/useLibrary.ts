@@ -24,6 +24,8 @@ import {
   MAX_FILE_SIZE,
   readTrack,
 } from '../data/import';
+import { youtubeTrack, youTubeVideoOf } from '../domain/youtubeTrack';
+import { fetchVideoMeta } from '../services/videoMeta';
 import type { Track, TrackMetadata } from '../domain/types';
 
 export function useLibrary() {
@@ -79,9 +81,9 @@ export function useLibrary() {
           } else {
             const id = await contentIdentity(file);
             for (const old of existing.current.filter(
-              (track) => !track.contentHash && track.size === file.size,
+              (track) => !track.contentHash && track.blob && track.size === file.size,
             )) {
-              const hash = await contentIdentity(old.blob);
+              const hash = await contentIdentity(old.blob!);
               await recordContentHash(old.id, hash);
               known.current.add(hash);
               existing.current = existing.current.map((track) =>
@@ -115,6 +117,43 @@ export function useLibrary() {
       }
     },
     [loading],
+  );
+
+  /**
+   * Adds a song that lives on YouTube. The video is never downloaded: the record
+   * stores the video id and the official embed plays it. Title and artist come
+   * from YouTube's oEmbed endpoint when it answers, and stay editable.
+   */
+  const addYouTube = useCallback(
+    async (link: string): Promise<{ ok: true; track: Track } | { ok: false; error: string }> => {
+      const video = youTubeVideoOf(link);
+      if (!video)
+        return {
+          ok: false,
+          error: 'Paste a YouTube video link. Playlists and channels are not songs.',
+        };
+      const id = `yt-${video.videoId}`;
+      if (existing.current.some((track) => track.id === id || track.videoId === video.videoId))
+        return { ok: false, error: 'This video is already in your library.' };
+      setMessage('');
+      setError('');
+      const meta = await fetchVideoMeta(video.videoId);
+      const track = youtubeTrack(
+        { videoId: video.videoId, title: meta?.title ?? '', artist: meta?.artist },
+        id,
+      );
+      try {
+        await saveTrack(track);
+        existing.current = [...existing.current, track];
+        setTracks((current) => [...current, track]);
+        setMessage(`Added from YouTube · ${track.title}`);
+        return { ok: true, track };
+      } catch {
+        setError('This song could not be saved. Please check browser storage.');
+        return { ok: false, error: 'This song could not be saved.' };
+      }
+    },
+    [],
   );
 
   const toggleFavorite = useCallback(async (track: Track) => {
@@ -217,6 +256,7 @@ export function useLibrary() {
     error,
     setError,
     importFiles,
+    addYouTube,
     toggleFavorite,
     editMetadata,
     restoreMetadata,

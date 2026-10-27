@@ -1,14 +1,46 @@
-import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import { findClip, rememberClip } from '../services/clipSearch';
 import userEvent from '@testing-library/user-event';
 import { VideoBackdrop } from './VideoBackdrop';
-import { CLIP_STORAGE_KEY } from '../domain/videoClips';
+import { CLIP_STORAGE_KEY, storeClip } from '../domain/videoClips';
 import { makeTrack } from '../test/fixtures';
+
+vi.mock('../services/clipSearch', () => ({
+  findClip: vi.fn(),
+  rememberClip: vi.fn(),
+}));
 
 const track = makeTrack({ id: 'track-video', title: 'Signal', artist: 'Wave Tests' });
 const props = { track, time: 12, duration: 200, playing: true, onClose: vi.fn() };
 
+beforeEach(() => {
+  vi.mocked(findClip).mockReset().mockResolvedValue({ status: 'unavailable' });
+  vi.mocked(rememberClip).mockReset().mockReturnValue(null);
+});
+
 describe('video clip backdrop', () => {
+  it('finds a clip by itself and opens it without the user pasting anything', async () => {
+    localStorage.clear();
+    const candidate = {
+      videoId: 'dQw4w9WgXcQ',
+      title: 'Wave Tests - Signal (Official Video)',
+      author: 'Wave Tests',
+      duration: 200,
+    };
+    vi.mocked(findClip).mockResolvedValue({ status: 'found', candidate, cached: false });
+    vi.mocked(rememberClip).mockImplementation((id, found) => storeClip(id, found.videoId));
+    render(<VideoBackdrop {...props} />);
+    await waitFor(() =>
+      expect(findClip).toHaveBeenCalledWith(
+        { title: track.title, artist: track.artist, duration: track.duration },
+        expect.objectContaining({ signal: expect.anything() }),
+      ),
+    );
+    expect(rememberClip).toHaveBeenCalledWith('track-video', candidate);
+    expect(await screen.findByTitle(/video clip for/i)).toBeInTheDocument();
+  });
+
   it('asks for a link and refuses a playlist', async () => {
     localStorage.clear();
     render(<VideoBackdrop {...props} />);

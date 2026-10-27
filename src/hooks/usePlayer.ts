@@ -1,10 +1,12 @@
 import { automaticMixSeconds } from '../domain/mix';
-import { clampCrossfadeSeconds, CROSSFADE_DEFAULT_SECONDS, type MixStyle } from '../domain/mixPlan';
+import { isUsablePlan, planTransition } from '../domain/mixPlanner';
+import { analyzeTrack, cachedAnalysis, isAnalysing } from '../audio/mixAnalysis';
 import { continuationQueue } from '../domain/continuation';
 import { readPlaybackSession, writePlaybackSession } from '../domain/playbackSession';
 import { MixAudio } from '../audio/MixAudio';
-import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { playerReducer, shuffleQueue } from '../domain/player';
+import { isYouTubeTrack } from '../domain/youtubeTrack';
 import type { Track } from '../domain/types';
 
 function savedVolume(key = 'wave-volume') {
@@ -26,6 +28,16 @@ function savedMix() {
     return true;
   }
 }
+/** Mix length in bars: 8 keeps the tail moving, 16 gives a longer blend. */
+export const MIX_BARS = [8, 16] as const;
+function savedMixBars(): number {
+  try {
+    const value = Number(localStorage.getItem('wave-mix-bars'));
+    return MIX_BARS.includes(value as (typeof MIX_BARS)[number]) ? value : 8;
+  } catch {
+    return 8;
+  }
+}
 function savedAutoplay() {
   try {
     return localStorage.getItem('wave-autoplay') !== 'false';
@@ -36,17 +48,10 @@ function savedAutoplay() {
 export function usePlayer(tracks: Track[], libraryReady = true) {
   const [saved] = useState(readPlaybackSession);
   const [mixEnabled, setMixEnabled] = useState(savedMix);
-  const [mixStyle, setMixStyleState] = useState<MixStyle>(() =>
-    typeof localStorage !== 'undefined' && localStorage.getItem('wave-mix-style') === 'blend'
-      ? 'blend'
-      : 'crossfade',
-  );
-  const [crossfadeSeconds, setCrossfadeSecondsState] = useState(() => {
-    const saved =
-      typeof localStorage !== 'undefined' ? Number(localStorage.getItem('wave-crossfade')) : NaN;
-    return clampCrossfadeSeconds(Number.isFinite(saved) ? saved : CROSSFADE_DEFAULT_SECONDS);
-  });
+  const [mixBars, setMixBarsState] = useState(savedMixBars);
   const [autoplay, setAutoplay] = useState(savedAutoplay);
+  /** Bumped when a background analysis lands, so tempo readouts refresh. */
+  const [analysisVersion, bumpAnalysis] = useReducer((value: number) => value + 1, 0);
   const recent = useRef<string[]>([]);
   const positions = useRef(saved.positions);
   const resumeId = useRef<string | undefined>(saved.state.queue[saved.state.index]);
@@ -62,13 +67,89 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
   const [duration, setDuration] = useState(0);
   const [durationTrackId, setDurationTrackId] = useState<string>();
   const [volume, updateVolume] = useState(() => savedVolume());
+  /**
+   * YouTube songs are driven by the embedded player, which is the master clock.
+   * The track id is stored with the clock so a new song starts from zero without
+   * an effect that would reset state after a render.
+   */
+  const [youTubeClock, setYouTubeClock] = useState<{
+    id?: string;
+    time: number;
+    duration: number;
+  }>({ time: 0, duration: 0 });
+  const [youTubeSeek, setYouTubeSeek] = useState({ seconds: 0, nonce: 0 });
   const lastAudible = useRef(volume || savedVolume('wave-last-audible-volume') || 1);
   const [buffering, setBuffering] = useState(false);
   const [error, setError] = useState('');
   const engine = useRef<MixAudio | null>(null);
-  const context = useRef({ tracks, mixEnabled, autoplay, mixStyle, crossfadeSeconds });
+  const context = useRef({ tracks, mixEnabled, autoplay, mixBars });
   const stateRef = useRef(state);
   const current = tracks.find((track) => track.id === state.queue[state.index]);
+  const following = tracks.find(
+    (track) =>
+      track.id ===
+      state.queue[
+        state.index + 1 < state.queue.length ? state.index + 1 : state.repeat === 'all' ? 0 : -1
+      ],
+  );
+  const youTube = isYouTubeTrack(current);
+  const youTubeTime = youTubeClock.id === current?.id ? youTubeClock.time : 0;
+  const youTubeDuration = youTubeClock.id === current?.id ? youTubeClock.duration : 0;
+  /** Read by callbacks that must not close over a stale render. */
+  const youTubeRef = useRef(youTube);
+  const youTubeTimeRef = useRef(youTubeTime);
+  const currentIdRef = useRef(current?.id);
+  useEffect(() => {
+    youTubeRef.current = youTube;
+    youTubeTimeRef.current = youTubeTime;
+    currentIdRef.current = current?.id;
+  }, [youTube, youTubeTime, current?.id]);
+  const tempo = useMemo(() => {
+    const analysis = current?.blob ? cachedAnalysis(current.blob) : undefined;
+    return analysis ? Math.round(analysis.beats.bpm * 10) / 10 : undefined;
+    // An analysis landing for the same file must refresh the readout.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current?.blob, analysisVersion]);
+  const analyzing = !!current?.blob && isAnalysing(current.blob);
+  /**
+   * The handover Wave would plan right now, so Settings can explain Mix instead
+   * of only describing it. Pure: the same planner the engine uses.
+   */
+  const mixPlan = useMemo(() => {
+    const outgoing = current?.blob ? cachedAnalysis(current.blob) : undefined;
+    const incoming = following?.blob ? cachedAnalysis(following.blob) : undefined;
+    if (!outgoing || !incoming) return undefined;
+    return planTransition(outgoing, incoming, {
+      bars: mixBars,
+      fallbackSeconds: automaticMixSeconds(current?.duration ?? 0, following?.duration ?? 0),
+    });
+    // Re-plan when a background analysis lands.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    current?.blob,
+    current?.duration,
+    following?.blob,
+    following?.duration,
+    mixBars,
+    analysisVersion,
+  ]);
+  /**
+   * Mix analysis runs in a worker on a downmixed copy, so the interface keeps its
+   * frame budget. Results are cached per file, so a song is analysed at most once.
+   */
+  const prime = useCallback((blob: Blob | undefined) => {
+    if (!blob) return;
+    const cached = cachedAnalysis(blob);
+    if (cached) {
+      engine.current?.setAnalysis(blob, cached);
+      return;
+    }
+    void analyzeTrack(blob).then((analysis) => {
+      if (!analysis) return;
+      engine.current?.setAnalysis(blob, analysis);
+      bumpAnalysis();
+    });
+  }, []);
 
   useEffect(() => {
     readyRef.current = libraryReady;
@@ -93,15 +174,12 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
   }, [libraryReady, tracks, state]);
   useEffect(() => {
     stateRef.current = state;
-    context.current = { tracks, mixEnabled, autoplay, mixStyle, crossfadeSeconds };
-    engine.current?.setMixStyle(mixStyle);
-    engine.current?.setCrossfadeSeconds(crossfadeSeconds);
-  }, [state, tracks, mixEnabled, autoplay, mixStyle, crossfadeSeconds]);
+    context.current = { tracks, mixEnabled, autoplay, mixBars };
+  }, [state, tracks, mixEnabled, autoplay, mixBars]);
   useEffect(() => {
     try {
       localStorage.setItem('wave-mix-v2', String(mixEnabled));
-      localStorage.setItem('wave-mix-style', mixStyle);
-      localStorage.setItem('wave-crossfade', String(crossfadeSeconds));
+      localStorage.setItem('wave-mix-bars', String(mixBars));
       localStorage.setItem('wave-autoplay', String(autoplay));
     } catch {
       /* Session preferences. */
@@ -111,7 +189,10 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
       engine.current?.prepare();
     }
     engine.current?.setMixEnabled(mixEnabled);
-  }, [mixEnabled, mixStyle, crossfadeSeconds, autoplay]);
+  }, [mixEnabled, mixBars, autoplay]);
+  useEffect(() => {
+    prime(current?.blob);
+  }, [current?.blob, prime]);
   useEffect(() => {
     if (current?.id && recent.current.at(-1) !== current.id)
       recent.current = [...recent.current.slice(-31), current.id];
@@ -215,38 +296,57 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
         } else if (!extend(true)) dispatch({ type: 'ended' });
       },
       tick: () => {
-        if (player.mixRemaining <= 10 && !player.transitioning && extend()) return;
         const next = target();
-        player.prepare(next?.blob);
-        if (!next) return;
+        // Buffering the next song well before the mix point keeps the handover gapless.
+        if (next?.blob && player.mixRemaining <= 25) player.prepare(next.blob);
+        if (next?.blob) prime(next.blob);
+        if (player.mixRemaining <= 10 && !player.transitioning && extend()) return;
+        if (!next?.blob) return;
         const element = player.element,
           remaining = player.mixRemaining;
+        if (!Number.isFinite(element.duration) || element.duration <= 0 || remaining <= 0) return;
+        const from = stateRef.current.queue[stateRef.current.index];
+        const stillTarget = () => {
+          if (stateRef.current.queue[stateRef.current.index] !== from) return false;
+          const live = target();
+          return !!live && live.id === next.id && live.blob === next.blob;
+        };
+        const onStarted = () => dispatch({ type: 'jump', id: next.id });
+        const outgoingAnalysis = cachedAnalysis(player.active.blob);
+        const incomingAnalysis = cachedAnalysis(next.blob);
+        if (outgoingAnalysis && incomingAnalysis) {
+          const plan = planTransition(outgoingAnalysis, incomingAnalysis, {
+            bars: context.current.mixBars,
+            fallbackSeconds: automaticMixSeconds(
+              element.duration,
+              player.preparedDuration || next.duration,
+            ),
+          });
+          if (isUsablePlan(plan, remaining) && element.currentTime >= plan.startAt - 0.05)
+            player.transitionWithPlan(next.blob, plan, stillTarget, onStarted);
+          return;
+        }
+        // No analysis yet: fall back to a plain equal-power overlap timed by length.
         if (
-          Number.isFinite(element.duration) &&
-          element.duration > 0 &&
-          remaining > 0 &&
           remaining <=
-            automaticMixSeconds(element.duration, player.preparedDuration || next.duration)
-        ) {
-          const from = stateRef.current.queue[stateRef.current.index];
+          automaticMixSeconds(element.duration, player.preparedDuration || next.duration)
+        )
           player.transition(
             next.blob,
             automaticMixSeconds(element.duration, player.preparedDuration || next.duration),
-            () =>
-              stateRef.current.queue[stateRef.current.index] === from && target()?.id === next.id,
-            () => dispatch({ type: 'jump', id: next.id }),
+            stillTarget,
+            onStarted,
           );
-        }
       },
     });
     engine.current = player;
     player.setMixEnabled(context.current.mixEnabled);
-    player.setMixStyle(context.current.mixStyle);
-    player.setCrossfadeSeconds(context.current.crossfadeSeconds);
     return () => {
       player.destroy();
       engine.current = null;
     };
+    // `prime` and the context refs are stable by design: the engine lives once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(() => {
     const outgoing = engine.current?.outgoingBlob;
@@ -310,29 +410,43 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
     [],
   );
   const seek = useCallback((seconds: number) => {
+    if (!Number.isFinite(seconds)) return;
+    if (youTubeRef.current) {
+      const next = Math.max(0, seconds);
+      setYouTubeClock((value) => ({
+        id: currentIdRef.current,
+        time: next,
+        duration: value.duration,
+      }));
+      setYouTubeSeek((value) => ({ seconds: next, nonce: value.nonce + 1 }));
+      return;
+    }
     const player = engine.current;
-    if (
-      !player ||
-      !Number.isFinite(seconds) ||
-      !Number.isFinite(player.element.duration) ||
-      player.element.duration <= 0
-    )
+    if (!player || !Number.isFinite(player.element.duration) || player.element.duration <= 0)
       return;
     const next = Math.max(0, Math.min(seconds, player.element.duration));
     player.seek(next);
     setTime(next);
   }, []);
   const previous = useCallback(() => {
-    if ((engine.current?.element.currentTime ?? 0) > 3) seek(0);
+    const position = youTubeRef.current
+      ? youTubeTimeRef.current
+      : (engine.current?.element.currentTime ?? 0);
+    if (position > 3) seek(0);
     else dispatch({ type: 'previous' });
   }, [seek]);
-  const play = useCallback((list: Track[], id: string) => {
-    resumeId.current = undefined;
-    positions.current[id] = 0;
-    if (stateRef.current.queue[stateRef.current.index] === id && engine.current)
-      engine.current.seek(0);
-    dispatch({ type: 'load', queue: list.map((track) => track.id), id });
-  }, []);
+  const play = useCallback(
+    (list: Track[], id: string) => {
+      resumeId.current = undefined;
+      positions.current[id] = 0;
+      if (stateRef.current.queue[stateRef.current.index] === id && engine.current) {
+        if (youTubeRef.current) seek(0);
+        else engine.current.seek(0);
+      }
+      dispatch({ type: 'load', queue: list.map((track) => track.id), id });
+    },
+    [seek],
+  );
   const shuffle = useCallback(() => {
     const latest = stateRef.current;
     const queue = latest.shuffled
@@ -411,17 +525,56 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
       }),
     [],
   );
-  const readTime = useCallback(() => engine.current?.element.currentTime ?? 0, []);
+  const readTime = useCallback(
+    () =>
+      youTubeRef.current ? youTubeTimeRef.current : (engine.current?.element.currentTime ?? 0),
+    [],
+  );
+  /** Called by the embed when the video reaches its end. */
+  const youTubeEnded = useCallback(() => {
+    const latest = stateRef.current;
+    if (!latest.playing) return;
+    if (latest.repeat === 'one') {
+      setYouTubeSeek((value) => ({ seconds: 0, nonce: value.nonce + 1 }));
+      return;
+    }
+    dispatch({ type: 'ended' });
+  }, []);
+  const showYouTubeError = useCallback((message: string) => setError(message), []);
+  /** The embed reports its own position and length; both drive Wave's transport. */
+  const reportYouTubeTime = useCallback((seconds: number) => {
+    if (!Number.isFinite(seconds)) return;
+    setYouTubeClock((value) => ({
+      id: currentIdRef.current,
+      time: Math.max(0, seconds),
+      duration: value.duration,
+    }));
+  }, []);
+  const reportYouTubeDuration = useCallback((seconds: number) => {
+    if (!Number.isFinite(seconds) || seconds <= 0) return;
+    const id = currentIdRef.current;
+    setYouTubeClock((value) => ({ id, time: value.id === id ? value.time : 0, duration: seconds }));
+    if (id) {
+      setDuration(seconds);
+      setDurationTrackId(id);
+    }
+  }, []);
   const reorderQueue = useCallback((ids: string[]) => dispatch({ type: 'reorder', ids }), []);
-  const readElement = useCallback(() => engine.current?.element, []);
+  const readElement = useCallback(
+    () => (youTubeRef.current ? undefined : engine.current?.element),
+    [],
+  );
   return {
     mixEnabled,
     setMixEnabled,
-    mixStyle,
-    setMixStyle: setMixStyleState,
-    crossfadeSeconds,
-    setCrossfadeSeconds: (seconds: number) =>
-      setCrossfadeSecondsState(clampCrossfadeSeconds(seconds)),
+    mixBars,
+    setMixBars: (bars: number) =>
+      setMixBarsState(() => (MIX_BARS.includes(bars as (typeof MIX_BARS)[number]) ? bars : 8)),
+    /** Tempo Wave detected for the current song, once its analysis has landed. */
+    tempo,
+    /** The handover Wave has planned for the next song. */
+    mixPlan,
+    analyzing,
     autoplay,
     setAutoplay,
     reorderQueue,
@@ -436,12 +589,23 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
           to: tracks.find((track) => track.blob === blend.incoming),
         }
       : null,
+    /** YouTube songs: the embed is the source and the master clock. */
+    youTube: youTube
+      ? {
+          seek: youTubeSeek,
+          time: youTubeTime,
+          onTime: reportYouTubeTime,
+          onDuration: reportYouTubeDuration,
+          onEnded: youTubeEnded,
+          onError: showYouTubeError,
+        }
+      : null,
     state,
     buffering,
     toggleMute,
     current,
-    time,
-    duration,
+    time: youTube ? youTubeTime : time,
+    duration: youTube ? youTubeDuration || (current?.duration ?? 0) : duration,
     volume,
     error,
     setError,

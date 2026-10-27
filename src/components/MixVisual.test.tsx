@@ -4,7 +4,14 @@ import { MixVisual } from './MixVisual';
 import { makeTrack } from '../test/fixtures';
 const from = makeTrack();
 const to = makeTrack({ id: 'next' });
-const blend = { from, to, outgoing: from.blob, incoming: to.blob, progress: 0.4, seconds: 4 };
+const blend = {
+  from,
+  to,
+  outgoing: from.blob ?? new Blob(),
+  incoming: to.blob ?? new Blob(),
+  progress: 0.4,
+  seconds: 4,
+};
 it('uses full-stage artwork styles on both blended covers when requested', () => {
   const { container } = render(<MixVisual blend={blend} artworkClassName="stage-artwork" />);
   expect(container.querySelectorAll('.stage-artwork')).toHaveLength(2);

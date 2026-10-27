@@ -37,7 +37,7 @@ const LyricRow = memo(function LyricRow({
   offsetMs = 0,
   nextLine,
   duration,
-  karaoke = false,
+  karaoke = true,
 }: {
   seconds?: number;
   offsetMs?: number;
@@ -149,7 +149,7 @@ export function LyricsPanel({
   onOffset,
   stage = false,
   cinematic = false,
-  karaoke = false,
+  karaoke = true,
 }: {
   readTime?: () => number;
   playing?: boolean;
