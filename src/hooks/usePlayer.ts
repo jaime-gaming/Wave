@@ -259,11 +259,13 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
             ? next
             : previous,
         ),
+      // Called with the same value on every tick; returning the previous value
+      // lets React skip the render instead of rendering the app ten times a
+      // second to store the same number.
       duration: (seconds) => {
-        setDuration(seconds);
-        setDurationTrackId(
-          context.current.tracks.find((track) => track.blob === player.active.blob)?.id,
-        );
+        setDuration((previous) => (previous === seconds ? previous : seconds));
+        const id = context.current.tracks.find((track) => track.blob === player.active.blob)?.id;
+        setDurationTrackId((previous) => (previous === id ? previous : id));
       },
       buffering: setBuffering,
       error: (message) => {
@@ -520,6 +522,7 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
           duration: value.duration,
         }));
         setYouTubeSeek((value) => ({ seconds: next, nonce: value.nonce + 1 }));
+        clock.set(next, true);
         return;
       }
       const player = engine.current;
@@ -650,15 +653,24 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
     dispatch({ type: 'ended' });
   }, []);
   const showYouTubeError = useCallback((message: string) => setError(message), []);
-  /** The embed reports its own position and length; both drive Wave's transport. */
-  const reportYouTubeTime = useCallback((seconds: number) => {
-    if (!Number.isFinite(seconds)) return;
-    setYouTubeClock((value) => ({
-      id: currentIdRef.current,
-      time: Math.max(0, seconds),
-      duration: value.duration,
-    }));
-  }, []);
+  /**
+   * The embed reports its own position four times a second. That goes to the
+   * clock, not into React state: only the seek bar redraws. The state copy keeps
+   * whole seconds for the props that only need a starting point.
+   */
+  const reportYouTubeTime = useCallback(
+    (seconds: number) => {
+      if (!Number.isFinite(seconds)) return;
+      const value = Math.max(0, seconds);
+      clock.set(value);
+      setYouTubeClock((current) =>
+        current.id === currentIdRef.current && Math.abs(current.time - value) < 1
+          ? current
+          : { id: currentIdRef.current, time: value, duration: current.duration },
+      );
+    },
+    [clock],
+  );
   const reportYouTubeDuration = useCallback((seconds: number) => {
     if (!Number.isFinite(seconds) || seconds <= 0) return;
     const id = currentIdRef.current;

@@ -348,8 +348,7 @@ export function PlayerBar(props: PlayerProps) {
   const idle = useIdleListening(player.state.playing && !player.buffering && !!player.current);
   const showing = expanded || idle.immersive;
   // Only this bar follows the position; the rest of the interface stays still.
-  const clockTime = usePlaybackTime(player.clock);
-  const time = player.youTube ? player.time : clockTime;
+  const time = usePlaybackTime(player.clock);
   const colors = useArtworkColor(player.state.playing ? player.current?.artwork : undefined);
   const animation = useWaveMotion();
   useEffect(() => {

@@ -6,7 +6,7 @@ Release 0.1.1 · 27 October 2026. Historical run dates are retained below.
 
 - `npm run format:check`: passed.
 - `npm run lint`: passed.
-- `npm test`: **427 tests passed across 73 files** (latest run; 200 tests across 42 files at the 0.1.0 release).
+- `npm test`: **428 tests passed across 73 files** (latest run; 200 tests across 42 files at the 0.1.0 release).
 - `npm run test:e2e`: **89 Chromium browser tests passed** in the final complete run (7.6 minutes).
 - `npm run build`: passed. Vite reports its advisory 500 KB chunk-size warning (main chunk approximately 547 KB, gzip 172 KB); this is not a build failure.
 - `npm run build -- --base=/Wave/`: passed; a production static-server smoke test verified Home, Settings, fonts/assets, `/Wave/wave.svg`, the privacy page and its return link under the repository path without HTTP/page errors.
@@ -45,9 +45,9 @@ Browser coverage includes paused restoration of saved queue/native position, art
 
 ### 0.1.1 corrections: performance, the mix point and lyric size
 
-- `npx tsc -b`, `npx eslint .`, `npx prettier --check .`, `npm run build` and `npm test` (427 tests across 73 files) pass.
+- `npx tsc -b`, `npx eslint .`, `npx prettier --check .`, `npm run build` and `npm test` (428 tests across 73 files) pass.
 - Mix: `mixPlanner` proves the incoming song enters within six seconds of its own start even when it has a 45 s intro or starts with a vocal, that the overlap is four bars at 120 BPM (two when both sides sing), and that a plan is reused for the same pair. A generated-signal run through the real analyser put the cue at 0.3 s and the overlap inside the last 8 s of a three-minute song. **Nothing was listened to**: no browser engine and no audio device here, so "the mix sounds better" is not verified, only that the entry is no longer deep inside the song and that it cannot start before half of the track has played.
-- Performance: `playbackClock` (4 tests) proves the position is delivered at most ten times a second and that a seek is immediate. The change itself is architectural — the position is no longer React state at the app root — and was not profiled on a real phone; there is no performance trace in this workspace. The settings page and daily-mix page are now separate chunks; the initial JavaScript is about 188 KiB gzipped instead of 190 KiB, so the size win is small and the real win is that playback no longer re-renders the library.
+- Performance: `playbackClock` (4 tests) proves the position is delivered at most ten times a second and that a seek is immediate; `usePlayer` proves that six consecutive engine ticks while a song plays cause **zero** re-renders of the hook's owner. The change itself is architectural — the position is no longer React state at the app root — and was not profiled on a real phone; there is no performance trace in this workspace. The settings page and daily-mix page are now separate chunks; the initial JavaScript is about 188 KiB gzipped instead of 190 KiB, so the size win is small and the real win is that playback no longer re-renders the library.
 - Lyrics: sizes were raised in the stage (28–44 px), cinema (30–62 px) and phone (23–32 px) readers. `LyricsPanel` still proves exactly three framed rows. The visual result was **not** screenshotted and was not compared side by side with 0.1.0 on a device.
 
 ### 0.1.1 corrections: sound on every song, three framed lines, layering
