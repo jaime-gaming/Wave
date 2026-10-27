@@ -104,7 +104,7 @@ it('recovers the timing controls after a failed save instead of leaving them dis
   }
 });
 
-it('highlights each word individually when karaoke timing is on', () => {
+it('highlights each word individually, with a line-level fallback', () => {
   const previous = HTMLElement.prototype.scrollTo;
   HTMLElement.prototype.scrollTo = vi.fn();
   try {
@@ -130,10 +130,17 @@ it('highlights each word individually when karaoke timing is on', () => {
     expect(fills[2]).toBeLessThan(1);
     expect(fills[1]).toBeGreaterThan(0);
 
-    // Without the option the panel keeps its whole-line behaviour.
-    rerender(<LyricsPanel {...props} time={2} karaoke={false} />);
+    // Built in, not optional: without line timing the panel falls back to the
+    // previous whole-line view instead of hiding the lyrics.
+    rerender(
+      <LyricsPanel
+        {...props}
+        track={makeTrack({ lyrics: parseLyrics('We were young') })}
+        time={2}
+      />,
+    );
     expect(
-      [...line.querySelectorAll('.lyric-word')].every(
+      [...document.querySelectorAll('.lyric-word')].every(
         (word) => word.getAttribute('data-word-source') === null,
       ),
     ).toBe(true);

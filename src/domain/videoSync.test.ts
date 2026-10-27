@@ -39,6 +39,28 @@ describe('video clip sync', () => {
     expect(planVideoSync({ position: 40, playing: true }, ready(40.1))).toEqual({ type: 'none' });
   });
 
+  it('nudges the clip rate for small drift instead of jumping the picture', () => {
+    // Picture behind the song: play it a little faster.
+    expect(planVideoSync({ position: 40, playing: true }, ready(39.6))).toEqual({
+      type: 'nudge',
+      rate: 1.1,
+    });
+    // Picture ahead: slow it down.
+    expect(planVideoSync({ position: 40, playing: true }, ready(40.4))).toEqual({
+      type: 'nudge',
+      rate: 0.9,
+    });
+    // Already nudging at the right rate: stay quiet.
+    expect(planVideoSync({ position: 40, playing: true }, { ...ready(39.6), rate: 1.1 })).toEqual({
+      type: 'none',
+    });
+    // Back in sync: return the clip to normal speed.
+    expect(planVideoSync({ position: 40, playing: true }, { ...ready(40), rate: 1.1 })).toEqual({
+      type: 'nudge',
+      rate: 1,
+    });
+  });
+
   it('places a lost clip before starting it', () => {
     expect(planVideoSync({ position: 40, playing: true }, ready(20, false))).toEqual({
       type: 'seek-and-play',
@@ -48,6 +70,7 @@ describe('video clip sync', () => {
 
   it('respects the correction cooldown for small drift only', () => {
     const options = { now: 1_000, cooldownUntil: 5_000 };
+    // While cooling down after a seek the clip is left alone, whatever the drift.
     expect(planVideoSync({ position: 40, playing: true }, ready(39.5), options)).toEqual({
       type: 'none',
     });
@@ -65,14 +88,14 @@ describe('video clip sync', () => {
     expect(clampVideoOffset(3.26)).toBe(3.3);
     expect(clampVideoOffset(-99)).toBe(-VIDEO_OFFSET_LIMIT_SECONDS);
     expect(clampVideoOffset(Number.NaN)).toBe(0);
-    // A 0.3 s offset explains a 0.5 s difference, so no correction is needed.
-    expect(planVideoSync({ position: 40, playing: true }, ready(40.5), { offset: 0.3 })).toEqual({
+    // A 0.5 s offset explains the difference exactly, so no correction is needed.
+    expect(planVideoSync({ position: 40, playing: true }, ready(40.5), { offset: 0.5 })).toEqual({
       type: 'none',
     });
-    // Without the offset the same difference is visible and gets corrected.
+    // Without the offset the same difference is corrected by rate, not a seek.
     expect(planVideoSync({ position: 40, playing: true }, ready(40.5), { offset: -0.5 })).toEqual({
-      type: 'seek',
-      to: 39.5,
+      type: 'nudge',
+      rate: 0.9,
     });
     expect(planVideoSync({ position: 1, playing: true }, ready(0), { offset: -5 })).toEqual({
       type: 'none',

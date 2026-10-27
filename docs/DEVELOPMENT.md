@@ -177,6 +177,14 @@ Check `npm outdated` and `npm audit`, review changes, and run the complete check
 
 See [CONTRIBUTING.md](../CONTRIBUTING.md) for review and licensing expectations.
 
+## Mix, clip discovery and YouTube QA
+
+Mix is verified in layers: `dsp.test.ts` (tempo, phase, silence, segments, vocals), `mixPlanner.test.ts` (bar alignment, the ±8 % window, vocal-aware cues, bass curves), `mixGraph.test.ts` (lowshelf/gain wiring, cached sources) and `MixAudio.test.ts` (plan execution, rate reset, cancellation). The analysis is exercised on generated PCM; nothing here proves a particular real recording mixes well, so listen to actual house/hip-hop/pop pairs before claiming it does. Watch for half/double-time false positives and rubato intros.
+
+Clip discovery uses a mocked fetcher: ranking, provider fallback, caching and offline behaviour are covered, provider availability is not. YouTube songs are tested with a stubbed embed; the iframe never loads in jsdom, so autoplay policy, real oEmbed responses and actual playback need a browser. Video sync has unit coverage for nudging, seeking, cooldown and offsets; it still needs a slow-connection measurement on a real device.
+
+Import QA now includes FLAC: confirm it imports, plays and is stored byte-identically, and that a browser without FLAC support shows the existing playable-file error rather than a silent failure. Word-by-word lyrics have no toggle to test any more: verify the word view when timings exist and the line-level fallback when they do not.
+
 ## Lyrics/crossfade/reordering QA
 
 Cover LRC boundary timestamps/fractions/offsets/repeated stamps, embedded millisecond vs MPEG-frame tags, plain/missing lyrics, reload, seek/pause and native progression. Reject oversized/invalid imports without replacing saved lyrics. Validate manual photo save/remove in gallery, Home and profile; song album artwork must remain independent.

@@ -18,7 +18,12 @@ export interface Track {
   size: number;
   addedAt: number;
   favorite: boolean;
-  blob: Blob;
+  /** Local file bytes. Absent for songs played from YouTube. */
+  blob?: Blob;
+  /** Where playback comes from. Local files are the default. */
+  source?: 'local' | 'youtube';
+  /** YouTube video id, for `source: 'youtube'` songs. */
+  videoId?: string;
   artwork?: string;
   audioInfo?: AudioInfo;
   lyrics?: Lyrics;

@@ -11,6 +11,7 @@ import {
   recordContentHash,
 } from '../data/library';
 import { readTrack } from '../data/import';
+import { fetchVideoMeta } from '../services/videoMeta';
 import { makeTrack } from '../test/fixtures';
 
 vi.mock('../data/library', () => ({
@@ -25,6 +26,7 @@ vi.mock('../data/library', () => ({
   saveLyricsResult: vi.fn(),
   saveTrackLyrics: vi.fn(),
 }));
+vi.mock('../services/videoMeta', () => ({ fetchVideoMeta: vi.fn() }));
 vi.mock('../data/import', async (original) => ({
   ...(await original<typeof import('../data/import')>()),
   readTrack: vi.fn(),
@@ -37,6 +39,12 @@ beforeEach(() => {
     makeTrack({ id, favorite: true }),
   );
   vi.mocked(readTrack).mockImplementation(async (file, id) => makeTrack({ id, blob: file }));
+  vi.mocked(fetchVideoMeta).mockReset().mockResolvedValue({
+    title: 'Midnight City',
+    artist: 'M83',
+    rawTitle: 'M83 - Midnight City (Official Video)',
+    author: 'M83',
+  });
 });
 describe('library workflow', () => {
   it('imports a file once and reports duplicate and unsupported files', async () => {
@@ -49,8 +57,42 @@ describe('library workflow', () => {
     expect(result.current.tracks).toHaveLength(1);
     expect(saveTrack).toHaveBeenCalledTimes(1);
     expect(result.current.message).toContain('1 already');
-    expect(result.current.message).toContain('1 skipped (MP3, WAV, M4A or OGG, up to 200 MB)');
+    expect(result.current.message).toContain(
+      '1 skipped (MP3, WAV, M4A, OGG or FLAC, up to 200 MB)',
+    );
     expect(result.current.progress).toBeNull();
+  });
+  it('adds a YouTube song as a reference, without downloading anything', async () => {
+    const { result } = renderHook(useLibrary);
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    let added: Awaited<ReturnType<typeof result.current.addYouTube>> | undefined;
+    await act(async () => {
+      added = await result.current.addYouTube('https://youtu.be/dQw4w9WgXcQ');
+    });
+    expect(added?.ok).toBe(true);
+    expect(result.current.tracks[0]).toMatchObject({
+      source: 'youtube',
+      videoId: 'dQw4w9WgXcQ',
+      title: 'Midnight City',
+      artist: 'M83',
+      size: 0,
+    });
+    expect(result.current.tracks[0].blob).toBeUndefined();
+    // The record is stored, not the media.
+    expect(saveTrack).toHaveBeenCalledWith(
+      expect.objectContaining({ source: 'youtube', videoId: 'dQw4w9WgXcQ' }),
+    );
+
+    // Adding the same video twice, or a playlist, is refused with a reason.
+    await act(async () => {
+      added = await result.current.addYouTube('https://youtu.be/dQw4w9WgXcQ');
+    });
+    expect(added).toEqual(expect.objectContaining({ ok: false }));
+    await act(async () => {
+      added = await result.current.addYouTube('https://www.youtube.com/playlist?list=PLabcdefgh');
+    });
+    expect(added).toEqual(expect.objectContaining({ ok: false }));
+    expect(result.current.tracks).toHaveLength(1);
   });
   it('keeps successful imports when a later write fails', async () => {
     vi.mocked(saveTrack).mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('quota'));

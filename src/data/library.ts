@@ -322,7 +322,9 @@ export async function mergeExactDuplicates(keepId: string, ids: string[]) {
     group.some((track) => !track)
   )
     throw Error('The library changed. Scan again.');
-  const hashes = await Promise.all(group.map((track) => contentIdentity(track!.blob)));
+  if (group.some((track) => !track?.blob))
+    throw Error('Only local files can be compared byte for byte.');
+  const hashes = await Promise.all(group.map((track) => contentIdentity(track!.blob!)));
   if (new Set(hashes).size !== 1) throw Error('These files are not byte-identical.');
   const db = await openLibrary();
   try {

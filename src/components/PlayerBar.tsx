@@ -1,5 +1,6 @@
 import { MusicLighting } from './MusicLighting';
 import { VideoBackdrop } from './VideoBackdrop';
+import { YouTubeStage } from './YouTubeStage';
 import { useIdleListening } from '../hooks/useIdleListening';
 import { MixVisual } from './MixVisual';
 import { WaveSeek } from './WaveSeek';
@@ -225,9 +226,15 @@ function PlayerDetails({
                 {state.repeat === 'one' ? <Repeat1 size={22} /> : <Repeat size={22} />}
               </button>
               <button
-                className={videoClip ? 'active' : ''}
-                disabled={!current}
-                aria-label={videoClip ? 'Hide video clip' : 'Show video clip'}
+                className={videoClip && !player.youTube ? 'active' : ''}
+                disabled={!current || !!player.youTube}
+                aria-label={
+                  player.youTube
+                    ? 'YouTube songs always show their video'
+                    : videoClip
+                      ? 'Hide video clip'
+                      : 'Show video clip'
+                }
                 aria-pressed={videoClip}
                 onClick={() => onToggleVideoClip?.()}
               >
@@ -329,7 +336,7 @@ export function PlayerBar(props: PlayerProps) {
     onOpen,
     returnFocusRef,
     onQueue,
-    karaoke = false,
+    karaoke = true,
     videoClip = false,
     onToggleVideoClip,
   } = props;
@@ -505,14 +512,31 @@ export function PlayerBar(props: PlayerProps) {
             onExpanded(false);
           }}
         >
-          {videoClip && player.current && (
-            <VideoBackdrop
+          {player.youTube && player.current?.videoId ? (
+            // A YouTube song plays through the embed: the video is the source, not
+            // a backdrop, so it stays visible whether or not the clip toggle is on.
+            <YouTubeStage
+              key={player.current.videoId}
               track={player.current}
-              time={player.time}
-              duration={player.duration}
               playing={player.state.playing}
-              onClose={() => onToggleVideoClip?.()}
+              volume={player.volume}
+              seek={player.youTube.seek}
+              onTime={player.youTube.onTime}
+              onDuration={player.youTube.onDuration}
+              onEnded={player.youTube.onEnded}
+              onError={player.youTube.onError}
             />
+          ) : (
+            videoClip &&
+            player.current && (
+              <VideoBackdrop
+                track={player.current}
+                time={player.time}
+                duration={player.duration}
+                playing={player.state.playing}
+                onClose={() => onToggleVideoClip?.()}
+              />
+            )
           )}
           <MusicLighting className="stage-aura" />
           <div

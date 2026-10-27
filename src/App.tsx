@@ -55,11 +55,13 @@ import {
 import { useLibrary } from './hooks/useLibrary';
 import { useAppPalette } from './hooks/useAppPalette';
 import { usePlayer } from './hooks/usePlayer';
+import type { TransitionPlan } from './domain/mixPlanner';
 import { Artwork } from './components/Artwork';
 import { LibraryContent } from './components/LibraryContent';
 import { Navigation, type Page } from './components/Navigation';
 import { Modal } from './components/Modal';
 import { PlayerBar } from './components/PlayerBar';
+import { AddMusicDialog } from './components/AddMusicDialog';
 import { AUDIO_ACCEPT } from './data/import';
 import { shuffleQueue } from './domain/player';
 import { filterTracks, type LibraryView, type Track } from './domain/types';
@@ -72,6 +74,22 @@ function readFlag(key: string, fallback = false): boolean {
   } catch {
     return fallback;
   }
+}
+/** Plain-language explanation of the last Mix handover, for the Settings panel. */
+function mixPlanSummary(plan: TransitionPlan): string {
+  if (plan.mode === 'cut') return 'The next song starts on its own; no usable overlap.';
+  const parts = [
+    plan.mode === 'beatmatched'
+      ? `${plan.bars} bars · ${plan.seconds.toFixed(1)} s, beat aligned`
+      : `Equal-power overlap · ${plan.seconds.toFixed(1)} s`,
+  ];
+  if (plan.stretched)
+    parts.push(
+      `tempo matched ${plan.incomingRate > 1 ? '+' : ''}${((plan.incomingRate - 1) * 100).toFixed(1)} %`,
+    );
+  if (plan.mode === 'beatmatched') parts.push('bass swap at the midpoint');
+  parts.push(plan.notes.join(' '));
+  return `${parts.filter(Boolean).join(' · ')}.`;
 }
 function readTheme(): Theme {
   try {
@@ -104,16 +122,14 @@ function WaveApp({
   const [automaticLyrics, setAutomaticLyrics] = useState(
     () => readFlag('wave-lyrics-consent-v1') && readFlag('wave-auto-lyrics'),
   );
-  const [karaoke, setKaraoke] = useState(() => readFlag('wave-karaoke', true));
   const [videoClip, setVideoClip] = useState(() => readFlag('wave-video-clip'));
   useEffect(() => {
     try {
-      localStorage.setItem('wave-karaoke', String(karaoke));
       localStorage.setItem('wave-video-clip', String(videoClip));
     } catch {
       /* Session-only options. */
     }
-  }, [karaoke, videoClip]);
+  }, [videoClip]);
   useEffect(() => {
     try {
       localStorage.setItem('wave-auto-lyrics', String(automaticLyrics));
@@ -338,6 +354,24 @@ function WaveApp({
   const favoriteCount = library.tracks.filter((track) => track.favorite).length;
   const busy = library.loading || !!library.progress;
   const chooseFiles = useCallback(() => input.current?.click(), []);
+  const [addOpen, setAddOpen] = useState(false);
+  const [addBusy, setAddBusy] = useState(false);
+  /** YouTube songs are added to the library and start playing straight away. */
+  const addFromYouTube = useCallback(
+    async (link: string) => {
+      setAddBusy(true);
+      const result = await library.addYouTube(link);
+      setAddBusy(false);
+      return result;
+    },
+    [library],
+  );
+  const playAdded = useCallback(
+    (track: Track) => {
+      player.play([...library.tracks.filter((item) => item.id !== track.id), track], track.id);
+    },
+    [library.tracks, player],
+  );
   const clearSearch = useCallback(() => setQuery(''), []);
   const toggleFavorite = library.toggleFavorite;
   const favoriteTrack = useCallback((track: Track) => void toggleFavorite(track), [toggleFavorite]);
@@ -589,8 +623,8 @@ function WaveApp({
               <button
                 className="icon-button import-header"
                 disabled={busy}
-                onClick={chooseFiles}
-                aria-label="Import music"
+                onClick={() => setAddOpen(true)}
+                aria-label="Add music"
               >
                 <Plus size={25} />
               </button>
@@ -751,51 +785,39 @@ function WaveApp({
                     </div>
                     <div className="settings-option-block">
                       <div>
-                        <strong>Mix style</strong>
+                        <strong>Mix length</strong>
                         <p>
-                          Apple Music style overlaps both songs on an equal-power curve. Blend keeps
-                          Wave&apos;s staged handover. Neither changes audio, tempo or pitch.
+                          How many bars two beat-matched songs overlap. Wave aligns the beat grid,
+                          equals the tempo within 8 % (pitch preserved) and swaps the bass in the
+                          middle.{' '}
+                          {player.tempo
+                            ? `Current song: ${player.tempo.toFixed(1)} BPM.`
+                            : player.mixEnabled && player.analyzing
+                              ? 'Analysing the current song…'
+                              : ''}
                         </p>
                       </div>
-                      <div className="settings-choice" role="radiogroup" aria-label="Mix style">
-                        <button
-                          type="button"
-                          role="radio"
-                          aria-checked={player.mixStyle === 'crossfade'}
-                          className={player.mixStyle === 'crossfade' ? 'active' : ''}
-                          onClick={() => player.setMixStyle('crossfade')}
-                        >
-                          Crossfade
-                        </button>
-                        <button
-                          type="button"
-                          role="radio"
-                          aria-checked={player.mixStyle === 'blend'}
-                          className={player.mixStyle === 'blend' ? 'active' : ''}
-                          onClick={() => player.setMixStyle('blend')}
-                        >
-                          Blend
-                        </button>
+                      <div className="settings-choice" role="radiogroup" aria-label="Mix length">
+                        {[8, 16].map((bars) => (
+                          <button
+                            key={bars}
+                            type="button"
+                            role="radio"
+                            aria-checked={player.mixBars === bars}
+                            className={player.mixBars === bars ? 'active' : ''}
+                            onClick={() => player.setMixBars(bars)}
+                          >
+                            {bars} bars
+                          </button>
+                        ))}
                       </div>
                     </div>
-                    {player.mixStyle === 'crossfade' && (
-                      <div className="settings-option-block">
+                    {player.mixEnabled && player.mixPlan && (
+                      <div className="settings-option-block mix-plan-block">
                         <div>
-                          <strong>Crossfade length</strong>
-                          <p>{player.crossfadeSeconds.toFixed(1)} seconds of overlap.</p>
+                          <strong>Last handover</strong>
+                          <p>{mixPlanSummary(player.mixPlan)}</p>
                         </div>
-                        <input
-                          className="settings-slider"
-                          type="range"
-                          min={1}
-                          max={12}
-                          step={0.5}
-                          value={player.crossfadeSeconds}
-                          aria-label="Crossfade length in seconds"
-                          onChange={(event) =>
-                            player.setCrossfadeSeconds(Number(event.target.value))
-                          }
-                        />
                       </div>
                     )}
                     <div className="settings-switch-row">
@@ -844,27 +866,14 @@ function WaveApp({
                 }
                 lyrics={
                   <>
-                    <div className="settings-switch-row">
-                      <div>
-                        <strong>Word-by-word lyrics</strong>
-                        <p>
-                          Highlight each word as it is sung. Word timings supplied by the lyric file
-                          are exact; otherwise Wave estimates them from the line timing.
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        className="material-switch"
-                        role="switch"
-                        aria-label="Word-by-word lyrics"
-                        aria-checked={karaoke}
-                        onClick={() => setKaraoke(!karaoke)}
-                      >
-                        <motion.span layout transition={animation.fast}>
-                          {karaoke && <Check size={15} />}
-                        </motion.span>
-                      </button>
-                    </div>{' '}
+                    <div className="settings-note">
+                      <strong>Word-by-word lyrics</strong>
+                      <p>
+                        Built in: each word lights up as it is sung. Exact word timings from the
+                        lyric file are used when present; otherwise Wave estimates them from the
+                        line timing, and the previous line-level view remains as a fallback.
+                      </p>
+                    </div>
                     <div className="settings-switch-row">
                       <div>
                         <strong>Automatic lyrics</strong>
@@ -1219,11 +1228,21 @@ function WaveApp({
         onRetryLyrics={lookup.retryTrack}
         queueOpen={queueOpen}
         onQueue={() => setQueueOpen(!queueOpen)}
-        karaoke={karaoke}
+        karaoke
         videoClip={videoClip}
         onToggleVideoClip={() => setVideoClip(!videoClip)}
       />
       <AnimatePresence>
+        {addOpen && (
+          <AddMusicDialog
+            key="add-music"
+            onClose={() => setAddOpen(false)}
+            onLocal={chooseFiles}
+            onYouTube={addFromYouTube}
+            onAdded={playAdded}
+            busy={busy || addBusy}
+          />
+        )}
         {queueOpen && (
           <Modal
             key="queue"

@@ -14,9 +14,10 @@ Bring your audio files, find a favorite album, and press play. Wave keeps your c
 - **Open a daily mix.** See the songs before playing. Play in order, shuffle, or save today's selection as a playlist you can edit.
 - **Make a playlist.** Add songs, choose a cover and arrange them in your preferred order.
 - **Follow the lyrics.** Add your own text/LRC, or explicitly search for a matching result. Saved lyrics work offline.
-- **Stay in the music.** Full-screen Now Playing, a compact player, editable queue, Apple Music style crossfade (1–12 s, auto-length by tail energy) or Wave's staged blend, and local Autoplay.
-- **Follow every word.** Word-by-word lyric highlighting: exact when the file carries word timestamps, a labelled estimate otherwise.
-- **Watch the clip.** Paste a YouTube link per song to use it as a muted backdrop, with Wave's own controls and automatic drift correction. No YouTube UI, no YouTube audio.
+- **Mix, don't cut.** Wave analyses both songs in the background (tempo, beat grid and phase, 8/16-bar phrases, silence at the ends, drops, vocal regions), then joins them on a beat: an equal-power overlap of 8 or 16 bars, tempo matched within 8 % with pitch preserved, bass swapped in the middle, and a different entry point when the incoming song starts with vocals. Files are never modified; the stretch is playback-only and ends with the transition.
+- **Follow every word.** Word-by-word highlighting is built in: exact when the file carries word timestamps, a labelled estimate otherwise, and the line-level view when a lyric has no timings at all.
+- **Watch the clip.** The clip is found automatically: Wave searches YouTube, keeps the upload whose title and length match the song, and uses it as a muted backdrop with Wave's own controls. Small drift is corrected by easing the clip rate instead of jumping the picture. No YouTube UI, no YouTube audio from the clip.
+- **Add music from anywhere you own it.** Import files from this device, or paste a YouTube link and play the song through YouTube's own player — with its video, Wave's transport and no downloading.
 - **Make it comfortable.** Light/dark themes, artwork colors, larger text and reduced motion. Phone controls are designed for touch.
 
 ### A closer look
@@ -58,7 +59,7 @@ npm run dev
 
 Open the address printed in the terminal, choose **Add music**, and select audio files. Nothing else needs configuring. For mobile development, open the server's reachable address from your phone; do not use the phone's own `localhost`.
 
-**MP3, WAV, M4A and OGG** can be imported, up to 200 MB per file. Songs already stored in another format keep playing; only importing is limited to those four. Files are never re-encoded, resampled or converted, so a WAV or a high-bitrate MP3 arrives exactly as it was. Playback depends on the browser or operating system's codecs. Keep your original files: Wave is a player, not a backup service.
+**MP3, WAV, M4A, OGG and FLAC** can be imported, up to 200 MB per file. FLAC is stored and played as it is: lossless in, lossless out. Files are never re-encoded, resampled or converted, so a WAV, a FLAC or a high-bitrate MP3 arrives exactly as it was. Playback depends on the browser or operating system's codecs. Keep your original files: Wave is a player, not a backup service.
 
 ### A note about Windows warnings
 
@@ -70,13 +71,13 @@ Unsigned downloads can trigger SmartScreen or antivirus warnings. Wave uses norm
 - [Platforms and downloads](docs/PLATFORMS.md)
 - [Development and tests](docs/DEVELOPMENT.md)
 - [Roadmap](docs/ROADMAP.md)
-- [Wave 1.1 specification: sync, YouTube and playlist import](docs/SPEC_1.1.md) — foundation only, not user-facing yet
+- [Wave 1.1 specification: sync, YouTube and playlist import](docs/SPEC_1.1.md) — sync and playlist import remain internal foundations
 - [Privacy and data flow](PRIVACY.md)
 - [All validation results and limits](docs/VALIDATION.md)
 
 ## Privacy and storage
 
-Wave has no backend, accounts, analytics, or remote audio services. Automatic lyrics uses the public LRCLIB API, off initially and opt-in in Settings. It sends song metadata, while the provider also sees connection information such as an IP address; downloaded text remains local. Imported files are committed immediately to this site's browser storage, without needing to play or select them. Full-file SHA-256 deduplication skips identical bytes even when filenames/dates change; legacy IDs and playlist references are preserved. Audio is retained once at original quality. Covers are compact JPEGs; lyrics persist raw text once and reconstruct parsed lines on load. Originals are never changed or deleted. Removing a track removes only Wave's stored copy and its playlist references. Playlist deletion affects no audio files. Metadata edits and custom covers are local overrides; Wave does not rewrite or export file tags.
+Wave has no backend, accounts, analytics, or remote audio services. Automatic lyrics uses the public LRCLIB API, off initially and opt-in in Settings. Video-clip discovery sends only the song title and artist to public YouTube front-ends (Piped/Invidious); adding a YouTube song reads its public title through YouTube's oEmbed endpoint. Muted clips and YouTube songs stream from YouTube, never from Wave. It sends song metadata, while the provider also sees connection information such as an IP address; downloaded text remains local. Imported files are committed immediately to this site's browser storage, without needing to play or select them. Full-file SHA-256 deduplication skips identical bytes even when filenames/dates change; legacy IDs and playlist references are preserved. Audio is retained once at original quality. Covers are compact JPEGs; lyrics persist raw text once and reconstruct parsed lines on load. Originals are never changed or deleted. Removing a track removes only Wave's stored copy and its playlist references. Playlist deletion affects no audio files. Metadata edits and custom covers are local overrides; Wave does not rewrite or export file tags.
 
 Storage is specific to a browser profile and site origin. Clearing site data, private browsing, quota limits, or automatic storage eviction can remove the collection, playlists, and edits. **Keep your original audio files.** Wave is a player, not a backup system. A different preview URL can have a different library.
 

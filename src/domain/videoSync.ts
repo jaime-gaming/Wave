@@ -11,7 +11,14 @@
  * applies the returned command.
  */
 export const VIDEO_HARD_DRIFT_SECONDS = 1.1;
-export const VIDEO_SOFT_DRIFT_SECONDS = 0.4;
+/**
+ * Drift below this is invisible and left alone; above it the clip is nudged in
+ * rate instead of being seeked, which is how video players resync without a
+ * visible jump. Because the clip is muted, a temporary rate change costs nothing
+ * in audio quality.
+ */
+export const VIDEO_SOFT_DRIFT_SECONDS = 0.15;
+export const VIDEO_NUDGE_RATE = 0.1;
 export const VIDEO_CORRECTION_COOLDOWN_MS = 4_000;
 /** Offset the user can apply when a clip does not start on the right beat. */
 export const VIDEO_OFFSET_LIMIT_SECONDS = 10;
@@ -27,6 +34,8 @@ export interface VideoState {
   playing: boolean;
   /** False until the embed has reported its first state. */
   ready: boolean;
+  /** Playback rate currently applied to the embed, when known. */
+  rate?: number;
 }
 
 export interface SyncOptions {
@@ -46,7 +55,9 @@ export type VideoCommand =
   | { type: 'play' }
   | { type: 'pause' }
   | { type: 'seek'; to: number }
-  | { type: 'seek-and-play'; to: number };
+  | { type: 'seek-and-play'; to: number }
+  /** Smooth correction: play the clip slightly fast or slow for a moment. */
+  | { type: 'nudge'; rate: number };
 
 export const clampVideoOffset = (seconds: number): number => {
   if (!Number.isFinite(seconds)) return 0;
@@ -85,10 +96,17 @@ export function planVideoSync(
 
   if (!video.playing) {
     // Starting from scratch: place the picture first if it is lost, then play.
-    return magnitude > soft ? { type: 'seek-and-play', to: wanted } : { type: 'play' };
+    return magnitude > hard ? { type: 'seek-and-play', to: wanted } : { type: 'play' };
   }
+  // A large drift is corrected even during the cooldown: a visible jump is worse.
   if (magnitude >= hard) return { type: 'seek', to: wanted };
-  if (magnitude >= soft && !cooling) return { type: 'seek', to: wanted };
+  if (cooling) return { type: 'none' };
+  if (magnitude >= soft) {
+    // Video ahead of the song → slow it down; behind → speed it up.
+    const rate = drift > 0 ? 1 - VIDEO_NUDGE_RATE : 1 + VIDEO_NUDGE_RATE;
+    return video.rate === rate ? { type: 'none' } : { type: 'nudge', rate };
+  }
+  if (video.rate !== undefined && video.rate !== 1) return { type: 'nudge', rate: 1 };
   return { type: 'none' };
 }
 

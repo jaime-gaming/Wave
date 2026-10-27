@@ -266,7 +266,7 @@ it('mixes from conservative cue points with the unshifted recording clock and or
   expect(engine.mixRemaining).toBeCloseTo(17.85);
 });
 
-it('crossfades with equal-power gains at the length the user chose', async () => {
+it('executes a beat-matched plan with cue, stretch and equal-power gains', async () => {
   const events = { ...callbacks(), blend: vi.fn() };
   vi.mocked(sourceEnvelope).mockResolvedValue(undefined);
   engine = new MixAudio(events);
@@ -274,10 +274,6 @@ it('crossfades with equal-power gains at the length the user chose', async () =>
     b = new Blob(['song b']);
   engine.load(a);
   Object.defineProperty(elements[0], 'duration', { value: 30 });
-  engine.setMixStyle('crossfade');
-  engine.setCrossfadeSeconds(6);
-  expect(engine.style).toBe('crossfade');
-  expect(engine.crossfadeLength).toBe(6);
   engine.setMixEnabled(true);
   await engine.play();
   engine.prepare(b);
@@ -285,39 +281,93 @@ it('crossfades with equal-power gains at the length the user chose', async () =>
   elements[1].dispatchEvent(new Event('loadedmetadata'));
   await Promise.resolve();
 
-  // Six seconds before the end, the incoming song starts at its cue and the two
-  // decks follow the equal-power curve.
   elements[0].currentTime = 26;
-  expect(engine.mixRemaining).toBeCloseTo(4);
-  engine.transition(
+  engine.transitionWithPlan(
     b,
-    4,
+    {
+      mode: 'beatmatched',
+      seconds: 4,
+      startAt: 26,
+      cue: 12.5,
+      incomingRate: 0.96,
+      stretched: true,
+      bassSwapAt: 0.5,
+      bars: 8,
+      phaseAligned: true,
+      notes: [],
+    },
     () => true,
     () => {},
   );
   await Promise.resolve();
-  expect(engine.active.blob).toBe(b);
-  // Halfway through a 4 s overlap (clamped to what is actually left) both decks
-  // sit at the same level, which is the defining property of an equal-power fade.
-  elements[1].currentTime = 2;
+  // The incoming deck starts at the planned cue with a gentle tempo match that
+  // preserves pitch, and its gain starts from silence.
+  expect(elements[1].currentTime).toBeCloseTo(12.5);
+  expect(elements[1].playbackRate).toBeCloseTo(0.96);
+  expect(elements[1].preservesPitch).toBe(true);
+  expect(elements[1].volume).toBeCloseTo(0);
+
+  // Halfway through, both decks sit at equal power.
+  elements[1].currentTime = 14.5;
   vi.advanceTimersByTime(100);
-  expect(elements[0].volume).toBeCloseTo(Math.SQRT1_2, 3);
-  expect(elements[1].volume).toBeCloseTo(Math.SQRT1_2, 3);
-  const total = Math.hypot(...elements.map((element) => element.volume));
-  expect(total).toBeCloseTo(1, 5);
+  expect(Math.hypot(elements[0].volume, elements[1].volume)).toBeCloseTo(1, 4);
   expect(events.blend).toHaveBeenLastCalledWith(
     expect.objectContaining({ incoming: b, outgoing: a }),
   );
+
+  // After the overlap the outgoing file is released and the rate returns to 1.
+  elements[1].currentTime = 16.5;
+  vi.advanceTimersByTime(100);
+  expect(elements[1].playbackRate).toBe(1);
 });
 
-it('clamps crossfade lengths to the supported range', () => {
+it('ignores a cut plan instead of joining two songs abruptly', async () => {
+  const events = { ...callbacks(), blend: vi.fn() };
+  engine = new MixAudio(events);
+  const a = new Blob(['a']),
+    b = new Blob(['b']);
+  engine.load(a);
+  engine.setMixEnabled(true);
+  await engine.play();
+  engine.prepare(b);
+  elements[1].dispatchEvent(new Event('loadedmetadata'));
+  await Promise.resolve();
+  engine.transitionWithPlan(
+    b,
+    {
+      mode: 'cut',
+      seconds: 0,
+      startAt: 0,
+      cue: 0,
+      incomingRate: 1,
+      stretched: false,
+      bassSwapAt: 0.5,
+      bars: 0,
+      phaseAligned: false,
+      notes: [],
+    },
+    () => true,
+    () => {},
+  );
+  await Promise.resolve();
+  expect(engine.transitioning).toBe(false);
+});
+
+it('reports analysed tempo so the planner can stretch a deck', () => {
   engine = new MixAudio(callbacks());
-  engine.setCrossfadeSeconds(0.2);
-  expect(engine.crossfadeLength).toBe(1);
-  engine.setCrossfadeSeconds(40);
-  expect(engine.crossfadeLength).toBe(12);
-  engine.setCrossfadeSeconds(Number.NaN);
-  expect(engine.crossfadeLength).toBe(6);
-  engine.setMixStyle('nonsense' as unknown as 'blend');
-  expect(engine.style).toBe('blend');
+  const blob = new Blob(['x']);
+  engine.setAnalysis(blob, {
+    duration: 200,
+    frameSeconds: 0.02,
+    beats: { bpm: 126, offset: 0, confidence: 0.9 },
+    trimmed: { start: 0, end: 200 },
+    segments: [],
+    vocals: [],
+    profile: { bass: 0.3, low: 0.2, mid: 0.3, high: 0.2 },
+    peak: 0.9,
+  });
+  expect(engine.analysisFor(blob)?.beats.bpm).toBe(126);
+  expect(engine.stretchFor(blob, 120)).toBeCloseTo(0.952, 3);
+  expect(engine.stretchFor(blob, 160)).toBe(1);
+  expect(engine.analysisFor(undefined)).toBeUndefined();
 });

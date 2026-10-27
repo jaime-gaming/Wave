@@ -155,6 +155,24 @@ Next boundaries to extract are feature-specific screens, import workers, backup/
 
 Manual artist profiles store separately processed raster artwork. `useCustomizations` loads/saves profiles and album orders; gallery, Home and artist detail share the photo map. Album order writes validate a full permutation against current owned artist/album-pair tracks in a transaction. Stale deleted/moved IDs are ignored during derivation; new tracks append by disc/track number then import date. Playlist reorder uses the same permutation check. Reorder dialogs work from complete collections rather than filtered lists; drafts save only on confirmation. Motion Reorder handles pointer drag, with buttons and Alt-arrow keyboard alternatives.
 
+## Mix, as a mix
+
+Mix is explained in Settings rather than configured like a slider. Playback shows one switch, one choice of overlap length (8 or 16 bars) and a plain-language readout of the handover Wave has planned: mode, seconds, whether the tempo is matched and by how much, and the planner's own reasons (for example, "incoming entry moved to a bar without a prominent vocal"). The detected tempo of the current song appears there too, or "Analysing the current song…" while the worker is busy. The old style selector and crossfade-length slider are gone: a mix is not a preference between two fades, it is a decision made per pair of songs.
+
+Nothing in the interface promises more than the engine does. When the analysis has no trusted grid the readout says so and the overlap is a plain equal-power crossfade; when the tempo gap exceeds 8 % the overlap is shortened instead of stretched. Stretching is described as playback-only and pitch-preserving because that is all it is.
+
+## YouTube songs in the interface
+
+Adding music starts with a question — _From this device_ or _From YouTube_ — because the two kinds of song behave differently and the difference is not cosmetic: one is a file Wave holds, the other is a video YouTube streams. Both land in the same library rows, but a YouTube song shows `YouTube` as its album and its video is always visible behind Now Playing, with a provider link and an honest status line ("YouTube · press play" until the embed actually starts). The Film toggle is disabled for these songs, since the video is the source rather than a backdrop.
+
+The stage treats the embed as the master clock, so there is no drift to correct in both directions: Wave reads the position the player reports, interpolates between updates so the seek bar moves smoothly, and sends play/pause/seek/volume commands. If autoplay policy blocks the video, the status line says so instead of pretending.
+
+## Video clip discovery and rate nudging
+
+Clips are discovered, not pasted. The backdrop searches once per song, shows what it is doing ("Looking for this song on YouTube…"), opens the match by itself, and only falls back to the manual link form when no provider answers or nothing matches. Search failures are shown as temporary, never as an error about the song.
+
+Sync now distinguishes three magnitudes of drift. Below 0.15 s nothing happens. Between 0.15 s and 1.1 s the muted clip is played slightly faster or slower, which closes the gap without a visible jump; because the clip has no audible role, a temporary rate change costs nothing. At 1.1 s or more — or when the clip is not playing at all — Wave seeks, then waits out a cooldown. After a seek the rate always returns to 1.
+
 ## Native Mix engine
 
 `MixAudio` owns a primary native Audio deck and lazily creates one spare when crossfade is enabled. It preloads only the next eligible queue entry. With finite durations, a decoded incoming source and remaining time within the fade window, it starts the incoming element, validates that the playing queue target is still current, promotes its identity, and applies media-clocked equal-power gains (`cos(pπ/2)` / `sin(pπ/2)`) over at most the automatically selected pair window, remaining outgoing duration and half incoming duration. A 20 ms timer updates gains, with native-position/blend reporting approximately every 50–60 ms; volume and mute affect both decks. Blend state exposes the original outgoing/incoming Blobs, elapsed fraction and actual fade duration for opacity-only artwork fades in the full and compact players. No transition meters or banners are rendered. Cancellation/completion clears that state; the transition has no spatial cover movement, including under reduced motion. Outgoing media events cannot advance or error the new current song. Preparation/play rejection retains the outgoing song and falls back to normal transitions. Generation tokens discard stale pending starts; pause/seek/source replacement cancel overlap. Removed outgoing queue/library entries cancel their tail. Repeat-one and single-entry repeat bypass crossfade. Blob bytes are not processed or re-encoded. Browser restrictions and throttled background timers can limit ramp smoothness.
