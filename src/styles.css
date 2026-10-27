@@ -2455,7 +2455,7 @@ kbd {
   color: var(--player-ink);
 }
 .lyrics-caption {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
   color: var(--muted);
   margin: 12px 0;
@@ -2473,9 +2473,9 @@ kbd {
   width: 100%;
   padding: 12px 4px;
   text-align: left;
-  font-size: clamp(20px, 2.2vw, 30px);
+  font-size: clamp(23px, 2.4vw, 33px);
   font-weight: 750;
-  line-height: 1.4;
+  line-height: 1.42;
   color: var(--player-muted);
   overflow-wrap: anywhere;
   transition: color 0.16s ease;
@@ -3406,7 +3406,7 @@ section.settings-page {
   mask-image: none;
 }
 .lyrics-stage .lyric-line {
-  font-size: clamp(17px, 2.2vw, 27px);
+  font-size: clamp(21px, 2.6vw, 32px);
   line-height: 1.22;
   padding: 6px 8px;
   margin: 0;
@@ -3567,12 +3567,12 @@ section.settings-page {
   gap: 12px;
 }
 .lyrics-cinematic .lyric-line {
-  font-size: clamp(22px, 3.4vw, 46px);
+  font-size: clamp(26px, 3.8vw, 52px);
   pointer-events: none;
 }
 @media (max-width: 800px) {
   .lyrics-stage .lyric-line {
-    font-size: clamp(18px, 2.8dvh, 26px);
+    font-size: clamp(21px, 3.2dvh, 30px);
   }
   .immersive-stage {
     grid-template-columns: 1fr;
@@ -3593,7 +3593,7 @@ section.settings-page {
     height: 100%;
   }
   .lyrics-cinematic .lyric-line {
-    font-size: clamp(20px, 3.1dvh, 32px);
+    font-size: clamp(24px, 3.6dvh, 36px);
   }
 }
 @media (max-height: 540px) {
@@ -3601,7 +3601,7 @@ section.settings-page {
     display: none;
   }
   .lyrics-stage .lyric-line {
-    font-size: 16px;
+    font-size: 19px;
     padding: 2px 4px;
   }
   .lyrics-stage .lyrics-empty > span {
@@ -3969,7 +3969,7 @@ section.settings-page {
 }
 @media (max-width: 700px) {
   .lyrics-stage .lyric-line {
-    font-size: clamp(20px, 5.6vw, 28px);
+    font-size: clamp(23px, 6.4vw, 32px);
     padding: 10px 0;
   }
   .immersive-stage {
@@ -3999,7 +3999,7 @@ section.settings-page {
     font-size: 52px;
   }
   .lyrics-cinematic .lyric-line {
-    font-size: 26px;
+    font-size: 30px;
   }
   .without-lyrics .immersive-art {
     height: 100%;
@@ -4007,7 +4007,7 @@ section.settings-page {
 }
 @media (max-height: 540px) and (min-width: 701px) {
   .lyrics-stage .lyric-line {
-    font-size: 20px;
+    font-size: 22px;
     padding: 6px 0;
   }
   .immersive-stage {

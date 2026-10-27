@@ -1,6 +1,6 @@
 # Validation record
 
-Release 0.1.0 · 17 October 2026. Historical run dates are retained below.
+Release 0.1.1 · 27 October 2026. Historical run dates are retained below.
 
 ## Web
 
@@ -35,7 +35,15 @@ Browser coverage includes paused restoration of saved queue/native position, art
 - Daily mixes: 6 tests cover grouping, day stability, input-order independence, the tempo/energy order, artist spreading and the descriptor. Features come from generated analysis fixtures, not from real songs.
 - Extra lyric providers: `wordLyrics` (7) covers the YRC and KRC parsers, the Kugou decoder, the offset header and the timeline sanity check; `wordProviders`/`lyricsExtra` (6) cover candidate matching, live/remix rejection, provider fallback, timeout behaviour and the opt-in switch. **No request was made to NetEase or Kugou**: their availability, CORS policy and terms were not verified from this workspace, and the endpoints are unofficial.
 
-### YouTube metadata, one-switch Mix, phones and installability (latest run)
+### 0.1.1 corrections: bigger lyrics, automatic clips, honest playback (latest run)
+
+- `npx tsc -b`, `npx eslint .`, `npx prettier --check .`, `npm run build` and `npm test` pass. The version shown in the interface now comes from `package.json` (`__WAVE_VERSION__`), so it cannot drift from the release.
+- Embed refusals are parsed from the player's documented error codes and turned into a message plus a YouTube link; `YouTubeStage` covers the handling in jsdom, but **no real blocked video was tested**.
+- A library row without stored audio now reports it. This is derived during render, not set from an effect, so it cannot race playback.
+- Clip discovery no longer accepts a pasted link: `VideoBackdrop` renders search states only. Nothing verified the discovery result against live YouTube from this workspace.
+- Lyric sizes were increased in every view; the visual result was **not** screenshotted (no browser engine in this workspace).
+
+### YouTube metadata, one-switch Mix, phones and installability
 
 - `npx tsc -b`, `npx eslint .`, `npx prettier --check .`, `npm run build` and `npm test` (416 tests across 72 files) passed.
 - `videoMeta` (9 tests) covers the four-source chain, a source that fails like a CORS-blocked fetch, an unusable body, a hanging request, the per-source timeout, the whole-chain budget, id validation and an already-aborted signal. **No live request was made to YouTube, noembed, Piped or Invidious**: which of them answer from a given network, and whether each still allows cross-origin reads, is unverified and is exactly why there are four.

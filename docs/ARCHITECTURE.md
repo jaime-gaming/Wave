@@ -1,6 +1,6 @@
 # Wave Architecture
 
-**Version: 0.1.0 · Release date: 17 October 2026.**
+**Version: 0.1.1 · Release date: 27 October 2026.**
 
 ## Scope and platform decision
 

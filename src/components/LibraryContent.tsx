@@ -86,6 +86,7 @@ export const LibraryContent = memo(function LibraryContent({
           <Plus size={20} />
           Add music
         </button>
+        <span className="supported-formats">MP3, WAV, M4A, OGG and FLAC</span>
       </div>
     );
   if (!tracks.length)

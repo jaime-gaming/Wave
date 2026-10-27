@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ExternalLink } from 'lucide-react';
-import { readEmbedEvent, youtubeEmbedUrl, youtubeWatchUrl } from '../domain/youtube';
+import {
+  embedErrorMessage,
+  readEmbedError,
+  readEmbedEvent,
+  youtubeEmbedUrl,
+  youtubeWatchUrl,
+} from '../domain/youtube';
 import type { Track } from '../domain/types';
 
 export interface YouTubeSeek {
@@ -58,6 +64,8 @@ export function YouTubeStage({
   const frame = useRef<HTMLIFrameElement | null>(null);
   const [ready, setReady] = useState(false);
   const [started, setStarted] = useState(false);
+  /** Set when the embed refuses the video; retrying play would be pointless. */
+  const refused = useRef(false);
   const clock = useRef({ time: 0, playing: false, duration: 0, at: 0 });
   const videoId = track.videoId ?? '';
   // Captured once: the embed URL must not change while the video is playing.
@@ -92,6 +100,12 @@ export function YouTubeStage({
     const onMessage = (event: MessageEvent) => {
       if (event.source !== frame.current?.contentWindow) return;
       const data = typeof event.data === 'string' ? safeJson(event.data) : event.data;
+      const refusal = readEmbedError(data, videoId);
+      if (refusal) {
+        refused.current = true;
+        onError(embedErrorMessage(refusal.code));
+        return;
+      }
       const info = readEmbedEvent(data, videoId);
       if (!info) return;
       clock.current = {
@@ -108,7 +122,7 @@ export function YouTubeStage({
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [videoId, onEnded, onTime, onDuration]);
+  }, [videoId, onEnded, onTime, onDuration, onError]);
 
   // The embed is the master clock; interpolate between its updates.
   useEffect(() => {
@@ -133,7 +147,7 @@ export function YouTubeStage({
     }
     let tries = 0;
     const send = () => {
-      if (clock.current.playing) return;
+      if (clock.current.playing || refused.current) return;
       post('playVideo');
       if (++tries >= 16) return;
       retry = setTimeout(send, 400);
@@ -186,7 +200,7 @@ export function YouTubeStage({
   useEffect(() => {
     if (!playing) return;
     const timer = setTimeout(() => {
-      if (!started)
+      if (!started && !refused.current)
         onError('YouTube did not start. Check the connection, or press play once more.');
     }, 8_000);
     return () => clearTimeout(timer);

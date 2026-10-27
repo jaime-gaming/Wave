@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ExternalLink, Film, Link2, X } from 'lucide-react';
+import { ExternalLink, Film, X } from 'lucide-react';
 import { readEmbedEvent, youtubeEmbedUrl } from '../domain/youtube';
 import {
   clampVideoOffset,
@@ -10,7 +10,7 @@ import {
   type VideoCommand,
   type VideoState,
 } from '../domain/videoSync';
-import { getClip, loadClips, removeClip, saveClip, type StoredClip } from '../domain/videoClips';
+import { getClip, loadClips, removeClip, type StoredClip } from '../domain/videoClips';
 import { findClip, rememberClip } from '../services/clipSearch';
 import { networkAriaLabel, networkLabel, useOnline } from '../ui/network';
 import type { Track } from '../domain/types';
@@ -46,11 +46,7 @@ export function VideoBackdrop({
   onClose: () => void;
 }) {
   const [clips, setClips] = useState(() => loadClips());
-  const [draft, setDraft] = useState('');
-  const [error, setError] = useState('');
-  const [search, setSearch] = useState<'searching' | 'empty' | 'unavailable' | 'manual'>(
-    'searching',
-  );
+  const [search, setSearch] = useState<'searching' | 'empty' | 'unavailable'>('searching');
   const [attempt, setAttempt] = useState(0);
   const online = useOnline();
   const clip = getClip(track.id, clips);
@@ -76,17 +72,6 @@ export function VideoBackdrop({
     });
     return () => controller.abort();
   }, [clip, online, track.id, track.title, track.artist, track.duration, attempt]);
-
-  const add = () => {
-    const result = saveClip(track.id, draft);
-    if (!result.ok) {
-      setError(result.error);
-      return;
-    }
-    setError('');
-    setDraft('');
-    setClips(loadClips());
-  };
 
   if (clip)
     return (
@@ -116,11 +101,8 @@ export function VideoBackdrop({
               : search === 'searching'
                 ? 'Looking for this song on YouTube…'
                 : search === 'empty'
-                  ? 'No clip matched this song closely enough. Paste a link if you know one.'
-                  : search === 'unavailable'
-                    ? 'Clip search is unreachable right now. Paste a link, or try again later.'
-                    : 'Paste the YouTube link for this song.'}{' '}
-            The clip is muted and Wave keeps its own controls; audio still comes from your file.
+                  ? 'No clip matched this song closely enough.'
+                  : 'Clip search is unreachable right now. Try again later.'}
           </span>
         </p>
         {search !== 'searching' && (
@@ -136,33 +118,6 @@ export function VideoBackdrop({
           >
             {networkLabel(online, 'Search again')}
           </button>
-        )}
-        <div className="video-clip-form">
-          <label>
-            <Link2 size={16} aria-hidden="true" />
-            <span className="sr-only">YouTube link</span>
-            <input
-              type="url"
-              inputMode="url"
-              placeholder="https://youtu.be/…"
-              value={draft}
-              onChange={(event) => {
-                setDraft(event.target.value);
-                setError('');
-              }}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') add();
-              }}
-            />
-          </label>
-          <button type="button" className="text-button" onClick={add} disabled={!draft.trim()}>
-            Use clip
-          </button>
-        </div>
-        {error && (
-          <p className="video-clip-error" role="alert">
-            {error}
-          </p>
         )}
       </div>
     </div>

@@ -92,7 +92,7 @@ export function SettingsPage(props: Record<Section, ReactNode> & { onBack: () =>
       )}
       <footer className="settings-hub-footer">
         <a href={`${import.meta.env.BASE_URL}privacy.html`}>Privacy &amp; rights</a>
-        <span>Wave 0.1.0</span>
+        <span>Wave {__WAVE_VERSION__}</span>
       </footer>
     </section>
   );

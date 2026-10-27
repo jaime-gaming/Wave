@@ -1,4 +1,4 @@
-# Wave platforms · 0.1.0
+# Wave platforms · 0.1.1
 
 **Release date: 17 October 2026.** Wave has three independent implementations, not WebView/Electron wrappers. The web client is the most complete; Windows follows its structure with native C#/WPF controls, while Android uses Kotlin/Compose. Libraries are separate and never synchronized or silently migrated.
 

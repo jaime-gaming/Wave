@@ -135,6 +135,11 @@ export function AddMusicDialog({
           </div>
         </>
       )}
+      <p className="add-music-note">
+        {mode === 'youtube'
+          ? 'Only the link is sent. Audio is never downloaded.'
+          : 'Your files stay on this device.'}
+      </p>
     </Modal>
   );
 }

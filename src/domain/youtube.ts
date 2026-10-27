@@ -209,3 +209,43 @@ export function readEmbedEvent(
     typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : 0;
   return { state, currentTime: number(info.currentTime), duration: number(info.duration), videoId };
 }
+
+/**
+ * A refused video from the embedded player.
+ *
+ * The IFrame API reports failures as documented error codes: 2 (bad parameter),
+ * 5 (the player itself failed), 100 (the video is gone or private), 101 and 150
+ * (the owner does not allow embedding). Without this the song simply never
+ * started and nothing explained why.
+ */
+export function readEmbedError(
+  data: unknown,
+  expectedVideoId: string,
+): { code: number; videoId: string } | null {
+  if (!data || typeof data !== 'object') return null;
+  const payload = data as { event?: unknown; info?: unknown };
+  if (payload.event !== 'onError') return null;
+  const info = payload.info as
+    { errorCode?: unknown; videoData?: { video_id?: unknown } } | undefined;
+  const code =
+    typeof payload.info === 'number'
+      ? payload.info
+      : typeof info?.errorCode === 'number'
+        ? info.errorCode
+        : 0;
+  if (!code) return null;
+  const videoId =
+    typeof info?.videoData?.video_id === 'string' ? info.videoData.video_id : expectedVideoId;
+  if (videoId !== expectedVideoId) return null;
+  return { code, videoId };
+}
+
+/** Plain-language reason for an embed error code. */
+export function embedErrorMessage(code: number): string {
+  if (code === 101 || code === 150)
+    return 'The owner does not allow this video to play outside YouTube. Open it on YouTube to listen.';
+  if (code === 100) return 'This video is private or no longer available.';
+  if (code === 2)
+    return 'YouTube rejected the player request. Open the video on YouTube to listen.';
+  return 'YouTube could not play this video here. Open it on YouTube to listen.';
+}

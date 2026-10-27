@@ -86,6 +86,10 @@ export function StorageSettings({ tracks }: { tracks: Track[] }) {
         </button>
       </div>
       {message && <p className="storage-message">{message}</p>}
+      <p className="storage-message">
+        Clearing site data removes your library, not your original files. Keep a copy of the
+        originals.
+      </p>
     </section>
   );
 }

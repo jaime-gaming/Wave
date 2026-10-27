@@ -1,8 +1,8 @@
 <p align="center"><img src="public/wave.svg" alt="Wave" width="100" height="80" /></p>
 <h1 align="center">Wave</h1>
 <p align="center"><strong>A home for the music you already own.</strong></p>
-<p align="center">Release <strong>0.1.0</strong> · <strong>17 October 2026</strong></p>
-<p align="center"><a href="#start-listening">Start listening</a> · <a href="docs/media/wave-0.1.0-promo.mp4">Watch the demo</a> · <a href="docs/RELEASE_NOTES_0.1.0.md">What's new</a></p>
+<p align="center">Release <strong>0.1.1</strong> · <strong>27 October 2026</strong></p>
+<p align="center"><a href="#start-listening">Start listening</a> · <a href="docs/media/wave-0.1.0-promo.mp4">Watch the demo</a> · <a href="docs/RELEASE_NOTES_0.1.1.md">What's new</a></p>
 
 ![Wave Home with a local collection, album artwork and daily mixes](docs/media/home-desktop.png)
 
@@ -68,7 +68,7 @@ Unsigned downloads can trigger SmartScreen or antivirus warnings. Wave uses norm
 
 ## Learn more
 
-- [Release 0.1.0 notes](docs/RELEASE_NOTES_0.1.0.md)
+- [Release 0.1.1 notes](docs/RELEASE_NOTES_0.1.1.md)
 - [Platforms and downloads](docs/PLATFORMS.md)
 - [Development and tests](docs/DEVELOPMENT.md)
 - [Roadmap](docs/ROADMAP.md)
