@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { CLIP_CACHE_KEY, findClip, rememberClip } from './clipSearch';
+import { CLIP_CACHE_KEY, findClip, rememberClip, resetProviderHealth } from './clipSearch';
 import { CLIP_STORAGE_KEY, loadClips } from '../domain/videoClips';
 
 const song = { title: 'Midnight City', artist: 'M83', duration: 244 };
@@ -16,6 +16,7 @@ const goodItem = {
 
 beforeEach(() => {
   localStorage.clear();
+  resetProviderHealth();
 });
 
 describe('automatic clip search', () => {
@@ -82,5 +83,36 @@ describe('automatic clip search', () => {
     expect(rememberClip('track-2', { videoId: 'nope', title: '', author: '', duration: 0 })).toBe(
       null,
     );
+  });
+
+  it('asks another host when one fails, and skips the dead one next time', async () => {
+    const fetcher = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('blocked'))
+      .mockResolvedValue(piped([goodItem]));
+    const first = await findClip(song, { fetcher });
+    expect(first.status).toBe('found');
+    expect(fetcher.mock.calls[0][0]).toContain('pipedapi.kavin.rocks');
+    expect(fetcher.mock.calls.length).toBeGreaterThan(1);
+
+    localStorage.clear();
+    fetcher.mockClear();
+    await findClip({ ...song, title: 'Outro' }, { fetcher });
+    // The host that failed is not asked again immediately.
+    expect(fetcher.mock.calls[0][0]).not.toContain('pipedapi.kavin.rocks');
+  });
+
+  it('stops at the search budget instead of hanging on dead hosts', async () => {
+    // A host that never answers; a real fetch rejects when its signal aborts.
+    const fetcher = vi.fn(
+      (_url: RequestInfo | URL, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () =>
+            reject(new DOMException('Aborted', 'AbortError')),
+          );
+        }),
+    );
+    const result = await findClip(song, { fetcher, timeoutMs: 600, providerTimeoutMs: 150 });
+    expect(result).toEqual({ status: 'unavailable' });
   });
 });
