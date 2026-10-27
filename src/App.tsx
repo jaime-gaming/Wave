@@ -62,6 +62,7 @@ import { Navigation, type Page } from './components/Navigation';
 import { Modal } from './components/Modal';
 import { PlayerBar } from './components/PlayerBar';
 import { AddMusicDialog } from './components/AddMusicDialog';
+import { extendedLyricsEnabled, setExtendedLyrics } from './services/lyricsExtra';
 import { AUDIO_ACCEPT } from './data/import';
 import { shuffleQueue } from './domain/player';
 import { filterTracks, type LibraryView, type Track } from './domain/types';
@@ -123,6 +124,7 @@ function WaveApp({
     () => readFlag('wave-lyrics-consent-v1') && readFlag('wave-auto-lyrics'),
   );
   const [videoClip, setVideoClip] = useState(() => readFlag('wave-video-clip'));
+  const [wordSources, setWordSources] = useState(extendedLyricsEnabled);
   useEffect(() => {
     try {
       localStorage.setItem('wave-video-clip', String(videoClip));
@@ -873,6 +875,32 @@ function WaveApp({
                         lyric file are used when present; otherwise Wave estimates them from the
                         line timing, and the previous line-level view remains as a fallback.
                       </p>
+                    </div>
+                    <div className="settings-switch-row">
+                      <div>
+                        <strong>Word-level lyric sources</strong>
+                        <p>
+                          Also ask NetEase and Kugou, which publish per-word timings. Only the title
+                          and artist are sent, and results are stored locally. Off by default
+                          because they are community services, not official APIs.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        className="material-switch"
+                        role="switch"
+                        aria-label="Word-level lyric sources"
+                        aria-checked={wordSources}
+                        onClick={() => {
+                          const next = !wordSources;
+                          setWordSources(next);
+                          setExtendedLyrics(next);
+                        }}
+                      >
+                        <motion.span layout transition={animation.fast}>
+                          {wordSources && <Check size={15} />}
+                        </motion.span>
+                      </button>
                     </div>
                     <div className="settings-switch-row">
                       <div>

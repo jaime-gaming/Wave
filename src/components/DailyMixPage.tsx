@@ -67,14 +67,16 @@ export function DailyMixPage({
           </h2>
           <p className="daily-mix-label">{mix.label}</p>
           <p className="lyrics-caption">
-            {songs.length} songs · {formatTime(songs.reduce((s, t) => s + t.duration, 0))} ·{' '}
-            {mix.basis === 'genre' ? 'Genre' : 'Artist'} tags
+            {songs.length} songs · {formatTime(songs.reduce((s, t) => s + t.duration, 0))}
+            {mix.bpm ? ` · about ${Math.round(mix.bpm)} BPM` : ''}
           </p>
         </div>
       </div>
       <p className="daily-mix-description">
-        A daily selection of your local songs. Browse before playing, or save this selection as a
-        playlist to keep and edit it.
+        {mix.basis === 'genre'
+          ? `Songs tagged ${mix.label}, ordered to build up instead of jumping around.`
+          : `Songs by ${mix.label}. Same artist all the way through, so the order is the only choice.`}{' '}
+        Save it as a playlist if you want to keep it.
       </p>
       <div className="daily-mix-actions">
         <button

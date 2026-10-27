@@ -25,6 +25,9 @@ export function YouTubeStage({
   track,
   playing,
   volume,
+  gain = 1,
+  startGain = 1,
+  fadeSeconds = 0.25,
   seek,
   startAt = 0,
   silent = false,
@@ -36,6 +39,12 @@ export function YouTubeStage({
   track: Track;
   playing: boolean;
   volume: number;
+  /** Mix gain for this song, 0..1, applied on top of the master volume. */
+  gain?: number;
+  /** Gain when the player mounts, so a crossfade starts from silence. */
+  startGain?: number;
+  /** How long a gain change takes, so a crossfade is a ramp, not a step. */
+  fadeSeconds?: number;
   seek: YouTubeSeek;
   /** Position used when the player has to be mounted again, e.g. after expanding. */
   startAt?: number;
@@ -122,10 +131,36 @@ export function YouTubeStage({
     if (playing) post('playVideo');
   }, [seek, ready, playing, post, onTime]);
 
+  /**
+   * Volume is ramped, never stepped: a crossfade out of (or into) a YouTube song
+   * sends one target and the player eases towards it at the frame rate, which is
+   * the same equal-power window the local deck uses.
+   */
+  const applied = useRef<number | null>(startGain);
+  const ramp = useRef<number | null>(null);
   useEffect(() => {
     if (!ready) return;
-    post('setVolume', [Math.round(Math.min(1, Math.max(0, volume)) * 100)]);
-  }, [volume, ready, post]);
+    const target = Math.min(1, Math.max(0, volume)) * Math.min(1, Math.max(0, gain));
+    const send = (value: number) => post('setVolume', [Math.round(value * 100)]);
+    const from = applied.current;
+    applied.current = target;
+    if (ramp.current !== null) cancelAnimationFrame(ramp.current);
+    if (from === null || fadeSeconds < 0.05) {
+      send(target);
+      return;
+    }
+    const started = performance.now();
+    const step = () => {
+      const p = Math.min(1, (performance.now() - started) / (fadeSeconds * 1000));
+      send(from + (target - from) * p);
+      ramp.current = p < 1 ? requestAnimationFrame(step) : null;
+    };
+    ramp.current = requestAnimationFrame(step);
+    return () => {
+      if (ramp.current !== null) cancelAnimationFrame(ramp.current);
+      ramp.current = null;
+    };
+  }, [volume, gain, fadeSeconds, ready, post]);
 
   useEffect(() => {
     const timer = setTimeout(() => {

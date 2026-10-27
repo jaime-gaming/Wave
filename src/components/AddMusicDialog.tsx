@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { FolderOpen, Link2, Video } from 'lucide-react';
 import { Modal } from './Modal';
+import { networkAriaLabel, networkLabel, useOnline } from '../ui/network';
 import type { Track } from '../domain/types';
 
 /**
@@ -29,6 +30,7 @@ export function AddMusicDialog({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const input = useRef<HTMLInputElement>(null);
+  const online = useOnline();
 
   useEffect(() => {
     if (mode === 'youtube') input.current?.focus();
@@ -74,13 +76,15 @@ export function AddMusicDialog({
               type="button"
               className="add-music-choice"
               onClick={() => setMode('youtube')}
-              disabled={busy}
+              disabled={busy || !online}
+              aria-label={networkAriaLabel(online, 'From YouTube')}
             >
               <Video size={24} aria-hidden="true" />
-              <strong>From YouTube</strong>
+              <strong>{networkLabel(online, 'From YouTube')}</strong>
               <span>
-                Paste a video link. The song plays from YouTube with its video and Wave&apos;s own
-                controls.
+                {online
+                  ? 'Paste a video link. The song plays from YouTube with its video, and Wave keeps its own controls.'
+                  : 'Adding a YouTube song needs a connection. Files on this device work offline.'}
               </span>
             </button>
           </div>

@@ -6,7 +6,7 @@ Release 0.1.0 · 17 October 2026. Historical run dates are retained below.
 
 - `npm run format:check`: passed.
 - `npm run lint`: passed.
-- `npm test`: **378 tests passed across 67 files** (latest Mix/YouTube run; 200 tests across 42 files at the 0.1.0 release).
+- `npm test`: **405 tests passed across 71 files** (latest Mix/YouTube run; 200 tests across 42 files at the 0.1.0 release).
 - `npm run test:e2e`: **89 Chromium browser tests passed** in the final complete run (7.6 minutes).
 - `npm run build`: passed. Vite reports its advisory 500 KB chunk-size warning (main chunk approximately 547 KB, gzip 172 KB); this is not a build failure.
 - `npm run build -- --base=/Wave/`: passed; a production static-server smoke test verified Home, Settings, fonts/assets, `/Wave/wave.svg`, the privacy page and its return link under the repository path without HTTP/page errors.
@@ -25,6 +25,15 @@ Browser coverage includes paused restoration of saved queue/native position, art
 - Import: FLAC now passes the whitelist (`import`/`useLibrary` tests). Browser FLAC decoding was not exercised here.
 - Word-by-word lyrics: the panel test proves the built-in word view and the line-level fallback; the removed toggle is not a hidden setting.
 - The Playwright suite and screenshot comparison were **not** run for this change: no browser engine is installed in this workspace. The dev server was started and serves the app (HTTP 200 for the entry point and the new components), but audible Mix quality, YouTube playback and the new layouts still need a real browser pass.
+
+### YouTube playback, offline states, mixes and extra lyric sources (latest run)
+
+- `npx tsc -b`, `npx eslint .`, `npx prettier --check .`: passed. `npm test`: 405 tests across 71 files.
+- YouTube songs: `youtubeTrack` (8) covers record building, link validation and the local-twin rule; `resolvePlayable` prefers a file with the same title and artist and never treats a local song as a stream. `YouTubeStage` (4) covers embed options, transport commands, resumes and message-source validation.
+- YouTube handovers: `edgeMix` (5) covers the window sizing, equal-power gains and remaining-time maths. **The fade was not heard**: the embed never loads in jsdom, so the audible result of a crossfade between a video and a local file still needs a browser pass.
+- Offline states: `network` (3) covers the label swap, the accessible "offline" suffix and a disabled-but-visible control. `LyricsPanel`, `VideoBackdrop` and `AddMusicDialog` render the offline copy; none of them was exercised with a real captive network.
+- Daily mixes: 6 tests cover grouping, day stability, input-order independence, the tempo/energy order, artist spreading and the descriptor. Features come from generated analysis fixtures, not from real songs.
+- Extra lyric providers: `wordLyrics` (7) covers the YRC and KRC parsers, the Kugou decoder, the offset header and the timeline sanity check; `wordProviders`/`lyricsExtra` (6) cover candidate matching, live/remix rejection, provider fallback, timeout behaviour and the opt-in switch. **No request was made to NetEase or Kugou**: their availability, CORS policy and terms were not verified from this workspace, and the endpoints are unofficial.
 
 LRCLIB tests use controlled responses to verify exact/search matching, client identification, size/time bounds and Retry-After. They do **not** establish current live provider availability, coverage, latency or a copyright license. Rendering tests are not a substitute for audible crossfade assessment across browsers/recordings; correlated audio can peak during equal-power mixing. No bit-perfect/gapless claim is made.
 

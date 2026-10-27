@@ -123,13 +123,14 @@ function PlayerDetails({
                   key={`${current?.id ?? 'empty'}:${current?.editedAt ?? 0}`}
                   initial={{
                     opacity: animation.enabled ? 0 : 1,
-                    scale: animation.enabled ? 0.92 : 1,
-                    y: animation.enabled ? 16 : 0,
-                    rotate: animation.enabled ? -2 : 0,
+                    scale: animation.enabled ? 0.94 : 1,
+                    y: animation.enabled ? 18 : 0,
+                    rotate: animation.enabled ? -1.5 : 0,
+                    filter: animation.enabled ? 'blur(10px)' : 'blur(0px)',
                   }}
-                  animate={{ opacity: 1, scale: 1, y: 0, rotate: 0 }}
-                  exit={{ opacity: 0, scale: animation.enabled ? 1.025 : 1 }}
-                  transition={{ ...animation.spatial, opacity: animation.effects }}
+                  animate={{ opacity: 1, scale: 1, y: 0, rotate: 0, filter: 'blur(0px)' }}
+                  exit={{ opacity: 0, scale: animation.enabled ? 1.03 : 1 }}
+                  transition={{ ...animation.cinematic, opacity: animation.reveal }}
                 >
                   <Artwork track={current} className="stage-artwork" />
                 </motion.div>
@@ -139,9 +140,11 @@ function PlayerDetails({
           <motion.div
             className="stage-track"
             key={current?.id}
-            initial={animation.enabled ? { opacity: 0, y: 8 } : { opacity: 1 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={animation.effects}
+            initial={
+              animation.enabled ? { opacity: 0, y: 12, filter: 'blur(4px)' } : { opacity: 1 }
+            }
+            animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+            transition={{ ...animation.reveal, delay: animation.enabled ? 0.06 : 0 }}
           >
             <h3 title={current?.title}>{current?.title ?? 'Nothing playing'}</h3>
             {current ? (
@@ -512,20 +515,23 @@ export function PlayerBar(props: PlayerProps) {
             onExpanded(false);
           }}
         >
-          {player.youTube && player.current?.videoId ? (
+          {player.stageYouTube ? (
             // A YouTube song plays through the embed: the video is the source, not
             // a backdrop, so it stays visible whether or not the clip toggle is on.
             <YouTubeStage
-              key={player.current.videoId}
-              track={player.current}
+              key={player.stageYouTube.track.videoId}
+              track={player.stageYouTube.track}
               playing={player.state.playing}
               volume={player.volume}
-              seek={player.youTube.seek}
+              gain={player.stageYouTube.gain}
+              startGain={player.stageYouTube.startGain}
+              fadeSeconds={player.stageYouTube.fadeSeconds}
+              seek={player.youTube?.seek ?? { seconds: 0, nonce: 0 }}
               startAt={player.time}
-              onTime={player.youTube.onTime}
-              onDuration={player.youTube.onDuration}
-              onEnded={player.youTube.onEnded}
-              onError={player.youTube.onError}
+              onTime={player.youTube?.onTime ?? (() => {})}
+              onDuration={player.youTube?.onDuration ?? (() => {})}
+              onEnded={player.youTube?.onEnded ?? (() => {})}
+              onError={player.youTube?.onError ?? (() => {})}
             />
           ) : (
             videoClip &&
@@ -604,19 +610,22 @@ export function PlayerBar(props: PlayerProps) {
         stays mounted in a one-pixel host. Expanding mounts the visible player from
         the same position; the song never restarts because of a layout change.
       */}
-      {!showing && player.youTube && player.current?.videoId && (
+      {!showing && player.stageYouTube && (
         <YouTubeStage
-          key={`silent-${player.current.videoId}`}
-          track={player.current}
+          key={`silent-${player.stageYouTube.track.videoId}`}
+          track={player.stageYouTube.track}
           playing={player.state.playing}
           volume={player.volume}
-          seek={player.youTube.seek}
+          gain={player.stageYouTube.gain}
+          startGain={player.stageYouTube.startGain}
+          fadeSeconds={player.stageYouTube.fadeSeconds}
+          seek={player.youTube?.seek ?? { seconds: 0, nonce: 0 }}
           startAt={player.time}
           silent
-          onTime={player.youTube.onTime}
-          onDuration={player.youTube.onDuration}
-          onEnded={player.youTube.onEnded}
-          onError={player.youTube.onError}
+          onTime={player.youTube?.onTime ?? (() => {})}
+          onDuration={player.youTube?.onDuration ?? (() => {})}
+          onEnded={player.youTube?.onEnded ?? (() => {})}
+          onError={player.youTube?.onError ?? (() => {})}
         />
       )}
     </>

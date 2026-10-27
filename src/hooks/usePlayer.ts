@@ -6,7 +6,8 @@ import { readPlaybackSession, writePlaybackSession } from '../domain/playbackSes
 import { MixAudio } from '../audio/MixAudio';
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { playerReducer, shuffleQueue } from '../domain/player';
-import { isYouTubeTrack } from '../domain/youtubeTrack';
+import { resolvePlayable } from '../domain/youtubeTrack';
+import { planEdgeHandover } from '../domain/edgeMix';
 import type { Track } from '../domain/types';
 
 function savedVolume(key = 'wave-volume') {
@@ -78,6 +79,19 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
     duration: number;
   }>({ time: 0, duration: 0 });
   const [youTubeSeek, setYouTubeSeek] = useState({ seconds: 0, nonce: 0 });
+  /**
+   * Handover state for songs that involve YouTube. `pending` is the embed that
+   * starts before the song becomes current, so the crossfade has two audible
+   * sides; `outgoingGain` lets the current embed fade out under the next file.
+   */
+  const [edge, setEdge] = useState<{
+    pending?: { track: Track; fadeSeconds: number };
+    outgoingGain: number;
+    outgoingFade: number;
+  }>({ outgoingGain: 1, outgoingFade: 0.25 });
+  const edgeRef = useRef<{ toId?: string; direction: 'into' | 'outOf'; seconds: number } | null>(
+    null,
+  );
   const lastAudible = useRef(volume || savedVolume('wave-last-audible-volume') || 1);
   const [buffering, setBuffering] = useState(false);
   const [error, setError] = useState('');
@@ -92,18 +106,24 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
         state.index + 1 < state.queue.length ? state.index + 1 : state.repeat === 'all' ? 0 : -1
       ],
   );
-  const youTube = isYouTubeTrack(current);
+  /** A YouTube row plays from a local twin when one exists; the file always wins. */
+  const playable = resolvePlayable(current, tracks);
+  const youTube = !!playable?.fromYouTube;
+  const blob = playable?.track.blob;
   const youTubeTime = youTubeClock.id === current?.id ? youTubeClock.time : 0;
   const youTubeDuration = youTubeClock.id === current?.id ? youTubeClock.duration : 0;
   /** Read by callbacks that must not close over a stale render. */
   const youTubeRef = useRef(youTube);
   const youTubeTimeRef = useRef(youTubeTime);
+  const youTubeDurationRef = useRef(youTubeDuration);
   const currentIdRef = useRef(current?.id);
+  const edgeStartedAt = useRef(0);
   useEffect(() => {
     youTubeRef.current = youTube;
     youTubeTimeRef.current = youTubeTime;
+    youTubeDurationRef.current = youTubeDuration;
     currentIdRef.current = current?.id;
-  }, [youTube, youTubeTime, current?.id]);
+  }, [youTube, youTubeTime, youTubeDuration, current?.id]);
   const tempo = useMemo(() => {
     const analysis = current?.blob ? cachedAnalysis(current.blob) : undefined;
     return analysis ? Math.round(analysis.beats.bpm * 10) / 10 : undefined;
@@ -356,7 +376,97 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
     )
       engine.current?.cancelTransition();
   }, [tracks, state.queue]);
-  const blob = current?.blob;
+  /**
+   * Crossfades that involve a YouTube song.
+   *
+   * A YouTube song has no local bytes, so the beat-matched path cannot run. What
+   * still works is a real equal-power overlap between the embed and a local deck:
+   * one side ramps down while the other ramps up, inside a window sized from the
+   * two durations. The local side is driven by `MixAudio.fadeOut/fadeIn`, the
+   * embed by its own volume ramp, so both ends of the handover move together.
+   */
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const player = engine.current;
+      const latest = stateRef.current;
+      const ctx = context.current;
+      if (!player) return;
+      const currentRow = ctx.tracks.find((track) => track.id === latest.queue[latest.index]);
+      const nextIndex =
+        latest.index + 1 < latest.queue.length
+          ? latest.index + 1
+          : latest.repeat === 'all'
+            ? 0
+            : -1;
+      const nextRow = ctx.tracks.find((track) => track.id === latest.queue[nextIndex]);
+
+      if (!latest.playing || latest.repeat === 'one' || !ctx.mixEnabled || !nextRow) {
+        if (edgeRef.current) {
+          edgeRef.current = null;
+          player.cancelFade();
+          setEdge({ outgoingGain: 1, outgoingFade: 0.3 });
+        }
+        return;
+      }
+
+      const from = resolvePlayable(currentRow, ctx.tracks);
+      const to = resolvePlayable(nextRow, ctx.tracks);
+      if (!from || !to) return;
+
+      const running = edgeRef.current;
+      if (running && performance.now() - edgeStartedAt.current >= running.seconds * 1000) {
+        edgeRef.current = null;
+        dispatch({ type: 'jump', id: nextRow.id });
+        // The embed that faded in is now the song; anything else returns to unity.
+        setEdge((value) => ({
+          pending: running.direction === 'into' ? value.pending : undefined,
+          outgoingGain: 1,
+          outgoingFade: 0.3,
+        }));
+        return;
+      }
+      if (running) return;
+
+      // Keep the pending embed only while it is the song being handed over.
+      setEdge((value) =>
+        value.pending && value.pending.track.id !== latest.queue[latest.index]
+          ? { ...value, pending: undefined }
+          : value,
+      );
+
+      // Both sides local: the beat-matched planner owns this handover.
+      if (!from.fromYouTube && !to.fromYouTube) return;
+
+      const outgoingDuration = from.fromYouTube
+        ? youTubeDurationRef.current || currentRow?.duration || 0
+        : player.element.duration;
+      const position = from.fromYouTube ? youTubeTimeRef.current : player.element.currentTime;
+      if (!Number.isFinite(outgoingDuration) || outgoingDuration <= 0) return;
+      const { seconds } = planEdgeHandover(outgoingDuration, to.track.duration || 0);
+      const remaining = outgoingDuration - position;
+      if (remaining > seconds || remaining <= 0.2) return;
+
+      if (to.fromYouTube) {
+        edgeRef.current = { direction: 'into', seconds };
+        edgeStartedAt.current = performance.now();
+        player.fadeOut(seconds, true);
+        setEdge({
+          pending: { track: nextRow, fadeSeconds: seconds },
+          outgoingGain: 0,
+          outgoingFade: seconds,
+        });
+        return;
+      }
+      if (!to.track.blob) return;
+      edgeRef.current = { direction: 'outOf', seconds };
+      edgeStartedAt.current = performance.now();
+      player.load(to.track.blob);
+      void player.play().catch(() => undefined);
+      player.fadeIn(seconds);
+      setEdge({ outgoingGain: 0, outgoingFade: seconds });
+    }, 150);
+    return () => clearInterval(timer);
+  }, []);
   useEffect(() => {
     const player = engine.current;
     player?.load(blob);
@@ -600,6 +710,22 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
           onError: showYouTubeError,
         }
       : null,
+    /**
+     * The YouTube player to mount: the song being handed over (fading in) or the
+     * current song (possibly fading out under the next file).
+     */
+    stageYouTube: edge.pending
+      ? edge.pending.track.id === current?.id
+        ? { track: edge.pending.track, gain: 1, startGain: 1, fadeSeconds: 0.25 }
+        : {
+            track: edge.pending.track,
+            gain: 1,
+            startGain: 0,
+            fadeSeconds: edge.pending.fadeSeconds,
+          }
+      : youTube && current
+        ? { track: current, gain: edge.outgoingGain, startGain: 1, fadeSeconds: edge.outgoingFade }
+        : null,
     state,
     buffering,
     toggleMute,

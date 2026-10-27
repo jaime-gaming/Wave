@@ -17,14 +17,15 @@ Bring your audio files, find a favorite album, and press play. Wave keeps your c
 - **Mix, don't cut.** Wave analyses both songs in the background (tempo, beat grid and phase, 8/16-bar phrases, silence at the ends, drops, vocal regions), then joins them on a beat: an equal-power overlap of 8 or 16 bars, tempo matched within 8 % with pitch preserved, bass swapped in the middle, and a different entry point when the incoming song starts with vocals. Files are never modified; the stretch is playback-only and ends with the transition.
 - **Follow every word.** Word-by-word highlighting is built in: exact when the file carries word timestamps, a labelled estimate otherwise, and the line-level view when a lyric has no timings at all.
 - **Watch the clip.** The clip is found automatically: Wave searches YouTube, keeps the upload whose title and length match the song, and uses it as a muted backdrop with Wave's own controls. Small drift is corrected by easing the clip rate instead of jumping the picture. No YouTube UI, no YouTube audio from the clip.
-- **Add music from anywhere you own it.** Import files from this device, or paste a YouTube link and play the song through YouTube's own player — with its video, Wave's transport and no downloading.
+- **Add music from anywhere you own it.** Import files from this device, or paste a YouTube link and play the song through YouTube's own player, with its video, Wave's transport and no downloading. If the same song is imported as a file, the file is used, because it works offline and can be mixed.
+- **Know what needs a connection.** Lyric search, clip discovery and adding from YouTube turn grey and say **Offline** when there is no network. Saved lyrics, remembered clips and your own files keep working.
 - **Make it comfortable.** Light/dark themes, artwork colors, larger text and reduced motion. Phone controls are designed for touch.
 
 ### A closer look
 
 ![A browsable daily mix with songs, Play, Shuffle and Save as playlist](docs/media/daily-mix-desktop.png)
 
-Daily mixes use your existing genre and artist tags, not a remote recommendation service. Small libraries may show fewer than three. Saving a mix keeps an ordinary playlist; tomorrow's selection won't overwrite it.
+Daily mixes use your existing genre tags, plus the tempo and energy Wave already measures for Mix, and order songs to build up rather than jump around. The same artist never plays twice in a row. No remote recommendation service is involved, and saving a mix keeps an ordinary playlist you can edit.
 
 ![Now Playing with artwork and synchronized lyrics](docs/media/now-playing-desktop.png)
 
@@ -32,7 +33,7 @@ Daily mixes use your existing genre and artist tags, not a remote recommendation
 
 [Watch the 60-second demo →](docs/media/wave-0.1.0-promo.mp4)
 
-Lyric searches reuse saved results, coordinate requests and respect provider retry times. LRCLIB can still be temporarily busy; imported LRC files and saved lyrics work offline.
+Lyric searches reuse saved results, coordinate requests and respect provider retry times. LRCLIB can still be temporarily busy; imported LRC files and saved lyrics work offline. Word-by-word timing comes from the lyric file when it has it, from optional extra sources (NetEase, Kugou) when you turn them on, and otherwise from a labelled estimate.
 
 Screenshots and video show the web app with original demo artwork and lyric text. Your own collection starts empty.
 
@@ -71,7 +72,7 @@ Unsigned downloads can trigger SmartScreen or antivirus warnings. Wave uses norm
 - [Platforms and downloads](docs/PLATFORMS.md)
 - [Development and tests](docs/DEVELOPMENT.md)
 - [Roadmap](docs/ROADMAP.md)
-- [Wave 1.1 specification: sync, YouTube and playlist import](docs/SPEC_1.1.md) — sync and playlist import remain internal foundations
+- [Wave 1.1 specification: sync, YouTube and playlist import](docs/SPEC_1.1.md): sync and playlist import remain internal foundations
 - [Privacy and data flow](PRIVACY.md)
 - [All validation results and limits](docs/VALIDATION.md)
 

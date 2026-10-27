@@ -74,3 +74,48 @@ export function youtubeTrack(
 /** True when a track is played from YouTube rather than from a local file. */
 export const isYouTubeTrack = (track: Pick<Track, 'source'> | undefined): boolean =>
   track?.source === 'youtube';
+
+/**
+ * A song can exist twice: as a file on this device and as a YouTube link.
+ *
+ * The file always wins. It plays offline, it is analysed for Mix, and it is the
+ * copy the user actually owns. The YouTube record stays in the library so the
+ * song is not lost if the file is removed later.
+ */
+export function localTwin(track: Track, tracks: Track[]): Track | undefined {
+  if (!track.videoId) return undefined;
+  const title = canonicalTitle(track.title);
+  const artist = canonicalTitle(track.artist);
+  if (!title) return undefined;
+  return tracks.find(
+    (candidate) =>
+      candidate.blob &&
+      canonicalTitle(candidate.title) === title &&
+      (!artist || canonicalTitle(candidate.artist) === artist),
+  );
+}
+
+const canonicalTitle = (value: string) =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/gu, '')
+    .toLowerCase()
+    .replace(/\((?:official|lyrics?|audio|video)[^)]*\)/gu, ' ')
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/gu, ' ')
+    .trim();
+
+export interface Playable {
+  /** The record that provides the bytes, when there are any. */
+  track: Track;
+  /** True when the song is played from the embed rather than from a file. */
+  fromYouTube: boolean;
+}
+
+/** Resolves what should actually sound for a library row. */
+export function resolvePlayable(track: Track | undefined, tracks: Track[]): Playable | undefined {
+  if (!track) return undefined;
+  if (!isYouTubeTrack(track)) return { track, fromYouTube: false };
+  const twin = localTwin(track, tracks);
+  return twin ? { track: twin, fromYouTube: false } : { track, fromYouTube: true };
+}

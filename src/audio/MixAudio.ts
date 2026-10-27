@@ -45,6 +45,15 @@ export class MixAudio {
   private blocked?: Blob;
   private generation = 0;
   private volume = 1;
+  /** Master ramp used when a YouTube song takes over or hands back control. */
+  private fadeState: {
+    from: number;
+    to: number;
+    start: number;
+    seconds: number;
+    pauseAtEnd: boolean;
+  } | null = null;
+  private fadeGain = 1;
   private lastReport = 0;
   private playing = false;
   private playIntent = 0;
@@ -138,11 +147,12 @@ export class MixAudio {
     this.graph.setBass(deck.element, 0);
   }
   private applyDeckGain(deck: Deck, gain: number) {
+    const value = Math.max(0, Math.min(1, gain));
     if (this.graph) {
-      this.graph.setGain(deck.element, gain);
+      this.graph.setGain(deck.element, value);
       deck.element.volume = this.volume;
     } else {
-      deck.element.volume = gain * this.volume;
+      deck.element.volume = value * this.volume;
     }
   }
   private createDeck(): Deck {
@@ -393,12 +403,55 @@ export class MixAudio {
     }
     this.active.element.volume = this.volume;
   }
+  /**
+   * Ramps the whole deck down over `seconds`. Used when a YouTube song takes
+   * over: the local element keeps its position but goes quiet with the same
+   * equal-power curve the embed applies to itself.
+   */
+  fadeOut(seconds: number, pauseAtEnd = true) {
+    this.startFade(1, 0, seconds, pauseAtEnd);
+  }
+  /** Ramps the deck back up, used when control returns from a YouTube song. */
+  fadeIn(seconds: number) {
+    this.startFade(0, 1, seconds, false);
+  }
+  cancelFade() {
+    this.fadeState = null;
+    this.fadeGain = 1;
+    this.applyGains();
+  }
+  private startFade(from: number, to: number, seconds: number, pauseAtEnd: boolean) {
+    const length = Math.max(0, Number.isFinite(seconds) ? seconds : 0);
+    if (length < 0.05) {
+      this.fadeGain = to;
+      this.fadeState = null;
+      if (to === 0 && pauseAtEnd) this.element.pause();
+      this.applyGains();
+      return;
+    }
+    this.fadeState = { from, to, start: performance.now(), seconds: length, pauseAtEnd };
+    this.fadeGain = from;
+    if (from === 0) this.element.volume = 0;
+  }
+  private updateFade() {
+    const fade = this.fadeState;
+    if (!fade) return;
+    const p = Math.min(1, (performance.now() - fade.start) / (fade.seconds * 1000));
+    this.fadeGain = fade.from + (fade.to - fade.from) * p;
+    if (p >= 1) {
+      this.fadeState = null;
+      this.fadeGain = fade.to;
+      if (fade.to === 0 && fade.pauseAtEnd) this.element.pause();
+    }
+  }
   setVolume(volume: number) {
     for (const deck of [this.active, this.spare]) if (deck) deck.element.muted = volume === 0;
     this.volume = volume;
     this.applyGains();
   }
   private applyGains() {
+    this.updateFade();
+    const master = this.volume * this.fadeGain;
     if (!this.fading) {
       for (const deck of [this.active, this.spare]) {
         if (deck && this.graph) {
@@ -406,7 +459,7 @@ export class MixAudio {
           this.graph.setGain(deck.element, 1);
         }
       }
-      this.active.element.volume = this.volume;
+      this.active.element.volume = master;
       return;
     }
     const progress = Math.max(
