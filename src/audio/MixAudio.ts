@@ -1,4 +1,11 @@
 import { mixCues, mixGains, type MixCues } from '../domain/mix';
+import {
+  clampCrossfadeSeconds,
+  crossfadeGains,
+  CROSSFADE_DEFAULT_SECONDS,
+  planCrossfade,
+  type MixStyle,
+} from '../domain/mixPlan';
 import { sourceEnvelope } from './sourceEnvelope';
 interface Deck {
   element: HTMLAudioElement;
@@ -28,9 +35,12 @@ export class MixAudio {
     start: number;
     seconds: number;
     cue: number;
-    mix: boolean;
+    style: MixStyle;
+    mixed: boolean;
   };
   private mixEnabled = false;
+  private mixStyle: MixStyle = 'blend';
+  private crossfadeSeconds = CROSSFADE_DEFAULT_SECONDS;
   private profiles = new WeakMap<Blob, MixCues>();
   private requested = new WeakSet<Blob>();
   private pending = false;
@@ -66,6 +76,19 @@ export class MixAudio {
   }
   get transitioning() {
     return !!this.fading;
+  }
+  /** Apple-style equal-power crossfade or Wave's staged blend. */
+  setMixStyle(style: MixStyle) {
+    this.mixStyle = style === 'crossfade' ? 'crossfade' : 'blend';
+  }
+  get style() {
+    return this.mixStyle;
+  }
+  setCrossfadeSeconds(seconds: number) {
+    this.crossfadeSeconds = clampCrossfadeSeconds(seconds);
+  }
+  get crossfadeLength() {
+    return this.crossfadeSeconds;
   }
   setMixEnabled(enabled: boolean) {
     this.mixEnabled = enabled;
@@ -253,8 +276,23 @@ export class MixAudio {
       !this.playing
     )
       return;
-    const cue = this.cues(incoming).start;
-    const length = Math.min(seconds, this.mixRemaining, (incoming.element.duration - cue) / 2);
+    const outgoingCues = this.cues(outgoing),
+      incomingCues = this.cues(incoming);
+    let cue = incomingCues.start;
+    let length = Math.min(seconds, this.mixRemaining, (incoming.element.duration - cue) / 2);
+    if (this.mixStyle === 'crossfade') {
+      // Equal-power overlap of the length the user chose, kept inside audible
+      // audio and never longer than what is actually left of the outgoing song.
+      const plan = planCrossfade({
+        outgoingDuration: outgoing.element.duration,
+        incomingDuration: incoming.element.duration,
+        outgoingCues,
+        incomingCues,
+        requestedSeconds: this.crossfadeSeconds,
+      });
+      cue = plan.cue;
+      length = Math.min(plan.seconds, this.mixRemaining);
+    }
     if (length < 0.1) return;
     this.pending = true;
     const generation = this.generation;
@@ -279,7 +317,8 @@ export class MixAudio {
           start: performance.now(),
           seconds: length,
           cue,
-          mix: this.mixEnabled,
+          style: this.mixStyle,
+          mixed: this.mixEnabled,
         };
         this.callbacks.buffering(false);
         this.report();
@@ -320,7 +359,10 @@ export class MixAudio {
         (this.fading.incoming.element.currentTime - this.fading.cue) / this.fading.seconds,
       ),
     );
-    const gains = mixGains(progress, this.fading.mix);
+    const gains =
+      this.fading.style === 'crossfade'
+        ? crossfadeGains(progress)
+        : mixGains(progress, this.fading.mixed);
     this.fading.outgoing.element.volume = this.volume * gains.outgoing;
     this.fading.incoming.element.volume = this.volume * gains.incoming;
     if (progress >= 1) {

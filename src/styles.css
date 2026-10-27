@@ -5444,3 +5444,59 @@ select {
     padding-bottom: calc(84px + env(safe-area-inset-bottom));
   }
 }
+
+/* Playback options: mix style, crossfade length and other multi-choice rows. */
+.settings-option-block {
+  display: grid;
+  gap: 10px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--outline);
+}
+.settings-option-block strong {
+  display: block;
+  margin-bottom: 4px;
+}
+.settings-option-block p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+  max-width: 60ch;
+}
+.settings-choice {
+  display: inline-flex;
+  padding: 3px;
+  gap: 3px;
+  border-radius: 999px;
+  background: var(--container);
+  width: fit-content;
+}
+.settings-choice button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  padding: 7px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.settings-choice button.active {
+  background: var(--container-high);
+  color: var(--text);
+  font-weight: 700;
+}
+.settings-choice button:focus-visible,
+.settings-slider:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.settings-slider {
+  width: min(320px, 100%);
+  accent-color: var(--primary);
+}
+
+/* Word-by-word lyrics: estimated timings look softer than provider timings. */
+.lyric-word[data-word-source='derived'] {
+  transition: background-image 0.08s linear;
+}

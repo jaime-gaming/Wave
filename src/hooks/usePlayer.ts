@@ -1,4 +1,5 @@
 import { automaticMixSeconds } from '../domain/mix';
+import { clampCrossfadeSeconds, CROSSFADE_DEFAULT_SECONDS, type MixStyle } from '../domain/mixPlan';
 import { continuationQueue } from '../domain/continuation';
 import { readPlaybackSession, writePlaybackSession } from '../domain/playbackSession';
 import { MixAudio } from '../audio/MixAudio';
@@ -35,6 +36,16 @@ function savedAutoplay() {
 export function usePlayer(tracks: Track[], libraryReady = true) {
   const [saved] = useState(readPlaybackSession);
   const [mixEnabled, setMixEnabled] = useState(savedMix);
+  const [mixStyle, setMixStyleState] = useState<MixStyle>(() =>
+    typeof localStorage !== 'undefined' && localStorage.getItem('wave-mix-style') === 'blend'
+      ? 'blend'
+      : 'crossfade',
+  );
+  const [crossfadeSeconds, setCrossfadeSecondsState] = useState(() => {
+    const saved =
+      typeof localStorage !== 'undefined' ? Number(localStorage.getItem('wave-crossfade')) : NaN;
+    return clampCrossfadeSeconds(Number.isFinite(saved) ? saved : CROSSFADE_DEFAULT_SECONDS);
+  });
   const [autoplay, setAutoplay] = useState(savedAutoplay);
   const recent = useRef<string[]>([]);
   const positions = useRef(saved.positions);
@@ -55,7 +66,7 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
   const [buffering, setBuffering] = useState(false);
   const [error, setError] = useState('');
   const engine = useRef<MixAudio | null>(null);
-  const context = useRef({ tracks, mixEnabled, autoplay });
+  const context = useRef({ tracks, mixEnabled, autoplay, mixStyle, crossfadeSeconds });
   const stateRef = useRef(state);
   const current = tracks.find((track) => track.id === state.queue[state.index]);
 
@@ -82,11 +93,15 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
   }, [libraryReady, tracks, state]);
   useEffect(() => {
     stateRef.current = state;
-    context.current = { tracks, mixEnabled, autoplay };
-  }, [state, tracks, mixEnabled, autoplay]);
+    context.current = { tracks, mixEnabled, autoplay, mixStyle, crossfadeSeconds };
+    engine.current?.setMixStyle(mixStyle);
+    engine.current?.setCrossfadeSeconds(crossfadeSeconds);
+  }, [state, tracks, mixEnabled, autoplay, mixStyle, crossfadeSeconds]);
   useEffect(() => {
     try {
       localStorage.setItem('wave-mix-v2', String(mixEnabled));
+      localStorage.setItem('wave-mix-style', mixStyle);
+      localStorage.setItem('wave-crossfade', String(crossfadeSeconds));
       localStorage.setItem('wave-autoplay', String(autoplay));
     } catch {
       /* Session preferences. */
@@ -96,7 +111,7 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
       engine.current?.prepare();
     }
     engine.current?.setMixEnabled(mixEnabled);
-  }, [mixEnabled, autoplay]);
+  }, [mixEnabled, mixStyle, crossfadeSeconds, autoplay]);
   useEffect(() => {
     if (current?.id && recent.current.at(-1) !== current.id)
       recent.current = [...recent.current.slice(-31), current.id];
@@ -226,6 +241,8 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
     });
     engine.current = player;
     player.setMixEnabled(context.current.mixEnabled);
+    player.setMixStyle(context.current.mixStyle);
+    player.setCrossfadeSeconds(context.current.crossfadeSeconds);
     return () => {
       player.destroy();
       engine.current = null;
@@ -400,6 +417,11 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
   return {
     mixEnabled,
     setMixEnabled,
+    mixStyle,
+    setMixStyle: setMixStyleState,
+    crossfadeSeconds,
+    setCrossfadeSeconds: (seconds: number) =>
+      setCrossfadeSecondsState(clampCrossfadeSeconds(seconds)),
     autoplay,
     setAutoplay,
     reorderQueue,

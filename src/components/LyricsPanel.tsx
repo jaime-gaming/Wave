@@ -23,6 +23,7 @@ import {
   type Lyrics,
   type LyricLine,
 } from '../domain/lyrics';
+import { karaokeWords, wordProgress } from '../domain/wordTiming';
 import type { Track } from '../domain/types';
 import { useWaveMotion } from '../ui/motion';
 const LyricRow = memo(function LyricRow({
@@ -36,11 +37,13 @@ const LyricRow = memo(function LyricRow({
   offsetMs = 0,
   nextLine,
   duration,
+  karaoke = false,
 }: {
   seconds?: number;
   offsetMs?: number;
   nextLine?: number;
   duration?: number;
+  karaoke?: boolean;
   readOnly?: boolean;
   line: LyricLine;
   active: boolean;
@@ -54,6 +57,21 @@ const LyricRow = memo(function LyricRow({
     ...word,
     fill: timedWordProgress(word, seconds, offsetMs, nextLine, duration),
   }));
+  // Word-by-word timing: provider timestamps when the file has them, otherwise
+  // a deterministic estimate derived from the line window.
+  const karaokeTokens = useMemo(() => {
+    if (!karaoke || line.time === undefined) return null;
+    const words = karaokeWords(line, nextLine, duration);
+    if (!words.length) return null;
+    const clock = seconds - offsetMs / 1000;
+    return words.map((word) => ({
+      text: word.text,
+      start: word.start,
+      end: word.end,
+      source: word.source,
+      fill: wordProgress(word, clock),
+    }));
+  }, [karaoke, line, nextLine, duration, seconds, offsetMs]);
   const Row = readOnly ? motion.p : motion.button;
   return (
     <Row
@@ -81,7 +99,7 @@ const LyricRow = memo(function LyricRow({
         aria-hidden="true"
         data-fill={active ? progress : passed ? 1 : 0}
       >
-        {(wordTokens ?? tokens).map((token, i) => {
+        {(karaokeTokens ?? wordTokens ?? tokens).map((token, i) => {
           const fill = passed
             ? 1
             : 'fill' in token
@@ -102,6 +120,9 @@ const LyricRow = memo(function LyricRow({
               key={i}
               className="lyric-word"
               data-word-fill={fill}
+              data-word-source={
+                'source' in token ? (token as { source: string }).source : undefined
+              }
               style={{
                 backgroundImage: `linear-gradient(90deg, var(--player-ink) ${fill * 100}%, var(--player-muted) ${fill * 100}%)`,
               }}
@@ -128,11 +149,14 @@ export function LyricsPanel({
   onOffset,
   stage = false,
   cinematic = false,
+  karaoke = false,
 }: {
   readTime?: () => number;
   playing?: boolean;
   stage?: boolean;
   cinematic?: boolean;
+  /** Word-by-word highlighting; estimated timings are labelled as such. */
+  karaoke?: boolean;
   track: Track;
   time: number;
   duration?: number;
@@ -358,6 +382,7 @@ export function LyricsPanel({
                   offsetMs={lyrics.offsetMs}
                   nextLine={lyrics.lines.slice(i + 1).find((next) => next.time! > line.time!)?.time}
                   duration={duration}
+                  karaoke={karaoke}
                 />
               ) : (
                 <p

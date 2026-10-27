@@ -265,3 +265,59 @@ it('mixes from conservative cue points with the unshifted recording clock and or
   engine.setMixEnabled(false);
   expect(engine.mixRemaining).toBeCloseTo(17.85);
 });
+
+it('crossfades with equal-power gains at the length the user chose', async () => {
+  const events = { ...callbacks(), blend: vi.fn() };
+  vi.mocked(sourceEnvelope).mockResolvedValue(undefined);
+  engine = new MixAudio(events);
+  const a = new Blob(['song a']),
+    b = new Blob(['song b']);
+  engine.load(a);
+  Object.defineProperty(elements[0], 'duration', { value: 30 });
+  engine.setMixStyle('crossfade');
+  engine.setCrossfadeSeconds(6);
+  expect(engine.style).toBe('crossfade');
+  expect(engine.crossfadeLength).toBe(6);
+  engine.setMixEnabled(true);
+  await engine.play();
+  engine.prepare(b);
+  Object.defineProperty(elements[1], 'duration', { value: 30 });
+  elements[1].dispatchEvent(new Event('loadedmetadata'));
+  await Promise.resolve();
+
+  // Six seconds before the end, the incoming song starts at its cue and the two
+  // decks follow the equal-power curve.
+  elements[0].currentTime = 26;
+  expect(engine.mixRemaining).toBeCloseTo(4);
+  engine.transition(
+    b,
+    4,
+    () => true,
+    () => {},
+  );
+  await Promise.resolve();
+  expect(engine.active.blob).toBe(b);
+  // Halfway through a 4 s overlap (clamped to what is actually left) both decks
+  // sit at the same level, which is the defining property of an equal-power fade.
+  elements[1].currentTime = 2;
+  vi.advanceTimersByTime(100);
+  expect(elements[0].volume).toBeCloseTo(Math.SQRT1_2, 3);
+  expect(elements[1].volume).toBeCloseTo(Math.SQRT1_2, 3);
+  const total = Math.hypot(...elements.map((element) => element.volume));
+  expect(total).toBeCloseTo(1, 5);
+  expect(events.blend).toHaveBeenLastCalledWith(
+    expect.objectContaining({ incoming: b, outgoing: a }),
+  );
+});
+
+it('clamps crossfade lengths to the supported range', () => {
+  engine = new MixAudio(callbacks());
+  engine.setCrossfadeSeconds(0.2);
+  expect(engine.crossfadeLength).toBe(1);
+  engine.setCrossfadeSeconds(40);
+  expect(engine.crossfadeLength).toBe(12);
+  engine.setCrossfadeSeconds(Number.NaN);
+  expect(engine.crossfadeLength).toBe(6);
+  engine.setMixStyle('nonsense' as unknown as 'blend');
+  expect(engine.style).toBe('blend');
+});

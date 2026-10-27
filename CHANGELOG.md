@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — Mix, karaoke lyrics, video clip and import formats
+
+- Add an Apple Music style Mix: an equal-power crossfade with a 1–12 s length the user chooses, started inside audible audio and never longer than half of either song. Wave's staged blend remains available as a second style. Only `volume` is scheduled: files, sample rate, bit depth and bitrate are untouched.
+- Add word-by-word lyric highlighting. Enhanced LRC/SYLT word timestamps are used exactly; ordinary synced lyrics get a deterministic estimate from syllables and punctuation, labelled `derived` in the DOM and explained in Settings.
+- Add a video clip backdrop for Now Playing: a muted `youtube-nocookie` embed with its own chrome hidden, driven by Wave's transport, with drift detection, a ±10 s sync offset, local per-song clip storage and an explicit YouTube link. YouTube's watermark, ads and overlay cannot be removed by Wave and the clip is never used for audio.
+- Restrict importing to **MP3, WAV, M4A and OGG** as requested; previously imported FLAC/AIFF/Opus/WebM/AAC songs keep playing, and the import summary now names the accepted formats.
+- New UI: Mix style and length in Settings → Playback, word-by-word toggle in Settings → Lyrics, video clip switch in Settings → Playback and a Film button in Now Playing.
+
 ## Unreleased — Wave 1.1 foundation
 
 - Establish audio integrity as a non-negotiable invariant: copies are compared with whole-file SHA-256 before storage, sizes must match exactly, lossless sources keep their sample rate and bit depth, and no transfer path can re-encode or resample. Verified with a 24-bit WAV round trip.

@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { fileIdentity, isAudioFile, readTrack } from './import';
+import { fileIdentity, isAudioFile, isLegacyAudioFile, readTrack } from './import';
 
 describe('audio import', () => {
   it('accepts known extensions irrespective of case and rejects unrelated files', () => {
     expect(isAudioFile(new File(['x'], 'track.MP3'))).toBe(true);
-    expect(isAudioFile(new File(['x'], 'track.flac'))).toBe(true);
+    expect(isAudioFile(new File(['x'], 'track.flac'))).toBe(false);
+    expect(isAudioFile(new File(['x'], 'track.wav'))).toBe(true);
+    expect(isAudioFile(new File(['x'], 'track.M4A'))).toBe(true);
+    expect(isAudioFile(new File(['x'], 'track.ogg'))).toBe(true);
+    expect(isLegacyAudioFile(new File(['x'], 'track.flac'))).toBe(true);
+    expect(isLegacyAudioFile(new File(['x'], 'track.mp3'))).toBe(false);
     expect(isAudioFile(new File(['x'], 'track.txt', { type: 'audio/mpeg' }))).toBe(false);
   });
   it('uses stable file identity and distinguishes filename, size, and modification time', async () => {

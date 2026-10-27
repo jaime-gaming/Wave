@@ -49,7 +49,7 @@ describe('library workflow', () => {
     expect(result.current.tracks).toHaveLength(1);
     expect(saveTrack).toHaveBeenCalledTimes(1);
     expect(result.current.message).toContain('1 already');
-    expect(result.current.message).toContain('1 unsupported');
+    expect(result.current.message).toContain('1 skipped (MP3, WAV, M4A or OGG, up to 200 MB)');
     expect(result.current.progress).toBeNull();
   });
   it('keeps successful imports when a later write fails', async () => {
