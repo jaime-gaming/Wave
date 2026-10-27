@@ -3,6 +3,8 @@ import { lyricsCooldown, rememberLyricsCooldown } from './lyricsCooldown';
 import { parseLyrics, validLyricTimeline, type Lyrics } from '../domain/lyrics';
 import { lyricsKey, type LyricsLookup } from '../domain/lyricsLookup';
 import { lookupMetadata, recordingMatch } from '../domain/lyricsMatch';
+import { extendedLyricsEnabled, fetchWordLyrics, wordProviderName } from './lyricsExtra';
+import { lyricText } from '../domain/wordLyrics';
 import type { Track } from '../domain/types';
 export interface LyricsResult {
   lookup: LyricsLookup;
@@ -59,6 +61,33 @@ async function fetchLyrics(track: Track, signal: AbortSignal): Promise<LyricsRes
   try {
     const metadata = lookupMetadata(track);
     if (!metadata.artist || !metadata.title) return { lookup };
+
+    /**
+     * Opt-in word-level providers come first: when one answers, the lyrics carry
+     * real per-word timings and there is nothing for LRCLIB to improve. Any
+     * failure (offline, timeout, no match) simply falls through to LRCLIB.
+     */
+    if (extendedLyricsEnabled()) {
+      const wordLyrics = await fetchWordLyrics(
+        { title: metadata.title, artist: metadata.artist, duration: track.duration },
+        { signal: controller.signal },
+      );
+      if (wordLyrics) {
+        const raw = lyricText(wordLyrics.lines);
+        try {
+          const lyrics = parseLyrics(raw, 0, wordLyrics.provider);
+          // Keep the parsed timings: the raw text only carries line times.
+          lyrics.lines = wordLyrics.lines;
+          lyrics.offsetMs = wordLyrics.offsetMs;
+          lyrics.provider = wordProviderName(wordLyrics.provider);
+          const numeric = Number(wordLyrics.providerId);
+          if (Number.isSafeInteger(numeric) && numeric > 0) lyrics.providerId = numeric;
+          return { lookup: { ...lookup, status: 'found' }, lyrics };
+        } catch {
+          /* A malformed payload must not stop the LRCLIB path. */
+        }
+      }
+    }
     const params = new URLSearchParams({
       track_name: metadata.title,
       artist_name: metadata.artist,

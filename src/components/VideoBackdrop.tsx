@@ -12,6 +12,7 @@ import {
 } from '../domain/videoSync';
 import { getClip, loadClips, removeClip, saveClip, type StoredClip } from '../domain/videoClips';
 import { findClip, rememberClip } from '../services/clipSearch';
+import { networkAriaLabel, networkLabel, useOnline } from '../ui/network';
 import type { Track } from '../domain/types';
 
 const OFFLINE: VideoState = { position: 0, playing: false, ready: false };
@@ -51,12 +52,16 @@ export function VideoBackdrop({
     'searching',
   );
   const [attempt, setAttempt] = useState(0);
+  const online = useOnline();
   const clip = getClip(track.id, clips);
 
   // The clip is discovered, not pasted: search once per song and open the match.
   // Only title and artist leave the device; the result is remembered locally.
   useEffect(() => {
     if (clip) return;
+    // Nothing to search without a connection. The panel says so; the effect runs
+    // again as soon as the browser reports a network, so nothing gets stuck.
+    if (!online) return;
     const controller = new AbortController();
     void findClip(
       { title: track.title, artist: track.artist, duration: track.duration },
@@ -70,7 +75,7 @@ export function VideoBackdrop({
       setSearch(result.status === 'empty' ? 'empty' : 'unavailable');
     });
     return () => controller.abort();
-  }, [clip, track.id, track.title, track.artist, track.duration, attempt]);
+  }, [clip, online, track.id, track.title, track.artist, track.duration, attempt]);
 
   const add = () => {
     const result = saveClip(track.id, draft);
@@ -106,13 +111,15 @@ export function VideoBackdrop({
         <p>
           <strong>Video clip</strong>
           <span>
-            {search === 'searching'
-              ? 'Looking for this song on YouTube…'
-              : search === 'empty'
-                ? 'No clip matched this song closely enough. Paste a link if you know one.'
-                : search === 'unavailable'
-                  ? 'Clip search is unreachable right now. Paste a link, or try again later.'
-                  : 'Paste the YouTube link for this song.'}{' '}
+            {!online
+              ? 'Clip search needs a connection. A saved clip still plays.'
+              : search === 'searching'
+                ? 'Looking for this song on YouTube…'
+                : search === 'empty'
+                  ? 'No clip matched this song closely enough. Paste a link if you know one.'
+                  : search === 'unavailable'
+                    ? 'Clip search is unreachable right now. Paste a link, or try again later.'
+                    : 'Paste the YouTube link for this song.'}{' '}
             The clip is muted and Wave keeps its own controls; audio still comes from your file.
           </span>
         </p>
@@ -120,12 +127,14 @@ export function VideoBackdrop({
           <button
             type="button"
             className="text-button"
+            disabled={!online}
+            aria-label={networkAriaLabel(online, 'Search again')}
             onClick={() => {
               setSearch('searching');
               setAttempt((n) => n + 1);
             }}
           >
-            Search again
+            {networkLabel(online, 'Search again')}
           </button>
         )}
         <div className="video-clip-form">

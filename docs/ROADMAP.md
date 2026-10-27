@@ -162,7 +162,12 @@ no interface, provider client or Android port exists yet.
 - [x] Automatic clip discovery (Piped/Invidious), ranked by title, channel and length; muted embed with hidden chrome, rate-based drift correction and local per-song storage. Manual link entry stays as a fallback.
 - [x] Import MP3, WAV, M4A, OGG and FLAC; FLAC is stored and played untouched.
 - [x] Add music asks **From this device** or **From YouTube**; YouTube songs play through the official embed with Wave's transport.
+- [x] Mix across YouTube songs: equal-power crossfade between the embed and a local deck, with the local file preferred when the same song is imported.
+- [x] Offline states on controls that need the network (text replaced by **Offline**, icon controls keep their name).
+- [x] Daily mixes ordered by measured tempo and energy, with artist spreading and a one-line descriptor.
+- [x] Opt-in word-level lyric sources (NetEase YRC, Kugou KRC) behind a Settings switch and a PRIVACY note.
 - [ ] Real-device drift measurement for the clip on slow connections, and a screenshot-level review of the backdrop on small phones.
+- [ ] Real-device check of a YouTube crossfade: embed volumes, autoplay policy and the handover window on a slow connection.
 - [ ] Mix against real DJ material with long intros, rubato sections and half/double-time false positives.
 - [ ] Review the clip-search providers' availability and terms, and allow a user-supplied instance.
 

@@ -14,6 +14,14 @@ Automatic lookup is **off initially**; the web also requires its consent prefere
 
 LRCLIB receives title, artist, optional album/duration and the client identifier. Its servers necessarily receive connection information such as an IP address; HTTPS does not hide this from the recipient. Audio files and artwork are not sent. Saved text and lookup state are local; no account credentials are sent. A failed lookup can try structured/free-text searches, never upload music. Native implementations have a smaller search/cache feature set than web.
 
+### Extra word-level sources (opt-in)
+
+Word-by-word timing needs providers that publish it. The optional **Word-level lyric sources** switch (Settings → Lyrics, off by default) also asks NetEase and Kugou for the same song. Only the title and artist are sent; both services see connection information such as an IP address, and both are community endpoints without a published API contract. Responses are parsed on the device and saved locally as ordinary lyrics, with the provider named in the lyrics panel. Turning the switch off stops new requests; saved lyrics stay. If either service answers with word timing that does not fit the file's duration, it is discarded and LRCLIB is used instead.
+
+### Video clips and YouTube songs
+
+Clip discovery sends the song title and artist to public Piped or Invidious instances and keeps the chosen video id locally; no audio or image leaves the device. Adding a song from YouTube sends only the video id to YouTube's oEmbed endpoint to read its public title. A YouTube song and any muted backdrop clip stream directly from YouTube: that traffic, and the fact that you watched a video, belongs to YouTube's own policy, not to Wave. Wave never downloads, proxies or extracts that audio.
+
 Provider: https://lrclib.net/docs. Its terms/privacy endpoints were not available during this review; retention, operator identity, transfer location and a blanket lyrics license were **not verified**. A third-party API's availability is not a copyright clearance. Deployment maintainers must verify these before promoting the integration publicly. For maximal local privacy, leave automatic lyrics off and paste lawful local text/LRC instead.
 
 ## Local metadata checks (web)

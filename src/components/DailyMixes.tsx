@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowUpRight } from 'lucide-react';
-import { dailyMixes, localDayKey, type DailyMix } from '../domain/dailyMixes';
+import { motion } from 'motion/react';
+import { useWaveMotion } from '../ui/motion';
+import { dailyMixes, localDayKey, type DailyMix, type FeatureMap } from '../domain/dailyMixes';
+import { cachedAnalysis, primeAnalysis } from '../audio/mixAnalysis';
 import { playlistIcon } from '../domain/playlistVisual';
 import type { Track } from '../domain/types';
 import { Artwork } from './Artwork';
@@ -12,6 +15,7 @@ export function DailyMixes({
   onOpen: (mix: DailyMix, number: number) => void;
 }) {
   const [day, setDay] = useState(localDayKey);
+  const animation = useWaveMotion();
   useEffect(() => {
     const refresh = () => setDay(localDayKey());
     const now = new Date();
@@ -30,19 +34,51 @@ export function DailyMixes({
       document.removeEventListener('visibilitychange', refresh);
     };
   }, [day]);
-  const mixes = useMemo(() => dailyMixes(tracks, day), [tracks, day]);
+  /**
+   * Tempo and energy come from the Mix analysis that already runs in a worker.
+   * Until a song has been measured the mix simply keeps its tag-based order, so
+   * nothing waits on analysis to appear.
+   */
+  const mixes = useMemo(() => {
+    const features: FeatureMap = {};
+    for (const track of tracks) {
+      const analysis = track.blob ? cachedAnalysis(track.blob) : undefined;
+      if (!analysis) continue;
+      features[track.id] = {
+        bpm: analysis.beats.bpm,
+        energy: analysis.peak > 0 ? Math.min(1, analysis.peak) : undefined,
+      };
+    }
+    return dailyMixes(tracks, day, features);
+  }, [tracks, day]);
+  // Analysing the songs a mix would use makes the next visit already ordered.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      for (const track of tracks.slice(0, 24)) if (track.blob) primeAnalysis(track.blob);
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [tracks]);
   if (!mixes.length) return null;
   return (
     <section className="daily-mixes" aria-label="Daily mixes">
       <div className="section-heading">
         <h2>Daily mixes</h2>
-        <p>From your local library</p>
+        <p>Built from your tags and tempo, ordered for listening</p>
       </div>
-      <div className="daily-mix-grid">
+      <motion.div
+        className="daily-mix-grid"
+        variants={animation.stagger}
+        initial="hidden"
+        animate="visible"
+      >
         {mixes.map((mix, index) => (
-          <button
+          <motion.button
             key={mix.id}
             className="daily-mix-card"
+            variants={animation.rise}
+            transition={animation.expressive}
+            whileHover={animation.enabled ? { y: -3 } : undefined}
+            whileTap={animation.enabled ? { scale: 0.99 } : undefined}
             aria-label={`Open Daily mix ${index + 1}: ${mix.label}`}
             onClick={() => onOpen(mix, index + 1)}
           >
@@ -57,14 +93,12 @@ export function DailyMixes({
             <span className="daily-mix-copy">
               <strong>Daily mix {index + 1}</strong>
               <span title={mix.label}>{mix.label}</span>
-              <small>
-                {mix.tracks.length} songs · {mix.basis === 'genre' ? 'Genre tags' : 'Artist tags'}
-              </small>
+              <small>{mix.descriptor}</small>
             </span>
             <ArrowUpRight size={20} aria-hidden="true" />
-          </button>
+          </motion.button>
         ))}
-      </div>
+      </motion.div>
     </section>
   );
 }

@@ -111,9 +111,9 @@ export function LyricsEditor({
         </p>
         <section className="editor-lookup" aria-label="Find lyrics">
           <p>
-            Search LRCLIB with this song’s title, artist and known album/duration — never audio.
-            Playback and automatic lookup are not required. Results are saved only when you choose
-            Save lyrics.
+            Search LRCLIB with this song’s title, artist, album and duration. Your audio is never
+            sent. Playback and automatic lookup are not required. Results are saved only when you
+            choose Save lyrics.
           </p>
           <div className="editor-lookup-actions">
             <button

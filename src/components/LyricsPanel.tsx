@@ -26,6 +26,7 @@ import {
 import { karaokeWords, wordProgress } from '../domain/wordTiming';
 import type { Track } from '../domain/types';
 import { useWaveMotion } from '../ui/motion';
+import { networkAriaLabel, networkLabel, useOnline } from '../ui/network';
 const LyricRow = memo(function LyricRow({
   readOnly = false,
   line,
@@ -298,6 +299,7 @@ export function LyricsPanel({
       setAdjusting(false);
     }
   };
+  const online = useOnline();
   const retryAt = track.lyricsLookup?.retryAt ?? 0;
   const [now, setNow] = useState(Date.now);
   useEffect(() => {
@@ -345,17 +347,26 @@ export function LyricsPanel({
                   {synchronized ? 'Synchronized lyrics · tap a line to seek' : 'Text lyrics'}
                 </span>
               </span>
-              {lyrics.source === 'lrclib' && (
+              {lyrics.source !== 'local' && lyrics.source !== 'embedded' && (
                 <a
                   href={
-                    lyrics.providerId
-                      ? `https://lrclib.net/lyrics/${lyrics.providerId}`
-                      : 'https://lrclib.net'
+                    lyrics.source === 'lrclib'
+                      ? lyrics.providerId
+                        ? `https://lrclib.net/lyrics/${lyrics.providerId}`
+                        : 'https://lrclib.net'
+                      : lyrics.source === 'netease'
+                        ? 'https://music.163.com'
+                        : 'https://www.kugou.com'
                   }
                   target="_blank"
                   rel="noreferrer"
+                  title={
+                    lyrics.source === 'lrclib'
+                      ? 'Lyrics from LRCLIB'
+                      : `Lyrics from ${lyrics.provider ?? lyrics.source}, opt-in source`
+                  }
                 >
-                  LRCLIB
+                  {lyrics.source === 'lrclib' ? 'LRCLIB' : (lyrics.provider ?? lyrics.source)}
                 </a>
               )}
             </div>
@@ -499,42 +510,47 @@ export function LyricsPanel({
             )}
           </motion.div>
           <h3>
-            {cooldown
-              ? 'Un momento…'
-              : loading
-                ? 'Buscando letras…'
-                : status === 'instrumental'
-                  ? 'Solo música'
-                  : '¡Oh, oh!'}
+            {!online
+              ? 'No connection'
+              : cooldown
+                ? 'Taking a breath'
+                : loading
+                  ? 'Looking for lyrics'
+                  : status === 'instrumental'
+                    ? 'Instrumental'
+                    : 'No lyrics yet'}
           </h3>
           <p>
-            {cooldown
-              ? `El servicio ha pedido una pausa. Podrás volver a buscar en ${cooldown} s.`
-              : loading
-                ? 'Buscando la letra de tu canción…'
-                : status === 'instrumental'
-                  ? 'Esta canción está marcada como instrumental.'
-                  : status === 'error'
-                    ? 'No hemos podido conectar con el servicio de letras.'
-                    : 'No hemos encontrado ninguna letra para esta canción.'}
+            {!online
+              ? 'Lyrics search needs a connection. Anything already saved still shows.'
+              : cooldown
+                ? `The provider asked for a pause. Try again in ${cooldown} s.`
+                : loading
+                  ? 'Searching for this song.'
+                  : status === 'instrumental'
+                    ? 'This song is marked instrumental.'
+                    : status === 'error'
+                      ? 'The lyrics service did not answer.'
+                      : 'Nothing matched this song.'}
           </p>
           <span>
             {automatic
               ? !canLookup(track)
-                ? 'Añade el título y el artista en la información de la canción para buscar letras.'
-                : 'Puedes añadir tu propia letra si no encontramos una coincidencia.'
-              : 'Buscar online envía el título y el artista a LRCLIB, nunca tu audio. También puedes añadir un LRC.'}
+                ? 'Add a title and artist in the song details to search for lyrics.'
+                : 'You can add your own lyrics if nothing matches.'
+              : 'Searching online sends the title and artist to LRCLIB, never your audio. You can also add an LRC file.'}
           </span>
           {!cinematic && (
             <div className="lyrics-empty-actions">
               {onRetry && (
                 <button
                   className="tonal-button"
-                  disabled={loading || cooldown > 0 || !canLookup(track)}
+                  disabled={loading || cooldown > 0 || !canLookup(track) || !online}
+                  aria-label={networkAriaLabel(online, 'Search again')}
                   onClick={onRetry}
                 >
                   <RefreshCw size={17} />
-                  Search again
+                  {networkLabel(online, 'Search again')}
                 </button>
               )}
               <button className="text-button" onClick={onEdit}>
