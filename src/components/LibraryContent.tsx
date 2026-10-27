@@ -167,7 +167,9 @@ export const LibraryContent = memo(function LibraryContent({
             <span>Duration</span>
             <span />
           </div>
-          <ol className="song-list">
+          {/* Long libraries: rows outside the viewport are not laid out or
+              painted until they are needed. */}
+          <ol className="song-list" data-virtual={tracks.length > 120 ? 'true' : undefined}>
             <AnimatePresence initial={false}>
               {tracks.map((track, index) => (
                 <AnimatedListItem

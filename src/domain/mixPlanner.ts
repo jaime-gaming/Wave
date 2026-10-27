@@ -1,4 +1,4 @@
-import { introEnd, overlapsRegion, type TrackAnalysis } from '../audio/dsp';
+import { overlapsRegion, type TrackAnalysis } from '../audio/dsp';
 
 /**
  * Mix planner: decides *how* two songs are joined, before any audio is touched.
@@ -19,10 +19,16 @@ import { introEnd, overlapsRegion, type TrackAnalysis } from '../audio/dsp';
  */
 export const BEATS_PER_BAR = 4;
 export const MAX_STRETCH = 0.08;
-export const MIN_BARS = 8;
+export const MIN_BARS = 4;
 export const MAX_BARS = 16;
 /** How long a blend should last, near enough. */
-export const TARGET_SECONDS = 18;
+export const TARGET_SECONDS = 9;
+/**
+ * How much of the incoming song Mix may skip to find a downbeat. Starting the
+ * new song deep inside itself is the worst thing a mix can do: the listener
+ * loses the beginning of a song they may not know.
+ */
+export const MAX_CUE_LEAD = 6;
 
 export type TransitionMode = 'beatmatched' | 'crossfade' | 'cut';
 
@@ -91,33 +97,32 @@ function alignOutgoing(analysis: TrackAnalysis, time: number): number {
   return Math.max(analysis.trimmed.start, offset + Math.floor(beats) * period);
 }
 
-/** Incoming start: a phrase boundary after the intro, beat aligned. */
+/** Incoming start: the song's beginning, nudged to the next downbeat. */
 function alignIncoming(analysis: TrackAnalysis): number {
   const { bpm, offset } = analysis.beats;
   const period = 60 / bpm;
-  const target = Math.max(analysis.trimmed.start, introEnd(analysis));
-  const beats = (target - offset) / period;
-  // Round up to the next bar so the incoming song enters on a downbeat.
+  const start = analysis.trimmed.start;
+  const beats = (start - offset) / period;
+  // Round up to the next bar so the incoming song enters on a downbeat, but
+  // never further than `MAX_CUE_LEAD`: nothing of the song is skipped.
   const bar = Math.ceil(beats / BEATS_PER_BAR) * BEATS_PER_BAR;
   const aligned = offset + bar * period;
-  return clamp(
-    aligned,
-    analysis.trimmed.start,
-    Math.max(analysis.trimmed.start, analysis.trimmed.end - period),
-  );
+  const lead = clamp(aligned, start, start + MAX_CUE_LEAD);
+  return clamp(lead, start, Math.max(start, analysis.trimmed.end - period));
 }
 
 /**
- * First bar-aligned entry where the incoming song has no prominent vocal for the
- * whole overlap. The search is bounded so the song never starts near its middle:
- * past that point, shortening the overlap is the better answer.
+ * First bar-aligned entry, within a short search, where the incoming song has no
+ * prominent vocal for the whole overlap. The window is deliberately small: a
+ * quieter pickup is nice, skipping a verse to find one is not. Past the window,
+ * shortening the overlap is the better answer.
  */
 function findClearEntry(analysis: TrackAnalysis, from: number, length: number): number | null {
   const { bpm, offset } = analysis.beats;
   const period = 60 / bpm;
   const first = Math.ceil((from - offset) / period);
-  const cap = analysis.trimmed.start + (analysis.trimmed.end - analysis.trimmed.start) * 0.45;
-  for (let step = 0; step < BEATS_PER_BAR * 32; step++) {
+  const cap = from + Math.max(MAX_CUE_LEAD, period);
+  for (let step = 0; step < BEATS_PER_BAR * 8; step++) {
     const time = offset + (first + step) * period;
     if (time > cap || time + length > analysis.trimmed.end) break;
     if (!overlapsRegion(analysis.vocals, time, time + length, 0.15)) return time;
@@ -253,6 +258,43 @@ export function planTransition(
     phaseAligned,
     notes,
   };
+}
+
+/**
+ * Plans are a pure function of the two analyses and the options, and the engine
+ * asks for one twenty times a second while a song plays. Memoising them keeps
+ * that loop off the audio thread's budget on a slow phone.
+ */
+const planCache = new WeakMap<TrackAnalysis, WeakMap<TrackAnalysis, Map<string, TransitionPlan>>>();
+
+export function planTransitionCached(
+  outgoing: TrackAnalysis | undefined,
+  incoming: TrackAnalysis | undefined,
+  options: TransitionOptions = {},
+): TransitionPlan {
+  if (!outgoing || !incoming) return planTransition(outgoing, incoming, options);
+  let byIncoming = planCache.get(outgoing);
+  if (!byIncoming) {
+    byIncoming = new WeakMap();
+    planCache.set(outgoing, byIncoming);
+  }
+  let plans = byIncoming.get(incoming);
+  if (!plans) {
+    plans = new Map();
+    byIncoming.set(incoming, plans);
+  }
+  const key = [
+    options.bars ?? '',
+    options.fallbackSeconds ?? '',
+    options.minSeconds ?? '',
+    options.maxStretch ?? '',
+    options.vocalTolerance ?? '',
+  ].join('|');
+  const hit = plans.get(key);
+  if (hit) return hit;
+  const plan = planTransition(outgoing, incoming, options);
+  plans.set(key, plan);
+  return plan;
 }
 
 /** True when the plan can be executed by the current engine. */

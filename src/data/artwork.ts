@@ -17,7 +17,10 @@ export async function readArtwork(file: File): Promise<string> {
     if (image.naturalWidth * image.naturalHeight > 40_000_000)
       throw new Error('Choose an image of up to 40 megapixels.');
     const canvas = document.createElement('canvas');
-    const edge = Math.min(512, image.naturalWidth, image.naturalHeight);
+    // 384 px is twice the largest place artwork is drawn (Now Playing), and the
+    // difference in file size matters when a library holds thousands of songs:
+    // every cover is stored as text in the library record.
+    const edge = Math.min(384, image.naturalWidth, image.naturalHeight);
     canvas.width = canvas.height = edge;
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('Image editing is unavailable in this browser.');
@@ -35,7 +38,7 @@ export async function readArtwork(file: File): Promise<string> {
       edge,
       edge,
     );
-    return canvas.toDataURL('image/jpeg', 0.8);
+    return canvas.toDataURL('image/jpeg', 0.78);
   } finally {
     URL.revokeObjectURL(url);
   }

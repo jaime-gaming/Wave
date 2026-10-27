@@ -1035,3 +1035,54 @@
     padding: 0 10px;
   }
 }
+
+/* ── Lyric size ──────────────────────────────────────────────────────────────
+   The reader is meant to be read from across a room, which is what it was like
+   before the three-line frame: large lines, the sung one clearly dominant and
+   the neighbours present but secondary. */
+.lyric-line {
+  font-size: clamp(24px, 2.5vw, 36px);
+  line-height: 1.38;
+}
+.lyrics-stage .lyric-line {
+  font-size: clamp(28px, 3vw, 44px);
+  line-height: 1.24;
+}
+.lyrics-cinematic .lyric-line {
+  font-size: clamp(30px, 4vw, 62px);
+  line-height: 1.16;
+}
+.lyrics-scroll--framed .lyric-line {
+  padding: 0 16px;
+}
+.lyrics-scroll--framed .lyric-line:not(.active) {
+  max-height: none;
+  filter: none;
+  opacity: 0.5;
+  font-size: 0.74em;
+}
+.lyrics-scroll--framed .lyric-line:not(.active) .lyric-text {
+  -webkit-line-clamp: 2;
+}
+@media (max-width: 800px) {
+  .lyrics-stage .lyric-line {
+    font-size: clamp(24px, 6.4vw, 34px);
+  }
+  .lyrics-cinematic .lyric-line {
+    font-size: clamp(26px, 7vw, 40px);
+  }
+}
+@media (max-width: 599px) {
+  .lyrics-stage .lyric-line {
+    font-size: clamp(23px, 7vw, 32px);
+  }
+}
+@media (max-height: 540px) {
+  .lyrics-stage .lyric-line {
+    font-size: clamp(20px, 4.4dvh, 30px);
+    padding: 0 10px;
+  }
+  .lyrics-cinematic .lyric-line {
+    font-size: clamp(22px, 5dvh, 34px);
+  }
+}

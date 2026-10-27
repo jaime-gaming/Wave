@@ -30,6 +30,7 @@ import { Modal } from './Modal';
 import { formatTime, type Track } from '../domain/types';
 import type { usePlayer } from '../hooks/usePlayer';
 import { useArtworkColor } from '../hooks/useArtworkColor';
+import { usePlaybackTime } from '../hooks/playbackClock';
 
 type PlayerProps = {
   player: ReturnType<typeof usePlayer>;
@@ -83,6 +84,7 @@ function PlaySymbol({ playing, size }: { playing: boolean; size: number }) {
 
 function PlayerDetails({
   player,
+  time,
   onFavorite,
   lyricsOpen,
   onLyrics,
@@ -96,8 +98,8 @@ function PlayerDetails({
   readerActive = true,
   videoClip = false,
   onToggleVideoClip,
-}: PlayerProps & { readerActive?: boolean }) {
-  const { current, state, time, duration, volume, dispatch } = player;
+}: PlayerProps & { readerActive?: boolean; time: number }) {
+  const { current, state, duration, volume, dispatch } = player;
   const animation = useWaveMotion();
   return (
     <>
@@ -345,6 +347,9 @@ export function PlayerBar(props: PlayerProps) {
   } = props;
   const idle = useIdleListening(player.state.playing && !player.buffering && !!player.current);
   const showing = expanded || idle.immersive;
+  // Only this bar follows the position; the rest of the interface stays still.
+  const clockTime = usePlaybackTime(player.clock);
+  const time = player.youTube ? player.time : clockTime;
   const colors = useArtworkColor(player.state.playing ? player.current?.artwork : undefined);
   const animation = useWaveMotion();
   useEffect(() => {
@@ -437,13 +442,13 @@ export function PlayerBar(props: PlayerProps) {
           </div>
           <div className="compact-seek">
             <WaveSeek
-              time={player.time}
+              time={time}
               duration={player.duration}
               playing={player.state.playing && !player.buffering}
               onSeek={player.seek}
             />
             <span>
-              {formatTime(player.time)} / {formatTime(player.duration)}
+              {formatTime(time)} / {formatTime(player.duration)}
             </span>
           </div>
           <div className="compact-modes">
@@ -527,7 +532,7 @@ export function PlayerBar(props: PlayerProps) {
               startGain={player.stageYouTube.startGain}
               fadeSeconds={player.stageYouTube.fadeSeconds}
               seek={player.youTube?.seek ?? { seconds: 0, nonce: 0 }}
-              startAt={player.time}
+              startAt={time}
               onTime={player.youTube?.onTime ?? (() => {})}
               onDuration={player.youTube?.onDuration ?? (() => {})}
               onEnded={player.youTube?.onEnded ?? (() => {})}
@@ -538,7 +543,7 @@ export function PlayerBar(props: PlayerProps) {
             player.current && (
               <VideoBackdrop
                 track={player.current}
-                time={player.time}
+                time={time}
                 duration={player.duration}
                 playing={player.state.playing}
                 onClose={() => onToggleVideoClip?.()}
@@ -554,6 +559,7 @@ export function PlayerBar(props: PlayerProps) {
           >
             <PlayerDetails
               {...props}
+              time={time}
               readerActive={!idle.immersive}
               lyricsOpen={lyricsOpen}
               onDisclosure={setLyricsOpen}
@@ -593,7 +599,7 @@ export function PlayerBar(props: PlayerProps) {
                   karaoke={karaoke}
                   key={player.current.id}
                   track={player.current}
-                  time={player.time}
+                  time={time}
                   readTime={player.readTime}
                   playing={player.state.playing}
                   duration={player.duration}
@@ -620,7 +626,7 @@ export function PlayerBar(props: PlayerProps) {
           startGain={player.stageYouTube.startGain}
           fadeSeconds={player.stageYouTube.fadeSeconds}
           seek={player.youTube?.seek ?? { seconds: 0, nonce: 0 }}
-          startAt={player.time}
+          startAt={time}
           silent
           onTime={player.youTube?.onTime ?? (() => {})}
           onDuration={player.youTube?.onDuration ?? (() => {})}

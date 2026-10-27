@@ -3,9 +3,11 @@ import {
   automaticBars,
   bassSwapGains,
   isUsablePlan,
+  MAX_CUE_LEAD,
   MAX_STRETCH,
   planGains,
   planTransition,
+  planTransitionCached,
   TARGET_SECONDS,
 } from './mixPlanner';
 import type { TrackAnalysis } from '../audio/dsp';
@@ -33,10 +35,11 @@ describe('Mix transition planning', () => {
       analysis({ duration: 200, trimmed: { start: 0, end: 198 } }),
     );
     expect(plan.mode).toBe('beatmatched');
-    expect(plan.bars).toBe(8);
-    // 8 bars at 120 BPM = 16 s.
-    expect(plan.seconds).toBeCloseTo(16, 5);
-    expect(plan.cue).toBeGreaterThanOrEqual(16);
+    expect(plan.bars).toBe(4);
+    // 4 bars at 120 BPM = 8 s.
+    expect(plan.seconds).toBeCloseTo(8, 5);
+    // The incoming song starts at its beginning, not somewhere in the middle.
+    expect(plan.cue).toBeLessThanOrEqual(MAX_CUE_LEAD);
     // The overlap must start on a beat of the outgoing grid.
     const period = 60 / 120;
     const beats = (plan.startAt - 0.05) / period;
@@ -88,12 +91,28 @@ describe('Mix transition planning', () => {
     expect(plan.seconds).toBe(0);
   });
 
-  it('moves the incoming entry when the song starts with a vocal', () => {
-    const withVocal = analysis({ vocals: [{ start: 16, end: 60, strength: 0.8 }] });
+  it('never skips the start of the incoming song, even when it starts with a vocal', () => {
+    const withVocal = analysis({ vocals: [{ start: 0, end: 60, strength: 0.8 }] });
     const plan = planTransition(analysis(), withVocal);
     expect(plan.mode).toBe('beatmatched');
-    expect(plan.cue).toBeGreaterThanOrEqual(60 - 0.001);
-    expect(plan.notes.join(' ')).toMatch(/without a prominent vocal/i);
+    // A vocal at the join shortens the overlap; it never moves the entry forward.
+    expect(plan.cue).toBeLessThanOrEqual(MAX_CUE_LEAD);
+    expect(plan.seconds).toBeLessThanOrEqual(8);
+  });
+
+  it('enters a song with a long intro at its beginning instead of after the intro', () => {
+    const longIntro = analysis({
+      duration: 300,
+      trimmed: { start: 0, end: 298 },
+      segments: [
+        { start: 0, end: 45, level: 0.4, kind: 'intro' },
+        { start: 45, end: 280, level: 0.9, kind: 'body' },
+        { start: 280, end: 298, level: 0.3, kind: 'outro' },
+      ],
+    });
+    const plan = planTransition(analysis(), longIntro);
+    expect(plan.mode).toBe('beatmatched');
+    expect(plan.cue).toBeLessThanOrEqual(MAX_CUE_LEAD);
   });
 
   it('halves the overlap when both songs have vocals at the join', () => {
@@ -104,7 +123,8 @@ describe('Mix transition planning', () => {
       vocals: [{ start: 0, end: 300, strength: 0.9 }],
     });
     const plan = planTransition(outgoing, incoming);
-    expect(plan.bars).toBe(4);
+    expect(plan.bars).toBe(2);
+    expect(plan.seconds).toBeCloseTo(4, 5);
     expect(plan.notes.join(' ')).toMatch(/halved/i);
   });
 
@@ -123,8 +143,8 @@ describe('Mix transition planning', () => {
     expect(isUsablePlan(plan, 0)).toBe(false);
   });
 
-  it('clamps the requested bar count to 8–16', () => {
-    expect(planTransition(analysis(), analysis(), { bars: 2 }).bars).toBe(8);
+  it('clamps the requested bar count to 4–16', () => {
+    expect(planTransition(analysis(), analysis(), { bars: 2 }).bars).toBe(4);
     expect(planTransition(analysis(), analysis(), { bars: 99 }).bars).toBe(16);
   });
 });
@@ -155,11 +175,11 @@ describe('gain curves', () => {
   });
 
   it('chooses its own bar count so a blend lasts about the target length', () => {
-    expect(automaticBars(120)).toBe(8);
-    expect(automaticBars(174)).toBe(12);
-    expect(automaticBars(60)).toBe(8);
-    expect(automaticBars(0)).toBe(8);
-    expect(automaticBars(Number.NaN)).toBe(8);
+    expect(automaticBars(120)).toBe(4);
+    expect(automaticBars(174)).toBe(8);
+    expect(automaticBars(60)).toBe(4);
+    expect(automaticBars(0)).toBe(4);
+    expect(automaticBars(Number.NaN)).toBe(4);
     for (const bpm of [72, 96, 120, 128, 150, 174, 190]) {
       const seconds = (automaticBars(bpm) * 4 * 60) / bpm;
       expect(seconds).toBeGreaterThan(TARGET_SECONDS * 0.55);
@@ -173,13 +193,23 @@ describe('gain curves', () => {
       analysis({ beats: { bpm: 80, offset: 0.05, confidence: 0.9 } }),
     );
     expect(slow.mode).toBe('beatmatched');
-    expect(slow.bars).toBe(8);
-    expect(slow.seconds).toBeGreaterThan(20);
+    expect(slow.bars).toBe(4);
+    expect(slow.seconds).toBeGreaterThan(10);
     const fast = planTransition(
       analysis({ beats: { bpm: 172, offset: 0.05, confidence: 0.9 } }),
       analysis({ beats: { bpm: 174, offset: 0.05, confidence: 0.9 } }),
     );
-    expect(fast.bars).toBe(12);
+    expect(fast.bars).toBe(8);
     expect(fast.seconds).toBeLessThan(slow.seconds);
+  });
+
+  it('reuses the plan for the same pair instead of planning fifty times a second', () => {
+    const a = analysis();
+    const b = analysis({ duration: 200, trimmed: { start: 0, end: 198 } });
+    const first = planTransitionCached(a, b, { fallbackSeconds: 7 });
+    const second = planTransitionCached(a, b, { fallbackSeconds: 7 });
+    expect(second).toBe(first);
+    // Different options are a different plan.
+    expect(planTransitionCached(a, b, { fallbackSeconds: 4 })).not.toBe(first);
   });
 });
