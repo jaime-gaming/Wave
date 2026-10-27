@@ -91,6 +91,12 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
   const playable = resolvePlayable(current, tracks);
   const youTube = !!playable?.fromYouTube;
   const blob = playable?.track.blob;
+  /**
+   * A library row can outlive its audio: browser storage may have evicted the
+   * file, or an older import may never have been saved with bytes. Saying so is
+   * better than a play button that appears to do nothing.
+   */
+  const missingAudio = !!current && !blob && !youTube;
   const youTubeTime = youTubeClock.id === current?.id ? youTubeClock.time : 0;
   const youTubeDuration = youTubeClock.id === current?.id ? youTubeClock.duration : 0;
   /** Read by callbacks that must not close over a stale render. */
@@ -674,7 +680,10 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
     time: youTube ? youTubeTime : time,
     duration: youTube ? youTubeDuration || (current?.duration ?? 0) : duration,
     volume,
-    error,
+    /** A row without stored audio explains itself instead of looking silent. */
+    error: missingAudio
+      ? 'This song has no audio stored on this device. Import the file again.'
+      : error,
     setError,
     setVolume,
     dispatch,

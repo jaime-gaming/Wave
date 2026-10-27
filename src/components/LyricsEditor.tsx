@@ -217,6 +217,7 @@ export function LyricsEditor({
             onChange={(event) => setOffset(Number(event.target.value))}
           />
         </label>
+        <p className="lyrics-caption">Positive values show lines later.</p>
         {error && (
           <p role="alert" className="form-error">
             {error}

@@ -161,6 +161,7 @@ export function QueuePanel({
           Add songs to queue
         </button>
       </div>
+      {editing && <p className="queue-order-hint">Drag a handle or use the arrows to reorder.</p>}
       <span className="sr-only" aria-live="polite">
         {announcement}
       </span>

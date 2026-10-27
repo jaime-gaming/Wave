@@ -785,3 +785,11 @@ body,
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 14%, transparent);
   }
 }
+
+/* Reorder mode: one line that says what the handles do. */
+.queue-order-hint {
+  margin: 0 4px 10px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}

@@ -331,6 +331,7 @@ export function LyricsPanel({
       )}
       {lyrics?.lines.length ? (
         <>
+          {!cinematic && synchronized && <p className="lyrics-caption">Tap a line to seek</p>}
           <div
             ref={pane}
             className="lyrics-scroll"

@@ -41,35 +41,38 @@ describe('video clip backdrop', () => {
     expect(await screen.findByTitle(/video clip for/i)).toBeInTheDocument();
   });
 
-  it('asks for a link and refuses a playlist', async () => {
+  it('has no link field: clips only come from the search', async () => {
     localStorage.clear();
     render(<VideoBackdrop {...props} />);
     expect(screen.getByText('Video clip')).toBeInTheDocument();
-    await userEvent.type(
-      screen.getByRole('textbox', { name: /youtube link/i }),
-      'https://www.youtube.com/playlist?list=PLabc123456',
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /use clip/i })).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByText(/no clip matched|unreachable|connection/i)).toBeInTheDocument(),
     );
-    await userEvent.click(screen.getByRole('button', { name: /use clip/i }));
-    expect(screen.getByRole('alert')).toHaveTextContent(/playlist link/i);
-    expect(screen.queryByTitle(/video clip for/i)).not.toBeInTheDocument();
   });
 
-  it('mounts a muted, control-free embed once a video link is saved', async () => {
+  it('mounts a muted, control-free embed for the clip it found', async () => {
     localStorage.clear();
+    vi.mocked(findClip).mockResolvedValue({
+      status: 'found',
+      candidate: {
+        videoId: 'dQw4w9WgXcQ',
+        title: 'Wave Tests - Signal (Official Video)',
+        author: 'Wave Tests',
+        duration: 200,
+      },
+      cached: false,
+    });
+    vi.mocked(rememberClip).mockImplementation((id, found) => storeClip(id, found.videoId));
     render(<VideoBackdrop {...props} />);
-    await userEvent.type(
-      screen.getByRole('textbox', { name: /youtube link/i }),
-      'https://youtu.be/dQw4w9WgXcQ?t=30',
-    );
-    await userEvent.click(screen.getByRole('button', { name: /use clip/i }));
-    const frame = screen.getByTitle(/video clip for/i) as HTMLIFrameElement;
+    const frame = (await screen.findByTitle(/video clip for/i)) as HTMLIFrameElement;
     const url = new URL(frame.src);
     expect(url.host).toBe('www.youtube-nocookie.com');
     expect(url.pathname).toBe('/embed/dQw4w9WgXcQ');
     expect(url.searchParams.get('controls')).toBe('0');
     expect(url.searchParams.get('mute')).toBe('1');
     expect(url.searchParams.get('disablekb')).toBe('1');
-    expect(url.searchParams.get('start')).toBe('30');
     expect(url.searchParams.get('iv_load_policy')).toBe('3');
     // The provider stays identifiable and the mapping is local.
     expect(screen.getByRole('link', { name: /youtube/i })).toHaveAttribute(
@@ -77,7 +80,7 @@ describe('video clip backdrop', () => {
       'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     );
     expect(JSON.parse(localStorage.getItem(CLIP_STORAGE_KEY) ?? '{}')).toMatchObject({
-      'track-video': { videoId: 'dQw4w9WgXcQ', startAt: 30 },
+      'track-video': { videoId: 'dQw4w9WgXcQ' },
     });
     expect(screen.getAllByRole('status')[0]).toHaveTextContent(/audio from your file|Loading/i);
   });

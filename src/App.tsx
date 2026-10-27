@@ -885,7 +885,7 @@ function WaveApp({
                       target="_blank"
                       rel="noreferrer"
                     >
-                      Wave 0.1.0 · Source code
+                      Wave {__WAVE_VERSION__} · Source code
                       <ArrowUpRight size={16} />
                     </a>
                   </>

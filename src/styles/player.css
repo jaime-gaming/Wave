@@ -977,3 +977,11 @@
 .video-backdrop.youtube-silent .video-backdrop-veil {
   display: none;
 }
+
+/* Add music: where the song comes from, in one line. */
+.add-music-note {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}

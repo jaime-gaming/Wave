@@ -30,7 +30,7 @@ it('fills text in reading order without an elapsed bar, follows seeks and preser
   }
 });
 
-it('keeps timing controls tucked away and shows no notes under the lyrics', () => {
+it('keeps timing controls tucked away and explains nothing about the timing', () => {
   const previous = HTMLElement.prototype.scrollTo;
   HTMLElement.prototype.scrollTo = vi.fn();
   try {
@@ -55,7 +55,9 @@ it('keeps timing controls tucked away and shows no notes under the lyrics', () =
     expect(details.open).toBe(false);
     expect(container.querySelector('.lyrics-provenance')).toBeNull();
     expect(screen.queryByRole('link')).toBeNull();
-    expect(screen.queryByText(/Word-timed|saved offline|tap a line to seek/i)).toBeNull();
+    expect(screen.queryByText(/Word-timed|saved offline|interpolat/i)).toBeNull();
+    // The one hint kept: the line is a seek target.
+    expect(screen.getByText('Tap a line to seek')).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText('Adjust lyric timing'));
     expect(details.open).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: 'Show lyrics 100 milliseconds later' }));
