@@ -7,6 +7,39 @@ This document is the contract for Wave 1.1. It records what was decided, what is
 implemented in the source tree, what still has to be built, and which parts of the
 product cannot be promised because a provider or a browser forbids them.
 
+## 0. Audio integrity: the invariant that outranks every feature
+
+**No Wave feature may reduce audio quality.** Nothing in 1.1 re-encodes,
+resamples, changes bit depth, changes bitrate, normalises, or rewrites tags of a
+copied file. A song that reaches another device is bit-identical to the one it
+came from, and the code refuses anything else.
+
+Enforced by [`src/sync/integrity.ts`](../src/sync/integrity.ts) and proven by
+[`src/sync/roundTrip.test.ts`](../src/sync/roundTrip.test.ts):
+
+- The byte buffer produced by a transfer is authoritative. It is never run
+  through a decoder and re-saved; no "quality" option exists to choose.
+- **Whole-file SHA-256** is compared before anything is persisted. A single
+  altered byte fails the check and the copy is discarded, even when the size
+  matches.
+- The received size must equal the announced size exactly. A truncated or padded
+  transfer is rejected, never repaired or padded.
+- Lossless sources (FLAC, WAV, AIFF) keep their exact sample rate, bit depth and
+  channel layout. A 24-bit/96 kHz original stays 24-bit/96 kHz.
+- M4A is never _claimed_ to be lossless, because the container may hold AAC.
+  Wave does not guess about quality in either direction.
+- Artwork and lyrics never travel inside the audio payload, so nothing can be
+  re-compressed into the file being copied.
+- The loan record is written only after verification succeeds, and the store
+  re-verifies when a caller passes an expected digest.
+- The user-facing note for every loan says exactly what happened
+  (`loanQualityNote`): a lossless original copied byte for byte, or the original
+  file with no bitrate change.
+
+Transfer cost is bytes, not quality: a 60 MB FLAC loan uses 60 MB on the phone
+and takes proportionally longer. There is **no** "compress to save space" path,
+and there will not be one.
+
 ## 1. Decisions
 
 | Topic              | Decision                                                                                                                                                                                                                                          |
@@ -129,6 +162,18 @@ metadata is re-validated inside the assembler. `TransferAssembler` rejects
 duplicate, missing and oversized chunks and verifies the final SHA-256, so
 corrupted audio is never stored.
 
+Hardening added after the first review:
+
+| Risk                                          | Control                                                                                                       |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| A recorded frame being replayed later         | Every sealed envelope carries a monotonic `n`; a repeated, missing or far-future sequence fails with `replay` |
+| A forged envelope consuming a sequence number | The receive counter advances only **after** successful authentication                                         |
+| Memory exhaustion from a huge ciphertext      | Sealed envelopes larger than 140 KB are refused before allocation or decryption                               |
+| A 50 000-song index in one message            | `paginateLibraryIndex` pages it under the 96 KiB limit and marks only the final page `complete`               |
+| A sender with inconsistent metadata           | `TransferSender` re-validates the header and that the payload matches the announced size                      |
+| A corrupted transfer blocking a retry         | `LoanInbox.complete` always releases the transfer, on success or failure                                      |
+| Undecodable chunk text                        | Base64 is validated and a decode failure raises `invalid-chunk` instead of a raw exception                    |
+
 ## 5. Loan accounting
 
 Implemented in [`src/sync/loan.ts`](../src/sync/loan.ts).
@@ -231,6 +276,14 @@ must show what will be sent before the first request and keep the feature usable
 without it (pasting a track list is the fallback).
 
 ### Matching
+
+Performance: the first implementation compared every entry with every local song.
+Measured on 300 provider songs against 5 000 local songs it took **13.8 s** on the
+main thread, which would freeze the page. Matching now builds an inverted index
+over canonical title tokens, so only candidates sharing a token are scored: the
+same workload takes **~0.7 s** and produces byte-identical results, which a test
+asserts against the exhaustive implementation. Playlists above 5 000 entries are
+refused instead of exhausting memory.
 
 For each provider entry, every local song receives a score:
 

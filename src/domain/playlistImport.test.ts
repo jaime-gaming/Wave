@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   chooseCandidate,
   matchEntries,
+  MAX_IMPORT_ENTRIES,
   scoreCandidate,
   suggestedPlaylistName,
 } from './playlistImport';
@@ -23,10 +24,7 @@ const entry = (over: Partial<ImportedEntry> & { id: string }): ImportedEntry => 
 
 describe('playlist import matching', () => {
   it('matches identical songs and tolerates provider title noise', () => {
-    expect(scoreCandidate(entry({ id: 'e1' }), candidate({ id: 't1' }))).toMatchObject({
-      score: 1,
-      strong: true,
-    });
+    expect(scoreCandidate(entry({ id: 'e1' }), candidate({ id: 't1' }))).toEqual({ score: 1 });
     expect(
       scoreCandidate(entry({ id: 'e2', title: 'Song (Official Video)' }), candidate({ id: 't2' }))
         .score,
@@ -42,7 +40,7 @@ describe('playlist import matching', () => {
   it('rejects a same-title song with a very different duration', () => {
     expect(
       scoreCandidate(entry({ id: 'e1', duration: 200 }), candidate({ id: 't1', duration: 420 })),
-    ).toEqual({ score: 0, strong: false });
+    ).toEqual({ score: 0 });
   });
 
   it('does not accept a merely similar title without the artist', () => {
@@ -120,5 +118,57 @@ describe('playlist import matching', () => {
     const entries = [entry({ id: 'e1' }), entry({ id: 'e2' })];
     const candidates = [candidate({ id: 't2' }), candidate({ id: 't1' })];
     expect(matchEntries(entries, candidates)).toEqual(matchEntries(entries, candidates));
+  });
+});
+
+describe('playlist import at library scale', () => {
+  const words = [
+    'love',
+    'night',
+    'blue',
+    'fire',
+    'rain',
+    'gold',
+    'heart',
+    'city',
+    'dream',
+    'light',
+  ];
+  const largeLibrary: MatchCandidate[] = Array.from({ length: 5_000 }, (_, index) => ({
+    id: `t${index}`,
+    title: `${words[index % 10]} ${words[(index * 3) % 10]} ${index}`,
+    artist: `Artist ${index % 300}`,
+    album: `Album ${index % 120}`,
+    duration: 120 + (index % 200),
+  }));
+  const largePlaylist: ImportedEntry[] = Array.from({ length: 300 }, (_, index) => ({
+    id: `e${index}`,
+    title: `${words[(index * 7) % 10]} ${words[(index * 3) % 10]} ${index}`,
+    artist: `Artist ${index % 300}`,
+    duration: 150,
+  }));
+
+  it('matches a 300-song playlist against 5 000 local songs quickly', () => {
+    const started = Date.now();
+    const report = matchEntries(largePlaylist, largeLibrary);
+    const elapsed = Date.now() - started;
+    // The exhaustive version of this workload took ~14 s and froze the page.
+    expect(elapsed).toBeLessThan(4_000);
+    expect(report.matches).toHaveLength(300);
+    expect(report.matchedCount + report.ambiguousCount + report.missingCount).toBe(300);
+  });
+
+  it('produces exactly the same result as the exhaustive comparison', () => {
+    const entries = largePlaylist.slice(0, 40);
+    expect(JSON.stringify(matchEntries(entries, largeLibrary))).toBe(
+      JSON.stringify(matchEntries(entries, largeLibrary, { exhaustive: true })),
+    );
+  });
+
+  it('refuses absurdly large playlists instead of exhausting memory', () => {
+    const entries = Array.from({ length: MAX_IMPORT_ENTRIES + 1 }, (_, index) =>
+      entry({ id: `e${index}` }),
+    );
+    expect(() => matchEntries(entries, largeLibrary)).toThrow(/cannot have more than/);
   });
 });

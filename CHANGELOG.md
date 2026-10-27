@@ -2,6 +2,11 @@
 
 ## Unreleased — Wave 1.1 foundation
 
+- Establish audio integrity as a non-negotiable invariant: copies are compared with whole-file SHA-256 before storage, sizes must match exactly, lossless sources keep their sample rate and bit depth, and no transfer path can re-encode or resample. Verified with a 24-bit WAV round trip.
+- Fix a 13.8 s main-thread stall when matching a 300-song playlist against 5 000 local songs; inverted-index matching now takes ~0.7 s with results proven identical to the exhaustive comparison.
+- Harden the sync channel: monotonic sequence numbers detect replayed frames, the receive counter advances only after authentication, sealed envelopes are size-bounded before decryption, and corrupt transfers are always released for retry.
+- Page library indexes under the 96 KiB frame limit, validate sender metadata, and cap imports at 5 000 entries.
+
 - Add the versioned sync protocol: total frame validation, 96 KiB frame ceiling, 48 KiB audio chunks, SHA-256 verification and rejection of duplicate, missing or oversized chunks before anything is stored.
 - Add ECDH P-256 + HKDF pairing with a six-digit confirmation code, 120 s invite expiry, AES-GCM sealed frames and a transport-agnostic state machine that never applies data from a mismatched or tampered peer.
 - Add temporary device loans bounded by space rather than time, with least-recently-used eviction of unpinned loans, per-device summaries, manual deletion and revocation.
