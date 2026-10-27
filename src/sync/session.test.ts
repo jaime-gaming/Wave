@@ -229,3 +229,158 @@ describe('loan inbox', () => {
     await expect(inbox.complete('missing')).rejects.toThrow(/No transfer/);
   });
 });
+
+describe('sealed frame hardening', () => {
+  /** Host/peer pair where every host frame is captured for inspection. */
+  async function pairedPair() {
+    let deliver = true;
+    const hostIdentity = await createIdentity();
+    const peerIdentity = await createIdentity();
+    const captured: string[] = [];
+    const peerFrames: SyncFrame[] = [];
+    const peers: { peer?: PairingSession } = {};
+    const host = new PairingSession({
+      role: 'host',
+      identity: hostIdentity,
+      deviceName: 'PC',
+      platform: 'web',
+      send: (payload) => {
+        captured.push(payload);
+        if (deliver) queueMicrotask(() => void peers.peer?.receive(payload));
+      },
+      onSas: () => setTimeout(() => host.confirm()),
+    });
+    peers.peer = new PairingSession({
+      role: 'guest',
+      identity: peerIdentity,
+      deviceName: 'Phone',
+      platform: 'android',
+      send: (payload) => queueMicrotask(() => void host.receive(payload)),
+      onSas: () => setTimeout(() => peers.peer?.confirm()),
+      onFrame: (frame) => peerFrames.push(frame),
+    });
+    host.start();
+    await settle();
+    expect(host.state).toBe('paired');
+    return {
+      host,
+      peer: peers.peer!,
+      peerFrames,
+      captured,
+      stopDelivering: () => {
+        deliver = false;
+      },
+    };
+  }
+
+  it('accepts an authenticated frame exactly once', async () => {
+    const { host, peerFrames, captured } = await pairedPair();
+    await host.sendFrame({ type: 'ping', at: 1 });
+    await settle();
+    expect(peerFrames).toEqual([{ type: 'ping', at: 1 }]);
+    const sealed = captured.at(-1);
+    expect(sealed).toBeDefined();
+    return { sealed };
+  });
+
+  it('rejects a replayed frame', async () => {
+    const { host, peer, peerFrames, captured } = await pairedPair();
+    await host.sendFrame({ type: 'ping', at: 1 });
+    await settle();
+    expect(peerFrames).toHaveLength(1);
+    await peer.receive(captured.at(-1) as string);
+    expect(peer.state).toBe('failed');
+    expect(peer.failure).toBe('replay');
+    expect(peerFrames).toHaveLength(1);
+  });
+
+  it('rejects a frame with a missing or repeated sequence number', async () => {
+    const { host, peer, captured } = await pairedPair();
+    await host.sendFrame({ type: 'ping', at: 1 });
+    const first = JSON.parse(captured.at(-1) as string);
+    await peer.receive(JSON.stringify(first));
+    await peer.receive(JSON.stringify({ ...first, n: 1 }));
+    expect(peer.failure).toBe('replay');
+  });
+
+  it('rejects a tampered ciphertext instead of applying it', async () => {
+    const { host, peer, peerFrames, captured, stopDelivering } = await pairedPair();
+    stopDelivering();
+    await host.sendFrame({ type: 'ping', at: 1 });
+    const sealed = JSON.parse(captured.at(-1) as string);
+    const tampered = { ...sealed, data: `${sealed.data.slice(0, -4)}AAAA` };
+    await peer.receive(JSON.stringify(tampered));
+    expect(peer.state).toBe('failed');
+    expect(peer.failure).toBe('authentication');
+    expect(peerFrames).toEqual([]);
+  });
+
+  it('refuses an oversized sealed envelope before decrypting', async () => {
+    const identity = await createIdentity();
+    const session = new PairingSession({
+      role: 'guest',
+      identity,
+      deviceName: 'Phone',
+      platform: 'android',
+      send: () => undefined,
+      autoExpire: false,
+    });
+    session.start();
+    await session.receive(
+      JSON.stringify({
+        v: 1,
+        type: 'sealed',
+        n: 1,
+        iv: 'AAAAAAAAAAAAAAAA',
+        data: 'A'.repeat(200_000),
+      }),
+    );
+    expect(session.failure).toBe('protocol');
+  });
+
+  it('never surfaces frames from a peer that is not authenticated', async () => {
+    const identity = await createIdentity();
+    const frames: SyncFrame[] = [];
+    const session = new PairingSession({
+      role: 'host',
+      identity,
+      deviceName: 'PC',
+      platform: 'web',
+      send: () => undefined,
+      onFrame: (frame) => frames.push(frame),
+    });
+    session.start();
+    await session.receive(
+      JSON.stringify({ v: 1, type: 'sealed', n: 1, iv: 'AAAAAAAAAAAAAAAA', data: 'AAAA' }),
+    );
+    expect(frames).toEqual([]);
+    expect(session.state).toBe('failed');
+  });
+});
+
+describe('loan inbox validation', () => {
+  it('rejects undecodable chunk data and frees the transfer for a retry', async () => {
+    const payload = Uint8Array.from({ length: 64 }, (_, index) => index);
+    const meta = planTransfer(
+      'loan-retry',
+      'track-retry',
+      payload.byteLength,
+      await sha256Hex(payload),
+      32,
+    );
+    const inbox = new LoanInbox(DEFAULT_LOAN_POLICY);
+    inbox.begin(meta);
+    expect(() =>
+      inbox.push({ type: 'transfer-chunk', loanId: 'loan-retry', index: 0, data: '***' }),
+    ).toThrow(/decoded/);
+    expect(inbox.activeTransfers).toBe(1);
+
+    const bad = planTransfer('loan-bad', 'track-bad', 2, 'c'.repeat(64), 32);
+    inbox.begin(bad);
+    inbox.push({ type: 'transfer-chunk', loanId: 'loan-bad', index: 0, data: btoa('zz') });
+    await expect(inbox.complete('loan-bad')).rejects.toThrow(/corrupted/);
+    expect(inbox.progress('loan-bad')).toBeNull();
+    inbox.abortAll();
+    expect(inbox.activeTransfers).toBe(0);
+  });
+});

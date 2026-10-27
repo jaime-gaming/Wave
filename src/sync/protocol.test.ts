@@ -4,12 +4,15 @@ import {
   bytesToBase64,
   decodeFrame,
   encodeFrame,
+  frameBytes,
   MAX_FRAME_BYTES,
+  paginateLibraryIndex,
   planTransfer,
   sha256Hex,
   SyncError,
   TransferAssembler,
   TransferSender,
+  type LibraryEntry,
   type SyncFrame,
 } from './protocol';
 
@@ -172,5 +175,60 @@ describe('transfer chunks', () => {
     expect(
       () => new TransferSender(bytes(10), { ...planTransfer('l1', 't1', 10, SHA), size: 11 }),
     ).toThrow();
+  });
+});
+
+describe('library index pagination', () => {
+  const entry = (index: number): LibraryEntry => ({
+    trackId: `track-${index}`,
+    title: `A reasonably long song title number ${index}`,
+    artist: 'An artist with a normal name',
+    album: 'An album with a normal name',
+    duration: 200 + (index % 100),
+    size: 4_000_000 + index,
+  });
+
+  it('pages a large index under the transport limit and marks only the last page', () => {
+    const entries = Array.from({ length: 5_000 }, (_, index) => entry(index));
+    const pages = paginateLibraryIndex(entries);
+    expect(pages.length).toBeGreaterThan(1);
+    for (const page of pages) {
+      expect(frameBytes(encodeFrame(page))).toBeLessThanOrEqual(MAX_FRAME_BYTES);
+      expect(decodeFrame(encodeFrame(page))).toMatchObject({ ok: true });
+      expect(encodeFrame(page)).toContain('"library-index"');
+    }
+    expect(pages.filter((page) => page.complete)).toHaveLength(1);
+    expect(pages.at(-1)?.complete).toBe(true);
+    expect(pages.flatMap((page) => page.entries)).toEqual(entries);
+  });
+
+  it('handles an empty library and refuses impossible payloads', () => {
+    expect(paginateLibraryIndex([])).toEqual([
+      { type: 'library-index', entries: [], complete: true },
+    ]);
+    expect(() =>
+      paginateLibraryIndex(Array.from({ length: 50_001 }, (_, index) => entry(index))),
+    ).toThrow(/cannot exceed/);
+    expect(() => paginateLibraryIndex([{ ...entry(1), title: 'x'.repeat(200_000) }])).toThrow(
+      /too large/,
+    );
+    expect(() => paginateLibraryIndex([entry(1)], 10)).toThrow(/budget/);
+  });
+});
+
+describe('sender validation', () => {
+  it('rejects inconsistent transfer metadata from a peer', () => {
+    const payload = bytes(10);
+    expect(
+      () =>
+        new TransferSender(payload, {
+          loanId: 'l1',
+          trackId: 't1',
+          size: 10,
+          sha256: 'not-a-digest',
+          chunkSize: 48,
+          chunkCount: 1,
+        }),
+    ).toThrow(SyncError);
   });
 });

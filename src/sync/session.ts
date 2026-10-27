@@ -7,6 +7,7 @@ import {
   PAIRING_TTL_MS,
 } from './pairing';
 import {
+  base64ToBytes,
   decodeFrame,
   encodeFrame,
   MAX_LOAN_TRACK_BYTES,
@@ -19,18 +20,30 @@ import {
   type TransferMetadata,
 } from './protocol';
 import type { LoanPolicy } from './loan';
+import { verifyCopy } from './integrity';
 
 /**
  * Transport-agnostic pairing state machine.
  *
  * The same class runs over WebRTC data channels, a loopback channel in tests or
  * a future relay, because it only ever calls `send(text)` and `receive(text)`.
- * Nothing here touches storage or the interface.
+ * Nothing here touches storage, audio or the interface.
  */
 export type PairingState =
   'idle' | 'inviting' | 'awaiting-confirmation' | 'paired' | 'failed' | 'closed';
 export type PairingFailure =
-  'timeout' | 'rejected' | 'unsupported-version' | 'self' | 'authentication' | 'protocol';
+  | 'timeout'
+  | 'rejected'
+  | 'unsupported-version'
+  | 'self'
+  | 'authentication'
+  | 'replay'
+  | 'protocol';
+
+/** Largest sealed envelope accepted, before any decryption is attempted. */
+export const MAX_SEALED_BYTES = 140_000;
+/** A legitimate peer never jumps this far ahead, so a huge `n` is rejected. */
+export const MAX_SEQUENCE_GAP = 10_000;
 
 export interface PairingSessionOptions {
   role: 'host' | 'guest';
@@ -41,9 +54,12 @@ export interface PairingSessionOptions {
   send: (payload: string) => void;
   onState?: (state: PairingState, failure?: PairingFailure) => void;
   onSas?: (code: string) => void;
+  /** Called only for authenticated frames received while paired. */
   onFrame?: (frame: SyncFrame) => void;
   now?: () => number;
   ttlMs?: number;
+  /** Schedules the invite expiry automatically. Off in tests that drive `tick`. */
+  autoExpire?: boolean;
 }
 
 export class PairingSession {
@@ -59,6 +75,9 @@ export class PairingSession {
   private startedAt = 0;
   private localConfirmed = false;
   private peerConfirmed = false;
+  private sendSequence = 0;
+  private receiveSequence = 0;
+  private expiryTimer?: ReturnType<typeof setTimeout>;
 
   constructor(options: PairingSessionOptions) {
     this.options = options;
@@ -80,6 +99,7 @@ export class PairingSession {
     if (this.state !== 'idle') return;
     this.startedAt = this.now();
     this.setState('inviting');
+    this.scheduleExpiry();
     this.sendRaw(
       encodeFrame({
         type: 'hello',
@@ -93,6 +113,10 @@ export class PairingSession {
   async receive(raw: string): Promise<void> {
     if (this.state === 'failed' || this.state === 'closed') return;
     if (this.state === 'idle') this.start();
+    if (typeof raw !== 'string') {
+      this.fail('protocol');
+      return;
+    }
 
     const envelope = safeParse(raw);
     if (envelope && envelope.type === 'sealed') {
@@ -138,12 +162,32 @@ export class PairingSession {
     if (this.state !== 'paired' || !this.sessionKey)
       throw new SyncError('not-paired', 'Devices are not paired.');
     const sealed = await sealFrame(this.sessionKey, encodeFrame(frame));
-    this.sendRaw(JSON.stringify({ v: SYNC_PROTOCOL_VERSION, type: 'sealed', ...sealed }));
+    // Sequence numbers make replays detectable: a recorded frame is rejected
+    // instead of being applied a second time.
+    const sequence = ++this.sendSequence;
+    this.sendRaw(
+      JSON.stringify({ v: SYNC_PROTOCOL_VERSION, type: 'sealed', n: sequence, ...sealed }),
+    );
   }
 
   close(): void {
     if (this.state === 'closed') return;
     this.setState('closed');
+  }
+
+  private scheduleExpiry(): void {
+    if (this.options.autoExpire === false) return;
+    this.clearExpiry();
+    this.expiryTimer = setTimeout(() => this.tick(), this.ttlMs + 1);
+    // Do not keep a Node test process alive for a timer.
+    (this.expiryTimer as unknown as { unref?: () => void }).unref?.();
+  }
+
+  private clearExpiry(): void {
+    if (this.expiryTimer !== undefined) {
+      clearTimeout(this.expiryTimer);
+      this.expiryTimer = undefined;
+    }
   }
 
   private async receiveHello(frame: Extract<SyncFrame, { type: 'hello' }>): Promise<void> {
@@ -203,6 +247,7 @@ export class PairingSession {
 
   private maybeFinishPairing(): void {
     if (!this.localConfirmed || !this.peerConfirmed) return;
+    this.clearExpiry();
     this.setState('paired');
   }
 
@@ -219,6 +264,21 @@ export class PairingSession {
       this.fail('protocol');
       return;
     }
+    // Bound the work before allocating or decrypting anything.
+    if (envelope.iv.length > 64 || envelope.data.length > MAX_SEALED_BYTES) {
+      this.fail('protocol');
+      return;
+    }
+    const sequence = envelope.n;
+    if (
+      typeof sequence !== 'number' ||
+      !Number.isSafeInteger(sequence) ||
+      sequence <= this.receiveSequence ||
+      sequence > this.receiveSequence + MAX_SEQUENCE_GAP
+    ) {
+      this.fail('replay');
+      return;
+    }
     const plaintext = await openFrame(this.sessionKey, {
       iv: envelope.iv,
       data: envelope.data,
@@ -232,6 +292,9 @@ export class PairingSession {
       this.fail('protocol');
       return;
     }
+    // Only advance after authentication, so a forged envelope cannot consume a
+    // sequence number and block the real peer.
+    this.receiveSequence = sequence;
     if (this.state !== 'paired') return;
     this.options.onFrame?.(decoded.frame);
   }
@@ -240,6 +303,7 @@ export class PairingSession {
     if (this.state === 'failed' || this.state === 'closed') return;
     this.failure = reason;
     this.sessionKey = undefined;
+    this.clearExpiry();
     this.setState('failed', reason);
   }
 
@@ -273,6 +337,10 @@ export class LoanInbox {
     this.policy = policy;
   }
 
+  get activeTransfers(): number {
+    return this.pending.size;
+  }
+
   begin(meta: TransferMetadata): void {
     if (this.pending.has(meta.loanId))
       throw new SyncError('duplicate-loan', 'This loan is already being received.');
@@ -296,15 +364,31 @@ export class LoanInbox {
   push(frame: Extract<SyncFrame, { type: 'transfer-chunk' }>): void {
     const entry = this.pending.get(frame.loanId);
     if (!entry) throw new SyncError('unknown-loan', 'No transfer is in progress for this loan.');
-    entry.assembler.push(frame.index, fromBase64(frame.data));
+    let bytes: Uint8Array;
+    try {
+      bytes = base64ToBytes(frame.data);
+    } catch {
+      throw new SyncError('invalid-chunk', 'Chunk data could not be decoded.');
+    }
+    entry.assembler.push(frame.index, bytes);
   }
 
+  /** Verifies the assembled file again against the announced size and digest. */
   async complete(loanId: string): Promise<{ meta: TransferMetadata; bytes: Uint8Array }> {
     const entry = this.pending.get(loanId);
     if (!entry) throw new SyncError('unknown-loan', 'No transfer is in progress for this loan.');
-    const bytes = await entry.assembler.finish();
-    this.pending.delete(loanId);
-    return { meta: entry.meta, bytes };
+    try {
+      const bytes = await entry.assembler.finish();
+      const check = await verifyCopy(bytes, {
+        size: entry.meta.size,
+        sha256: entry.meta.sha256,
+      });
+      if (!check.ok) throw new SyncError(check.reason, check.detail);
+      return { meta: entry.meta, bytes };
+    } finally {
+      // A corrupted transfer must not linger and block a retry.
+      this.pending.delete(loanId);
+    }
   }
 
   abort(loanId: string): void {
@@ -335,13 +419,6 @@ function toBase64Url(bytes: Uint8Array): string {
 function fromBase64Url(value: string): Uint8Array {
   const normalized = value.replace(/-/gu, '+').replace(/_/gu, '/');
   const binary = atob(normalized);
-  const bytes = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index);
-  return bytes;
-}
-
-function fromBase64(value: string): Uint8Array {
-  const binary = atob(value);
   const bytes = new Uint8Array(binary.length);
   for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index);
   return bytes;

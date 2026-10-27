@@ -295,6 +295,11 @@ export function encodeFrame(frame: SyncFrame): string {
   return raw;
 }
 
+/** UTF-8 byte length of a frame, used to enforce transport limits. */
+export function frameBytes(text: string): number {
+  return new TextEncoder().encode(text).byteLength;
+}
+
 export function bytesToBase64(bytes: Uint8Array): string {
   let binary = '';
   for (let index = 0; index < bytes.length; index += 0x8000)
@@ -303,8 +308,14 @@ export function bytesToBase64(bytes: Uint8Array): string {
 }
 
 export function base64ToBytes(value: string): Uint8Array {
-  if (!BASE64.test(value)) throw new SyncError('invalid-base64', 'Chunk is not base64.');
-  const binary = atob(value);
+  if (typeof value !== 'string' || !BASE64.test(value))
+    throw new SyncError('invalid-base64', 'Chunk is not base64.');
+  let binary: string;
+  try {
+    binary = atob(value);
+  } catch {
+    throw new SyncError('invalid-base64', 'Chunk is not valid base64.');
+  }
   const bytes = new Uint8Array(binary.length);
   for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index);
   return bytes;
@@ -333,6 +344,44 @@ export function planTransfer(
   });
   if (!meta) throw new SyncError('invalid-transfer', 'Invalid transfer metadata.');
   return meta;
+}
+
+/**
+ * Splits a library index into frames that fit the transport. A 50 000-song
+ * library cannot travel in one 96 KiB message, so the sender pages it and marks
+ * only the final frame `complete`.
+ */
+export function paginateLibraryIndex(
+  entries: LibraryEntry[],
+  budgetBytes = MAX_FRAME_BYTES - 1024,
+): Extract<SyncFrame, { type: 'library-index' }>[] {
+  if (entries.length > MAX_LIBRARY_ENTRIES)
+    throw new SyncError('too-many-entries', `An index cannot exceed ${MAX_LIBRARY_ENTRIES} songs.`);
+  if (!Number.isFinite(budgetBytes) || budgetBytes < 1024)
+    throw new SyncError('invalid-budget', 'Invalid page budget.');
+  const encoder = new TextEncoder();
+  const pages: LibraryEntry[][] = [];
+  let page: LibraryEntry[] = [];
+  let used = 128; // frame envelope allowance
+  for (const entry of entries) {
+    const size = encoder.encode(JSON.stringify(entry)).byteLength + 1;
+    if (size > budgetBytes - 128)
+      throw new SyncError('entry-too-large', 'A library entry is too large to transfer.');
+    if (used + size > budgetBytes && page.length) {
+      pages.push(page);
+      page = [];
+      used = 128;
+    }
+    page.push(entry);
+    used += size;
+  }
+  if (page.length) pages.push(page);
+  if (!pages.length) pages.push([]);
+  return pages.map((items, index) => ({
+    type: 'library-index',
+    entries: items,
+    complete: index === pages.length - 1,
+  }));
 }
 
 /** Receives chunks, rejecting gaps, duplicates, oversized data and wrong digests. */
@@ -391,9 +440,11 @@ export class TransferSender {
   private index = 0;
 
   constructor(bytes: Uint8Array, meta: TransferMetadata) {
-    if (meta.size !== bytes.byteLength)
+    const validated = readTransferMetadata(meta as unknown as Record<string, unknown>);
+    if (!validated) throw new SyncError('invalid-transfer', 'Invalid transfer metadata.');
+    if (validated.size !== bytes.byteLength)
       throw new SyncError('invalid-transfer', 'Transfer size does not match the audio.');
-    this.meta = meta;
+    this.meta = validated;
     this.bytes = bytes;
   }
 

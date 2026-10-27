@@ -14,6 +14,7 @@ import {
   type LoanRequest,
 } from './loan';
 import type { Platform } from './protocol';
+import { verifyCopy } from './integrity';
 
 /**
  * Sync persistence lives in its own database so the music library schema and
@@ -165,10 +166,17 @@ export async function commitLoan(
   policy: LoanPolicy = DEFAULT_LOAN_POLICY,
   now = Date.now(),
   type = 'application/octet-stream',
+  expectedSha256?: string,
 ): Promise<GrantResult> {
   validatePolicy(policy);
   if (audio.byteLength !== request.size)
     throw new Error('The received file does not match the announced size.');
+  // Defence in depth: the caller has already verified the digest, but nothing
+  // unverified may ever be written as a playable loan.
+  if (expectedSha256 !== undefined) {
+    const check = await verifyCopy(audio, { size: request.size, sha256: expectedSha256 });
+    if (!check.ok) throw new Error(check.detail);
+  }
   const db = await openSyncStore();
   try {
     const tx = db.transaction(['loans', 'audio'], 'readwrite');
