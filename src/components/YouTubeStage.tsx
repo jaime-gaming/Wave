@@ -75,6 +75,12 @@ export function YouTubeStage({
   /** Position to resume from on the embed's first ready event, then cleared. */
   const pendingResume = useRef(Math.max(0, startAt));
 
+  /** The level the embed should be at right now. */
+  const target = useCallback(
+    () => Math.min(1, Math.max(0, volume)) * Math.min(1, Math.max(0, gain)),
+    [volume, gain],
+  );
+
   const post = useCallback((func: string, args: unknown[] = []) => {
     frame.current?.contentWindow?.postMessage(
       JSON.stringify({ event: 'command', func, args }),
@@ -145,19 +151,21 @@ export function YouTubeStage({
       post('pauseVideo');
       return;
     }
-    let tries = 0;
+    let retry: ReturnType<typeof setTimeout> | undefined;
     const send = () => {
       if (clock.current.playing || refused.current) return;
       post('playVideo');
-      if (++tries >= 16) return;
-      retry = setTimeout(send, 400);
+      // Volume is re-sent with every attempt: like the command itself, it is
+      // dropped until the embed exists, and the song would otherwise start at
+      // YouTube's own level or stay unheard.
+      post('setVolume', [Math.round(target() * 100)]);
+      retry = setTimeout(send, 500);
     };
-    let retry: ReturnType<typeof setTimeout> | undefined;
     send();
     return () => {
       if (retry) clearTimeout(retry);
     };
-  }, [playing, post]);
+  }, [playing, post, target]);
 
   useEffect(() => {
     if (!ready || seek.nonce === 0) return;
@@ -175,19 +183,19 @@ export function YouTubeStage({
   const applied = useRef<number | null>(startGain);
   const ramp = useRef<number | null>(null);
   useEffect(() => {
-    const target = Math.min(1, Math.max(0, volume)) * Math.min(1, Math.max(0, gain));
+    const level = target();
     const send = (value: number) => post('setVolume', [Math.round(value * 100)]);
     const from = applied.current;
-    applied.current = target;
+    applied.current = level;
     if (ramp.current !== null) cancelAnimationFrame(ramp.current);
     if (from === null || fadeSeconds < 0.05) {
-      send(target);
+      send(level);
       return;
     }
     const started = performance.now();
     const step = () => {
       const p = Math.min(1, (performance.now() - started) / (fadeSeconds * 1000));
-      send(from + (target - from) * p);
+      send(from + (level - from) * p);
       ramp.current = p < 1 ? requestAnimationFrame(step) : null;
     };
     ramp.current = requestAnimationFrame(step);
@@ -195,13 +203,15 @@ export function YouTubeStage({
       if (ramp.current !== null) cancelAnimationFrame(ramp.current);
       ramp.current = null;
     };
-  }, [volume, gain, fadeSeconds, post]);
+  }, [target, fadeSeconds, post]);
 
   useEffect(() => {
     if (!playing) return;
     const timer = setTimeout(() => {
       if (!started && !refused.current)
-        onError('YouTube did not start. Check the connection, or press play once more.');
+        onError(
+          'YouTube did not start. Some browsers block video that starts by itself; open the song on YouTube if it stays silent.',
+        );
     }, 8_000);
     return () => clearTimeout(timer);
   }, [playing, started, onError]);

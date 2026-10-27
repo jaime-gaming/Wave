@@ -169,6 +169,15 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
   useEffect(() => {
     prime(current?.blob);
   }, [current?.blob, prime]);
+  /**
+   * A fade belongs to one handover. When the song changes without a running
+   * handover, the embed's level returns to unity so a stale zero gain can never
+   * leave a YouTube song silent.
+   */
+  useEffect(() => {
+    if (edgeRef.current) return;
+    setEdge((value) => (value.outgoingGain === 1 ? value : { ...value, outgoingGain: 1 }));
+  }, [current?.id]);
   useEffect(() => {
     if (current?.id && recent.current.at(-1) !== current.id)
       recent.current = [...recent.current.slice(-31), current.id];
@@ -439,6 +448,19 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
     restore();
     return () => element.removeEventListener('loadedmetadata', restore);
   }, [blob, current?.id]);
+  /**
+   * Browsers only start an audio context inside a gesture. Any click or key
+   * brings a suspended graph back, so the interface cannot get stuck silent.
+   */
+  useEffect(() => {
+    const resume = () => void engine.current?.resumeAudio();
+    window.addEventListener('pointerdown', resume, { passive: true });
+    window.addEventListener('keydown', resume);
+    return () => {
+      window.removeEventListener('pointerdown', resume);
+      window.removeEventListener('keydown', resume);
+    };
+  }, []);
   useEffect(() => {
     const player = engine.current;
     if (!player || !blob) return;

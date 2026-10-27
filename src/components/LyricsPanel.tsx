@@ -192,17 +192,13 @@ export function LyricsPanel({
   const lyrics = track.lyrics,
     index = lyrics ? activeLyricIndex(lyrics, time) : -1,
     activeTime = index >= 0 ? lyrics?.lines[index].time : undefined;
-  const [windowCount, setWindowCount] = useState(3);
-  useEffect(() => {
-    const el = pane.current;
-    if (!stage || !el || typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(([entry]) => {
-      const h = entry.contentRect.height;
-      setWindowCount(cinematic ? 3 : h >= 280 ? 3 : h >= 160 ? 2 : 1);
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [stage, lyrics?.raw, cinematic]);
+  /**
+   * The framed reader always shows exactly three lines: the one being sung and
+   * its neighbours. It never grows with the window, because a fourth line makes
+   * the current one harder to find.
+   */
+  const framed = stage || cinematic;
+  const windowCount = 3;
   const synchronized = lyrics?.lines[0]?.time !== undefined;
   const windowStart =
     follow && synchronized
@@ -249,7 +245,8 @@ export function LyricsPanel({
       const line = el.querySelector<HTMLElement>('.lyric-line.active');
       if (!line) return;
       const max = Number.parseFloat(getComputedStyle(line).fontSize),
-        budget = el.clientHeight * (cinematic ? 0.68 : 0.9);
+        // With three framed rows each line owns a third of the reader.
+        budget = el.clientHeight * (framed ? (cinematic ? 0.3 : 0.32) : 0.9);
       if (line.scrollHeight > budget) {
         let low = 12,
           high = Math.floor(max);
@@ -279,6 +276,7 @@ export function LyricsPanel({
     lyrics?.offsetMs,
     follow,
     animation.enabled,
+    framed,
     windowCount,
   ]);
   const [timingError, setTimingError] = useState('');
@@ -334,13 +332,12 @@ export function LyricsPanel({
           {!cinematic && synchronized && <p className="lyrics-caption">Tap a line to seek</p>}
           <div
             ref={pane}
-            className="lyrics-scroll"
-            onWheel={() => setFollow(false)}
-            onTouchMove={() => setFollow(false)}
+            className={`lyrics-scroll${framed ? ' lyrics-scroll--framed' : ''}`}
+            onWheel={framed ? undefined : () => setFollow(false)}
+            onTouchMove={framed ? undefined : () => setFollow(false)}
           >
             {lyrics.lines.map((line, i) =>
-              cinematic &&
-              (i < windowStart || i >= windowStart + windowCount) ? null : line.time !==
+              framed && (i < windowStart || i >= windowStart + windowCount) ? null : line.time !==
                 undefined ? (
                 <LyricRow
                   readOnly={cinematic}
@@ -359,7 +356,7 @@ export function LyricsPanel({
               ) : (
                 <p
                   key={i}
-                  className={`lyric-line plain ${cinematic && i === windowStart ? 'active' : ''}`}
+                  className={`lyric-line plain ${framed && i === windowStart ? 'active' : ''}`}
                 >
                   <span className="lyric-text">{line.text}</span>
                 </p>

@@ -48,15 +48,31 @@ export class MixGraph {
     return this.context.state !== 'closed';
   }
 
-  /** Web Audio starts suspended until a user gesture; resume on play. */
-  async resume(): Promise<void> {
-    if (this.context.state === 'suspended') {
-      try {
-        await this.context.resume();
-      } catch {
-        // Autoplay policy: the next user gesture will resume it.
-      }
+  /**
+   * True only while the context is actually producing sound.
+   *
+   * This matters more than it looks: once an element is attached to a source
+   * node, its audio no longer reaches the speakers by itself. A suspended
+   * context would therefore make the song play silently. Nothing is attached
+   * until this is true.
+   */
+  get running(): boolean {
+    // `state` is narrowed by the DOM lib; a suspended context makes no sound.
+    return (this.context.state as AudioContextState) === 'running';
+  }
+
+  /**
+   * Web Audio starts suspended until a user gesture. Returns whether the graph
+   * can be used right now; a browser that refuses keeps playback unplugged.
+   */
+  async resume(): Promise<boolean> {
+    if (this.running) return true;
+    try {
+      await this.context.resume();
+    } catch {
+      return false;
     }
+    return this.running;
   }
 
   /**

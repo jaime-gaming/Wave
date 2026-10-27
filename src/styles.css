@@ -5614,3 +5614,137 @@ a {
     transform: none;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Layering and rhythm.
+
+   One scale decides what can cover what, so nothing decorative can end up over
+   the text and no interactive element ends up under another. Spacing follows a
+   single rhythm too: sections get 20 px, panels 16 px, rows 12 px.
+   ------------------------------------------------------------------------- */
+:root {
+  --layer-base: 0;
+  --layer-content: 1;
+  --layer-nav: 20;
+  --layer-player: 30;
+  --layer-menu: 40;
+  --layer-toast: 60;
+  --layer-drop: 70;
+  --layer-skip: 80;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 28px;
+}
+.app-shell {
+  position: relative;
+  isolation: isolate;
+}
+/* Ambient light belongs behind the interface, never over its text. */
+.music-backdrop {
+  z-index: var(--layer-base);
+}
+.workspace {
+  position: relative;
+  z-index: var(--layer-content);
+}
+.navigation-shell {
+  z-index: var(--layer-nav);
+}
+.player-bar {
+  z-index: var(--layer-player);
+}
+.toast {
+  z-index: var(--layer-toast);
+}
+.drop-overlay {
+  z-index: var(--layer-drop);
+}
+.skip-link {
+  z-index: var(--layer-skip);
+}
+
+/* Tighter shell: less empty frame around the content. */
+.workspace {
+  margin: var(--space-4) calc(var(--player-width) + var(--space-5)) var(--space-4)
+    calc(var(--rail-width) + var(--space-3));
+  min-height: calc(100dvh - 32px);
+  border-radius: 28px;
+}
+.library-header {
+  padding: var(--space-5) 26px 22px;
+}
+.section-heading {
+  margin-bottom: var(--space-4);
+}
+.home-dashboard {
+  gap: var(--space-5);
+  margin-top: var(--space-5);
+}
+.stage-layout {
+  gap: var(--space-3) clamp(18px, 3.2vw, 52px);
+}
+.stage-record {
+  gap: var(--space-4);
+}
+.settings-switch-row {
+  margin-top: var(--space-5);
+  gap: var(--space-4);
+}
+.settings-page-options {
+  padding: 20px;
+}
+.lyrics-stage {
+  gap: var(--space-3);
+}
+@media (max-width: 1100px) {
+  .workspace {
+    margin-right: var(--space-4);
+    margin-bottom: var(--space-4);
+  }
+}
+@media (max-width: 700px) {
+  .workspace {
+    margin: 0;
+    border-radius: 0;
+  }
+}
+
+/* The page title is a heading, not a poster: it keeps the header short so the
+   first song is visible without scrolling. */
+h1 {
+  font-size: clamp(26px, 2.6vw, 38px);
+  letter-spacing: -0.8px;
+  line-height: 1.1;
+}
+.header-top {
+  margin-bottom: 8px;
+}
+.app-name {
+  font-size: 14px;
+  letter-spacing: 0.02em;
+}
+.title-row {
+  margin-bottom: 12px;
+}
+.title-row > div:first-child {
+  min-width: 0;
+}
+@media (max-width: 700px) {
+  h1 {
+    font-size: clamp(24px, 7vw, 30px);
+    letter-spacing: -0.5px;
+  }
+  .title-row {
+    margin-bottom: 8px;
+  }
+}
+/* Empty-state hint under the import button. */
+.supported-formats {
+  display: block;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}

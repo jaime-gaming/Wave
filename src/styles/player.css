@@ -985,3 +985,53 @@
   font-size: 12px;
   line-height: 1.5;
 }
+
+/* The framed lyrics reader: exactly three lines, the current one in the middle. */
+.lyrics-scroll--framed {
+  display: grid;
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  align-content: stretch;
+  overflow: hidden;
+  padding: 0;
+  gap: 0;
+  mask-image: none;
+  -webkit-mask-image: none;
+  scroll-snap-type: none;
+}
+.lyrics-scroll--framed .lyric-line {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  min-height: 0;
+  padding: 0 14px;
+  border-radius: 18px;
+  transition:
+    opacity 0.2s ease,
+    background 0.2s ease,
+    color 0.2s ease;
+}
+.lyrics-scroll--framed .lyric-line:not(.active) {
+  opacity: 0.42;
+  font-size: 0.82em;
+  filter: none;
+  max-height: none;
+  overflow: hidden;
+}
+.lyrics-scroll--framed .lyric-line.active {
+  opacity: 1;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--player-accent) 16%, transparent),
+    transparent 72%
+  );
+  box-shadow: inset 3px 0 0 var(--player-accent);
+}
+.lyrics-scroll--framed .lyric-line[aria-current='true'] {
+  border: 0;
+  padding-left: 14px;
+}
+@media (max-height: 540px) {
+  .lyrics-scroll--framed .lyric-line {
+    padding: 0 10px;
+  }
+}

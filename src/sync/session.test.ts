@@ -69,7 +69,14 @@ async function connect(options: { confirm?: boolean } = {}) {
   };
 }
 
-const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
+/**
+ * Lets queued delivery and the asynchronous seal/open calls finish. Several short
+ * waits instead of one: under a full parallel test run the crypto promises can
+ * take longer than a single macrotask, which made this suite flaky.
+ */
+const settle = async () => {
+  for (let i = 0; i < 6; i += 1) await new Promise((resolve) => setTimeout(resolve, 10));
+};
 
 describe('pairing session', () => {
   it('pairs two devices after both confirm the same code', async () => {
