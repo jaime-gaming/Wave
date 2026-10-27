@@ -90,6 +90,27 @@ describe('YouTube song stage', () => {
     );
   });
 
+  it('resumes at the right moment when it is mounted again, and stays quiet when silent', async () => {
+    const onTime = vi.fn();
+    const { container } = render(
+      <YouTubeStage {...baseProps} onTime={onTime} playing={true} startAt={37.5} silent />,
+    );
+    const host = container.querySelector('.video-backdrop') as HTMLElement;
+    expect(host).toHaveClass('youtube-silent');
+    expect(host).toHaveAttribute('aria-hidden', 'true');
+    const frame = container.querySelector('iframe') as HTMLIFrameElement;
+    const post = vi.spyOn(frame.contentWindow!, 'postMessage');
+    deliver(frame, { playerState: 1, currentTime: 0, duration: 244 });
+    await waitFor(() =>
+      expect(
+        post.mock.calls.some(
+          ([message]) => String(message).includes('seekTo') && String(message).includes('37.5'),
+        ),
+      ).toBe(true),
+    );
+    expect(onTime).toHaveBeenCalledWith(37.5);
+  });
+
   it('ignores messages from anywhere else', async () => {
     const onEnded = vi.fn();
     render(<YouTubeStage {...baseProps} onEnded={onEnded} playing={true} />);

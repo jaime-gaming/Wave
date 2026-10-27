@@ -985,3 +985,19 @@
 .video-backdrop--source .video-backdrop-frame {
   pointer-events: none;
 }
+
+/* A YouTube song that is playing while Now Playing is collapsed. */
+.video-backdrop.youtube-silent {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  inset: auto auto 0 0;
+  opacity: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+}
+.video-backdrop.youtube-silent .video-backdrop-bar,
+.video-backdrop.youtube-silent .video-backdrop-veil {
+  display: none;
+}
