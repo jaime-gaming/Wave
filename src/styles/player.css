@@ -66,7 +66,7 @@
   height: 100%;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
   grid-template-rows: minmax(0, 1fr) auto;
   gap: 20px clamp(24px, 5vw, 80px);
 }
@@ -152,6 +152,27 @@
 .stage-controls {
   grid-area: 2/1/3/-1;
   min-width: 0;
+}
+/*
+ * Still for two seconds while a song plays: the transport fades out and the
+ * lyrics keep the screen. Any movement brings it back, and a focused control
+ * pins it in place so the keyboard is never left without a target.
+ */
+.player-modal .stage-transport {
+  transition: opacity 0.45s ease;
+}
+.player-modal.controls-idle .stage-transport {
+  opacity: 0;
+  pointer-events: none;
+}
+.player-modal.controls-idle .stage-transport:focus-within {
+  opacity: 1;
+  pointer-events: auto;
+}
+@media (prefers-reduced-motion: reduce) {
+  .player-modal .stage-transport {
+    transition: none;
+  }
 }
 .stage-transport {
   display: grid;
@@ -318,9 +339,7 @@
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  padding: 12px 20px;
-  border-radius: 30px;
-  background: color-mix(in srgb, var(--surface) 52%, transparent);
+  padding: 12px 0;
 }
 .stage-lyrics-toggle {
   display: flex;
@@ -382,7 +401,6 @@
 }
 .stage-lyrics[data-open='false'] {
   align-self: start;
-  background: transparent;
 }
 .stage-lyrics[data-open='false'] .stage-lyrics-reveal {
   visibility: hidden;
@@ -776,125 +794,65 @@
     );
   pointer-events: none;
 }
-.video-backdrop-bar {
+
+/*
+ * Clip search: while there is no video the player shows one quiet line instead of
+ * a dark sheet. It sits in the content layer, under the heading, and only the
+ * retry inside it takes clicks.
+ */
+.clip-note {
   position: absolute;
-  left: 16px;
-  right: 16px;
-  bottom: 16px;
+  top: 60px;
+  left: 50%;
+  z-index: 2;
+  transform: translateX(-50%);
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 8px 12px;
-  border-radius: 16px;
-  background: rgba(8, 10, 16, 0.55);
-  backdrop-filter: blur(12px);
-  color: #f4f6ff;
-  font-size: 12px;
-}
-.video-backdrop-status {
-  letter-spacing: 0.01em;
-  opacity: 0.85;
-}
-.video-backdrop-actions {
-  display: flex;
+  flex-direction: row;
   align-items: center;
   gap: 10px;
-}
-.video-backdrop-actions .icon-button {
-  color: #f4f6ff;
-  background: rgba(255, 255, 255, 0.12);
-}
-.video-offset {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-variant-numeric: tabular-nums;
-}
-.video-offset input {
-  width: 84px;
-  accent-color: var(--primary);
-}
-.video-offset output {
-  min-width: 40px;
-  text-align: right;
-  opacity: 0.85;
-}
-.video-backdrop-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: inherit;
-  text-decoration: none;
-  padding: 4px 8px;
+  max-width: min(560px, calc(100vw - 32px));
+  padding: 8px 14px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.12);
+  background: color-mix(in srgb, var(--player-tonal) 88%, transparent);
+  color: var(--player-ink);
+  text-align: left;
+}
+.clip-note-symbol {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  color: var(--player-accent);
+  line-height: 0;
+}
+.clip-note h3 {
+  flex: 0 0 auto;
+  font-size: 13px;
   font-weight: 700;
+  letter-spacing: 0;
 }
-.video-backdrop-empty {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  gap: 10px;
-  justify-items: center;
-  text-align: center;
-  max-width: 460px;
-  padding: 24px;
-  border-radius: 24px;
-  background: var(--container);
-  color: var(--text);
-}
-.video-backdrop-empty p {
-  display: grid;
-  gap: 4px;
+.clip-note p {
   margin: 0;
   font-size: 13px;
-  color: var(--muted);
+  line-height: 1.35;
+  color: var(--player-muted);
 }
-.video-backdrop-empty strong {
-  color: var(--text);
-  font-size: 15px;
-}
-.video-clip-form {
+.clip-note .empty-actions {
   display: flex;
-  gap: 8px;
-  width: 100%;
-  flex-wrap: wrap;
-  justify-content: center;
+  flex: 0 0 auto;
 }
-.video-clip-form label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1 1 220px;
-  padding: 8px 12px;
-  border-radius: 999px;
-  background: var(--container-high);
-  color: var(--text);
+.clip-note .text-button {
+  padding: 4px 6px;
+  font-size: 13px;
 }
-.video-clip-form input {
-  flex: 1;
-  min-width: 0;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-}
-.video-clip-error {
-  color: #ffb4ab;
-  font-size: 12px;
-  margin: 0;
-}
-@media (max-width: 640px) {
-  .video-backdrop-bar {
-    left: 8px;
-    right: 8px;
-    bottom: 8px;
-    padding: 6px 8px;
+@media (max-width: 599px) {
+  .clip-note {
+    top: 54px;
+    padding: 6px 12px;
+    gap: 8px;
   }
-  .video-offset input {
-    width: 62px;
+  .clip-note h3,
+  .clip-note p {
+    font-size: 12px;
   }
 }
 
@@ -973,7 +931,6 @@
   pointer-events: none;
   overflow: hidden;
 }
-.video-backdrop.youtube-silent .video-backdrop-bar,
 .video-backdrop.youtube-silent .video-backdrop-veil {
   display: none;
 }
@@ -995,8 +952,8 @@
  * larger type: a lyric you cannot read from a sofa is not a lyric view.
  */
 .lyric-line {
-  font-size: clamp(22px, 2.3vw, 33px);
-  line-height: 1.36;
+  font-size: clamp(24px, 2.5vw, 36px);
+  line-height: 1.34;
   padding: 10px 4px;
 }
 .lyrics-stage .lyrics-scroll,
@@ -1014,8 +971,8 @@
   -webkit-mask-image: linear-gradient(transparent, #000 14%, #000 86%, transparent);
 }
 .lyrics-stage .lyric-line {
-  font-size: clamp(22px, 2.4vw, 34px);
-  line-height: 1.3;
+  font-size: clamp(26px, 2.9vw, 42px);
+  line-height: 1.28;
   padding: 9px 8px;
   color: var(--player-muted);
   transition:
@@ -1024,7 +981,7 @@
 }
 .lyrics-stage .lyric-line:not(.active),
 .lyrics-cinematic .lyric-line:not(.active) {
-  opacity: 0.46;
+  opacity: 0.62;
 }
 .lyrics-stage .lyric-line.active,
 .lyrics-cinematic .lyric-line.active {
@@ -1034,36 +991,32 @@
 .lyrics-stage .lyric-line[aria-current='true'],
 .lyrics-cinematic .lyric-line[aria-current='true'] {
   border: 0;
-  padding-left: 8px;
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--player-accent) 14%, transparent),
-    transparent 68%
-  );
-  border-radius: 16px;
-  box-shadow: inset 3px 0 0 var(--player-accent);
+  background: none;
+  color: var(--player-accent);
+  font-weight: 800;
+  text-wrap: balance;
 }
 .lyrics-cinematic .lyrics-scroll {
   gap: 0;
 }
 .lyrics-cinematic .lyric-line {
-  font-size: clamp(24px, 3.2vw, 52px);
-  line-height: 1.2;
+  font-size: clamp(30px, 4vw, 64px);
+  line-height: 1.18;
   padding: 10px 6px;
   max-height: none;
   filter: none;
 }
 @media (max-width: 800px) {
   .lyrics-stage .lyric-line {
-    font-size: clamp(20px, 5.6vw, 30px);
+    font-size: clamp(23px, 6.2vw, 34px);
   }
   .lyrics-cinematic .lyric-line {
-    font-size: clamp(22px, 6vw, 36px);
+    font-size: clamp(26px, 6.6vw, 44px);
   }
 }
 @media (max-width: 599px) {
   .lyrics-stage .lyric-line {
-    font-size: clamp(19px, 6vw, 28px);
+    font-size: clamp(22px, 6.4vw, 32px);
   }
   .lyrics-stage .lyrics-scroll {
     padding-block: 34%;
@@ -1071,11 +1024,11 @@
 }
 @media (max-height: 540px) {
   .lyrics-stage .lyric-line {
-    font-size: clamp(18px, 4.2dvh, 26px);
+    font-size: clamp(20px, 4.6dvh, 30px);
     padding: 5px 6px;
   }
   .lyrics-cinematic .lyric-line {
-    font-size: clamp(20px, 4.6dvh, 30px);
+    font-size: clamp(22px, 5dvh, 36px);
   }
   .lyrics-stage .lyrics-scroll {
     padding-block: 22%;

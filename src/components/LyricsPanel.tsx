@@ -174,9 +174,9 @@ export function LyricsPanel({
     let frame = 0,
       last = 0;
     const sample = (now: number) => {
-      // ~20 Hz is smooth for a word fill and keeps the reader off the
-      // main thread's critical path on a slow device.
-      if (!document.hidden && now - last >= 48) {
+      // ~12 Hz is smooth for a word fill and keeps the reader off the main
+      // thread's critical path on a slow device; the seek bar has its own clock.
+      if (!document.hidden && now - last >= 80) {
         setNativeTime(readTime());
         last = now;
       }
@@ -205,35 +205,16 @@ export function LyricsPanel({
   useLayoutEffect(() => {
     const el = pane.current;
     if (!el || typeof ResizeObserver === 'undefined') return;
+    // Only the scroll is adjusted. Lyrics are never shrunk to fit: a line that is
+    // too long wraps, and the reader scrolls, because small lyrics are unreadable
+    // lyrics — this is the size the type is set to and it stays there.
     const fit = (smooth: boolean) => {
-      for (const previous of el.querySelectorAll<HTMLElement>('[data-fitted]')) {
-        previous.style.removeProperty('font-size');
-        delete previous.dataset.fitted;
-      }
       const line = el.querySelector<HTMLElement>('.lyric-line.active');
-      if (!line) return;
-      const max = Number.parseFloat(getComputedStyle(line).fontSize),
-        // The reader scrolls, so a line only has to fit the reader, not a row.
-        budget = el.clientHeight * 0.9;
-      if (line.scrollHeight > budget) {
-        // Long lines shrink, but never below a size you can actually read; past
-        // that the text is clamped instead.
-        let low = Math.min(Math.floor(max), 18),
-          high = Math.floor(max);
-        while (low < high) {
-          const middle = Math.ceil((low + high) / 2);
-          line.style.fontSize = middle + 'px';
-          if (line.scrollHeight <= budget) low = middle;
-          else high = middle - 1;
-        }
-        line.style.fontSize = low + 'px';
-        line.dataset.fitted = 'true';
-      }
-      if (!cinematic && follow)
-        el.scrollTo({
-          top: line.offsetTop - el.clientHeight / 2 + line.clientHeight / 2,
-          behavior: smooth && animation.enabled ? 'smooth' : 'instant',
-        });
+      if (!line || cinematic || !follow) return;
+      el.scrollTo({
+        top: line.offsetTop - el.clientHeight / 2 + line.clientHeight / 2,
+        behavior: smooth && animation.enabled ? 'smooth' : 'instant',
+      });
     };
     const observer = new ResizeObserver(() => fit(false));
     observer.observe(el);

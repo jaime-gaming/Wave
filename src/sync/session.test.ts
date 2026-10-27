@@ -78,6 +78,18 @@ const settle = async () => {
   for (let i = 0; i < 6; i += 1) await new Promise((resolve) => setTimeout(resolve, 10));
 };
 
+/**
+ * Waits for a condition instead of guessing how long the handshake needs. Six
+ * fixed waits are enough on an idle machine and not always enough on a busy one.
+ */
+const settleUntil = async (ready: () => boolean, budget = 3000) => {
+  const started = Date.now();
+  while (!ready() && Date.now() - started < budget) {
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+  await settle();
+};
+
 describe('pairing session', () => {
   it('pairs two devices after both confirm the same code', async () => {
     const { host, guest, sas, received, events } = await connect();
@@ -267,7 +279,7 @@ describe('sealed frame hardening', () => {
       onFrame: (frame) => peerFrames.push(frame),
     });
     host.start();
-    await settle();
+    await settleUntil(() => host.state === 'paired');
     expect(host.state).toBe('paired');
     return {
       host,

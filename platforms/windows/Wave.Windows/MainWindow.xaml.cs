@@ -157,12 +157,15 @@ public partial class MainWindow : Window
         }
         int at = lines.FindLastIndex(line => line.Time <= time);
         if (at != highlighted) {
+            int previous = highlighted;
             highlighted = at;
-            for (int i = 0; i < LyricsLines.Children.Count; i++) if (LyricsLines.Children[i] is TextBlock text) {
-                text.SetResourceReference(TextBlock.ForegroundProperty, i == at ? "AccentBrush" : "MutedBrush");
-                text.FontWeight = i == at ? FontWeights.Bold : FontWeights.Normal;
-                text.Effect = i != at && preferences.Animations ? new BlurEffect { Radius = 1.5 } : null;
-                if (i == at && page == "Now playing") text.BringIntoView();
+            // Only the line that was sung and the one that now is are touched: a
+            // full pass over the lyric block on every line is wasted layout.
+            if (previous >= 0 && previous < LyricsLines.Children.Count && LyricsLines.Children[previous] is TextBlock before)
+                StyleLine(before, false);
+            if (at >= 0 && at < LyricsLines.Children.Count && LyricsLines.Children[at] is TextBlock current) {
+                StyleLine(current, true);
+                if (page == "Now playing") current.BringIntoView();
             }
         }
         if (at >= 0 && at < LyricsLines.Children.Count && LyricsLines.Children[at] is TextBlock currentLine) {
@@ -173,6 +176,15 @@ public partial class MainWindow : Window
             currentLine.Foreground = new LinearGradientBrush(new GradientStopCollection { new(accent, Math.Max(0, fill - .02)), new(muted, Math.Min(1, fill + .02)) }, 0);
         }
         if (DateTime.UtcNow - lastSave > TimeSpan.FromSeconds(5)) { SaveSession(); lastSave = DateTime.UtcNow; }
+    }
+    /// <summary>
+    /// One idea of a lyric line: the sung one is hard to miss, the rest stay quiet.
+    /// No blur, no shadow — the text does the work.
+    /// </summary>
+    private void StyleLine(TextBlock line, bool sung) {
+        line.SetResourceReference(TextBlock.ForegroundProperty, sung ? "AccentBrush" : "MutedBrush");
+        line.FontWeight = sung ? FontWeights.Bold : FontWeights.Normal;
+        line.Opacity = sung ? 1 : .62;
     }
     private static string Clock(double seconds) { if (!double.IsFinite(seconds) || seconds < 0) seconds = 0; return $"{(int)seconds / 60}:{(int)seconds % 60:00}"; }
     private void UpdatePlaybackLabels() { MiniToggle.Content = NowToggle.Content = playing ? "Pause" : "Play"; }
@@ -232,7 +244,7 @@ public partial class MainWindow : Window
         LyricsLines.Children.Clear(); lines = LyricsClient.Parse(Current?.Lyrics ?? ""); highlighted = -2; SetLyricsVisibility();
         if (lines.Count == 0) { if (!string.IsNullOrWhiteSpace(Current?.Lyrics)) LyricsLines.Children.Add(Label(Current.Lyrics, 24)); return; }
         foreach (var line in lines) {
-            var text = Label(line.Text, 26); text.Margin = new Thickness(0, 14, 0, 14); text.Cursor = Cursors.Hand;
+            var text = Label(line.Text, 26); text.Margin = new Thickness(0, 14, 0, 14); text.Cursor = Cursors.Hand; text.Opacity = .62;
             text.MouseLeftButtonUp += (_, _) => { if (ready) { CancelFade(); active.Position = TimeSpan.FromSeconds(line.Time); } };
             LyricsLines.Children.Add(text);
         }

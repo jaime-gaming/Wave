@@ -38,7 +38,11 @@ class Player {
             try {
                 val player = active
                 if (player != null && playing && prepared) {
-                    time = player.currentPosition / 1000.0
+                    // The bar only shows tenths of a second, so the position is
+                    // published ten times a second instead of on every frame. A
+                    // crossfade still ticks at 33 ms because the ramps need it.
+                    val position = player.currentPosition / 1000.0
+                    if (shouldPublishTime(time, position, outgoing != null)) time = position
                     val tail = outgoing
                     if (tail != null) {
                         val progress = (time / fadeLength).coerceIn(0.0, 1.0)

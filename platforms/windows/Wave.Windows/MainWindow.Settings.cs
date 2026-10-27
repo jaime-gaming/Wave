@@ -62,7 +62,7 @@ public partial class MainWindow
                 SettingsBody.Children.Add(Label($"{tracks.Count} original files in {repository.Folder}. Keep your originals; deleting this folder removes this library."));
                 SettingsBody.Children.Add(ActionButton("Open local library folder", () => Process.Start(new ProcessStartInfo(repository.Folder) { UseShellExecute = true }))); break;
             case "About":
-                SettingsBody.Children.Add(Label("Wave 0.1.0 · 17 October 2026", 23));
+                SettingsBody.Children.Add(Label("Wave 0.1.1 · 27 October 2026", 23));
                 SettingsBody.Children.Add(Label("Your music. Your collection. No account required."));
                 SettingsBody.Children.Add(ActionButton("Source code", () => Process.Start(new ProcessStartInfo("https://github.com/jaime-gaming/Wave") { UseShellExecute = true })));
                 SettingsBody.Children.Add(Label("Use audio and lyrics you may lawfully access. See the repository privacy information.")); break;

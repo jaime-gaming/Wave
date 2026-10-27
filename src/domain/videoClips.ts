@@ -57,10 +57,14 @@ export function loadClips(store: Storage | null = storage()): ClipMap {
   }
 }
 
+/** Fired whenever the stored clips change, so open views can re-read them. */
+export const CLIPS_CHANGED = 'wave:clips-changed';
+
 function persist(map: ClipMap, store: Storage | null): boolean {
   if (!store) return false;
   try {
     store.setItem(CLIP_STORAGE_KEY, JSON.stringify(map));
+    if (typeof window !== 'undefined') window.dispatchEvent(new Event(CLIPS_CHANGED));
     return true;
   } catch {
     // Quota or private mode: the clip still works for this session.

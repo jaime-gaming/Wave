@@ -428,10 +428,24 @@ h1 {
   letter-spacing: -0.4px;
 }
 .empty-state p {
-  margin: 9px 0 26px;
+  margin: 9px 0 0;
   font-size: 15px;
   color: var(--muted);
   line-height: 1.65;
+}
+/* One place decides how an empty view offers its way out. */
+.empty-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 22px;
+}
+.empty-state > span {
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--muted);
 }
 .song-list-heading,
 .song-row {
@@ -2433,12 +2447,11 @@ kbd {
   flex-wrap: wrap;
 }
 
+/* The reader is text on the player surface, never a card around it. */
 .lyrics-panel {
-  background: var(--player-tonal);
-  border-radius: 32px;
-  padding: 24px;
   color: var(--player-ink);
   min-width: 0;
+  min-height: 0;
 }
 .lyrics-heading {
   display: flex;
@@ -2483,9 +2496,10 @@ kbd {
 .lyric-line.active {
   color: var(--player-ink);
 }
+/* The sung line grows and takes the accent; it never gets a box of its own. */
 .lyric-line[aria-current='true'] {
-  border-left: 4px solid var(--player-accent);
-  padding-left: 16px;
+  color: var(--player-accent);
+  font-weight: 800;
 }
 .lyrics-empty {
   display: flex;
@@ -2562,10 +2576,6 @@ kbd {
   flex-wrap: wrap;
 }
 @media (max-width: 700px) {
-  .lyrics-panel {
-    padding: 18px;
-    border-radius: 26px;
-  }
   .lyrics-scroll {
     max-height: 280px;
   }
@@ -5756,6 +5766,78 @@ h1 {
 }
 @media (max-width: 700px) {
   .song-list[data-virtual='true'] > .song-row {
+    contain-intrinsic-size: auto 76px;
+  }
+}
+
+/* Library rhythm: every list shares one row height, one corner and one hover, so
+   a long album reads as a list instead of a stack of cards. */
+.song-row {
+  min-height: 68px;
+  padding: 8px 16px;
+  margin-bottom: 4px;
+  border-radius: 16px;
+  gap: 14px;
+  transition:
+    background 0.16s var(--ease-out),
+    border-color 0.16s var(--ease-out);
+}
+.song-row:hover,
+.song-row:focus-within {
+  background: color-mix(in srgb, var(--container-high) 76%, transparent);
+  border-color: color-mix(in srgb, var(--primary) 26%, var(--hairline));
+}
+.song-row .track-info {
+  gap: 2px;
+}
+.song-row .track-info strong {
+  font-size: 15.5px;
+  font-weight: 650;
+  letter-spacing: -0.1px;
+}
+.song-row .track-info > span {
+  font-size: 13.5px;
+}
+.song-row .artwork {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+}
+.song-list-heading {
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  padding-bottom: 10px;
+}
+@media (max-width: 700px) {
+  .song-row {
+    min-height: 76px;
+    padding: 10px 12px;
+    border-radius: 16px;
+  }
+  .song-row .artwork {
+    width: 52px;
+    height: 52px;
+    border-radius: 13px;
+  }
+  .song-row .track-info strong {
+    font-size: 15px;
+  }
+}
+
+/* Long songs lists: rows outside the viewport cost no layout and no paint, and
+   the placeholder keeps the scrollbar honest while they are skipped. */
+.song-list .song-row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 68px;
+}
+.song-row-sentinel {
+  height: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+@media (max-width: 700px) {
+  .song-list .song-row {
     contain-intrinsic-size: auto 76px;
   }
 }

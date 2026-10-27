@@ -1,16 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ExternalLink, Film, X } from 'lucide-react';
+import { Film } from 'lucide-react';
+import { EmptyState } from './EmptyState';
 import { readEmbedEvent, youtubeEmbedUrl } from '../domain/youtube';
 import {
-  clampVideoOffset,
   planVideoSync,
   VIDEO_CORRECTION_COOLDOWN_MS,
-  VIDEO_OFFSET_LIMIT_SECONDS,
-  videoStatusLabel,
   type VideoCommand,
   type VideoState,
 } from '../domain/videoSync';
-import { getClip, loadClips, removeClip, type StoredClip } from '../domain/videoClips';
+import { CLIPS_CHANGED, getClip, loadClips, type StoredClip } from '../domain/videoClips';
 import { findClip, rememberClip } from '../services/clipSearch';
 import { networkAriaLabel, networkLabel, useOnline } from '../ui/network';
 import type { Track } from '../domain/types';
@@ -37,19 +35,24 @@ export function VideoBackdrop({
   time,
   duration,
   playing,
-  onClose,
 }: {
   track: Track;
   time: number;
   duration: number;
   playing: boolean;
-  onClose: () => void;
 }) {
   const [clips, setClips] = useState(() => loadClips());
   const [search, setSearch] = useState<'searching' | 'empty' | 'unavailable'>('searching');
   const [attempt, setAttempt] = useState(0);
   const online = useOnline();
   const clip = getClip(track.id, clips);
+
+  // A clip can also be removed from the song's options; re-read when that happens.
+  useEffect(() => {
+    const sync = () => setClips(loadClips());
+    window.addEventListener(CLIPS_CHANGED, sync);
+    return () => window.removeEventListener(CLIPS_CHANGED, sync);
+  }, []);
 
   // The clip is discovered, not pasted: search once per song and open the match.
   // Only title and artist leave the device; the result is remembered locally.
@@ -82,30 +85,29 @@ export function VideoBackdrop({
         time={time}
         duration={duration}
         playing={playing}
-        onRemove={() => {
-          setClips(removeClip(track.id));
-        }}
-        onClose={onClose}
       />
     );
 
+  // Nothing to show yet: a short note, not a black sheet over the whole player.
   return (
-    <div className="video-backdrop" aria-label="Video clip backdrop">
-      <div className="video-backdrop-empty">
-        <Film size={22} aria-hidden="true" />
-        <p>
-          <strong>Video clip</strong>
-          <span>
-            {!online
-              ? 'Clip search needs a connection. A saved clip still plays.'
-              : search === 'searching'
-                ? 'Looking for this song on YouTube…'
-                : search === 'empty'
-                  ? 'No clip matched this song closely enough.'
-                  : 'Clip search is unreachable right now. Try again later.'}
-          </span>
-        </p>
-        {search !== 'searching' && (
+    <EmptyState
+      className="clip-note"
+      symbolClassName="clip-note-symbol"
+      level={3}
+      announce
+      icon={<Film size={18} />}
+      title="Video clip"
+      description={
+        !online
+          ? 'Clip search needs a connection. A saved clip still plays.'
+          : search === 'searching'
+            ? 'Looking for this song on YouTube…'
+            : search === 'empty'
+              ? 'No clip matched this song closely enough.'
+              : 'Clip search is unreachable right now. Try again later.'
+      }
+      actions={
+        search !== 'searching' ? (
           <button
             type="button"
             className="text-button"
@@ -118,36 +120,38 @@ export function VideoBackdrop({
           >
             {networkLabel(online, 'Search again')}
           </button>
-        )}
-      </div>
-    </div>
+        ) : undefined
+      }
+    />
   );
 }
 
+/**
+ * The clip itself: a muted, control-free video behind Now Playing.
+ *
+ * It has no controls of its own — no bar, no slider, no buttons — because the
+ * song already has a transport. Play, pause, seek and the drift correction all
+ * come from the player, exactly like the audio.
+ */
 function ClipPlayer({
   clip,
   time,
   duration,
   playing,
-  onRemove,
-  onClose,
 }: {
   clip: StoredClip;
   time: number;
   duration: number;
   playing: boolean;
-  onRemove: () => void;
-  onClose: () => void;
 }) {
-  const [state, setState] = useState<VideoState>(OFFLINE);
-  const [offset, setOffset] = useState(0);
   const frame = useRef<HTMLIFrameElement | null>(null);
   const latest = useRef<VideoState>(OFFLINE);
   const cooldown = useRef(0);
 
+  // Nothing is drawn from the embed's state any more; the sync loop only needs
+  // the latest value.
   const publish = useCallback((next: VideoState) => {
     latest.current = next;
-    setState(next);
   }, []);
 
   const command = useCallback(
@@ -215,25 +219,19 @@ function ClipPlayer({
       command(
         planVideoSync({ position: time, playing }, latest.current, {
           duration,
-          offset,
+          // No manual offset: the correction loop closes small drift by itself.
+          offset: 0,
           now: Date.now(),
           cooldownUntil: cooldown.current,
         }),
       );
     }, 500);
     return () => clearInterval(timer);
-  }, [time, playing, offset, duration, command]);
-
-  const status = videoStatusLabel({
-    enabled: true,
-    ready: state.ready,
-    playing: state.playing,
-    muted: true,
-    drift: Math.abs(state.position - Math.max(0, time + offset)),
-  });
+  }, [time, playing, duration, command]);
 
   return (
-    <div className="video-backdrop" aria-label="Video clip backdrop">
+    // Decoration: the song's transport is the only control surface.
+    <div className="video-backdrop" aria-hidden="true">
       <iframe
         ref={frame}
         title={`Video clip for ${clipTitle(clip)}`}
@@ -253,50 +251,6 @@ function ClipPlayer({
         aria-hidden="true"
       />
       <div className="video-backdrop-veil" aria-hidden="true" />
-      <div className="video-backdrop-bar">
-        <span className="video-backdrop-status" role="status">
-          {status}
-        </span>
-        <div className="video-backdrop-actions">
-          <label className="video-offset">
-            <span>Sync</span>
-            <input
-              type="range"
-              min={-VIDEO_OFFSET_LIMIT_SECONDS}
-              max={VIDEO_OFFSET_LIMIT_SECONDS}
-              step={0.1}
-              value={offset}
-              aria-label="Video clip sync offset in seconds"
-              onChange={(event) => setOffset(clampVideoOffset(Number(event.target.value)))}
-            />
-            <output>{offset > 0 ? `+${offset.toFixed(1)}` : offset.toFixed(1)}s</output>
-          </label>
-          <a
-            className="video-backdrop-link"
-            href={`https://www.youtube.com/watch?v=${clip.videoId}`}
-            target="_blank"
-            rel="noreferrer"
-          >
-            YouTube <ExternalLink size={12} aria-hidden="true" />
-          </a>
-          <button
-            type="button"
-            className="icon-button"
-            aria-label="Remove video clip"
-            onClick={onRemove}
-          >
-            <X size={16} />
-          </button>
-          <button
-            type="button"
-            className="icon-button"
-            aria-label="Hide video clip"
-            onClick={onClose}
-          >
-            <Film size={16} />
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
