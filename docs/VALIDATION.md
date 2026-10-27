@@ -24,6 +24,7 @@ Browser coverage includes paused restoration of saved queue/native position, art
 - Video sync: 9 tests cover pause/play, the new rate nudging, hard-drift seeking, cooldown and offset clamping. Real embed drift on slow connections remains unmeasured.
 - Import: FLAC now passes the whitelist (`import`/`useLibrary` tests). Browser FLAC decoding was not exercised here.
 - Word-by-word lyrics: the panel test proves the built-in word view and the line-level fallback; the removed toggle is not a hidden setting.
+- The Playwright suite and screenshot comparison were **not** run for this change: no browser engine is installed in this workspace. The dev server was started and serves the app (HTTP 200 for the entry point and the new components), but audible Mix quality, YouTube playback and the new layouts still need a real browser pass.
 
 LRCLIB tests use controlled responses to verify exact/search matching, client identification, size/time bounds and Retry-After. They do **not** establish current live provider availability, coverage, latency or a copyright license. Rendering tests are not a substitute for audible crossfade assessment across browsers/recordings; correlated audio can peak during equal-power mixing. No bit-perfect/gapless claim is made.
 
