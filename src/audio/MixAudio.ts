@@ -55,6 +55,7 @@ export class MixAudio {
   } | null = null;
   private fadeGain = 1;
   private lastReport = 0;
+  private lastResume = 0;
   private playing = false;
   private playIntent = 0;
   private timer: ReturnType<typeof setInterval>;
@@ -63,6 +64,12 @@ export class MixAudio {
     this.active = this.createDeck();
     this.timer = setInterval(() => {
       if (!this.playing) return;
+      // A context can be suspended later (background tab, iOS interruption).
+      // Retry occasionally so playback never continues silently.
+      if (this.graph && !this.graph.running && performance.now() - this.lastResume > 1000) {
+        this.lastResume = performance.now();
+        void this.graph.resume();
+      }
       this.applyGains();
       const now = performance.now();
       if (now - this.lastReport >= 50) {
@@ -100,16 +107,45 @@ export class MixAudio {
   }
   setMixEnabled(enabled: boolean) {
     this.mixEnabled = enabled;
-    if (enabled && !this.graph) this.graph = MixGraph.create();
-    if (this.graph) {
-      void this.graph.resume();
-      this.attachGraph(this.active);
-      if (this.spare) this.attachGraph(this.spare);
+    if (!enabled) {
+      // The graph stays idle; decks keep playing natively at full level.
+      this.applyGains();
+      return;
     }
-    if (enabled) {
-      this.prime(this.active);
-      if (this.spare) this.prime(this.spare);
+    // No AudioContext is created here: this runs on mount, before any gesture,
+    // and a context created then stays suspended. `route()` builds it on play.
+    this.prime(this.active);
+    if (this.spare) this.prime(this.spare);
+  }
+
+  /**
+   * Builds the Web Audio graph and attaches it — only inside a user gesture and
+   * only if the context is really running.
+   *
+   * Attaching a media element to an AudioContext takes its audio out of the
+   * normal output path. If the context cannot run (autoplay policy, background
+   * tab), the song would play silently, which is exactly what must never happen.
+   * When the graph cannot run, playback stays on the native element.
+   */
+  private async route() {
+    if (!this.mixEnabled) return;
+    this.graph ??= MixGraph.create();
+    if (!this.graph) return;
+    const running = await this.graph.resume();
+    if (!running) {
+      // Keep the element unplugged so it still reaches the speakers.
+      this.graph = null;
+      return;
     }
+    this.attachGraph(this.active);
+    if (this.spare) this.attachGraph(this.spare);
+    this.prime(this.active);
+    if (this.spare) this.prime(this.spare);
+  }
+
+  /** Called from a click so a suspended context can be brought back. */
+  async resumeAudio(): Promise<void> {
+    await this.route();
   }
   private prime(deck: Deck) {
     const blob = deck.blob,
@@ -139,7 +175,7 @@ export class MixAudio {
     return Math.min(this.element.duration, this.cues(this.active).end) - this.element.currentTime;
   }
   private attachGraph(deck: Deck) {
-    if (!this.graph) return;
+    if (!this.graph?.running) return;
     const chain = this.graph.chain(deck.element);
     if (!chain) return;
     // The element keeps only the master volume; the mix curve lives in the graph.
@@ -257,6 +293,10 @@ export class MixAudio {
       deck = this.active;
     this.playing = true;
     try {
+      // Inside the user gesture: this is the only moment the browser will let
+      // the audio context start. Routing first means the graph is attached and
+      // running before a single sample is played.
+      if (this.mixEnabled) await this.route();
       if (this.element.ended) this.element.currentTime = 0;
       await this.element.play();
     } catch (error) {

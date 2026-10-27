@@ -148,3 +148,30 @@ it('highlights each word individually, with a line-level fallback', () => {
     HTMLElement.prototype.scrollTo = previous;
   }
 });
+
+it('frames exactly three lines in the stage reader, whatever the height', () => {
+  const previous = HTMLElement.prototype.scrollTo;
+  HTMLElement.prototype.scrollTo = vi.fn();
+  try {
+    const raw = Array.from(
+      { length: 12 },
+      (_, i) => `[00:${String(i * 4).padStart(2, '0')}]Line ${i + 1}`,
+    );
+    const track = makeTrack({ lyrics: parseLyrics(raw.join('\n')) });
+    const { container, rerender } = render(
+      <LyricsPanel stage track={track} time={24} duration={60} onSeek={vi.fn()} onEdit={vi.fn()} />,
+    );
+    const lines = () => container.querySelectorAll('.lyric-line');
+    expect(lines()).toHaveLength(3);
+    // The line being sung sits in the middle of the three.
+    expect(lines()[1]).toHaveAttribute('aria-current', 'true');
+    expect(lines()[1].textContent).toBe('Line 7');
+    rerender(
+      <LyricsPanel stage track={track} time={8} duration={60} onSeek={vi.fn()} onEdit={vi.fn()} />,
+    );
+    expect(lines()).toHaveLength(3);
+    expect(container.querySelector('.lyrics-scroll--framed')).not.toBeNull();
+  } finally {
+    HTMLElement.prototype.scrollTo = previous;
+  }
+});

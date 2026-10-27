@@ -6,7 +6,7 @@ Release 0.1.1 · 27 October 2026. Historical run dates are retained below.
 
 - `npm run format:check`: passed.
 - `npm run lint`: passed.
-- `npm test`: **416 tests passed across 72 files** (latest interface/mobile run; 200 tests across 42 files at the 0.1.0 release).
+- `npm test`: **421 tests passed across 72 files** (latest run; 200 tests across 42 files at the 0.1.0 release).
 - `npm run test:e2e`: **89 Chromium browser tests passed** in the final complete run (7.6 minutes).
 - `npm run build`: passed. Vite reports its advisory 500 KB chunk-size warning (main chunk approximately 547 KB, gzip 172 KB); this is not a build failure.
 - `npm run build -- --base=/Wave/`: passed; a production static-server smoke test verified Home, Settings, fonts/assets, `/Wave/wave.svg`, the privacy page and its return link under the repository path without HTTP/page errors.
@@ -42,6 +42,15 @@ Browser coverage includes paused restoration of saved queue/native position, art
 - A library row without stored audio now reports it. This is derived during render, not set from an effect, so it cannot race playback.
 - Clip discovery no longer accepts a pasted link: `VideoBackdrop` renders search states only. Nothing verified the discovery result against live YouTube from this workspace.
 - Lyric sizes were increased in every view; the visual result was **not** screenshotted (no browser engine in this workspace).
+
+### 0.1.1 corrections: sound on every song, three framed lines, layering
+
+- `npx tsc -b`, `npx eslint .`, `npx prettier --check .`, `npm run build` and `npm test` (421 tests across 72 files) pass.
+- Silence: `mixGraph` proves the context reports whether it can run and that a refused resume is reported; `MixAudio` proves a song stays on the native element — no `createMediaElementSource`, volume untouched, unmuted — when the context cannot run, and that routing only happens once the context is running. **Nothing was heard**: there is no browser engine here, so the claim is that the code cannot produce a muted graph, not that a device was listened to.
+- YouTube: the play retry is now persistent and re-sends the volume until the embed confirms, and a stale outgoing gain is reset on track change. `YouTubeStage` covers the command sequence in jsdom; **no live embed was played or heard** from this workspace, and browser autoplay blocking on a real device remains unverified.
+- Lyrics: `LyricsPanel` now proves exactly three `.lyric-line` rows in the stage reader, with the sung line in the middle, at two different playback times. The visual framing was **not** screenshotted.
+- The sync session suite flaked once in a full parallel run: its helper waited a single 20 ms macrotask for asynchronous encryption. It now waits six short ticks, which passed on rerun. Nothing in sync behaviour changed.
+- Layering and spacing: the scale (`base 0 < content 1 < nav 20 < player 30 < menu 40 < toast 60 < drop 70 < skip 80`) and the tightened header/workspace spacing are CSS only; their real geometry was **not measured here**. Menus and dialogs use the native top layer.
 
 ### YouTube metadata, one-switch Mix, phones and installability
 

@@ -28,11 +28,11 @@ function fakeNode(): FakeNode {
   };
   return node;
 }
-function fakeContext() {
+function fakeContext(initialState: 'running' | 'suspended' = 'running') {
   const filters: { type: string; frequency: FakeParam; gain: FakeParam }[] = [];
   const gains: { gain: FakeParam }[] = [];
   const context = {
-    state: 'running' as const,
+    state: initialState as 'running' | 'suspended',
     currentTime: 10,
     destination: fakeNode(),
     createMediaElementSource: vi.fn(() => fakeNode()),
@@ -50,7 +50,9 @@ function fakeContext() {
       gains.push(node);
       return node;
     }),
-    resume: vi.fn(async () => undefined),
+    resume: vi.fn(async () => {
+      context.state = 'running';
+    }),
     close: vi.fn(async () => undefined),
   };
   return { context, filters, gains };
@@ -103,6 +105,28 @@ describe('mix graph', () => {
     graph.chain(element);
     graph.chain(element);
     expect(context.createMediaElementSource).toHaveBeenCalledTimes(1);
+  });
+
+  it('starts suspended and reports whether it can run', async () => {
+    const { context } = fakeContext('suspended');
+    vi.stubGlobal('AudioContext', function AudioContext() {
+      return context;
+    });
+    const graph = MixGraph.create()!;
+    expect(graph.running).toBe(false);
+    expect(await graph.resume()).toBe(true);
+    expect(graph.running).toBe(true);
+  });
+
+  it('reports that it cannot run when the browser refuses to resume', async () => {
+    const { context } = fakeContext('suspended');
+    context.resume = vi.fn(async () => undefined);
+    vi.stubGlobal('AudioContext', function AudioContext() {
+      return context;
+    });
+    const graph = MixGraph.create()!;
+    expect(await graph.resume()).toBe(false);
+    expect(graph.running).toBe(false);
   });
 
   it('degrades to nothing when Web Audio is missing', () => {

@@ -68,6 +68,77 @@ it('overlaps two native sources, advances their identity and applies complementa
   expect(elements[0].hasAttribute('src')).toBe(false);
   expect(elements[1].volume).toBeCloseTo(0.37);
 });
+it('keeps the song on the native element when the audio context cannot run', async () => {
+  // A suspended context would swallow the audio: a media element routed into it
+  // no longer reaches the speakers. Playback must stay unplugged instead.
+  const context = {
+    state: 'suspended',
+    currentTime: 0,
+    destination: { connect: vi.fn(), disconnect: vi.fn() },
+    createMediaElementSource: vi.fn(() => ({ connect: vi.fn(), disconnect: vi.fn() })),
+    createBiquadFilter: vi.fn(() => ({
+      type: 'lowshelf',
+      frequency: { value: 0 },
+      gain: { value: 0, setTargetAtTime: vi.fn() },
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    })),
+    createGain: vi.fn(() => ({
+      gain: { value: 1, setTargetAtTime: vi.fn() },
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    })),
+    resume: vi.fn(async () => undefined),
+    close: vi.fn(async () => undefined),
+  };
+  vi.stubGlobal('AudioContext', function AudioContext() {
+    return context;
+  });
+  engine = new MixAudio(callbacks());
+  engine.setMixEnabled(true);
+  // Creating the context at mount is what caused silence: nothing is built yet.
+  expect(context.createMediaElementSource).not.toHaveBeenCalled();
+  engine.load(new Blob(['a']));
+  await engine.play();
+  expect(context.createMediaElementSource).not.toHaveBeenCalled();
+  expect(elements[0].volume).toBe(1);
+  expect(elements[0].muted).toBe(false);
+});
+
+it('routes through the graph only once the context is running', async () => {
+  const context = {
+    state: 'suspended',
+    currentTime: 0,
+    destination: { connect: vi.fn(), disconnect: vi.fn() },
+    createMediaElementSource: vi.fn(() => ({ connect: vi.fn(), disconnect: vi.fn() })),
+    createBiquadFilter: vi.fn(() => ({
+      type: 'lowshelf',
+      frequency: { value: 0 },
+      gain: { value: 0, setTargetAtTime: vi.fn() },
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    })),
+    createGain: vi.fn(() => ({
+      gain: { value: 1, setTargetAtTime: vi.fn() },
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    })),
+    resume: vi.fn(async () => {
+      context.state = 'running';
+    }),
+    close: vi.fn(async () => undefined),
+  };
+  vi.stubGlobal('AudioContext', function AudioContext() {
+    return context;
+  });
+  engine = new MixAudio(callbacks());
+  engine.setMixEnabled(true);
+  engine.load(new Blob(['a']));
+  await engine.play();
+  expect(context.resume).toHaveBeenCalled();
+  expect(context.createMediaElementSource).toHaveBeenCalledTimes(1);
+});
+
 it('cancels the outgoing tail on seek/pause and revokes all source URLs on destruction', async () => {
   engine = new MixAudio(callbacks());
   engine.load(new Blob(['a']));
