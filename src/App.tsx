@@ -104,6 +104,16 @@ function WaveApp({
   const [automaticLyrics, setAutomaticLyrics] = useState(
     () => readFlag('wave-lyrics-consent-v1') && readFlag('wave-auto-lyrics'),
   );
+  const [karaoke, setKaraoke] = useState(() => readFlag('wave-karaoke', true));
+  const [videoClip, setVideoClip] = useState(() => readFlag('wave-video-clip'));
+  useEffect(() => {
+    try {
+      localStorage.setItem('wave-karaoke', String(karaoke));
+      localStorage.setItem('wave-video-clip', String(videoClip));
+    } catch {
+      /* Session-only options. */
+    }
+  }, [karaoke, videoClip]);
   useEffect(() => {
     try {
       localStorage.setItem('wave-auto-lyrics', String(automaticLyrics));
@@ -739,6 +749,76 @@ function WaveApp({
                         </motion.span>
                       </button>
                     </div>
+                    <div className="settings-option-block">
+                      <div>
+                        <strong>Mix style</strong>
+                        <p>
+                          Apple Music style overlaps both songs on an equal-power curve. Blend keeps
+                          Wave&apos;s staged handover. Neither changes audio, tempo or pitch.
+                        </p>
+                      </div>
+                      <div className="settings-choice" role="radiogroup" aria-label="Mix style">
+                        <button
+                          type="button"
+                          role="radio"
+                          aria-checked={player.mixStyle === 'crossfade'}
+                          className={player.mixStyle === 'crossfade' ? 'active' : ''}
+                          onClick={() => player.setMixStyle('crossfade')}
+                        >
+                          Crossfade
+                        </button>
+                        <button
+                          type="button"
+                          role="radio"
+                          aria-checked={player.mixStyle === 'blend'}
+                          className={player.mixStyle === 'blend' ? 'active' : ''}
+                          onClick={() => player.setMixStyle('blend')}
+                        >
+                          Blend
+                        </button>
+                      </div>
+                    </div>
+                    {player.mixStyle === 'crossfade' && (
+                      <div className="settings-option-block">
+                        <div>
+                          <strong>Crossfade length</strong>
+                          <p>{player.crossfadeSeconds.toFixed(1)} seconds of overlap.</p>
+                        </div>
+                        <input
+                          className="settings-slider"
+                          type="range"
+                          min={1}
+                          max={12}
+                          step={0.5}
+                          value={player.crossfadeSeconds}
+                          aria-label="Crossfade length in seconds"
+                          onChange={(event) =>
+                            player.setCrossfadeSeconds(Number(event.target.value))
+                          }
+                        />
+                      </div>
+                    )}
+                    <div className="settings-switch-row">
+                      <div>
+                        <strong>Video clip</strong>
+                        <p>
+                          Show the YouTube clip behind Now Playing. Muted, without its own controls,
+                          and resynced to your song. Audio still comes from your file.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        className="material-switch"
+                        role="switch"
+                        aria-label="Video clip"
+                        aria-checked={videoClip}
+                        onClick={() => setVideoClip(!videoClip)}
+                      >
+                        <motion.span layout transition={animation.fast}>
+                          {videoClip && <Check size={15} />}
+                        </motion.span>
+                      </button>
+                    </div>
                     <div className="settings-switch-row">
                       <div>
                         <strong>Autoplay</strong>
@@ -764,7 +844,27 @@ function WaveApp({
                 }
                 lyrics={
                   <>
-                    {' '}
+                    <div className="settings-switch-row">
+                      <div>
+                        <strong>Word-by-word lyrics</strong>
+                        <p>
+                          Highlight each word as it is sung. Word timings supplied by the lyric file
+                          are exact; otherwise Wave estimates them from the line timing.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        className="material-switch"
+                        role="switch"
+                        aria-label="Word-by-word lyrics"
+                        aria-checked={karaoke}
+                        onClick={() => setKaraoke(!karaoke)}
+                      >
+                        <motion.span layout transition={animation.fast}>
+                          {karaoke && <Check size={15} />}
+                        </motion.span>
+                      </button>
+                    </div>{' '}
                     <div className="settings-switch-row">
                       <div>
                         <strong>Automatic lyrics</strong>
@@ -1119,6 +1219,9 @@ function WaveApp({
         onRetryLyrics={lookup.retryTrack}
         queueOpen={queueOpen}
         onQueue={() => setQueueOpen(!queueOpen)}
+        karaoke={karaoke}
+        videoClip={videoClip}
+        onToggleVideoClip={() => setVideoClip(!videoClip)}
       />
       <AnimatePresence>
         {queueOpen && (

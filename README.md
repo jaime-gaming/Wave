@@ -14,7 +14,9 @@ Bring your audio files, find a favorite album, and press play. Wave keeps your c
 - **Open a daily mix.** See the songs before playing. Play in order, shuffle, or save today's selection as a playlist you can edit.
 - **Make a playlist.** Add songs, choose a cover and arrange them in your preferred order.
 - **Follow the lyrics.** Add your own text/LRC, or explicitly search for a matching result. Saved lyrics work offline.
-- **Stay in the music.** Full-screen Now Playing, a compact player, editable queue, automatic Mix transitions and local Autoplay.
+- **Stay in the music.** Full-screen Now Playing, a compact player, editable queue, Apple Music style crossfade (1–12 s, auto-length by tail energy) or Wave's staged blend, and local Autoplay.
+- **Follow every word.** Word-by-word lyric highlighting: exact when the file carries word timestamps, a labelled estimate otherwise.
+- **Watch the clip.** Paste a YouTube link per song to use it as a muted backdrop, with Wave's own controls and automatic drift correction. No YouTube UI, no YouTube audio.
 - **Make it comfortable.** Light/dark themes, artwork colors, larger text and reduced motion. Phone controls are designed for touch.
 
 ### A closer look
@@ -56,7 +58,7 @@ npm run dev
 
 Open the address printed in the terminal, choose **Add music**, and select audio files. Nothing else needs configuring. For mobile development, open the server's reachable address from your phone; do not use the phone's own `localhost`.
 
-MP3, FLAC, WAV, OGG, M4A, AAC, Opus, AIFF and WebM can be imported, up to 200 MB per file. Playback depends on the browser or operating system's codecs. Keep your original files: Wave is a player, not a backup service.
+**MP3, WAV, M4A and OGG** can be imported, up to 200 MB per file. Songs already stored in another format keep playing; only importing is limited to those four. Files are never re-encoded, resampled or converted, so a WAV or a high-bitrate MP3 arrives exactly as it was. Playback depends on the browser or operating system's codecs. Keep your original files: Wave is a player, not a backup service.
 
 ### A note about Windows warnings
 

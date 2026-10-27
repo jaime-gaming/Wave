@@ -112,8 +112,12 @@ initials(name: string): string
 Defined in `src/data/import.ts`:
 
 ```ts
-AUDIO_EXTENSIONS: string[]
+AUDIO_EXTENSIONS: string[]   // 'mp3' | 'wav' | 'm4a' | 'ogg' since Wave 1.1
 AUDIO_ACCEPT: string
+IMPORT_FORMAT_HINT: string
+LEGACY_AUDIO_EXTENSIONS: string[]
+fileExtension(name: string): string
+isLegacyAudioFile(file: File): boolean
 MAX_FILE_SIZE: number
 isAudioFile(file: File): boolean
 fileIdentity(file: File): Promise<string> // legacy helper; not used for new imports

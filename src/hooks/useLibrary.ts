@@ -16,7 +16,14 @@ import {
   editTrackMetadata,
   restoreTrackMetadata,
 } from '../data/library';
-import { contentIdentity, isAudioFile, MAX_FILE_SIZE, readTrack } from '../data/import';
+import {
+  contentIdentity,
+  IMPORT_FORMAT_HINT,
+  isAudioFile,
+  isLegacyAudioFile,
+  MAX_FILE_SIZE,
+  readTrack,
+} from '../data/import';
 import type { Track, TrackMetadata } from '../domain/types';
 
 export function useLibrary() {
@@ -61,11 +68,13 @@ export function useLibrary() {
       setMessage('');
       let added = 0,
         duplicates = 0,
-        rejected = 0;
+        rejected = 0,
+        wrongFormat = 0;
       setProgress({ done: 0, total: files.length });
       try {
         for (const [index, file] of files.entries()) {
           if (!isAudioFile(file) || file.size > MAX_FILE_SIZE || file.size === 0) {
+            if (isLegacyAudioFile(file)) wrongFormat++;
             rejected++;
           } else {
             const id = await contentIdentity(file);
@@ -99,7 +108,7 @@ export function useLibrary() {
         );
       } finally {
         setMessage(
-          `${added} ${added === 1 ? 'track' : 'tracks'} added${duplicates ? ` · ${duplicates} already in your library` : ''}${rejected ? ` · ${rejected} unsupported, empty, or over 200 MB` : ''}.`,
+          `${added} ${added === 1 ? 'track' : 'tracks'} added${duplicates ? ` · ${duplicates} already in your library` : ''}${rejected ? ` · ${rejected} skipped (${IMPORT_FORMAT_HINT}, up to 200 MB)` : ''}${wrongFormat ? ` · ${wrongFormat} in a format Wave no longer imports` : ''}.`,
         );
         setProgress(null);
         importing.current = false;

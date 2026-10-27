@@ -1,4 +1,5 @@
 import { MusicLighting } from './MusicLighting';
+import { VideoBackdrop } from './VideoBackdrop';
 import { useIdleListening } from '../hooks/useIdleListening';
 import { MixVisual } from './MixVisual';
 import { WaveSeek } from './WaveSeek';
@@ -21,6 +22,7 @@ import {
   SkipForward,
   Volume2,
   VolumeX,
+  Film,
 } from 'lucide-react';
 import { Artwork } from './Artwork';
 import { Modal } from './Modal';
@@ -37,6 +39,11 @@ type PlayerProps = {
   returnFocusRef: RefObject<HTMLElement | null>;
   queueOpen: boolean;
   onQueue: () => void;
+  /** Word-by-word lyric highlighting. */
+  karaoke?: boolean;
+  /** Video clip backdrop, driven by the same transport. */
+  videoClip?: boolean;
+  onToggleVideoClip?: () => void;
   onLyrics: (track: Track) => void;
   onSaveLyrics?: (id: string, lyrics: import('../domain/lyrics').Lyrics) => Promise<boolean>;
   lyricsOpen?: boolean;
@@ -86,6 +93,8 @@ function PlayerDetails({
   onArtist,
   onAlbum,
   readerActive = true,
+  videoClip = false,
+  onToggleVideoClip,
 }: PlayerProps & { readerActive?: boolean }) {
   const { current, state, time, duration, volume, dispatch } = player;
   const animation = useWaveMotion();
@@ -216,6 +225,15 @@ function PlayerDetails({
                 {state.repeat === 'one' ? <Repeat1 size={22} /> : <Repeat size={22} />}
               </button>
               <button
+                className={videoClip ? 'active' : ''}
+                disabled={!current}
+                aria-label={videoClip ? 'Hide video clip' : 'Show video clip'}
+                aria-pressed={videoClip}
+                onClick={() => onToggleVideoClip?.()}
+              >
+                <Film size={21} />
+              </button>
+              <button
                 className={current?.favorite ? 'active' : ''}
                 disabled={!current}
                 aria-label={
@@ -304,7 +322,17 @@ function PlayerDetails({
 
 export function PlayerBar(props: PlayerProps) {
   const [lyricsOpen, setLyricsOpen] = useState(true);
-  const { player, expanded, onExpanded, onOpen, returnFocusRef, onQueue } = props;
+  const {
+    player,
+    expanded,
+    onExpanded,
+    onOpen,
+    returnFocusRef,
+    onQueue,
+    karaoke = false,
+    videoClip = false,
+    onToggleVideoClip,
+  } = props;
   const idle = useIdleListening(player.state.playing && !player.buffering && !!player.current);
   const showing = expanded || idle.immersive;
   const colors = useArtworkColor(player.state.playing ? player.current?.artwork : undefined);
@@ -477,6 +505,15 @@ export function PlayerBar(props: PlayerProps) {
             onExpanded(false);
           }}
         >
+          {videoClip && player.current && (
+            <VideoBackdrop
+              track={player.current}
+              time={player.time}
+              duration={player.duration}
+              playing={player.state.playing}
+              onClose={() => onToggleVideoClip?.()}
+            />
+          )}
           <MusicLighting className="stage-aura" />
           <div
             data-track-id={player.current?.id}
@@ -522,6 +559,7 @@ export function PlayerBar(props: PlayerProps) {
                 <LyricsPanel
                   stage
                   cinematic
+                  karaoke={karaoke}
                   key={player.current.id}
                   track={player.current}
                   time={player.time}

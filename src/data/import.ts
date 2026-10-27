@@ -6,24 +6,30 @@ import { readArtwork } from './artwork';
 import { embeddedLyrics } from '../domain/lyrics';
 import type { Track } from '../domain/types';
 
-export const AUDIO_EXTENSIONS = [
-  'mp3',
-  'flac',
-  'wav',
-  'ogg',
-  'm4a',
-  'aac',
-  'opus',
-  'aiff',
-  'aif',
-  'webm',
-];
+/**
+ * Wave 1.1 import formats, as requested: MP3, WAV, M4A and OGG only.
+ *
+ * Songs already stored in another format (FLAC, AIFF, Opus, WebM, AAC) keep
+ * playing: this list gates the import picker and drag-and-drop, never the
+ * existing library. Widening it again is a one-line change here.
+ */
+export const AUDIO_EXTENSIONS = ['mp3', 'wav', 'm4a', 'ogg'];
+/** Formats a previous Wave version could import; kept only for messaging. */
+export const LEGACY_AUDIO_EXTENSIONS = ['flac', 'aac', 'opus', 'aiff', 'aif', 'webm'];
 export const AUDIO_ACCEPT = AUDIO_EXTENSIONS.map((ext) => `.${ext}`).join(',');
 export const MAX_FILE_SIZE = 200 * 1024 * 1024;
 
-export function isAudioFile(file: File): boolean {
-  return AUDIO_EXTENSIONS.includes(file.name.split('.').pop()?.toLowerCase() ?? '');
+export function fileExtension(name: string): string {
+  return name.split('.').pop()?.toLowerCase() ?? '';
 }
+export function isAudioFile(file: File): boolean {
+  return AUDIO_EXTENSIONS.includes(fileExtension(file.name));
+}
+/** True for a format Wave used to accept, so the message can say why it is refused. */
+export function isLegacyAudioFile(file: File): boolean {
+  return LEGACY_AUDIO_EXTENSIONS.includes(fileExtension(file.name));
+}
+export const IMPORT_FORMAT_HINT = 'MP3, WAV, M4A or OGG';
 export async function fileIdentity(file: File): Promise<string> {
   const bytes = new TextEncoder().encode(`${file.name}\0${file.size}\0${file.lastModified}`);
   const digest = await crypto.subtle.digest('SHA-256', bytes);

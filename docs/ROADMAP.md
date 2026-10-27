@@ -155,6 +155,14 @@ Planned scope agreed on 27 October 2026 and specified in
 [SPEC_1.1](SPEC_1.1.md). Foundation modules, protocol and tests are implemented;
 no interface, provider client or Android port exists yet.
 
+**Listening, lyrics and clips (Wave 1.1 UI)**
+
+- [x] Apple Music style equal-power crossfade with a user-chosen 1–12 s length; original audio untouched.
+- [x] Word-by-word lyric highlighting from provider word stamps, with a deterministic, clearly labelled estimate otherwise.
+- [x] Muted YouTube clip backdrop with hidden player chrome, Wave transport control, drift correction and per-song local clip storage.
+- [x] Import restricted to MP3, WAV, M4A and OGG; already-stored other formats keep playing.
+- [ ] Real-device drift measurement for the clip on slow connections, and a screenshot-level review of the backdrop on small phones.
+
 **Device sync (hybrid)**
 
 - [x] Versioned sync protocol with total frame validation and 96 KiB frame ceiling.

@@ -121,6 +121,12 @@ export interface EmbedOptions {
   /** Loop needs the video ID repeated in `playlist`. */
   loop?: boolean;
   title?: boolean;
+  /** Hidden player chrome; Wave renders its own controls. */
+  controls?: boolean;
+  /** Backdrop use: the clip is always muted, audio comes from the local file. */
+  mute?: boolean;
+  /** Disables the player's own keyboard shortcuts so Wave keeps focus handling. */
+  disableKeyboard?: boolean;
 }
 
 /** Player URL for the privacy-enhanced `youtube-nocookie.com` embed. */
@@ -139,6 +145,13 @@ export function youtubeEmbedUrl(videoId: string, options: EmbedOptions = {}): st
     params.set('playlist', videoId);
   }
   if (options.title === false) params.set('showinfo', '0');
+  if (options.controls === false) params.set('controls', '0');
+  if (options.mute) params.set('mute', '1');
+  if (options.disableKeyboard) params.set('disablekb', '1');
+  params.set('iv_load_policy', '3');
+  params.set('modestbranding', '1');
+  params.set('fs', '0');
+  params.set('cc_load_policy', '0');
   if (options.origin && isSafeOrigin(options.origin)) params.set('origin', options.origin);
   return `${YOUTUBE_EMBED_HOST}/embed/${videoId}?${params.toString()}`;
 }

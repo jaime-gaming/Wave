@@ -103,3 +103,41 @@ it('recovers the timing controls after a failed save instead of leaving them dis
     HTMLElement.prototype.scrollTo = previous;
   }
 });
+
+it('highlights each word individually when karaoke timing is on', () => {
+  const previous = HTMLElement.prototype.scrollTo;
+  HTMLElement.prototype.scrollTo = vi.fn();
+  try {
+    const track = makeTrack({
+      lyrics: parseLyrics('[00:00]We were young\n[00:04]Next line'),
+    });
+    const props = { track, duration: 8, onSeek: vi.fn(), onEdit: vi.fn(), karaoke: true };
+    const { rerender } = render(<LyricsPanel {...props} time={0} />);
+    const line = screen.getByRole('button', { name: 'Seek to lyric: We were young' });
+    const words = [...line.querySelectorAll('.lyric-word')];
+    expect(words).toHaveLength(3);
+    // No provider timestamps: the word timing is derived and labelled as such.
+    expect(words.every((word) => word.getAttribute('data-word-source') === 'derived')).toBe(true);
+    expect(words[0]).toHaveAttribute('data-word-fill', '0');
+
+    // Two seconds into a four-second line: the first word is complete, the rest
+    // are mid-fill or not started, never all-or-nothing.
+    rerender(<LyricsPanel {...props} time={2} />);
+    const fills = [...line.querySelectorAll('.lyric-word')].map((word) =>
+      Number(word.getAttribute('data-word-fill')),
+    );
+    expect(fills[0]).toBe(1);
+    expect(fills[2]).toBeLessThan(1);
+    expect(fills[1]).toBeGreaterThan(0);
+
+    // Without the option the panel keeps its whole-line behaviour.
+    rerender(<LyricsPanel {...props} time={2} karaoke={false} />);
+    expect(
+      [...line.querySelectorAll('.lyric-word')].every(
+        (word) => word.getAttribute('data-word-source') === null,
+      ),
+    ).toBe(true);
+  } finally {
+    HTMLElement.prototype.scrollTo = previous;
+  }
+});
