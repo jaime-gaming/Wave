@@ -19,7 +19,7 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ['public/sw.js'],
+    files: ['public/sw.js', 'docs/sw.js'],
     languageOptions: { globals: { ...globals.serviceworker } },
   },
   {

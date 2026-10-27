@@ -2,22 +2,22 @@
 
 **Release date: 17 October 2026.** Wave has three independent implementations, not WebView/Electron wrappers. The web client is the most complete; Windows follows its structure with native C#/WPF controls, while Android uses Kotlin/Compose. Libraries are separate and never synchronized or silently migrated.
 
-| Capability                                | Web                                     | Windows                                 | Android                      |
-| ----------------------------------------- | --------------------------------------- | --------------------------------------- | ---------------------------- |
-| Home, local library, favorites            | Yes                                     | Yes                                     | Basic                        |
-| Dedicated Search                          | Yes                                     | Song search                             | Library filter               |
-| Albums/artists                            | Profiles and artwork                    | Native group/details views              | Basic list                   |
-| Browsable daily mixes and saved snapshots | Genre/artist tags                       | Genre/artist tags                       | Not yet                      |
-| Ordered playlists                         | Yes                                     | Create/edit/membership/order            | Not yet                      |
-| Queue editing                             | Drag/buttons/keyboard                   | Native queue dialog; move/remove        | Basic progression            |
-| Restored paused position                  | Yes                                     | Yes                                     | Not yet                      |
-| Automatic Mix / local Autoplay            | Analyzed pair timing / weighted variety | Bounded duration timing / local variety | Manual overlap only          |
-| Lyrics                                    | Enhanced LRC, fill, optional lookup     | Line LRC/fill, explicit editor lookup   | Line LRC/lookup              |
-| Settings                                  | Six menus                               | Six menus                               | Basic page                   |
-| Appearance                                | Dark/light/system, artwork palettes     | Dark/light, larger text, motion         | Dark                         |
-| Cover editing                             | Song/playlist/artist                    | Song covers                             | Not yet                      |
-| System media controls / idle stage        | Browser-dependent / yes                 | Not yet                                 | No foreground service yet    |
-| Hosted build checks                       | Passed                                  | Passed + contracts + WPF layout smoke   | Passed unit/lint/debug build |
+| Capability                                | Web                                     | Windows                                     | Android                                       |
+| ----------------------------------------- | --------------------------------------- | ------------------------------------------- | --------------------------------------------- |
+| Home, local library, favorites            | Yes                                     | Yes                                         | Basic                                         |
+| Dedicated Search                          | Yes                                     | Song search                                 | Library filter                                |
+| Albums/artists                            | Profiles and artwork                    | Native group/details views                  | Basic list                                    |
+| Browsable daily mixes and saved snapshots | Genre/artist tags                       | Genre/artist tags                           | Not yet                                       |
+| Ordered playlists                         | Yes                                     | Create/edit/membership/order                | Not yet                                       |
+| Queue editing                             | Drag/buttons/keyboard                   | Native queue dialog; move/remove            | Basic progression                             |
+| Restored paused position                  | Yes                                     | Yes                                         | Not yet                                       |
+| Automatic Mix / local Autoplay            | Analyzed pair timing / weighted variety | Bounded duration timing / local variety     | Manual overlap only                           |
+| Lyrics                                    | Enhanced LRC, fill, optional lookup     | Line LRC/fill, sung line scrolled into view | Line LRC/lookup, sung line scrolled into view |
+| Settings                                  | Six menus                               | Six menus                                   | Basic page                                    |
+| Appearance                                | Dark/light/system, artwork palettes     | Dark/light, larger text, motion             | Dark                                          |
+| Cover editing                             | Song/playlist/artist                    | Song covers                                 | Not yet                                       |
+| System media controls / idle stage        | Browser-dependent / yes                 | Not yet                                     | No foreground service yet                     |
+| Hosted build checks                       | Passed                                  | Passed + contracts + WPF layout smoke       | Passed unit/lint/debug build                  |
 
 ## Browser and GitHub Pages
 

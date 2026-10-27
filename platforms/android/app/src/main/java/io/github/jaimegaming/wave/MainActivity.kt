@@ -11,6 +11,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -64,15 +66,21 @@ class MainActivity:ComponentActivity() {
                             item { Text("Storage",fontWeight=FontWeight.Bold);Text("${songs.size} songs",fontSize=13.sp) }
                         }
                         "Now playing" -> { val song=songs.find { it.id==player.current?.id }
-                            if(song!=null)LazyColumn(verticalArrangement=Arrangement.spacedBy(14.dp)) {
+                            if(song!=null) { val lyricsList=rememberLazyListState();LazyColumn(state=lyricsList,verticalArrangement=Arrangement.spacedBy(14.dp)) {
                                 item { TextButton(onClick={ page="Home" }) { Text("Collapse") };Text(song.title,fontSize=28.sp,fontWeight=FontWeight.Bold);Text(song.artist);Slider(value=player.time.toFloat().coerceIn(0f,song.duration.coerceAtLeast(1.0).toFloat()),onValueChange={ player.seek(it.toDouble()) },valueRange=0f..song.duration.coerceAtLeast(1.0).toFloat());Row { TextButton(onClick={ player.previous() }) { Text("Previous") };FilledTonalButton(onClick={ player.toggle() }) { Text(if(player.playing)"Pause" else "Play") };TextButton(onClick={ player.next() }) { Text("Next") } } }
                                 item { TextButton(onClick={ lyricsOpen=!lyricsOpen }) { Text(if(lyricsOpen)"Lyrics ▴" else "Lyrics ▾") } }
-                                if(lyricsOpen) { val lines=parseLrc(song.lyrics);val active=lines.indexOfLast { it.time<=player.time }
+                                if(lyricsOpen) {
+                                    // Parsed once per lyric text, not on every position tick.
+                                    val lines=remember(song.lyrics) { parseLrc(song.lyrics) }
+                                    val active=lines.indexOfLast { it.time<=player.time }
+                                    // The sung line scrolls itself into view, the way the
+                                    // web reader keeps the line being heard in the middle.
+                                    LaunchedEffect(active,song.id) { if(active>=0) lyricsList.animateScrollToItem(active+2) }
                                     if(song.lyrics.isBlank()) item { Text("No lyrics yet.");TextButton(enabled=!busy,onClick={ fetch(song) }) { Text("Search online") };TextButton(onClick={ editing=song }) { Text("Edit song and lyrics") } }
                                     else if(lines.isEmpty()) item { Text(song.lyrics) }
-                                    else items(lines) { line -> Text(line.text.ifBlank { "♪" },fontSize=23.sp,fontWeight=if(lines.indexOf(line)==active)FontWeight.Bold else FontWeight.Normal,color=if(lines.indexOf(line)==active)colors.primary else colors.onSurfaceVariant,modifier=Modifier.fillMaxWidth().clickable { player.seek(line.time) }.padding(vertical=10.dp)) }
+                                    else itemsIndexed(lines) { index, line -> Text(line.text.ifBlank { "♪" },fontSize=23.sp,fontWeight=if(index==active)FontWeight.Bold else FontWeight.Normal,color=if(index==active)colors.primary else colors.onSurfaceVariant,modifier=Modifier.fillMaxWidth().clickable { player.seek(line.time) }.padding(vertical=10.dp)) }
                                 }
-                            }
+                            } }
                         }
                         else -> {
                             if(page=="Home")Text("${songs.size} songs · ${songs.map { it.artist to it.album }.distinct().size} albums · ${songs.count { it.favorite }} favorites",fontSize=13.sp,modifier=Modifier.padding(vertical=14.dp))

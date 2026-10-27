@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ExternalLink } from 'lucide-react';
 import {
   embedErrorMessage,
   readEmbedError,
   readEmbedEvent,
   youtubeEmbedUrl,
-  youtubeWatchUrl,
 } from '../domain/youtube';
 import type { Track } from '../domain/types';
 
@@ -19,8 +17,9 @@ export interface YouTubeSeek {
  * Playback for songs that live on YouTube.
  *
  * The video *is* the source: it plays through the official embed, with sound, and
- * Wave drives it with its own transport. Nothing is downloaded, proxied or
- * extracted, and the provider stays identifiable through the small YouTube link.
+ * Wave drives it with its own transport — the video has no controls of its own.
+ * Nothing is downloaded, proxied or extracted; the link to the song on YouTube
+ * lives in the song's options.
  *
  * Sync is one-directional here — the embed is the master clock — because there is
  * no local file to compare against. Wave reads its position and duration from the
@@ -238,23 +237,8 @@ export function YouTubeStage({
         allow="autoplay; encrypted-media; picture-in-picture"
         referrerPolicy="strict-origin-when-cross-origin"
       />
+      {/* No second bar: the player's own transport drives this embed. */}
       <div className="video-backdrop-veil" aria-hidden="true" />
-      <div className="video-backdrop-bar">
-        <span className="video-backdrop-status" role="status">
-          {started ? 'Playing from YouTube' : 'Press play'}
-        </span>
-        <div className="video-backdrop-actions">
-          <a
-            className="text-button"
-            href={youtubeWatchUrl(videoId)}
-            target="_blank"
-            rel="noreferrer noopener"
-            aria-label="Open this song on YouTube"
-          >
-            <ExternalLink size={15} aria-hidden="true" /> YouTube
-          </a>
-        </div>
-      </div>
     </div>
   );
 }

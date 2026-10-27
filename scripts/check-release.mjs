@@ -37,6 +37,32 @@ export function checkRelease(root, tag) {
     Number(android.match(/versionCode\s*=\s*(\d+)/)?.[1]) >= 1,
     'Android version code is missing',
   );
+  // The places the listener actually reads the version from must not lag behind.
+  const labels = [
+    [
+      'platforms/windows/Wave.Windows/MainWindow.xaml',
+      /Text="(\d+\.\d+\.\d+)"/,
+      'Windows sidebar version',
+    ],
+    [
+      'platforms/windows/Wave.Windows/MainWindow.Settings.cs',
+      /Wave (\d+\.\d+\.\d+)/,
+      'Windows settings version',
+    ],
+    [
+      'platforms/windows/Wave.Windows/LyricsClient.cs',
+      /Wave\/(\d+\.\d+\.\d+)/,
+      'Windows user agent',
+    ],
+    [
+      'platforms/android/app/src/main/java/io/github/jaimegaming/wave/LyricsClient.kt',
+      /Wave\/(\d+\.\d+\.\d+)/,
+      'Android user agent',
+    ],
+  ];
+  for (const [file, pattern, label] of labels) {
+    assert.equal(read(file).match(pattern)?.[1], pkg.version, `${label} differs`);
+  }
   const notes = read(`docs/RELEASE_NOTES_${pkg.version}.md`);
   assert.ok(notes.startsWith(`# Wave ${pkg.version}\n`), 'Release notes version differs');
   return { version: pkg.version, tag: `v${pkg.version}` };

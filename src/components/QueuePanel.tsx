@@ -11,6 +11,7 @@ import {
   Check,
 } from 'lucide-react';
 import { Artwork } from './Artwork';
+import { EmptyState } from './EmptyState';
 import { formatTime, type Track } from '../domain/types';
 import type { usePlayer } from '../hooks/usePlayer';
 import { useWaveMotion } from '../ui/motion';
@@ -166,11 +167,14 @@ export function QueuePanel({
         {announcement}
       </span>
       {!queue.length ? (
-        <div className="listening-queue__empty">
-          <ListMusic size={40} />
-          <h3>Queue is empty</h3>
-          <p>Choose the songs you want to hear next.</p>
-        </div>
+        <EmptyState
+          className="listening-queue__empty"
+          symbolClassName="listening-queue__empty-symbol"
+          level={3}
+          icon={<ListMusic size={40} />}
+          title="Queue is empty"
+          description="Choose the songs you want to hear next."
+        />
       ) : (
         <Reorder.Group
           as="ol"

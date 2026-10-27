@@ -1,4 +1,4 @@
-import { automaticMixSeconds } from '../domain/mix';
+import { automaticMixSeconds, mixWindowReached } from '../domain/mix';
 import { isUsablePlan, planTransitionCached } from '../domain/mixPlanner';
 import { analyzeTrack, cachedAnalysis } from '../audio/mixAnalysis';
 import { continuationQueue } from '../domain/continuation';
@@ -299,12 +299,9 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
         if (player.mixRemaining <= 10 && !player.transitioning && extend()) return;
         if (!next?.blob) return;
         const element = player.element,
-          remaining = player.mixRemaining;
-        if (!Number.isFinite(element.duration) || element.duration <= 0 || remaining <= 0) return;
-        // Hard floor, independent of the analysis: a song gets at least half of
-        // its own length before the next one starts. This is what separates a
-        // mix from skipping the song.
-        if (element.duration > 45 && element.currentTime < element.duration * 0.5) return;
+          remaining = player.mixRemaining,
+          duration = element.duration;
+        if (!Number.isFinite(duration) || duration <= 0 || remaining <= 0) return;
         const from = stateRef.current.queue[stateRef.current.index];
         const stillTarget = () => {
           if (stateRef.current.queue[stateRef.current.index] !== from) return false;
@@ -312,27 +309,28 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
           return !!live && live.id === next.id && live.blob === next.blob;
         };
         const onStarted = () => dispatch({ type: 'jump', id: next.id });
+        const window = automaticMixSeconds(duration, player.preparedDuration || next.duration);
         const outgoingAnalysis = cachedAnalysis(player.active.blob);
         const incomingAnalysis = cachedAnalysis(next.blob);
-        const window = automaticMixSeconds(
-          element.duration,
-          player.preparedDuration || next.duration,
-        );
-        if (outgoingAnalysis && incomingAnalysis) {
-          const plan = planTransitionCached(outgoingAnalysis, incomingAnalysis, {
-            fallbackSeconds: window,
-          });
-          // Both conditions matter: we are at the planned mix point *and* that
-          // point is really near the end of this song. A plan that points at the
-          // middle of the song is a bad measurement, not an instruction.
-          if (
-            isUsablePlan(plan, remaining) &&
-            element.currentTime >= plan.startAt - 0.05 &&
-            remaining <= plan.seconds + 1
-          ) {
-            player.transitionWithPlan(next.blob, plan, stillTarget, onStarted);
-            return;
-          }
+        const plan =
+          outgoingAnalysis && incomingAnalysis
+            ? planTransitionCached(outgoingAnalysis, incomingAnalysis, {
+                fallbackSeconds: window,
+              })
+            : undefined;
+        // A handover belongs in the last seconds of the file. Whatever the
+        // analysis believes about the end of the song, this is the rule that
+        // keeps a mix from quietly turning into a skip.
+        if (!mixWindowReached(element.currentTime, duration, Math.max(window, plan?.seconds ?? 0)))
+          return;
+        if (
+          plan &&
+          isUsablePlan(plan, remaining) &&
+          element.currentTime >= plan.startAt - 0.05 &&
+          remaining <= plan.seconds + 1
+        ) {
+          player.transitionWithPlan(next.blob, plan, stillTarget, onStarted);
+          return;
         }
         // No usable plan: an equal-power overlap timed by the two lengths.
         if (remaining <= window) player.transition(next.blob, window, stillTarget, onStarted);

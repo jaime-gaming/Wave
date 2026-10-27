@@ -41,10 +41,9 @@ describe('YouTube song stage', () => {
     expect(url.searchParams.get('controls')).toBe('0');
     // Unlike a backdrop clip, the song's audio comes from the video itself.
     expect(url.searchParams.get('mute')).toBeNull();
-    expect(screen.getByRole('link', { name: /open this song on youtube/i })).toHaveAttribute(
-      'href',
-      'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-    );
+    // One transport only: the link out lives in the song's options, not here.
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
   it('follows the embed clock, plays and pauses with Wave, and seeks on request', async () => {
@@ -85,9 +84,7 @@ describe('YouTube song stage', () => {
       ).toBe(true),
     );
     deliver(frame, { playerState: 1, currentTime: 42, duration: 244 });
-    await waitFor(() =>
-      expect(screen.getByRole('status')).toHaveTextContent(/playing from youtube/i),
-    );
+    await waitFor(() => expect(onTime).toHaveBeenLastCalledWith(42));
   });
 
   it('resumes at the right moment when it is mounted again, and stays quiet when silent', async () => {

@@ -30,6 +30,20 @@ export function mixGains(progress: number, mix: boolean): { outgoing: number; in
   return { outgoing: Math.cos((phase * Math.PI) / 2), incoming: Math.sin((phase * Math.PI) / 2) };
 }
 
+/**
+ * The most a mix may start before the end of the *file*, whatever the analysis
+ * believes the audible end to be. A handover that begins earlier is not a mix,
+ * it is skipping the song, and it is the worst thing the feature can do.
+ */
+export const MIN_MIX_TAIL = 12;
+
+/** True only inside the final seconds of a song, where a handover belongs. */
+export function mixWindowReached(currentTime: number, duration: number, window: number) {
+  if (!Number.isFinite(currentTime) || !Number.isFinite(duration) || duration <= 0) return false;
+  const tail = Math.max(MIN_MIX_TAIL, (Number.isFinite(window) ? window : 0) + 2);
+  return duration - currentTime <= tail;
+}
+
 /** Automatic window based on the shorter recording, bounded for short clips and full songs. */
 export function automaticMixSeconds(outgoing: number, incoming: number) {
   if (!Number.isFinite(outgoing) || !Number.isFinite(incoming) || outgoing <= 0 || incoming <= 0)

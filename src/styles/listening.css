@@ -281,9 +281,10 @@
   padding: 24px;
   color: var(--muted);
 }
-.listening-queue__empty svg {
-  color: var(--primary);
+.listening-queue__empty-symbol {
   margin: 0 auto 16px;
+  color: var(--primary);
+  line-height: 0;
 }
 .listening-queue__empty h3 {
   color: var(--text);

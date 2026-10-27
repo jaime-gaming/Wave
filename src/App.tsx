@@ -40,6 +40,7 @@ import {
   Pencil,
   ArrowUp,
   ArrowDown,
+  Film,
   Trash2,
   Play,
   Pause,
@@ -70,6 +71,7 @@ import { LibraryContent } from './components/LibraryContent';
 import { Navigation, type Page } from './components/Navigation';
 import { Modal } from './components/Modal';
 import { PlayerBar } from './components/PlayerBar';
+import { getClip, loadClips, removeClip } from './domain/videoClips';
 import { AddMusicDialog } from './components/AddMusicDialog';
 import { extendedLyricsEnabled, setExtendedLyrics } from './services/lyricsExtra';
 import { AUDIO_ACCEPT } from './data/import';
@@ -206,6 +208,7 @@ function WaveApp({
     opener?: HTMLElement;
   } | null>(null);
   const [trackOptions, setTrackOptions] = useState<Track | null>(null);
+  const clipsForOptions = useMemo(() => (trackOptions ? loadClips() : {}), [trackOptions]);
   const [editorEnabled, setEditorEnabled] = useState(() => readFlag('wave-editor-enabled'));
   const [editingTrack, setEditingTrack] = useState<Track | null>(null);
   const [playlistId, setPlaylistId] = useState<string | null>(null);
@@ -1240,6 +1243,29 @@ function WaveApp({
               <Pencil size={22} />
               Edit lyrics
             </button>
+            {trackOptions.videoId && (
+              <a
+                className="options-action"
+                href={`https://www.youtube.com/watch?v=${trackOptions.videoId}`}
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                <ArrowUpRight size={22} />
+                Open on YouTube
+              </a>
+            )}
+            {!!getClip(trackOptions.id, clipsForOptions) && (
+              <button
+                className="options-action"
+                onClick={() => {
+                  removeClip(trackOptions.id);
+                  setTrackOptions(null);
+                }}
+              >
+                <Film size={22} />
+                Remove video clip
+              </button>
+            )}
             {editorEnabled && (
               <button
                 className="options-action"

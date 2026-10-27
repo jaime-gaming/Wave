@@ -6,7 +6,7 @@ Release 0.1.1 · 27 October 2026. Historical run dates are retained below.
 
 - `npm run format:check`: passed.
 - `npm run lint`: passed.
-- `npm test`: **430 tests passed across 73 files** (latest run; 200 tests across 42 files at the 0.1.0 release).
+- `npm test`: **438 tests passed across 75 files** (latest run; 200 tests across 42 files at the 0.1.0 release).
 - `npm run test:e2e`: **89 Chromium browser tests passed** in the final complete run (7.6 minutes).
 - `npm run build`: passed. Vite reports its advisory 500 KB chunk-size warning (main chunk approximately 547 KB, gzip 172 KB); this is not a build failure.
 - `npm run build -- --base=/Wave/`: passed; a production static-server smoke test verified Home, Settings, fonts/assets, `/Wave/wave.svg`, the privacy page and its return link under the repository path without HTTP/page errors.
@@ -42,6 +42,17 @@ Browser coverage includes paused restoration of saved queue/native position, art
 - A library row without stored audio now reports it. This is derived during render, not set from an effect, so it cannot race playback.
 - Clip discovery no longer accepts a pasted link: `VideoBackdrop` renders search states only. Nothing verified the discovery result against live YouTube from this workspace.
 - Lyric sizes were increased in every view; the visual result was **not** screenshotted (no browser engine in this workspace).
+
+### 0.1.1 corrections: one transport, frameless lyrics, cheaper lists
+
+- `npx tsc -b`, `npx eslint .`, `npx prettier --check .`, `npm run build`, `npm run release:check -- v0.1.1` and `npm test` (438 tests across 75 files) pass.
+- One transport: `VideoBackdrop` proves the found clip is an embed with `controls=0`, `mute=1`, `disablekb=1` and **no button, no link and no status inside the clip itself**, and that removing the clip from the song's options closes the video through the `wave:clips-changed` event. `YouTubeStage` proves the same for a YouTube song, whose link now lives in the song's options. **No clip and no embed was played**: the front-ends were never reachable from this workspace.
+- Frameless lyrics: the CSS no longer draws a panel, a gradient pill or a bar behind a line; the sung line is marked with scale, weight and the accent colour, and the shrink-to-fit binary search is gone, so a lyric is never rendered smaller than its type size. The visual result was **not screenshotted** and was not compared with 0.1.0 on a device; the claim is about the rules in the stylesheet and the removal of the shrinking code.
+- Transport idle: `useControlsIdle` (3 tests) proves the transport hides after two still seconds while a song plays, never hides while paused, comes back on the first pointer move, and stays on screen while a control inside it has focus.
+- Mix tail: `mix` (3 new tests) proves a handover is only allowed inside the final seconds of the file — a three-minute song is not mixed at two minutes, a 30-second song is not mixed at three seconds, and a song with no known duration is never mixed. The engine now asks that question before it looks at any plan. **Nothing was listened to**: this bounds where a mix may start, it does not prove the blend sounds good.
+- Lists: `useIncrementalRows` (2 tests) proves one page is rendered first and the next page arrives when the sentinel is intersected, and that a short list is rendered whole. `content-visibility` and the removed row animations are CSS/render changes that were **not profiled on a device**; there is no performance trace in this workspace.
+- Release labels: `npm run test:release` (7 node tests) proves a stale version shown in a Windows or Android interface fails the release check.
+- Flaky pairing helper: the sealed-frame helper now waits for the paired state instead of guessing six ticks, which failed once in a full parallel run.
 
 ### 0.1.1 corrections: performance, the mix point and lyric size
 

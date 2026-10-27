@@ -3,6 +3,7 @@ import { collectAlbums, albumKey } from '../domain/collections';
 import { AlbumCard } from './CollectionCard';
 import { AnimatePresence } from 'motion/react';
 import { AnimatedListItem } from './AnimatedListItem';
+import { useIncrementalRows } from '../hooks/useIncrementalRows';
 import { PlayingIndicator } from './PlayingIndicator';
 import {
   AudioLines,
@@ -17,6 +18,7 @@ import {
   Search,
 } from 'lucide-react';
 import { Artwork } from './Artwork';
+import { EmptyState } from './EmptyState';
 import { formatTime, type LibraryView, type Track } from '../domain/types';
 
 export const LibraryContent = memo(function LibraryContent({
@@ -59,6 +61,8 @@ export const LibraryContent = memo(function LibraryContent({
   onMore: (track: Track) => void;
 }) {
   const grouped = (view === 'albums' || view === 'artists') && !group;
+  // Only the rows near the viewport exist at any moment; the rest arrive on scroll.
+  const rows = useIncrementalRows(tracks.length);
   const groups = new Map<string, Track[]>();
   if (grouped && view === 'artists')
     for (const track of tracks) {
@@ -76,55 +80,58 @@ export const LibraryContent = memo(function LibraryContent({
     );
   if (!total && view !== 'playlists')
     return (
-      <div className="empty-state">
-        <div className="empty-symbol">
-          <FolderOpen size={42} strokeWidth={1.4} />
-        </div>
-        <h2>No songs yet</h2>
-        <p>Add audio files from your device.</p>
-        <button className="filled-button" disabled={busy} onClick={onImport}>
-          <Plus size={20} />
-          Add music
-        </button>
-        <span className="supported-formats">MP3, WAV, M4A, OGG and FLAC</span>
-      </div>
+      <EmptyState
+        icon={<FolderOpen size={42} strokeWidth={1.4} />}
+        title="No songs yet"
+        description="Add audio files from your device."
+        hint="MP3, WAV, M4A, OGG and FLAC"
+        actions={
+          <button className="filled-button" disabled={busy} onClick={onImport}>
+            <Plus size={20} />
+            Add music
+          </button>
+        }
+      />
     );
   if (!tracks.length)
     return (
-      <div className="empty-state">
-        <div className="empty-symbol">
-          {query ? (
+      <EmptyState
+        announce={Boolean(query)}
+        icon={
+          query ? (
             <Search size={38} />
           ) : view === 'favorites' ? (
             <Heart size={38} />
           ) : (
             <Music2 size={38} />
-          )}
-        </div>
-        <h2>
-          {query
+          )
+        }
+        title={
+          query
             ? 'No tracks found.'
             : view === 'favorites'
               ? 'No favorites yet'
               : view === 'playlists'
                 ? 'This playlist is empty'
-                : 'No songs in this collection'}
-        </h2>
-        <p>
-          {query
+                : 'No songs in this collection'
+        }
+        description={
+          query
             ? 'Try a different title, artist, or album.'
             : view === 'playlists'
               ? 'Use Add songs to build this playlist.'
               : view === 'favorites'
                 ? 'Use the heart on a song to add it here.'
-                : 'Choose another collection or add music to your library.'}
-        </p>
-        {query && (
-          <button className="tonal-button" onClick={onClearSearch}>
-            Clear search
-          </button>
-        )}
-      </div>
+                : 'Choose another collection or add music to your library.'
+        }
+        actions={
+          query ? (
+            <button className="tonal-button" onClick={onClearSearch}>
+              Clear search
+            </button>
+          ) : undefined
+        }
+      />
     );
   return (
     <>
@@ -169,13 +176,19 @@ export const LibraryContent = memo(function LibraryContent({
           </div>
           {/* Long libraries: rows outside the viewport are not laid out or
               painted until they are needed. */}
-          <ol className="song-list" data-virtual={tracks.length > 120 ? 'true' : undefined}>
+          <ol
+            className="song-list"
+            data-virtual={tracks.length > 40 ? 'true' : undefined}
+            data-count={tracks.length}
+          >
             <AnimatePresence initial={false}>
-              {tracks.map((track, index) => (
+              {tracks.slice(0, rows.limit).map((track, index) => (
                 <AnimatedListItem
                   key={track.id}
                   trackId={track.id}
-                  animateLayout={tracks.length <= 120}
+                  // Only the first rows are worth an entrance animation; animating
+                  // hundreds of them costs more than it shows.
+                  animateLayout={index < 12}
                   index={index}
                   className={`song-row ${currentId === track.id ? 'current' : ''}`}
                   onClick={(event) => {
@@ -255,6 +268,9 @@ export const LibraryContent = memo(function LibraryContent({
                   </div>
                 </AnimatedListItem>
               ))}
+              {rows.limit < tracks.length && (
+                <li ref={rows.sentinelRef} className="song-row-sentinel" aria-hidden="true" />
+              )}
             </AnimatePresence>
           </ol>
         </>

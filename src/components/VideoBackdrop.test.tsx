@@ -1,9 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { findClip, rememberClip } from '../services/clipSearch';
-import userEvent from '@testing-library/user-event';
 import { VideoBackdrop } from './VideoBackdrop';
-import { CLIP_STORAGE_KEY, storeClip } from '../domain/videoClips';
+import { CLIP_STORAGE_KEY, removeClip, storeClip } from '../domain/videoClips';
 import { makeTrack } from '../test/fixtures';
 
 vi.mock('../services/clipSearch', () => ({
@@ -12,7 +11,7 @@ vi.mock('../services/clipSearch', () => ({
 }));
 
 const track = makeTrack({ id: 'track-video', title: 'Signal', artist: 'Wave Tests' });
-const props = { track, time: 12, duration: 200, playing: true, onClose: vi.fn() };
+const props = { track, time: 12, duration: 200, playing: true };
 
 beforeEach(() => {
   vi.mocked(findClip).mockReset().mockResolvedValue({ status: 'unavailable' });
@@ -65,7 +64,7 @@ describe('video clip backdrop', () => {
       cached: false,
     });
     vi.mocked(rememberClip).mockImplementation((id, found) => storeClip(id, found.videoId));
-    render(<VideoBackdrop {...props} />);
+    const { container } = render(<VideoBackdrop {...props} />);
     const frame = (await screen.findByTitle(/video clip for/i)) as HTMLIFrameElement;
     const url = new URL(frame.src);
     expect(url.host).toBe('www.youtube-nocookie.com');
@@ -74,25 +73,26 @@ describe('video clip backdrop', () => {
     expect(url.searchParams.get('mute')).toBe('1');
     expect(url.searchParams.get('disablekb')).toBe('1');
     expect(url.searchParams.get('iv_load_policy')).toBe('3');
-    // The provider stays identifiable and the mapping is local.
-    expect(screen.getByRole('link', { name: /youtube/i })).toHaveAttribute(
-      'href',
-      'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-    );
     expect(JSON.parse(localStorage.getItem(CLIP_STORAGE_KEY) ?? '{}')).toMatchObject({
       'track-video': { videoId: 'dQw4w9WgXcQ' },
     });
-    expect(screen.getAllByRole('status')[0]).toHaveTextContent(/audio from your file|Loading/i);
+    // The clip is decoration and nothing else: the song's bar is the transport.
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(container.querySelector('.video-backdrop-bar')).toBeNull();
   });
 
-  it('removes a clip without touching the song', async () => {
+  it('closes the video when the clip is removed from the song options', async () => {
     localStorage.setItem(
       CLIP_STORAGE_KEY,
       JSON.stringify({ 'track-video': { videoId: 'dQw4w9WgXcQ', startAt: 0, addedAt: 1 } }),
     );
     render(<VideoBackdrop {...props} />);
-    await userEvent.click(screen.getByRole('button', { name: /remove video clip/i }));
-    expect(screen.queryByTitle(/video clip for/i)).not.toBeInTheDocument();
-    expect(screen.getByText('Video clip')).toBeInTheDocument();
+    expect(await screen.findByTitle(/video clip for/i)).toBeInTheDocument();
+    act(() => removeClip('track-video'));
+    await waitFor(() => expect(screen.queryByTitle(/video clip for/i)).not.toBeInTheDocument());
+    // The song is untouched: no clip record left behind.
+    expect(JSON.parse(localStorage.getItem(CLIP_STORAGE_KEY) ?? '{}')).toEqual({});
   });
 });

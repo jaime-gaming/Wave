@@ -17,7 +17,7 @@
         <Button Content="Playlists" Tag="Playlists" Click="NavigateClick"/>
         <Button Content="Favorites" Tag="Favorites" Click="NavigateClick"/>
         <Button Content="Settings" Tag="Settings" Click="NavigateClick" Margin="4,32,4,4"/>
-        <TextBlock Text="0.1.0" Foreground="{DynamicResource MutedBrush}" Margin="18,16,0,0" FontSize="12"/>
+        <TextBlock Text="0.1.1" Foreground="{DynamicResource MutedBrush}" Margin="18,16,0,0" FontSize="12"/>
       </StackPanel>
     </ScrollViewer>
     <Grid Grid.Column="1" Margin="12,24,24,12">

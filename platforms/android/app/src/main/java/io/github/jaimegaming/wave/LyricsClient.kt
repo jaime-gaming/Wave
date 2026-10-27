@@ -17,7 +17,7 @@ class LyricsClient {
             if(wait>0)Thread.sleep(wait)
             requestedAt=System.currentTimeMillis()
             val connection=URI("https://lrclib.net/api/$path").toURL().openConnection() as HttpURLConnection
-            connection.connectTimeout=10000;connection.readTimeout=10000;connection.setRequestProperty("User-Agent","Wave/0.1.0 (https://github.com/jaime-gaming/Wave)")
+            connection.connectTimeout=10000;connection.readTimeout=10000;connection.setRequestProperty("User-Agent","Wave/0.1.1 (https://github.com/jaime-gaming/Wave)")
             try {
                 val status=connection.responseCode
                 if(status==429||status==503) { retryAt=lyricsRetryDeadline(connection.getHeaderField("Retry-After"),System.currentTimeMillis());error("Lyrics service is busy.") }
