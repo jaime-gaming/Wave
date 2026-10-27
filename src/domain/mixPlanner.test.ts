@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { bassSwapGains, isUsablePlan, MAX_STRETCH, planGains, planTransition } from './mixPlanner';
+import {
+  automaticBars,
+  bassSwapGains,
+  isUsablePlan,
+  MAX_STRETCH,
+  planGains,
+  planTransition,
+  TARGET_SECONDS,
+} from './mixPlanner';
 import type { TrackAnalysis } from '../audio/dsp';
 
 const analysis = (over: Partial<TrackAnalysis> = {}): TrackAnalysis => ({
@@ -144,5 +152,34 @@ describe('gain curves', () => {
     }
     expect(bassSwapGains(-1)).toEqual({ outgoing: 1, incoming: 0 });
     expect(bassSwapGains(9).incoming).toBeCloseTo(1, 6);
+  });
+
+  it('chooses its own bar count so a blend lasts about the target length', () => {
+    expect(automaticBars(120)).toBe(8);
+    expect(automaticBars(174)).toBe(12);
+    expect(automaticBars(60)).toBe(8);
+    expect(automaticBars(0)).toBe(8);
+    expect(automaticBars(Number.NaN)).toBe(8);
+    for (const bpm of [72, 96, 120, 128, 150, 174, 190]) {
+      const seconds = (automaticBars(bpm) * 4 * 60) / bpm;
+      expect(seconds).toBeGreaterThan(TARGET_SECONDS * 0.55);
+      expect(seconds).toBeLessThan(TARGET_SECONDS * 1.55);
+    }
+  });
+
+  it('adapts the overlap to a slow song without being asked', () => {
+    const slow = planTransition(
+      analysis({ beats: { bpm: 78, offset: 0.05, confidence: 0.9 } }),
+      analysis({ beats: { bpm: 80, offset: 0.05, confidence: 0.9 } }),
+    );
+    expect(slow.mode).toBe('beatmatched');
+    expect(slow.bars).toBe(8);
+    expect(slow.seconds).toBeGreaterThan(20);
+    const fast = planTransition(
+      analysis({ beats: { bpm: 172, offset: 0.05, confidence: 0.9 } }),
+      analysis({ beats: { bpm: 174, offset: 0.05, confidence: 0.9 } }),
+    );
+    expect(fast.bars).toBe(12);
+    expect(fast.seconds).toBeLessThan(slow.seconds);
   });
 });

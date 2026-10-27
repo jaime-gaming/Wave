@@ -63,7 +63,6 @@ export function DailyMixes({
     <section className="daily-mixes" aria-label="Daily mixes">
       <div className="section-heading">
         <h2>Daily mixes</h2>
-        <p>Built from your tags and tempo, ordered for listening</p>
       </div>
       <motion.div
         className="daily-mix-grid"
@@ -93,7 +92,6 @@ export function DailyMixes({
             <span className="daily-mix-copy">
               <strong>Daily mix {index + 1}</strong>
               <span title={mix.label}>{mix.label}</span>
-              <small>{mix.descriptor}</small>
             </span>
             <ArrowUpRight size={20} aria-hidden="true" />
           </motion.button>

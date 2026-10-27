@@ -47,7 +47,6 @@ import {
   SkipForward,
   Plus,
   Settings,
-  ShieldCheck,
   Shuffle,
   SlidersHorizontal,
   X,
@@ -55,7 +54,6 @@ import {
 import { useLibrary } from './hooks/useLibrary';
 import { useAppPalette } from './hooks/useAppPalette';
 import { usePlayer } from './hooks/usePlayer';
-import type { TransitionPlan } from './domain/mixPlanner';
 import { Artwork } from './components/Artwork';
 import { LibraryContent } from './components/LibraryContent';
 import { Navigation, type Page } from './components/Navigation';
@@ -75,22 +73,6 @@ function readFlag(key: string, fallback = false): boolean {
   } catch {
     return fallback;
   }
-}
-/** Plain-language explanation of the last Mix handover, for the Settings panel. */
-function mixPlanSummary(plan: TransitionPlan): string {
-  if (plan.mode === 'cut') return 'The next song starts on its own; no usable overlap.';
-  const parts = [
-    plan.mode === 'beatmatched'
-      ? `${plan.bars} bars · ${plan.seconds.toFixed(1)} s, beat aligned`
-      : `Equal-power overlap · ${plan.seconds.toFixed(1)} s`,
-  ];
-  if (plan.stretched)
-    parts.push(
-      `tempo matched ${plan.incomingRate > 1 ? '+' : ''}${((plan.incomingRate - 1) * 100).toFixed(1)} %`,
-    );
-  if (plan.mode === 'beatmatched') parts.push('bass swap at the midpoint');
-  parts.push(plan.notes.join(' '));
-  return `${parts.filter(Boolean).join(' · ')}.`;
 }
 function readTheme(): Theme {
   try {
@@ -352,7 +334,6 @@ function WaveApp({
           duration: 0,
         })
       : undefined;
-  const albumCount = albums.length;
   const favoriteCount = library.tracks.filter((track) => track.favorite).length;
   const busy = library.loading || !!library.progress;
   const chooseFiles = useCallback(() => input.current?.click(), []);
@@ -652,13 +633,6 @@ function WaveApp({
                       ? 'Settings'
                       : 'Library'}
               </h1>
-              <p className="library-summary">
-                {library.loading
-                  ? 'Loading…'
-                  : page === 'settings'
-                    ? 'Appearance, playback & your library'
-                    : `${library.tracks.length} ${library.tracks.length === 1 ? 'song' : 'songs'} · ${albumCount} ${albumCount === 1 ? 'album' : 'albums'}`}
-              </p>
             </div>
           </div>
           {page === 'library' && (
@@ -727,7 +701,6 @@ function WaveApp({
                     <div className="settings-switch-row">
                       <div>
                         <strong>Larger text</strong>
-                        <p>More readable labels, song titles and controls.</p>
                       </div>
                       <button
                         type="button"
@@ -745,7 +718,6 @@ function WaveApp({
                     <div className="settings-switch-row">
                       <div>
                         <strong>Animations</strong>
-                        <p>Expressive transitions and playback feedback.</p>
                       </div>
                       <button
                         type="button"
@@ -767,10 +739,6 @@ function WaveApp({
                     <div className="settings-switch-row">
                       <div>
                         <strong>Mix</strong>
-                        <p>
-                          Automatically chooses the overlap and handover for each pair of songs.
-                          Original audio, tempo and pitch stay unchanged.
-                        </p>
                       </div>
                       <button
                         type="button"
@@ -785,50 +753,9 @@ function WaveApp({
                         </motion.span>
                       </button>
                     </div>
-                    <div className="settings-option-block">
-                      <div>
-                        <strong>Mix length</strong>
-                        <p>
-                          How many bars two beat-matched songs overlap. Wave aligns the beat grid,
-                          equals the tempo within 8 % (pitch preserved) and swaps the bass in the
-                          middle.{' '}
-                          {player.tempo
-                            ? `Current song: ${player.tempo.toFixed(1)} BPM.`
-                            : player.mixEnabled && player.analyzing
-                              ? 'Analysing the current song…'
-                              : ''}
-                        </p>
-                      </div>
-                      <div className="settings-choice" role="radiogroup" aria-label="Mix length">
-                        {[8, 16].map((bars) => (
-                          <button
-                            key={bars}
-                            type="button"
-                            role="radio"
-                            aria-checked={player.mixBars === bars}
-                            className={player.mixBars === bars ? 'active' : ''}
-                            onClick={() => player.setMixBars(bars)}
-                          >
-                            {bars} bars
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    {player.mixEnabled && player.mixPlan && (
-                      <div className="settings-option-block mix-plan-block">
-                        <div>
-                          <strong>Last handover</strong>
-                          <p>{mixPlanSummary(player.mixPlan)}</p>
-                        </div>
-                      </div>
-                    )}
                     <div className="settings-switch-row">
                       <div>
                         <strong>Video clip</strong>
-                        <p>
-                          Show the YouTube clip behind Now Playing. Muted, without its own controls,
-                          and resynced to your song. Audio still comes from your file.
-                        </p>
                       </div>
                       <button
                         type="button"
@@ -846,10 +773,6 @@ function WaveApp({
                     <div className="settings-switch-row">
                       <div>
                         <strong>Autoplay</strong>
-                        <p>
-                          When the queue ends, continue with local songs guided by artist, album,
-                          genre and era, with weighted variety. Repeat takes priority.
-                        </p>
                       </div>
                       <button
                         type="button"
@@ -868,21 +791,11 @@ function WaveApp({
                 }
                 lyrics={
                   <>
-                    <div className="settings-note">
-                      <strong>Word-by-word lyrics</strong>
-                      <p>
-                        Built in: each word lights up as it is sung. Exact word timings from the
-                        lyric file are used when present; otherwise Wave estimates them from the
-                        line timing, and the previous line-level view remains as a fallback.
-                      </p>
-                    </div>
                     <div className="settings-switch-row">
                       <div>
                         <strong>Word-level lyric sources</strong>
-                        <p>
-                          Also ask NetEase and Kugou, which publish per-word timings. Only the title
-                          and artist are sent, and results are stored locally. Off by default
-                          because they are community services, not official APIs.
+                        <p className="settings-warning">
+                          Unofficial sources. Only the title and artist are sent.
                         </p>
                       </div>
                       <button
@@ -905,11 +818,6 @@ function WaveApp({
                     <div className="settings-switch-row">
                       <div>
                         <strong>Automatic lyrics</strong>
-                        <p>
-                          Search LRCLIB by song title and artist after import, then save matching
-                          lyrics for offline use. Only metadata is sent; your audio is never
-                          uploaded.
-                        </p>
                       </div>
                       <button
                         className="material-switch"
@@ -938,10 +846,6 @@ function WaveApp({
                     <div className="settings-switch-row">
                       <div>
                         <strong>Library editing</strong>
-                        <p>
-                          Edit song information and add custom song or playlist covers. Original
-                          files stay unchanged.
-                        </p>
                       </div>
                       <button
                         type="button"
@@ -970,32 +874,11 @@ function WaveApp({
                         await customizations.reload();
                       }}
                     />
-                    <StorageSettings tracks={library.tracks} />{' '}
-                    <div className="settings-privacy">
-                      <ShieldCheck size={24} />
-                      <div>
-                        <strong>Local storage</strong>
-                        <p>
-                          Your music and favorites are stored in this browser. Clearing site data
-                          removes your library, not your original files. Keep a copy of your
-                          originals.
-                        </p>
-                      </div>
-                    </div>
+                    <StorageSettings tracks={library.tracks} />
                   </>
                 }
                 about={
                   <>
-                    {' '}
-                    <h3>Independent editions</h3>
-                    <p>Local music. No account.</p>
-                    <p>Web · Android · Windows</p>
-                    <p>Native editions are in development.</p>
-                    <p>Use audio, images and lyrics you are entitled to access.</p>
-                    <p className="settings-shortcuts">
-                      <kbd>Space</kbd> Play / pause <span>·</span>
-                      <kbd>Ctrl / ⌘ K</kbd> Search
-                    </p>
                     <a
                       className="settings-source"
                       href="https://github.com/jaime-gaming/Wave"

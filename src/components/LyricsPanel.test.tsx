@@ -30,7 +30,7 @@ it('fills text in reading order without an elapsed bar, follows seeks and preser
   }
 });
 
-it('keeps timing controls tucked away while retaining editing and attribution', () => {
+it('keeps timing controls tucked away and shows no notes under the lyrics', () => {
   const previous = HTMLElement.prototype.scrollTo;
   HTMLElement.prototype.scrollTo = vi.fn();
   try {
@@ -53,11 +53,9 @@ it('keeps timing controls tucked away while retaining editing and attribution', 
     );
     const details = container.querySelector('details')!;
     expect(details.open).toBe(false);
-    expect(screen.getByRole('link', { name: 'LRCLIB' })).toHaveAttribute(
-      'href',
-      'https://lrclib.net/lyrics/42',
-    );
-    expect(screen.queryByText(/Word-timed|saved offline/)).not.toBeInTheDocument();
+    expect(container.querySelector('.lyrics-provenance')).toBeNull();
+    expect(screen.queryByRole('link')).toBeNull();
+    expect(screen.queryByText(/Word-timed|saved offline|tap a line to seek/i)).toBeNull();
     fireEvent.click(screen.getByLabelText('Adjust lyric timing'));
     expect(details.open).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: 'Show lyrics 100 milliseconds later' }));

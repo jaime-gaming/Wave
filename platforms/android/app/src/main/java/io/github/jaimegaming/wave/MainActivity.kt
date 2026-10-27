@@ -2,6 +2,7 @@ package io.github.jaimegaming.wave
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -25,13 +26,19 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class MainActivity:ComponentActivity() {
-    override fun onCreate(savedInstanceState:Bundle?) { super.onCreate(savedInstanceState);setContent { Wave() } }
+    override fun onCreate(savedInstanceState:Bundle?) {
+        // Draw under the system bars and keep content clear of the cutout and the
+        // gesture bar, the way Android expects a full-screen music app to look.
+        enableEdgeToEdge()
+        super.onCreate(savedInstanceState)
+        setContent { Wave() }
+    }
     @Composable private fun Wave() {
         val repository=remember { Library(applicationContext) };val player=remember { Player() };val client=remember { LyricsClient() };val scope=rememberCoroutineScope()
         val preferences=remember { getSharedPreferences("wave",MODE_PRIVATE) }
         var songs by remember { mutableStateOf(repository.load()) };var page by remember { mutableStateOf("Home") };var query by remember { mutableStateOf("") };var busy by remember { mutableStateOf(false) };var message by remember { mutableStateOf("") };var lyricsOpen by remember { mutableStateOf(true) };var editing by remember { mutableStateOf<Song?>(null) }
-        var online by remember { mutableStateOf(preferences.getBoolean("lyrics",false)) };var fade by remember { mutableFloatStateOf(preferences.getFloat("crossfade",0f)) }
-        player.crossfade=fade.toDouble()
+        var online by remember { mutableStateOf(preferences.getBoolean("lyrics",false)) };var mix by remember { mutableStateOf(preferences.getBoolean("mix",true)) }
+        player.crossfade=if(mix) 6.0 else 0.0
         DisposableEffect(Unit) { onDispose { player.dispose() } }
         fun update(song:Song) { val updated=songs.map { if(it.id==song.id)song else it };repository.save(updated);songs=updated }
         fun fetch(song:Song) { scope.launch { busy=true;try { val raw=withContext(Dispatchers.IO) { client.find(song) };val latest=songs.find { it.id==song.id };if(latest!=null&&latest.title==song.title&&latest.artist==song.artist&&latest.lyrics.isEmpty())update(latest.copy(lyrics=raw,checkedAt=System.currentTimeMillis()));message=if(raw.isEmpty())"No matching lyrics." else "" }catch(error:Exception) { message=error.message ?: "Lyrics lookup failed" }finally { busy=false } } }
@@ -40,7 +47,7 @@ class MainActivity:ComponentActivity() {
         val picker=rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris -> scope.launch { busy=true;try { val added=withContext(Dispatchers.IO) { repository.importFiles(uris) };songs=repository.load();message="$added tracks added; identical files skipped." } catch(error:Exception) { songs=repository.load();message=error.message ?: "Import failed" }finally { busy=false } } }
         val colors=darkColorScheme(primary=Color(0xFFB0C7FF),background=Color(0xFF10141F),surface=Color(0xFF1D2230),surfaceVariant=Color(0xFF282E3E))
         MaterialTheme(colorScheme=colors) {
-            Scaffold(containerColor=colors.background,bottomBar={ Column {
+            Scaffold(containerColor=colors.background,contentWindowInsets=WindowInsets.safeDrawing,bottomBar={ Column(Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal+WindowInsetsSides.Bottom))) {
                 if(player.current!=null&&page!="Now playing") Surface(shape=MaterialTheme.shapes.large,color=colors.surfaceVariant,modifier=Modifier.padding(horizontal=12.dp).fillMaxWidth().height(64.dp)) { Row(Modifier.padding(12.dp)) { Column(Modifier.weight(1f).clickable { page="Now playing";lyricsOpen=true }) { Text(player.current!!.title,maxLines=1,fontWeight=FontWeight.Bold);Text(player.current!!.artist,maxLines=1,fontSize=12.sp) };TextButton(onClick={ player.toggle() }) { Text(if(player.playing)"Pause" else "Play") };TextButton(onClick={ player.next() }) { Text("Next") } } }
                 if(page!="Now playing") NavigationBar { listOf("Home","Library","Settings").forEach { name -> NavigationBarItem(selected=page==name,onClick={ page=name },icon={ Text(when(name){"Home"->"⌂";"Library"->"♫";else->"⚙"}) },label={ Text(name) }) } }
             }}) { padding ->
@@ -52,10 +59,9 @@ class MainActivity:ComponentActivity() {
                     when(page) {
                         "Settings" -> LazyColumn(verticalArrangement=Arrangement.spacedBy(18.dp),modifier=Modifier.fillMaxWidth()) {
                             item { TextButton(onClick={page="Home"}) {Text("Back")} }
-                            item { Text("Playback",fontWeight=FontWeight.Bold,modifier=Modifier.padding(top=20.dp));Text("Crossfade: ${fade.toInt()} s");Slider(value=fade,onValueChange={ fade=it;preferences.edit().putFloat("crossfade",it).apply() },valueRange=0f..12f,steps=11);Text("Equal-power overlap. Original files stay unchanged.",fontSize=13.sp) }
-                            item { Row { Text("Automatic lyrics",modifier=Modifier.weight(1f));Switch(online,onCheckedChange={ online=it;preferences.edit().putBoolean("lyrics",it).apply() }) };Text("LRCLIB receives song metadata and your connection IP, never audio. Optional and off initially.",fontSize=13.sp) }
-                            item { Text("Storage",fontWeight=FontWeight.Bold);Text("${songs.size} original files in app-private storage. Uninstalling deletes them; retain your originals.",fontSize=13.sp) }
-                            item { Text("Privacy & rights",fontWeight=FontWeight.Bold);Text("No analytics or accounts. Use music and lyrics you may lawfully access. See the repository privacy information.",fontSize=13.sp) }
+                            item { Row(modifier=Modifier.padding(top=20.dp)) { Text("Mix",modifier=Modifier.weight(1f));Switch(mix,onCheckedChange={ mix=it;preferences.edit().putBoolean("mix",it).apply();player.crossfade=if(it) 6.0 else 0.0 }) } }
+                            item { Row { Text("Automatic lyrics",modifier=Modifier.weight(1f));Switch(online,onCheckedChange={ online=it;preferences.edit().putBoolean("lyrics",it).apply() }) } }
+                            item { Text("Storage",fontWeight=FontWeight.Bold);Text("${songs.size} songs",fontSize=13.sp) }
                         }
                         "Now playing" -> { val song=songs.find { it.id==player.current?.id }
                             if(song!=null)LazyColumn(verticalArrangement=Arrangement.spacedBy(14.dp)) {

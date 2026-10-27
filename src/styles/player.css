@@ -367,11 +367,6 @@
 .stage-lyrics .lyrics-heading .icon-button {
   margin-left: auto;
 }
-.stage-lyrics .lyrics-provenance {
-  min-height: 0;
-  margin: 0;
-  font-size: 11px;
-}
 .stage-lyrics .lyrics-tools {
   margin-top: 4px;
   gap: 4px;
@@ -891,11 +886,6 @@
   font-size: 12px;
   margin: 0;
 }
-.video-clip-hint {
-  font-size: 11px;
-  color: var(--muted);
-  margin: 0;
-}
 @media (max-width: 640px) {
   .video-backdrop-bar {
     left: 8px;
@@ -953,24 +943,10 @@
   justify-content: flex-start;
   margin-top: 10px;
 }
-
-/* Mix information ------------------------------------------------------------ */
-.mix-plan-block p {
+.storage-message {
   color: var(--muted);
-  line-height: 1.5;
-}
-.settings-note {
-  display: grid;
-  gap: 4px;
-  padding: 12px 14px;
-  border-radius: 16px;
-  background: var(--container, rgba(255, 255, 255, 0.05));
-}
-.settings-note p {
-  margin: 0;
-  color: var(--muted);
-  line-height: 1.5;
   font-size: 13px;
+  line-height: 1.5;
 }
 
 /* YouTube songs: the video is the source, so the veil stays light ------------ */

@@ -261,11 +261,7 @@ player.volume; // Persisted number from 0 to 1, default 1
 player.buffering; // Browser waiting state
 player.mixEnabled; // Single persisted Mix switch, fresh default true
 player.setMixEnabled(enabled); // Analysis, planning, bass swap and time-stretch
-player.mixBars; // 8 or 16: the preferred overlap in bars (persisted as wave-mix-bars)
-player.setMixBars(bars); // Only 8 or 16 are accepted
-player.tempo; // Detected BPM of the current song, once its analysis lands
-player.analyzing; // True while the current song is being analysed in the worker
-player.mixPlan; // TransitionPlan for current → next, or undefined without analysis
+// There is no overlap length to configure: the planner chooses the bar count.
 player.youTube; // {seek, time, onTime, onDuration, onEnded, onError} or null
 player.autoplay; // Persisted, default true; repeat takes priority
 player.setAutoplay(enabled); // Local patterned continuation at queue completion
@@ -443,7 +439,8 @@ Idle entry now additionally requires `document.hasFocus()`. `blur` wakes the pla
 
 - `analyzePcm(samples, sampleRate): TrackAnalysis` is the DSP core: FFT frames, band energies, onset envelope, tempo (autocorrelation, 120 BPM prior, parabolic refinement), beat phase, silence bounds, energy segments and vocal regions. `introEnd`/`outroStart`/`overlapsRegion` read that result.
 - `analyzeTrack(blob)` decodes a downmixed mono copy at 11 025 Hz off the main thread (worker with a main-thread fallback), caches per `Blob`, and `primeAnalysis(blob)` warms it up.
-- `planTransition(outgoing, incoming, {bars, fallbackSeconds, minSeconds, vocalTolerance, maxStretch}): TransitionPlan` returns `{mode, seconds, startAt, cue, incomingRate, stretched, bassSwapAt, bars, phaseAligned, notes}`. Modes are `beatmatched`, `crossfade` and `cut`; `isUsablePlan(plan, remaining)` gates execution.
+- `automaticBars(bpm): number` returns the bar count Mix uses for a blend of about `TARGET_SECONDS` (18 s) at that tempo, in multiples of four bars between `MIN_BARS` and `MAX_BARS`.
+- `planTransition(outgoing, incoming, {bars, fallbackSeconds, minSeconds, vocalTolerance, maxStretch}): TransitionPlan` returns `{mode, seconds, startAt, cue, incomingRate, stretched, bassSwapAt, bars, phaseAligned, notes}`. `bars` is optional; without it the planner calls `automaticBars` with the outgoing tempo. Modes are `beatmatched`, `crossfade` and `cut`; `isUsablePlan(plan, remaining)` gates execution.
 - `planGains(progress)` and `bassSwapGains(progress)` are equal-power `cos/sin` curves. `MixGraph` builds source → lowshelf (180 Hz, `bassShelfDb`) → gain → destination per element; `stretchRate(analysis, bpm)` returns the ±8 % rate or 1.
 - `mixCues(envelope, duration)` still supplies conservative cues when no analysis is available; `mixGains(progress, mix)` remains for the legacy equal-power overlap.
 - `MixAudio.setMixEnabled(enabled)` opts into the Web Audio graph and cue analysis; `setAnalysis(blob, analysis)`, `transitionWithPlan(blob, plan, guard, onStarted)` and `cancelTransition()` drive a planned handover. `mixRemaining` reads the effective outgoing end minus media time.

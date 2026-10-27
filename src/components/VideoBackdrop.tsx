@@ -164,9 +164,6 @@ export function VideoBackdrop({
             {error}
           </p>
         )}
-        <p className="video-clip-hint">
-          Clips are stored on this device only · {Object.keys(clips).length} saved
-        </p>
       </div>
     </div>
   );

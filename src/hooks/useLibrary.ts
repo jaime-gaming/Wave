@@ -139,7 +139,12 @@ export function useLibrary() {
       setError('');
       const meta = await fetchVideoMeta(video.videoId);
       const track = youtubeTrack(
-        { videoId: video.videoId, title: meta?.title ?? '', artist: meta?.artist },
+        {
+          videoId: video.videoId,
+          title: meta?.title ?? '',
+          artist: meta?.artist,
+          duration: meta?.duration,
+        },
         id,
       );
       try {

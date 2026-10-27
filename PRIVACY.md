@@ -16,11 +16,11 @@ LRCLIB receives title, artist, optional album/duration and the client identifier
 
 ### Extra word-level sources (opt-in)
 
-Word-by-word timing needs providers that publish it. The optional **Word-level lyric sources** switch (Settings → Lyrics, off by default) also asks NetEase and Kugou for the same song. Only the title and artist are sent; both services see connection information such as an IP address, and both are community endpoints without a published API contract. Responses are parsed on the device and saved locally as ordinary lyrics, with the provider named in the lyrics panel. Turning the switch off stops new requests; saved lyrics stay. If either service answers with word timing that does not fit the file's duration, it is discarded and LRCLIB is used instead.
+Word-by-word timing needs providers that publish it. The optional **Word-level lyric sources** switch (Settings → Lyrics, off by default) also asks NetEase and Kugou for the same song. Only the title and artist are sent; both services see connection information such as an IP address, and both are community endpoints without a published API contract. Responses are parsed on the device and saved locally as ordinary lyrics. Turning the switch off stops new requests; saved lyrics stay. If either service answers with word timing that does not fit the file's duration, it is discarded and LRCLIB is used instead.
 
 ### Video clips and YouTube songs
 
-Clip discovery sends the song title and artist to public Piped or Invidious instances and keeps the chosen video id locally; no audio or image leaves the device. Adding a song from YouTube sends only the video id to YouTube's oEmbed endpoint to read its public title. A YouTube song and any muted backdrop clip stream directly from YouTube: that traffic, and the fact that you watched a video, belongs to YouTube's own policy, not to Wave. Wave never downloads, proxies or extracts that audio.
+Clip discovery sends the song title and artist to public Piped or Invidious instances and keeps the chosen video id locally; no audio or image leaves the device. Adding a song from YouTube sends the video id and nothing else. Wave asks YouTube's oEmbed endpoint first, then noembed, then a public Piped instance, then a public Invidious instance, and stops at the first title. Those requests carry the video id and the usual connection information such as an IP address; nothing about your library is included. A YouTube song and any muted backdrop clip stream directly from YouTube: that traffic, and the fact that you watched a video, belongs to YouTube's own policy, not to Wave. Wave never downloads, proxies or extracts that audio.
 
 Provider: https://lrclib.net/docs. Its terms/privacy endpoints were not available during this review; retention, operator identity, transfer location and a blanket lyrics license were **not verified**. A third-party API's availability is not a copyright clearance. Deployment maintainers must verify these before promoting the integration publicly. For maximal local privacy, leave automatic lyrics off and paste lawful local text/LRC instead.
 
@@ -29,6 +29,10 @@ Provider: https://lrclib.net/docs. Its terms/privacy endpoints were not availabl
 Imported files are inspected on your device for title, artist, album, duration, source format, track/disc numbers, year/genre and supported embedded covers. A same-origin worker parses tags where supported. Original audio is saved unchanged; local checks do not identify recordings against an external catalogue.
 
 Online catalogue verification and cover downloading have been removed. Imports and metadata review make no MusicBrainz or Cover Art Archive requests, even if an older verification preference remains in this browser. Previously saved details/covers remain local and are not automatically erased or reverted. Prior requests already received by a provider cannot be recalled. Use local editing/restoration or browser site-data controls to manage saved data. The separate optional LRCLIB lyric policy above is unchanged.
+
+## Offline copy of the interface
+
+The web edition registers a service worker that stores the interface — HTML, scripts, styles, fonts and icons — in the browser cache so the app opens without a connection. Audio, artwork, lyrics and video references are never added to that cache; they remain in the library storage described above and are removed by clearing site data. Unregistering the service worker or clearing site data removes the offline copy and the next visit needs a connection.
 
 ## Website host
 

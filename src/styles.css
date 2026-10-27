@@ -433,11 +433,6 @@ h1 {
   color: var(--muted);
   line-height: 1.65;
 }
-.supported-formats {
-  font-size: 12px;
-  color: var(--muted);
-  margin-top: 20px;
-}
 .song-list-heading,
 .song-row {
   display: grid;
@@ -776,34 +771,6 @@ h1 {
 .theme-options .chosen {
   color: var(--on-primary);
   background: var(--primary);
-}
-.settings-privacy {
-  display: flex;
-  gap: 14px;
-  margin-top: 32px;
-}
-.settings-privacy > svg {
-  color: var(--primary);
-  flex-shrink: 0;
-}
-.settings-privacy strong {
-  font-size: 16px;
-  font-weight: 700;
-}
-.settings-privacy p {
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 1.7;
-  margin-top: 8px;
-}
-.settings-shortcuts {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-  color: var(--muted);
-  font-size: 12px;
-  margin: 28px 0;
 }
 kbd {
   font-family: inherit;
@@ -1163,9 +1130,6 @@ kbd {
   }
   .empty-state p {
     font-size: 14px;
-  }
-  .supported-formats {
-    font-size: 11px;
   }
   .song-list-heading {
     display: none;
@@ -2674,16 +2638,6 @@ kbd {
   padding: 80px 10px;
   scroll-padding: 60px;
   mask-image: linear-gradient(transparent, #000 12%, #000 88%, transparent);
-}
-.lyrics-provenance {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.lyrics-provenance a {
-  color: var(--player-accent);
-  text-underline-offset: 3px;
 }
 .lyrics-tools {
   display: flex;
@@ -4643,10 +4597,6 @@ select {
 .settings-menu-copy strong {
   font-size: 17px;
 }
-.settings-menu-copy > span {
-  color: var(--muted);
-  font-size: 14px;
-}
 .settings-menu-item > svg {
   flex-shrink: 0;
   color: var(--muted);
@@ -4953,9 +4903,6 @@ select {
   .settings-menu-copy strong {
     font-size: 16px;
   }
-  .settings-menu-copy > span {
-    font-size: 13px;
-  }
   .settings-page-options {
     padding: 18px;
     border-radius: 20px;
@@ -5146,7 +5093,6 @@ select {
 }
 :root[data-text-size='large'] .song-artist-link,
 :root[data-text-size='large'] .daily-mix-copy > span,
-:root[data-text-size='large'] .settings-menu-copy > span,
 :root[data-text-size='large'] .settings-switch-row p,
 :root[data-text-size='large'] .modal-description,
 :root[data-text-size='large'] .editor-lookup p,
@@ -5264,11 +5210,10 @@ select {
   font-size: 22px;
   overflow-wrap: anywhere;
 }
-.daily-mix-description {
-  max-width: 660px;
+.daily-mix-meta {
   color: var(--muted);
-  line-height: 1.6;
-  margin: 16px 0;
+  font-size: 13px;
+  letter-spacing: 0.01em;
 }
 .daily-mix-actions {
   display: flex;
@@ -5446,6 +5391,12 @@ select {
 }
 
 /* Playback options: mix style, crossfade length and other multi-choice rows. */
+.settings-warning {
+  color: var(--warning, #e7b46b);
+  font-size: 12px;
+  line-height: 1.4;
+  margin: 2px 0 0;
+}
 .settings-option-block {
   display: grid;
   gap: 10px;
@@ -5499,4 +5450,167 @@ select {
 /* Word-by-word lyrics: estimated timings look softer than provider timings. */
 .lyric-word[data-word-source='derived'] {
   transition: background-image 0.08s linear;
+}
+
+/* Phones and tablets: every control is reachable with a thumb, nothing is
+   hidden behind a hover state, and panes scroll the way the platform expects. */
+button,
+[role='button'],
+a {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.lyrics-scroll,
+.queue-list,
+.modal,
+.workspace,
+.daily-mix-page,
+.settings-panel {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+@media (pointer: coarse) {
+  .text-button,
+  .settings-choice button,
+  .player-bar .icon-button,
+  .song-row .icon-button,
+  .compact-transport button {
+    min-height: 44px;
+  }
+  .text-button {
+    padding-block: 12px;
+  }
+  .settings-choice button {
+    padding: 10px 18px;
+  }
+  .song-actions .icon-button,
+  .queue-row .icon-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  /* Hover lifts and reveals read as broken feedback on touch. */
+  .song-row:hover,
+  .daily-mix-card:hover,
+  .album-card:hover {
+    transform: none;
+  }
+  .lyrics-scroll {
+    scroll-padding-block: 40vh;
+  }
+}
+
+/* Refinement layer: one shadow, one border and one transition for every raised
+   surface, so cards, modals and the player feel cut from the same material. */
+:root {
+  --elevation-1: 0 1px 2px rgba(4, 8, 18, 0.16), 0 8px 24px rgba(4, 8, 18, 0.18);
+  --elevation-2: 0 2px 6px rgba(4, 8, 18, 0.2), 0 22px 48px rgba(4, 8, 18, 0.28);
+  --hairline: color-mix(in srgb, var(--text) 8%, transparent);
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+:root[data-theme='light'] {
+  --elevation-1: 0 1px 2px rgba(28, 38, 68, 0.06), 0 8px 20px rgba(28, 38, 68, 0.08);
+  --elevation-2: 0 2px 6px rgba(28, 38, 68, 0.08), 0 22px 44px rgba(28, 38, 68, 0.14);
+}
+::selection {
+  background: color-mix(in srgb, var(--primary) 34%, transparent);
+  color: var(--text);
+}
+.workspace {
+  box-shadow: var(--elevation-1);
+}
+.library-header {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--header) 88%, #fff 12%),
+    var(--header)
+  );
+}
+.modal {
+  box-shadow: var(--elevation-2);
+  border: 1px solid var(--hairline);
+}
+.album-card,
+.home-playlist,
+.daily-mix-card,
+.song-row,
+.settings-menu-item {
+  border: 1px solid var(--hairline);
+}
+.group-card .artwork,
+.album-card .artwork,
+.daily-mix-card .artwork {
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--background) 55%, transparent);
+}
+.group-card,
+.album-card,
+.home-playlist,
+.daily-mix-card,
+.home-artist {
+  transition:
+    transform 0.24s var(--ease-out),
+    box-shadow 0.24s var(--ease-out),
+    background-color 0.2s ease;
+}
+.group-card:hover,
+.album-card:hover,
+.home-playlist:hover,
+.home-artist:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--elevation-1);
+}
+.text-button {
+  border-radius: 999px;
+  padding-inline: 8px;
+  margin-inline: -4px;
+  transition:
+    color 0.16s ease,
+    background-color 0.16s ease;
+}
+.text-button:hover:not(:disabled) {
+  filter: none;
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+}
+.filled-button {
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--primary) 28%, transparent);
+}
+.filled-button:hover:not(:disabled),
+.tonal-button:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+.section-heading h2 {
+  letter-spacing: -0.4px;
+}
+/* Thin, calm scrollbars instead of the platform default. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--text) 18%, transparent) transparent;
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--text) 18%, transparent);
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--text) 30%, transparent);
+  background-clip: content-box;
+}
+@media (prefers-reduced-motion: reduce) {
+  .group-card,
+  .album-card,
+  .home-playlist,
+  .daily-mix-card,
+  .home-artist {
+    transition: none;
+  }
+  .group-card:hover,
+  .album-card:hover,
+  .home-playlist:hover,
+  .home-artist:hover {
+    transform: none;
+  }
 }
