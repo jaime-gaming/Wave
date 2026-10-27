@@ -119,8 +119,9 @@ test('Now Playing fits without scrolling or clipping controls and follows authen
   });
   await page.getByRole('button', { name: 'Open now playing', exact: true }).click();
   const full = page.getByRole('dialog', { name: 'Now playing' });
-  await expect(full.getByText('Word-timed · tap to seek')).toHaveCount(0);
-  await expect(full.locator('.lyrics-provenance')).toContainText('Synchronized lyrics');
+  // The panel shows the words themselves, never a note about how they were timed.
+  await expect(full.locator('.lyrics-provenance')).toHaveCount(0);
+  await expect(full.getByText(/tap to seek|Synchronized lyrics/i)).toHaveCount(0);
   const word = full.locator('.lyric-line[aria-current=true] .lyric-word').first();
   expect(Number(await word.getAttribute('data-word-fill'))).toBeGreaterThan(0.49);
   expect(Number(await word.getAttribute('data-word-fill'))).toBeLessThan(0.65);

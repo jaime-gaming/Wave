@@ -85,10 +85,7 @@ export function StorageSettings({ tracks }: { tracks: Track[] }) {
           <RefreshCw size={20} />
         </button>
       </div>
-      <p className="lyrics-caption">
-        {message ||
-          'Browser-managed storage can be evicted. Clearing site data or using a different browser/origin removes access; keep your originals. Protection is not a backup.'}
-      </p>
+      {message && <p className="storage-message">{message}</p>}
     </section>
   );
 }

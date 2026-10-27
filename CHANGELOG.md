@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased — YouTube songs that load, a quieter interface, phones and installation
+
+- **YouTube songs load reliably.** YouTube's own oEmbed endpoint sends no CORS headers to a browser, so reading a title there always failed. Title, channel and length now come from the first of four sources that answers (YouTube oEmbed, noembed, Piped, Invidious), with a 5 s timeout per source and a 9 s budget for the chain; the id is validated before any request. When the embed is slow, play is commanded again until the video confirms it instead of waiting for a message that may never arrive, and the embed URL now includes autoplay when the song was already playing at mount. Length from the provider is stored with the song, so Mix and the seek bar know it before playback starts.
+- **The interface explains nothing about itself.** Mix is one switch: Wave picks the overlap, the tempo match and the handover. The blend now chooses its own bar count from the tempo so it lasts about 18 seconds, instead of an 8/16-bar setting. Removed: the last-handover panel, the BPM readout, the daily-mix "about 124 BPM" line and its ordering sentence, the "Synchronized lyrics · tap a line to seek" caption and its provider link, the word-by-word explainer, supported-format and clip-storage notes, and the About paragraphs that were not options.
+- **Settings contain settings.** Section cards are one word each; empty-state prose and the storage/privacy essay are gone. The only remaining note is the one the user asked for: the word-level lyric sources are unofficial.
+- **Mobile web and installability.** Web app manifest, maskable and Apple touch icons generated from the same wave mark (`node scripts/make-icons.mjs`), standalone display, safe-area padding, 44 px targets for coarse pointers, no hover-only affordances, momentum scrolling in lyric and queue panes, and an offline shell service worker that caches the interface only — never audio.
+- **Design pass.** One elevation scale and one hairline border for raised surfaces, a gradient on the library header, calmer scrollbars, a consistent hover pill on text buttons, and hover lifts that are disabled under reduced motion.
+- **Android shell.** Edge-to-edge layout with drawing-safe insets, and Mix as a single switch in place of the crossfade-length slider.
+
 ## Unreleased — YouTube playback, offline states, listening-order mixes
 
 - **A YouTube song sounds like YouTube.** The embed is the source and the clock, muted only when it is a backdrop. When the same song is imported as a file, the file wins: it plays offline, it is analysed for Mix and it is the copy the user owns. The YouTube row stays in the library so the song is not lost if the file disappears.

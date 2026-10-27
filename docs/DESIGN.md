@@ -157,7 +157,9 @@ Manual artist profiles store separately processed raster artwork. `useCustomizat
 
 ## Mix, as a mix
 
-Mix is explained in Settings rather than configured like a slider. Playback shows one switch, one choice of overlap length (8 or 16 bars) and a plain-language readout of the handover Wave has planned: mode, seconds, whether the tempo is matched and by how much, and the planner's own reasons (for example, "incoming entry moved to a bar without a prominent vocal"). The detected tempo of the current song appears there too, or "Analysing the current song…" while the worker is busy. The old style selector and crossfade-length slider are gone: a mix is not a preference between two fades, it is a decision made per pair of songs.
+Mix is one switch and nothing else. There is no overlap length, no style selector and no readout: the planner picks the bar count from the outgoing tempo so the blend lasts about eighteen seconds, decides the entry point, the tempo match and the bass swap per pair of songs, and the interface never explains that. A mix is not a preference between two fades; it is a decision made while the songs are playing.
+
+The same rule applies to every panel: the interface shows what can be played, chosen or changed, not how it works. No BPM, no basis lines, no provider notes, no captions under controls. The one exception is the warning that the optional word-level lyric sources are unofficial, because that is information the person choosing needs.
 
 Nothing in the interface promises more than the engine does. When the analysis has no trusted grid the readout says so and the overlap is a plain equal-power crossfade; when the tempo gap exceeds 8 % the overlap is shortened instead of stretched. Stretching is described as playback-only and pitch-preserving because that is all it is.
 
@@ -189,7 +191,7 @@ Home memoizes real groups/recent tracks, uses local daily mixes and a responsive
 
 ## Three-platform update
 
-Home is the initial web page; Settings is now a full page, not a dialog. Lyrics starts open in a collapsible section each time Now Playing expands or the song changes. Redundant source/playback status text is removed. The original curved W mark replaces generic waveform bars. Online automatic lyrics is optional/off initially, while manual one-song lookup remains available. Exact/search requests validate artist/title/duration, identify the client, and honor provider cooldowns; availability cannot be guaranteed. Crossfade uses incoming media time and equal-power gains, not elapsed wall time. Duplicate cleanup merges only confirmed byte-identical records, preserving references; same-name groups are reviewed non-destructively.
+Settings contains settings only: each section card is a single word, and every row is a switch or a control. Home is the initial web page; Settings is now a full page, not a dialog. Lyrics starts open in a collapsible section each time Now Playing expands or the song changes. Redundant source/playback status text is removed. The original curved W mark replaces generic waveform bars. Online automatic lyrics is optional/off initially, while manual one-song lookup remains available. Exact/search requests validate artist/title/duration, identify the client, and honor provider cooldowns; availability cannot be guaranteed. Crossfade uses incoming media time and equal-power gains, not elapsed wall time. Duplicate cleanup merges only confirmed byte-identical records, preserving references; same-name groups are reviewed non-destructively.
 
 Separate native Android (Kotlin/Compose) and Windows (C#/WPF) source implementations exist; prior web-only scope statements apply to the web architecture, not the entire project. They are early, uncompiled in this workspace and lack full web parity. [PLATFORMS](PLATFORMS.md) is the authoritative build/status matrix. [Privacy](../PRIVACY.md) describes data flows, rights and unresolved public-release obligations.
 

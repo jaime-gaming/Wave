@@ -44,6 +44,7 @@ beforeEach(() => {
     artist: 'M83',
     rawTitle: 'M83 - Midnight City (Official Video)',
     author: 'M83',
+    duration: 244,
   });
 });
 describe('library workflow', () => {

@@ -82,7 +82,7 @@ export function PlaylistHeader({
       <Artwork track={{ title: playlist.name, album: '', artwork: visual.artwork }} />
       <div className="playlist-detail-copy">
         <p className="playlist-kicker">
-          Playlist · {playlist.trackIds.length} {playlist.trackIds.length === 1 ? 'song' : 'songs'}
+          {playlist.trackIds.length} {playlist.trackIds.length === 1 ? 'song' : 'songs'}
         </p>
         <h2>{playlist.name}</h2>
         {playlist.description && <p className="playlist-description">{playlist.description}</p>}

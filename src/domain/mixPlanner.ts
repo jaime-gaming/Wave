@@ -6,8 +6,9 @@ import { introEnd, overlapsRegion, type TrackAnalysis } from '../audio/dsp';
  * Order of preference:
  * 1. `beatmatched` — both songs have a trusted beat grid close enough in tempo.
  *    The overlap starts on a beat (ideally a bar), is a whole number of bars
- *    (8 or 16 by default), bass is swapped around the midpoint, and the incoming
- *    deck is stretched by at most ±8 % so the two grids stay locked.
+ *    chosen from the tempo so the blend lasts about `TARGET_SECONDS`, bass is
+ *    swapped around the midpoint, and the incoming deck is stretched by at most
+ *    ±8 % so the two grids stay locked.
  * 2. `crossfade` — no trusted grid, or a tempo gap too large to stretch. An
  *    equal-power overlap of the configured length, still inside audible audio.
  * 3. `cut` — nothing usable (very short files). Normal sequential playback.
@@ -20,11 +21,13 @@ export const BEATS_PER_BAR = 4;
 export const MAX_STRETCH = 0.08;
 export const MIN_BARS = 8;
 export const MAX_BARS = 16;
+/** How long a blend should last, near enough. */
+export const TARGET_SECONDS = 18;
 
 export type TransitionMode = 'beatmatched' | 'crossfade' | 'cut';
 
 export interface TransitionOptions {
-  /** Preferred overlap in bars; the planner may shorten it. */
+  /** Overrides the bar count Mix would choose for the tempo; may be shortened. */
   bars?: number;
   /** Length used when the planner falls back to a plain crossfade. */
   fallbackSeconds?: number;
@@ -54,12 +57,22 @@ export interface TransitionPlan {
   bars: number;
   /** Both tempo and bar phase aligned. */
   phaseAligned: boolean;
-  /** Human-readable reasons for the decisions, shown in Settings/tests. */
+  /** Human-readable reasons for the decisions, for tests and logs. */
   notes: string[];
 }
 
-const barsToSeconds = (bars: number, bpm: number) => (bars * BEATS_PER_BAR * 60) / bpm;
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+const barsToSeconds = (bars: number, bpm: number) => (bars * BEATS_PER_BAR * 60) / bpm;
+
+/**
+ * Bar count for a blend of roughly TARGET_SECONDS at this tempo, in multiples of
+ * four bars and inside the range Mix uses.
+ */
+export function automaticBars(bpm: number): number {
+  if (!Number.isFinite(bpm) || bpm <= 0) return MIN_BARS;
+  const bars = Math.round(TARGET_SECONDS / barsToSeconds(1, bpm) / 4) * 4;
+  return clamp(bars, MIN_BARS, MAX_BARS);
+}
 
 function trusted(analysis: TrackAnalysis | undefined): analysis is TrackAnalysis {
   return (
@@ -121,7 +134,6 @@ export function planTransition(
   incoming: TrackAnalysis | undefined,
   options: TransitionOptions = {},
 ): TransitionPlan {
-  const requestedBars = clamp(Math.round(options.bars ?? 8), MIN_BARS, MAX_BARS);
   const fallbackSeconds = Math.max(1, options.fallbackSeconds ?? 6);
   const minSeconds = Math.max(0.5, options.minSeconds ?? 1.5);
   const vocalTolerance = options.vocalTolerance ?? 0.15;
@@ -179,8 +191,12 @@ export function planTransition(
       `Tempo gap of ${(stretchNeeded * 100).toFixed(1)} % is too wide to stretch; the overlap is shortened.`,
     );
 
-  // Overlap is a whole number of bars at the outgoing tempo.
-  let bars = requestedBars;
+  // Overlap is a whole number of bars at the outgoing tempo, chosen so the blend
+  // lasts about TARGET_SECONDS: slow songs get more bars, fast songs fewer.
+  let bars =
+    options.bars === undefined
+      ? automaticBars(bpmA)
+      : clamp(Math.round(options.bars), MIN_BARS, MAX_BARS);
   const audibleTail = Math.max(0, outgoing.trimmed.end - outgoing.trimmed.start);
   const maxByTail = Math.floor(audibleTail / barsToSeconds(1, bpmA));
   bars = Math.min(bars, Math.max(0, maxByTail));

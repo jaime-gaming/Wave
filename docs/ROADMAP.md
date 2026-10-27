@@ -59,7 +59,8 @@ High priority after the initial player:
 - [x] Remember volume and last audible level, including mute/reload/unmute.
 - [ ] Optionally restore the queue/position.
 - [ ] Better codec diagnostics and import failure details.
-- [ ] Installable PWA and offline application-shell caching.
+- [x] Installable web app: manifest, maskable and Apple icons, standalone display, and an offline cache of the interface (never audio).
+- [ ] Verify installation and the offline shell on real Android and iOS devices.
 
 Automatic device-wide scanning is not possible through ordinary browser file access. Any folder workflow must remain user-initiated.
 

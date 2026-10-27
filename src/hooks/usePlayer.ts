@@ -1,10 +1,10 @@
 import { automaticMixSeconds } from '../domain/mix';
 import { isUsablePlan, planTransition } from '../domain/mixPlanner';
-import { analyzeTrack, cachedAnalysis, isAnalysing } from '../audio/mixAnalysis';
+import { analyzeTrack, cachedAnalysis } from '../audio/mixAnalysis';
 import { continuationQueue } from '../domain/continuation';
 import { readPlaybackSession, writePlaybackSession } from '../domain/playbackSession';
 import { MixAudio } from '../audio/MixAudio';
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { playerReducer, shuffleQueue } from '../domain/player';
 import { resolvePlayable } from '../domain/youtubeTrack';
 import { planEdgeHandover } from '../domain/edgeMix';
@@ -29,16 +29,6 @@ function savedMix() {
     return true;
   }
 }
-/** Mix length in bars: 8 keeps the tail moving, 16 gives a longer blend. */
-export const MIX_BARS = [8, 16] as const;
-function savedMixBars(): number {
-  try {
-    const value = Number(localStorage.getItem('wave-mix-bars'));
-    return MIX_BARS.includes(value as (typeof MIX_BARS)[number]) ? value : 8;
-  } catch {
-    return 8;
-  }
-}
 function savedAutoplay() {
   try {
     return localStorage.getItem('wave-autoplay') !== 'false';
@@ -49,10 +39,8 @@ function savedAutoplay() {
 export function usePlayer(tracks: Track[], libraryReady = true) {
   const [saved] = useState(readPlaybackSession);
   const [mixEnabled, setMixEnabled] = useState(savedMix);
-  const [mixBars, setMixBarsState] = useState(savedMixBars);
   const [autoplay, setAutoplay] = useState(savedAutoplay);
   /** Bumped when a background analysis lands, so tempo readouts refresh. */
-  const [analysisVersion, bumpAnalysis] = useReducer((value: number) => value + 1, 0);
   const recent = useRef<string[]>([]);
   const positions = useRef(saved.positions);
   const resumeId = useRef<string | undefined>(saved.state.queue[saved.state.index]);
@@ -96,16 +84,9 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
   const [buffering, setBuffering] = useState(false);
   const [error, setError] = useState('');
   const engine = useRef<MixAudio | null>(null);
-  const context = useRef({ tracks, mixEnabled, autoplay, mixBars });
+  const context = useRef({ tracks, mixEnabled, autoplay });
   const stateRef = useRef(state);
   const current = tracks.find((track) => track.id === state.queue[state.index]);
-  const following = tracks.find(
-    (track) =>
-      track.id ===
-      state.queue[
-        state.index + 1 < state.queue.length ? state.index + 1 : state.repeat === 'all' ? 0 : -1
-      ],
-  );
   /** A YouTube row plays from a local twin when one exists; the file always wins. */
   const playable = resolvePlayable(current, tracks);
   const youTube = !!playable?.fromYouTube;
@@ -124,35 +105,6 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
     youTubeDurationRef.current = youTubeDuration;
     currentIdRef.current = current?.id;
   }, [youTube, youTubeTime, youTubeDuration, current?.id]);
-  const tempo = useMemo(() => {
-    const analysis = current?.blob ? cachedAnalysis(current.blob) : undefined;
-    return analysis ? Math.round(analysis.beats.bpm * 10) / 10 : undefined;
-    // An analysis landing for the same file must refresh the readout.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [current?.blob, analysisVersion]);
-  const analyzing = !!current?.blob && isAnalysing(current.blob);
-  /**
-   * The handover Wave would plan right now, so Settings can explain Mix instead
-   * of only describing it. Pure: the same planner the engine uses.
-   */
-  const mixPlan = useMemo(() => {
-    const outgoing = current?.blob ? cachedAnalysis(current.blob) : undefined;
-    const incoming = following?.blob ? cachedAnalysis(following.blob) : undefined;
-    if (!outgoing || !incoming) return undefined;
-    return planTransition(outgoing, incoming, {
-      bars: mixBars,
-      fallbackSeconds: automaticMixSeconds(current?.duration ?? 0, following?.duration ?? 0),
-    });
-    // Re-plan when a background analysis lands.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    current?.blob,
-    current?.duration,
-    following?.blob,
-    following?.duration,
-    mixBars,
-    analysisVersion,
-  ]);
   /**
    * Mix analysis runs in a worker on a downmixed copy, so the interface keeps its
    * frame budget. Results are cached per file, so a song is analysed at most once.
@@ -167,7 +119,6 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
     void analyzeTrack(blob).then((analysis) => {
       if (!analysis) return;
       engine.current?.setAnalysis(blob, analysis);
-      bumpAnalysis();
     });
   }, []);
 
@@ -194,12 +145,11 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
   }, [libraryReady, tracks, state]);
   useEffect(() => {
     stateRef.current = state;
-    context.current = { tracks, mixEnabled, autoplay, mixBars };
-  }, [state, tracks, mixEnabled, autoplay, mixBars]);
+    context.current = { tracks, mixEnabled, autoplay };
+  }, [state, tracks, mixEnabled, autoplay]);
   useEffect(() => {
     try {
       localStorage.setItem('wave-mix-v2', String(mixEnabled));
-      localStorage.setItem('wave-mix-bars', String(mixBars));
       localStorage.setItem('wave-autoplay', String(autoplay));
     } catch {
       /* Session preferences. */
@@ -209,7 +159,7 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
       engine.current?.prepare();
     }
     engine.current?.setMixEnabled(mixEnabled);
-  }, [mixEnabled, mixBars, autoplay]);
+  }, [mixEnabled, autoplay]);
   useEffect(() => {
     prime(current?.blob);
   }, [current?.blob, prime]);
@@ -336,7 +286,6 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
         const incomingAnalysis = cachedAnalysis(next.blob);
         if (outgoingAnalysis && incomingAnalysis) {
           const plan = planTransition(outgoingAnalysis, incomingAnalysis, {
-            bars: context.current.mixBars,
             fallbackSeconds: automaticMixSeconds(
               element.duration,
               player.preparedDuration || next.duration,
@@ -677,14 +626,6 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
   return {
     mixEnabled,
     setMixEnabled,
-    mixBars,
-    setMixBars: (bars: number) =>
-      setMixBarsState(() => (MIX_BARS.includes(bars as (typeof MIX_BARS)[number]) ? bars : 8)),
-    /** Tempo Wave detected for the current song, once its analysis has landed. */
-    tempo,
-    /** The handover Wave has planned for the next song. */
-    mixPlan,
-    analyzing,
     autoplay,
     setAutoplay,
     reorderQueue,

@@ -122,7 +122,6 @@ export function ArtistHeader({
       <section className="artist-detail" aria-label="Artist details">
         <ArtistPortrait artist={artist} photo={photo} />
         <div>
-          <p className="playlist-kicker">In your library</p>
           <h2>{artist.name}</h2>
           <div className="artist-stats">
             <span>

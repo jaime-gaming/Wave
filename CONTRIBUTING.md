@@ -53,6 +53,7 @@ Include a summary, related issues, checks run, known limitations, and screenshot
 - Use two-space indentation and run `npm run format` before submitting changes.
 - Keep queue transitions in the pure domain reducer, persistence in `data/`, and browser lifecycle management in hooks.
 - Use React state rather than manual DOM mutation, except when controlling browser APIs such as audio and dialogs.
+- `public/icons/*.png` are generated: after changing `public/wave.svg` or the icon layout, run `node scripts/make-icons.mjs` and commit the PNGs. Do not hand-edit them.
 - Clean up subscriptions, event handlers, and object URLs.
 - Use shared motion tokens and keep exiting content inert; respect Settings and system reduced motion.
 - Test database migrations and keep related playlist/track deletions atomic.

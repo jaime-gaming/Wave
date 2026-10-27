@@ -331,46 +331,6 @@ export function LyricsPanel({
       )}
       {lyrics?.lines.length ? (
         <>
-          {!cinematic && (
-            <div
-              className="lyrics-caption lyrics-provenance"
-              title={
-                synchronized
-                  ? lyrics.lines.some((line) => line.words?.length)
-                    ? 'Text fill uses supplied word timestamps; untimed lines interpolate line intervals.'
-                    : 'Text fill interpolates line intervals, not exact word timing.'
-                  : undefined
-              }
-            >
-              <span>
-                <span className={synchronized ? 'sr-only' : undefined}>
-                  {synchronized ? 'Synchronized lyrics · tap a line to seek' : 'Text lyrics'}
-                </span>
-              </span>
-              {lyrics.source !== 'local' && lyrics.source !== 'embedded' && (
-                <a
-                  href={
-                    lyrics.source === 'lrclib'
-                      ? lyrics.providerId
-                        ? `https://lrclib.net/lyrics/${lyrics.providerId}`
-                        : 'https://lrclib.net'
-                      : lyrics.source === 'netease'
-                        ? 'https://music.163.com'
-                        : 'https://www.kugou.com'
-                  }
-                  target="_blank"
-                  rel="noreferrer"
-                  title={
-                    lyrics.source === 'lrclib'
-                      ? 'Lyrics from LRCLIB'
-                      : `Lyrics from ${lyrics.provider ?? lyrics.source}, opt-in source`
-                  }
-                >
-                  {lyrics.source === 'lrclib' ? 'LRCLIB' : (lyrics.provider ?? lyrics.source)}
-                </a>
-              )}
-            </div>
-          )}
           <div
             ref={pane}
             className="lyrics-scroll"
@@ -524,7 +484,7 @@ export function LyricsPanel({
             {!online
               ? 'Lyrics search needs a connection. Anything already saved still shows.'
               : cooldown
-                ? `The provider asked for a pause. Try again in ${cooldown} s.`
+                ? `Try again in ${cooldown} seconds.`
                 : loading
                   ? 'Searching for this song.'
                   : status === 'instrumental'
@@ -538,7 +498,7 @@ export function LyricsPanel({
               ? !canLookup(track)
                 ? 'Add a title and artist in the song details to search for lyrics.'
                 : 'You can add your own lyrics if nothing matches.'
-              : 'Searching online sends the title and artist to LRCLIB, never your audio. You can also add an LRC file.'}
+              : ''}
           </span>
           {!cinematic && (
             <div className="lyrics-empty-actions">

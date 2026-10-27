@@ -61,23 +61,15 @@ export function DailyMixPage({
           }}
         />
         <div className="daily-mix-heading">
-          <p className="playlist-kicker">Made from your library</p>
           <h2 tabIndex={-1} ref={heading}>
             Daily mix {number}
           </h2>
           <p className="daily-mix-label">{mix.label}</p>
-          <p className="lyrics-caption">
+          <p className="daily-mix-meta">
             {songs.length} songs · {formatTime(songs.reduce((s, t) => s + t.duration, 0))}
-            {mix.bpm ? ` · about ${Math.round(mix.bpm)} BPM` : ''}
           </p>
         </div>
       </div>
-      <p className="daily-mix-description">
-        {mix.basis === 'genre'
-          ? `Songs tagged ${mix.label}, ordered to build up instead of jumping around.`
-          : `Songs by ${mix.label}. Same artist all the way through, so the order is the only choice.`}{' '}
-        Save it as a playlist if you want to keep it.
-      </p>
       <div className="daily-mix-actions">
         <button
           className="filled-button"

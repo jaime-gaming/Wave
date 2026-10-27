@@ -6,7 +6,7 @@ Release 0.1.0 · 17 October 2026. Historical run dates are retained below.
 
 - `npm run format:check`: passed.
 - `npm run lint`: passed.
-- `npm test`: **405 tests passed across 71 files** (latest Mix/YouTube run; 200 tests across 42 files at the 0.1.0 release).
+- `npm test`: **416 tests passed across 72 files** (latest interface/mobile run; 200 tests across 42 files at the 0.1.0 release).
 - `npm run test:e2e`: **89 Chromium browser tests passed** in the final complete run (7.6 minutes).
 - `npm run build`: passed. Vite reports its advisory 500 KB chunk-size warning (main chunk approximately 547 KB, gzip 172 KB); this is not a build failure.
 - `npm run build -- --base=/Wave/`: passed; a production static-server smoke test verified Home, Settings, fonts/assets, `/Wave/wave.svg`, the privacy page and its return link under the repository path without HTTP/page errors.
@@ -34,6 +34,15 @@ Browser coverage includes paused restoration of saved queue/native position, art
 - Offline states: `network` (3) covers the label swap, the accessible "offline" suffix and a disabled-but-visible control. `LyricsPanel`, `VideoBackdrop` and `AddMusicDialog` render the offline copy; none of them was exercised with a real captive network.
 - Daily mixes: 6 tests cover grouping, day stability, input-order independence, the tempo/energy order, artist spreading and the descriptor. Features come from generated analysis fixtures, not from real songs.
 - Extra lyric providers: `wordLyrics` (7) covers the YRC and KRC parsers, the Kugou decoder, the offset header and the timeline sanity check; `wordProviders`/`lyricsExtra` (6) cover candidate matching, live/remix rejection, provider fallback, timeout behaviour and the opt-in switch. **No request was made to NetEase or Kugou**: their availability, CORS policy and terms were not verified from this workspace, and the endpoints are unofficial.
+
+### YouTube metadata, one-switch Mix, phones and installability (latest run)
+
+- `npx tsc -b`, `npx eslint .`, `npx prettier --check .`, `npm run build` and `npm test` (416 tests across 72 files) passed.
+- `videoMeta` (9 tests) covers the four-source chain, a source that fails like a CORS-blocked fetch, an unusable body, a hanging request, the per-source timeout, the whole-chain budget, id validation and an already-aborted signal. **No live request was made to YouTube, noembed, Piped or Invidious**: which of them answer from a given network, and whether each still allows cross-origin reads, is unverified and is exactly why there are four.
+- Mix: `mixPlanner` (14) now also proves `automaticBars` picks a bar count that keeps a blend near 18 s at 72–190 BPM, and that a slow pair gets a longer overlap than a fast one without being configured.
+- YouTube playback: `YouTubeStage` (4) still passes with the play retry and the autoplay-at-mount behaviour; the iframe URL is captured once so a react re-render cannot restart the video. **Audible playback through the embed was not exercised**: no browser engine and no network to YouTube here.
+- Mobile and installability: the manifest, icons and service worker were generated and are present in `dist`, and `index.html` links them. The Playwright suite and any screenshot comparison were **not** run: no Chromium is installed in this workspace. Touch target sizes for coarse pointers, safe-area padding and the offline shell therefore still need a real-device pass (Android Chrome and iOS Safari), and the service worker's cache behaviour after a redeploy is unverified.
+- Android shell: edge-to-edge with safe-drawing insets and a single Mix switch. The Kotlin change was **not compiled**; there is no Android SDK in this workspace.
 
 LRCLIB tests use controlled responses to verify exact/search matching, client identification, size/time bounds and Retry-After. They do **not** establish current live provider availability, coverage, latency or a copyright license. Rendering tests are not a substitute for audible crossfade assessment across browsers/recordings; correlated audio can peak during equal-power mixing. No bit-perfect/gapless claim is made.
 

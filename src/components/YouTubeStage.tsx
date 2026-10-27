@@ -61,6 +61,9 @@ export function YouTubeStage({
   const clock = useRef({ time: 0, playing: false, duration: 0, at: 0 });
   const videoId = track.videoId ?? '';
   // Captured once: the embed URL must not change while the video is playing.
+  // A changing `src` reloads the iframe and restarts the song from zero.
+  /** Whether the song was already playing when this embed was mounted. */
+  const [autoplay] = useState(playing);
   /** Position to resume from on the embed's first ready event, then cleared. */
   const pendingResume = useRef(Math.max(0, startAt));
 
@@ -118,10 +121,29 @@ export function YouTubeStage({
     return () => clearInterval(timer);
   }, [ready, onTime]);
 
+  /**
+   * Play is commanded immediately and retried until the embed confirms it.
+   * Waiting for a first `infoDelivery` was fragile: on a slow or blocked embed
+   * that event may never arrive, and the song then looked like it never loaded.
+   */
   useEffect(() => {
-    if (!ready) return;
-    post(playing ? 'playVideo' : 'pauseVideo');
-  }, [playing, ready, post]);
+    if (!playing) {
+      post('pauseVideo');
+      return;
+    }
+    let tries = 0;
+    const send = () => {
+      if (clock.current.playing) return;
+      post('playVideo');
+      if (++tries >= 16) return;
+      retry = setTimeout(send, 400);
+    };
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    send();
+    return () => {
+      if (retry) clearTimeout(retry);
+    };
+  }, [playing, post]);
 
   useEffect(() => {
     if (!ready || seek.nonce === 0) return;
@@ -139,7 +161,6 @@ export function YouTubeStage({
   const applied = useRef<number | null>(startGain);
   const ramp = useRef<number | null>(null);
   useEffect(() => {
-    if (!ready) return;
     const target = Math.min(1, Math.max(0, volume)) * Math.min(1, Math.max(0, gain));
     const send = (value: number) => post('setVolume', [Math.round(value * 100)]);
     const from = applied.current;
@@ -160,15 +181,16 @@ export function YouTubeStage({
       if (ramp.current !== null) cancelAnimationFrame(ramp.current);
       ramp.current = null;
     };
-  }, [volume, gain, fadeSeconds, ready, post]);
+  }, [volume, gain, fadeSeconds, post]);
 
   useEffect(() => {
+    if (!playing) return;
     const timer = setTimeout(() => {
-      if (ready && playing && !started)
-        onError('The video did not start. Press play again to give YouTube permission.');
-    }, 4_000);
+      if (!started)
+        onError('YouTube did not start. Check the connection, or press play once more.');
+    }, 8_000);
     return () => clearTimeout(timer);
-  }, [ready, playing, started, onError]);
+  }, [playing, started, onError]);
 
   return (
     <div
@@ -182,7 +204,9 @@ export function YouTubeStage({
         className="video-backdrop-frame"
         src={youtubeEmbedUrl(videoId, {
           origin: typeof location === 'undefined' ? undefined : location.origin,
-          autoplay: false,
+          // Mounting happens on a click, so autoplay is allowed here and means
+          // the video starts even if the first command message is lost.
+          autoplay,
           controls: false,
           mute: false,
           disableKeyboard: true,
@@ -193,7 +217,7 @@ export function YouTubeStage({
       <div className="video-backdrop-veil" aria-hidden="true" />
       <div className="video-backdrop-bar">
         <span className="video-backdrop-status" role="status">
-          {started ? 'Playing from YouTube' : 'YouTube · press play'}
+          {started ? 'Playing from YouTube' : 'Press play'}
         </span>
         <div className="video-backdrop-actions">
           <a

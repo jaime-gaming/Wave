@@ -135,10 +135,6 @@ export function AddMusicDialog({
           </div>
         </>
       )}
-      <p className="video-clip-hint">
-        Wave has no account and sends only the title, artist and video id it needs. Audio is never
-        re-encoded.
-      </p>
     </Modal>
   );
 }
