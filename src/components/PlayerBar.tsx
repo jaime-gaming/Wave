@@ -521,6 +521,7 @@ export function PlayerBar(props: PlayerProps) {
               playing={player.state.playing}
               volume={player.volume}
               seek={player.youTube.seek}
+              startAt={player.time}
               onTime={player.youTube.onTime}
               onDuration={player.youTube.onDuration}
               onEnded={player.youTube.onEnded}
@@ -597,6 +598,26 @@ export function PlayerBar(props: PlayerProps) {
             </motion.div>
           )}
         </Modal>
+      )}
+      {/*
+        A YouTube song keeps playing while Now Playing is collapsed, so the embed
+        stays mounted in a one-pixel host. Expanding mounts the visible player from
+        the same position; the song never restarts because of a layout change.
+      */}
+      {!showing && player.youTube && player.current?.videoId && (
+        <YouTubeStage
+          key={`silent-${player.current.videoId}`}
+          track={player.current}
+          playing={player.state.playing}
+          volume={player.volume}
+          seek={player.youTube.seek}
+          startAt={player.time}
+          silent
+          onTime={player.youTube.onTime}
+          onDuration={player.youTube.onDuration}
+          onEnded={player.youTube.onEnded}
+          onError={player.youTube.onError}
+        />
       )}
     </>
   );

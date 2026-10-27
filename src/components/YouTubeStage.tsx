@@ -26,6 +26,8 @@ export function YouTubeStage({
   playing,
   volume,
   seek,
+  startAt = 0,
+  silent = false,
   onTime,
   onDuration,
   onEnded,
@@ -35,6 +37,10 @@ export function YouTubeStage({
   playing: boolean;
   volume: number;
   seek: YouTubeSeek;
+  /** Position used when the player has to be mounted again, e.g. after expanding. */
+  startAt?: number;
+  /** Keeps the player alive but out of the way while Now Playing is collapsed. */
+  silent?: boolean;
   onTime: (seconds: number) => void;
   onDuration: (seconds: number) => void;
   onEnded: () => void;
@@ -45,6 +51,9 @@ export function YouTubeStage({
   const [started, setStarted] = useState(false);
   const clock = useRef({ time: 0, playing: false, duration: 0, at: 0 });
   const videoId = track.videoId ?? '';
+  // Captured once: the embed URL must not change while the video is playing.
+  /** Position to resume from on the embed's first ready event, then cleared. */
+  const pendingResume = useRef(Math.max(0, startAt));
 
   const post = useCallback((func: string, args: unknown[] = []) => {
     frame.current?.contentWindow?.postMessage(
@@ -52,6 +61,19 @@ export function YouTubeStage({
       '*',
     );
   }, []);
+
+  // Resume where Wave was when this instance mounted (expanding or collapsing
+  // Now Playing mounts a new player; the song must not jump back to the start).
+  useEffect(() => {
+    if (!ready) return;
+    if (pendingResume.current > 0.5) {
+      post('seekTo', [pendingResume.current, true]);
+      clock.current = { ...clock.current, time: pendingResume.current, at: performance.now() };
+      onTime(pendingResume.current);
+      pendingResume.current = 0;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, post]);
 
   // Messages from the embed are untrusted: only documented events for this video.
   useEffect(() => {
@@ -114,7 +136,11 @@ export function YouTubeStage({
   }, [ready, playing, started, onError]);
 
   return (
-    <div className="video-backdrop video-backdrop--source" aria-label="YouTube song">
+    <div
+      className={`video-backdrop video-backdrop--source${silent ? ' youtube-silent' : ''}`}
+      aria-label={silent ? undefined : 'YouTube song'}
+      aria-hidden={silent || undefined}
+    >
       <iframe
         ref={frame}
         title={`YouTube video for ${track.title}`}
