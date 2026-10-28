@@ -13,10 +13,13 @@
 import {
   autoClipStart,
   clipQuery,
+  isAudioOnly,
+  isMusicVideo,
   parseInvidiousResults,
   parsePipedResults,
   pickClip,
   rankClips,
+  videoClipQuery,
   type ClipCandidate,
 } from '../domain/clipSearch';
 import { storeClip, type StoredClip } from '../domain/videoClips';
@@ -250,6 +253,10 @@ async function askProviders(
     });
 
   const inFlight = new Set<AbortController>();
+  /** Ends the search once every host has answered or given up. */
+  const drained = () => {
+    if (!done && inFlight.size === 0 && cursor >= queue.length) release();
+  };
   const ask = async (provider: Provider) => {
     const controller = new AbortController();
     inFlight.add(controller);
@@ -285,6 +292,9 @@ async function askProviders(
       clearTimeout(timer);
       inFlight.delete(controller);
       options.signal?.removeEventListener('abort', onAbort);
+      // Without this the search would still wait for the workers that were
+      // scheduled to hedge later, which is pure latency when the queue is done.
+      drained();
     }
   };
 
@@ -338,7 +348,23 @@ export async function findClip(
 
   const fetched = await askProviders(query, options, (batch) => pickClip(batch, source) !== null);
   if (fetched.status === 'unavailable') return { status: 'unavailable' };
-  const best = pickClip(fetched.candidates, source);
+  let best = pickClip(fetched.candidates, source);
+
+  // A song is not a clip. When the plain search only came back with audio
+  // uploads — a lyric video, a still sleeve — one more request asks for the
+  // video by name before settling for the still one. It is only spent when the
+  // answer really is a song, or when nothing matched but the front-end did
+  // return results: a neutral title from the artist's own channel is not a
+  // reason to double the search.
+  const worthAsking = best ? isAudioOnly(best) : fetched.candidates.length > 0;
+  if (fetched.answered && worthAsking) {
+    const asked = await askProviders(videoClipQuery(source), options);
+    if (asked.status === 'answered') {
+      const video = pickClip(asked.candidates, source);
+      if (video && isMusicVideo(video)) best = video;
+    }
+  }
+
   if (best) {
     writeCache({ ...cache, [key]: { ...best, at: Date.now() } }, store);
     return { status: 'found', candidate: best, cached: false };
@@ -388,7 +414,17 @@ export async function searchClips(
   if (!query) return { status: 'empty', candidates: [] };
   const fetched = await askProviders(query, { ...options, refresh: true });
   if (fetched.status === 'unavailable') return { status: 'unavailable', candidates: [] };
-  const ranked = rankClips(fetched.candidates, source, 6);
+  let ranked = rankClips(fetched.candidates, source, 6);
+  // The same rule as discovery: a list of songs with no video in it is worth one
+  // more request, and the videos it finds go to the top of the shortlist.
+  if (!ranked.some(isMusicVideo) && (ranked.length === 0 || ranked.every(isAudioOnly))) {
+    const asked = await askProviders(videoClipQuery(source), { ...options, refresh: true });
+    if (asked.status === 'answered') {
+      const byId = new Map(fetched.candidates.map((candidate) => [candidate.videoId, candidate]));
+      for (const candidate of asked.candidates) byId.set(candidate.videoId, candidate);
+      ranked = rankClips([...byId.values()], source, 6);
+    }
+  }
   return { status: ranked.length ? 'found' : 'empty', candidates: ranked };
 }
 

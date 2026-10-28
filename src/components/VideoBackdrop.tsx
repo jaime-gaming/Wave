@@ -160,6 +160,13 @@ function ClipPlayer({
   const target = useRef({ position: time, playing, duration, at: 0 });
   /** True once the player has answered at least once. */
   const heard = useRef(false);
+  /**
+   * The clip is not shown until it is actually playing, and only once the
+   * player's own overlay has had time to fade out. YouTube draws its title bar
+   * and logo over the picture for the first seconds; there is no way to ask it
+   * not to, so the picture arrives after them instead of with them.
+   */
+  const [revealed, setRevealed] = useState(false);
 
   useEffect(() => {
     target.current = { position: time, playing, duration, at: performance.now() };
@@ -229,14 +236,20 @@ function ClipPlayer({
       if (!info) return;
       heard.current = true;
       const previous = latest.current;
+      const isPlaying = info.state
+        ? info.state === 'playing' || info.state === 'buffering'
+        : previous.playing;
       latest.current = {
         position: info.currentTime,
-        playing: info.state
-          ? info.state === 'playing' || info.state === 'buffering'
-          : previous.playing,
+        playing: isPlaying,
         ready: true,
         rate: previous.rate,
       };
+      // The picture appears once it is really moving (the player has wiped its
+      // own chrome by then), or straight away when it is paused and about to be
+      // turned into a still wash instead.
+      const settled = info.state === 'paused' || info.state === 'ended' || info.state === 'cued';
+      if ((isPlaying && info.currentTime > 0.2) || settled) setRevealed(true);
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
@@ -247,6 +260,13 @@ function ClipPlayer({
    * until it does, then correct the picture whenever it has drifted far enough
    * to be seen.
    */
+  // Never leave a black rectangle behind: if the player says nothing at all, the
+  // picture is shown anyway and the sync loop keeps trying.
+  useEffect(() => {
+    const timer = setTimeout(() => setRevealed(true), 6_000);
+    return () => clearTimeout(timer);
+  }, []);
+
   useEffect(() => {
     let ticks = 0;
     const timer = setInterval(() => {
@@ -285,7 +305,10 @@ function ClipPlayer({
 
   return (
     // Decoration: the song's transport is the only control surface.
-    <div className="video-backdrop" aria-hidden="true">
+    <div
+      className={`video-backdrop${revealed ? ' is-revealed' : ''}${playing ? '' : ' is-paused'}`}
+      aria-hidden="true"
+    >
       <iframe
         ref={frame}
         id={FRAME_ID}

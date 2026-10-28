@@ -2,23 +2,24 @@ import type { CSSProperties } from 'react';
 import { Artwork } from './Artwork';
 import type { MixCue } from '../ui/mixCue';
 
+const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
 const smooth = (value: number) => {
-  const t = Math.max(0, Math.min(1, value));
+  const t = clamp01(value);
   return t * t * (3 - 2 * t);
 };
 
 /**
- * The mix, announced.
+ * The cover while the mix is being announced.
  *
- * A handover used to arrive without warning. Here the cover being played splits
- * down the middle and the two halves step aside, so the next song's sleeve is
- * already there when the join happens — the same move Apple Music makes when two
- * songs meet, because a split tells you "two records" faster than any label.
+ * One cover, not two. The sleeve that is playing stays where it is and simply
+ * takes a breath — a slow push in and a slight dim — while a soft band of light
+ * crosses it. Splitting it in half to show the next sleeve underneath looked
+ * busy next to the word, and it read as a glitch rather than an announcement:
+ * the announcement is the word, and the blend itself is the transition.
  *
- * The halves stay almost closed for most of the lead-in and open over the last
- * few seconds, so the picture is not exhausted before the sound arrives. One
- * `progress` value drives everything, and with reduced motion it degrades to a
- * quiet cross-dissolve.
+ * Nothing here is a hard step: the same progress value drives the zoom, the dim
+ * and the sweep, and the picture at the end of the lead-in is exactly the
+ * picture the blend starts from.
  */
 export function MixCueVisual({
   cue,
@@ -27,31 +28,32 @@ export function MixCueVisual({
   cue: MixCue;
   artworkClassName?: string;
 }) {
-  const progress = Math.max(0, Math.min(1, cue.progress));
-  // Nothing moves until the join is close; then it opens quickly and evenly.
-  const open = smooth((progress - 0.7) / 0.3);
+  const progress = clamp01(cue.progress);
+  // Rises over the whole lead-in, so the cover is never still and never jumps.
+  const breath = smooth(progress);
   const style = {
     '--cue-progress': progress,
-    '--cue-open': open,
-    '--cue-breathe': 0.5 + 0.5 * Math.sin(progress * Math.PI * 6),
+    '--cue-breath': breath,
+    // Brightest just before the handover, where the word matters most.
+    '--cue-glow': smooth((progress - 0.45) / 0.55),
   } as CSSProperties;
   return (
     <div className="mix-cue" aria-hidden="true" style={style}>
-      <div className="mix-cue-next">
-        <Artwork track={cue.to} className={artworkClassName} />
-      </div>
-      <div className="mix-cue-half mix-cue-left">
+      <div className="mix-cue-cover">
         <Artwork track={cue.from} className={artworkClassName} />
       </div>
-      <div className="mix-cue-half mix-cue-right">
-        <Artwork track={cue.from} className={artworkClassName} />
-      </div>
-      <span className="mix-cue-seam" />
+      <span className="mix-cue-sheen" />
     </div>
   );
 }
 
-/** The word itself: small, quiet, and the only place Wave says "Mixing". */
+/**
+ * The word itself: small, quiet, and the only place Wave says "Mixing".
+ *
+ * Grey capitals and one thin line of light that crosses left to right, pauses,
+ * and crosses again. Nothing moves, nothing spins, nothing pulses: the line is
+ * the only thing in the interface that is not standing still.
+ */
 export function MixCueLabel({ cue }: { cue: MixCue }) {
   return (
     <span
@@ -59,14 +61,10 @@ export function MixCueLabel({ cue }: { cue: MixCue }) {
       role="status"
       aria-label={`Mixing into ${cue.to.title} by ${cue.to.artist}`}
     >
-      <span className="mix-cue-waves" aria-hidden="true">
-        <i />
-        <i />
-        <i />
+      <span className="mix-cue-word" aria-hidden="true">
+        Mixing
       </span>
-      <span className="mix-cue-word">Mixing</span>
-      {/* A thin line of light crosses the word, pauses, and crosses again. */}
-      <span className="mix-cue-scan" aria-hidden="true" />
+      <span className="mix-cue-line" aria-hidden="true" />
     </span>
   );
 }

@@ -52,6 +52,14 @@ Browser coverage includes paused restoration of saved queue/native position, art
 - Lyrics follow in the cinema view: `LyricsPanel` proves the read-only cinema renderer scrolls as the song advances (a second time position produces a new scroll) while staying read-only. The stored-scroll assertion in the Chromium test is **unverified** here.
 - Privacy: `public/privacy.html` and `PRIVACY.md` gained sections for clip discovery, YouTube songs, the optional word-level sources, the offline cache and Mix's playback-only processing, and were re-dated to 28 October 2026. The privacy page's palette test still passes the heading check; no test asserts the new wording.
 
+### 0.1.1 corrections: the clip on screen, the video that is a video, the mix
+
+- `npx tsc -b`, `npx eslint .`, `npx prettier --check .`, `npm run build`, `npm run release:check` and `npm test` (**496 tests across 81 files**) pass.
+- Clip framing: the frame is sized with container query units, with the old viewport rule kept behind `@supports not (width: 1cqw)`. **No browser was available to look at it**: the zoom that pushes YouTube's chrome out of frame, the reveal-on-play, and the blurred still while paused are all unverified visually. Whether 1.24 is enough to hide the title bar depends on the player's current layout, which changes without notice; it is a crop, not an API.
+- Clip choice: `clipSearch` domain tests cover the rejection of `- Topic` channels and auto-generated titles, the ordering of a music video above the official audio of the same song, acceptance of the audio when it is the only result, and that a neutral title is not mistaken for a still picture. Service tests still cover the hedge, the fallback, the cache and the offline path; the extra "official video" request is **not asserted by a test** — it runs only when the first answer has no video in it, and the live hosts were not reached from this workspace.
+- Mix: `MixVisual` (4 tests) and `MixCueVisual` (4 tests) still pass, with new assertions that the cue renders one cover and no halves, and that the label has one word and one line and no bars. `usePlayerColors` (4 tests) proves the tint is interpolated between the two covers, that it follows the short way round the hue wheel, that an unsampled cover falls back to the current tint, and that a stray progress is clamped. **Nothing was watched or listened to**: whether the new blend looks calmer is a judgement for a screen.
+- The pairing, Android and Windows notes from the previous section are unchanged.
+
 ### 0.1.1 corrections: a clip that follows, a coloured mark, a cue that shows
 
 - `npx tsc -b`, `npx eslint .`, `npx prettier --check .`, `npm run build`, `npm run release:check` and `npm test` (**487 tests across 80 files**) pass, twice in a row. The intermittent failure recorded in the previous section is explained below and fixed.
