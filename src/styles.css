@@ -5841,3 +5841,331 @@ h1 {
     contain-intrinsic-size: auto 76px;
   }
 }
+
+/*
+ * Devices: pairing, the peer's library and borrowed songs.
+ *
+ * Two columns on a desktop (this device, another device), one column on a phone.
+ * The code boxes are monospace and read-only, because a code is a thing you
+ * copy, not a thing you read.
+ */
+.devices-page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-bottom: 24px;
+}
+.devices-intro {
+  margin: 0;
+  max-width: 62ch;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.devices-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+}
+.devices-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 20px;
+  background: var(--container);
+}
+.devices-card h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 16px;
+}
+.devices-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+.devices-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.devices-field span {
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+.devices-field textarea {
+  width: 100%;
+  resize: vertical;
+  padding: 10px 12px;
+  border: 1px solid var(--outline, #3a4254);
+  border-radius: 12px;
+  background: var(--container-high);
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.devices-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.devices-confirm {
+  align-items: center;
+  text-align: center;
+}
+.devices-code {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin: 4px 0;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  font-variant-numeric: tabular-nums;
+}
+.devices-code span {
+  display: grid;
+  place-items: center;
+  min-width: 40px;
+  padding: 8px 4px;
+  border-radius: 12px;
+  background: var(--container-high);
+  color: var(--primary);
+}
+.devices-connected {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.devices-connected strong {
+  flex: 1;
+}
+.devices-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--primary);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 22%, transparent);
+}
+.devices-note {
+  color: var(--muted);
+  font-size: 13px;
+}
+.devices-error {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--error, #ff6b6b) 16%, transparent);
+  color: var(--text);
+  font-size: 13.5px;
+}
+.devices-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.devices-songs,
+.devices-device-list,
+.devices-song-loans {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.devices-songs {
+  max-height: 320px;
+  overflow-y: auto;
+}
+.devices-songs label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 6px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.devices-songs label:hover {
+  background: var(--container-high);
+}
+.devices-songs strong,
+.devices-device-list strong,
+.devices-song-loans strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+}
+.devices-songs small,
+.devices-device-list small,
+.devices-song-loans small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.devices-device-list li,
+.devices-song-loans li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 4px;
+}
+.devices-device-list li > span,
+.devices-song-loans li > span {
+  flex: 1;
+  min-width: 0;
+}
+.spin {
+  animation: devices-spin 0.9s linear infinite;
+}
+@keyframes devices-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+}
+
+/* The clip section inside the song editor: what is playing, and the shortlist. */
+.clip-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 16px;
+  background: var(--container-high);
+}
+.clip-section header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+.clip-current {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.clip-current img,
+.clip-choices img {
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.clip-current span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.clip-current small,
+.clip-choices small,
+.clip-empty,
+.clip-offset span {
+  color: var(--muted);
+  font-size: 12px;
+}
+.clip-current a {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+}
+.clip-offset {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.clip-offset input {
+  width: 74px;
+  padding: 6px 8px;
+  border: 1px solid var(--outline, #3a4254);
+  border-radius: 8px;
+  background: var(--container);
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.clip-actions {
+  display: flex;
+  gap: 10px;
+}
+.clip-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.clip-choices button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px;
+  border-radius: 10px;
+  text-align: left;
+}
+.clip-choices button:hover {
+  background: var(--container);
+}
+.clip-choices span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.clip-choices strong {
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Recent searches: chips, not a list of history rows. */
+.search-recent {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 4px 0 18px;
+}
+.search-recent-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.search-recent-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.search-recent-chips button {
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: var(--container);
+  color: var(--text);
+  font-size: 13.5px;
+  transition: background 0.18s ease;
+}
+.search-recent-chips button:hover {
+  background: var(--container-high);
+}

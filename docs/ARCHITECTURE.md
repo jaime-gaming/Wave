@@ -115,6 +115,23 @@ The audio engine revokes old object URLs, releases both native decoders and its 
 
 Media Session metadata and actions are registered only when supported. Supported system actions include play, pause, next, previous, and absolute seek. Unsupported actions are ignored. This does not guarantee uninterrupted background playback on every mobile browser; operating-system and browser policies still apply.
 
+### Linking two devices
+
+The sync layer (`src/sync`) was written before it had a door. It now has one, and the door is a settings page.
+
+- **Signalling** (`signal.ts`). No relay exists, so the two browsers carry their own SDP: the host's offer is compacted (deflate through `CompressionStream`, base64url, `wave1.d.`/`wave1.p.` prefix) and pasted into the guest, whose answer comes back the same way. Both sides gather ICE candidates before the code is shown, so one exchange is enough.
+- **Transport** (`transport.ts`). One ordered `RTCPeerConnection` data channel with a public STUN server. Same network: host candidates connect directly. Different networks: server-reflexive candidates usually do. Symmetric NAT is refused honestly rather than left hanging.
+- **Link** (`link.ts`). The pairing session runs over that channel, so every frame after the six-digit confirmation is sealed with the derived AES-GCM key. A paired link immediately sends its library index in slices under the 96 KiB frame ceiling; a `loan-offer` makes the sender read its own file, announce a SHA-256 and chunk the bytes, and the receiver's `LoanInbox` reassembles, verifies and commits the loan and its audio in one transaction. Nothing is playable until it verifies.
+- **Interface** (`hooks/useDevices.ts`, `components/DevicesPage.tsx`). Sequence, progress, errors and the borrowed-space budget; keys never cross into React state.
+
+### The lead-in to a mix
+
+`MixCueStore` (`src/ui/mixCue.ts`) is a tiny external store, subscribed by the two places that draw it, holding one cue: which song is leaving, which is arriving, the whole seconds left and a 0–1 progress. The engine's 20 Hz loop writes it only while the current song is playing, Mix is on, a next song exists and less than `MIX_CUE_SECONDS` (20) remains. It notifies once per whole second, because the picture moves by a fraction CSS interpolates and only the count changes. `MixCueVisual` splits the playing cover in two and opens it over the last 30 % of the lead-in, revealing the incoming sleeve behind it; when the real handover starts, `MixVisual` takes over with no jump.
+
+### Search ranking
+
+`rankTracks` (`src/domain/searchRank.ts`) filters with the same accent-insensitive matcher the rest of the app uses, then orders by match kind — exact title, title prefix, word start, artist, album, anything else — keeping library order inside each rank. Recent searches live in `localStorage` as five trimmed phrases, written when a query settles rather than on every keystroke.
+
 ### Mix pipeline (analysis → planner → engine)
 
 Mix is three separable stages so each one can be tested without audio hardware.

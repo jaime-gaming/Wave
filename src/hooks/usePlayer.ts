@@ -9,6 +9,7 @@ import { playerReducer, shuffleQueue } from '../domain/player';
 import { resolvePlayable } from '../domain/youtubeTrack';
 import { planEdgeHandover } from '../domain/edgeMix';
 import { PlaybackClock } from './playbackClock';
+import { MIX_CUE_SECONDS, MixCueStore } from '../ui/mixCue';
 import type { Track } from '../domain/types';
 
 function savedVolume(key = 'wave-volume') {
@@ -52,6 +53,8 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
    * no longer re-renders on every playback tick.
    */
   const [clock] = useState(() => new PlaybackClock());
+  /** The lead-in before a handover: see `mixCue.ts`. */
+  const [mixCue] = useState(() => new MixCueStore());
   const [blend, setBlend] = useState<{
     outgoing: Blob;
     incoming: Blob;
@@ -168,9 +171,10 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
     if (!mixEnabled) {
       engine.current?.cancelTransition();
       engine.current?.prepare();
+      mixCue.clear();
     }
     engine.current?.setMixEnabled(mixEnabled);
-  }, [mixEnabled, autoplay]);
+  }, [mixEnabled, autoplay, mixCue]);
   useEffect(() => {
     prime(current?.blob);
   }, [current?.blob, prime]);
@@ -293,6 +297,33 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
       },
       tick: () => {
         const next = target();
+        // The cue is a warning, not a progress bar: it appears while the current
+        // song is still playing normally, a whole phrase before the join.
+        const elementForCue = player.element;
+        const cueLeft =
+          Number.isFinite(elementForCue.duration) && elementForCue.duration > 0
+            ? elementForCue.duration - elementForCue.currentTime
+            : Infinity;
+        const cueTrack = stateRef.current.queue.length
+          ? context.current.tracks.find(
+              (track) => track.id === stateRef.current.queue[stateRef.current.index],
+            )
+          : undefined;
+        if (
+          context.current.mixEnabled &&
+          next &&
+          cueTrack &&
+          !player.transitioning &&
+          cueLeft > 0 &&
+          cueLeft <= MIX_CUE_SECONDS
+        )
+          mixCue.set({
+            from: cueTrack,
+            to: next,
+            seconds: Math.max(1, Math.ceil(cueLeft)),
+            progress: Math.max(0, Math.min(1, 1 - cueLeft / MIX_CUE_SECONDS)),
+          });
+        else mixCue.clear();
         // Buffering the next song well before the mix point keeps the handover gapless.
         if (next?.blob && player.mixRemaining <= 25) player.prepare(next.blob);
         if (next?.blob) prime(next.blob);
@@ -339,6 +370,7 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
     engine.current = player;
     player.setMixEnabled(context.current.mixEnabled);
     return () => {
+      mixCue.clear();
       player.destroy();
       engine.current = null;
     };
@@ -684,6 +716,7 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
     [],
   );
   return {
+    mixCue,
     mixEnabled,
     setMixEnabled,
     autoplay,

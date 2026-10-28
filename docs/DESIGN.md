@@ -163,6 +163,14 @@ The same rule applies to every panel: the interface shows what can be played, ch
 
 Nothing in the interface promises more than the engine does. When the analysis has no trusted grid the overlap is still staged, still gets the low-end swap and the filter, and is timed like the planned one; when the tempo gap exceeds 8 % the overlap is shortened instead of stretched. Stretching is described as playback-only and pitch-preserving because that is all it is.
 
+## A mix is announced
+
+Nothing in a player usually tells you that two songs are about to meet, and that is why a good handover can feel like a glitch. Wave says it plainly for the last twenty seconds: the cover splits down its middle, the halves step aside, and the next sleeve is already there — dimmed, waiting, arriving. The word is "Mixing", once, with three small bars, and it replaces the artist name in the compact bar for exactly those twenty seconds. It is the one place Wave talks about what Mix is doing, and it earns its place because the alternative is a surprise.
+
+## Pairing, told honestly
+
+Devices starts by admitting there is no server: you make a code here, paste it there. Two pastes and a six-digit check are more friction than a QR code, and less than asking anyone to make an account. The page explains what a link is (a live connection between two open windows) and what it is not (a stored login), shows the peer's library as a plain list of songs, and gives borrowed audio a visible price in megabytes that can be handed back at any time.
+
 ## YouTube songs in the interface
 
 Adding music starts with a question — _From this device_ or _From YouTube_ — because the two kinds of song behave differently and the difference is not cosmetic: one is a file Wave holds, the other is a video YouTube streams. Both land in the same library rows, but a YouTube song shows `YouTube` as its album and its video is always visible behind Now Playing, with a provider link and an honest status line ("YouTube · press play" until the embed actually starts). The Film toggle is disabled for these songs, since the video is the source rather than a backdrop.

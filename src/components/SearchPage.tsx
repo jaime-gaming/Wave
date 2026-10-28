@@ -2,9 +2,14 @@ import { memo, useDeferredValue, useEffect, useMemo, useState, type RefObject } 
 import { Search, X, Music2, Disc3, Users, ListMusic, ArrowUpRight } from 'lucide-react';
 import { motion } from 'motion/react';
 import type { Track, Playlist, LibraryView } from '../domain/types';
-import { filterTracks } from '../domain/types';
 import { collectAlbums, collectArtists, initials } from '../domain/collections';
 import { matchesSearch } from '../domain/musicIdentity';
+import {
+  clearRecentSearches,
+  loadRecentSearches,
+  rankTracks,
+  rememberSearch,
+} from '../domain/searchRank';
 import { AlbumCard } from './CollectionCard';
 import { LibraryContent } from './LibraryContent';
 import { PlaylistCollection } from './PlaylistCollection';
@@ -53,12 +58,23 @@ export const SearchPage = memo(function SearchPage({
   onCreatePlaylist,
 }: Props) {
   const [kind, setKind] = useState('All');
+  const [recent, setRecent] = useState<string[]>(loadRecentSearches);
   useEffect(() => {
     inputRef.current?.focus();
   }, [inputRef]);
   const animation = useWaveMotion();
   const deferredQuery = useDeferredValue(query);
-  const songs = useMemo(() => filterTracks(tracks, deferredQuery), [tracks, deferredQuery]);
+  // Ranked, not filtered: the song you meant belongs at the top of the list.
+  const songs = useMemo(() => rankTracks(tracks, deferredQuery), [tracks, deferredQuery]);
+  /**
+   * A search is remembered when it settles — the library already narrowed —
+   * not on every keystroke, so the list holds phrases rather than prefixes.
+   */
+  useEffect(() => {
+    if (deferredQuery.trim().length < 3) return;
+    const timer = setTimeout(() => setRecent(rememberSearch(deferredQuery)), 1200);
+    return () => clearTimeout(timer);
+  }, [deferredQuery]);
   const albums = useMemo(
     () =>
       collectAlbums(tracks).filter((a) => matchesSearch(`${a.name} ${a.artist}`, deferredQuery)),
@@ -92,6 +108,20 @@ export const SearchPage = memo(function SearchPage({
           placeholder="Songs, artists, albums, playlists"
           value={query}
           onChange={(e) => onQuery(e.target.value)}
+          onKeyDown={(event) => {
+            // Enter plays the best match; Escape gives the library back.
+            if (event.key === 'Escape') {
+              onQuery('');
+              return;
+            }
+            if (event.key !== 'Enter') return;
+            const best = songs[0];
+            if (best) {
+              rememberSearch(deferredQuery);
+              setRecent(loadRecentSearches());
+              onPlay(songs, best.id);
+            }
+          }}
         />
         {query ? (
           <button
@@ -126,8 +156,31 @@ export const SearchPage = memo(function SearchPage({
           <h2>Browse your collection</h2>
           <p>
             Find something in your collection. Search ignores accents and matches words in any
-            order.
+            order, and puts the closest name first.
           </p>
+          {!!recent.length && (
+            <div className="search-recent">
+              <div className="search-recent-head">
+                <span>Recent searches</span>
+                <button
+                  className="text-button"
+                  onClick={() => {
+                    clearRecentSearches();
+                    setRecent([]);
+                  }}
+                >
+                  Clear
+                </button>
+              </div>
+              <div className="search-recent-chips">
+                {recent.map((term) => (
+                  <button key={term} onClick={() => onQuery(term)}>
+                    {term}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="search-shortcuts">
             {(
               [

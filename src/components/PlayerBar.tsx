@@ -3,6 +3,8 @@ import { VideoBackdrop } from './VideoBackdrop';
 import { YouTubeStage } from './YouTubeStage';
 import { useIdleListening } from '../hooks/useIdleListening';
 import { MixVisual } from './MixVisual';
+import { MixCueLabel, MixCueVisual } from './MixCueVisual';
+import { useMixCue, type MixCue } from '../ui/mixCue';
 import { WaveSeek } from './WaveSeek';
 import { LyricsPanel } from './LyricsPanel';
 import { useEffect, useState } from 'react';
@@ -98,7 +100,8 @@ function PlayerDetails({
   readerActive = true,
   videoClip = false,
   onToggleVideoClip,
-}: PlayerProps & { readerActive?: boolean; time: number }) {
+  cue = null,
+}: PlayerProps & { readerActive?: boolean; time: number; cue?: MixCue | null }) {
   const { current, state, duration, volume, dispatch } = player;
   const animation = useWaveMotion();
   return (
@@ -117,6 +120,8 @@ function PlayerDetails({
           >
             {player.blend ? (
               <MixVisual blend={player.blend} artworkClassName="stage-artwork" />
+            ) : cue ? (
+              <MixCueVisual cue={cue} artworkClassName="stage-artwork" />
             ) : (
               <AnimatePresence mode="wait" initial={false}>
                 {' '}
@@ -168,6 +173,11 @@ function PlayerDetails({
               </div>
             ) : (
               <p>Choose a song from your library.</p>
+            )}
+            {cue && (
+              <div className="stage-cue">
+                <MixCueLabel cue={cue} />
+              </div>
             )}
           </motion.div>
         </motion.div>
@@ -344,6 +354,9 @@ export function PlayerBar(props: PlayerProps) {
     karaoke = true,
     videoClip = false,
   } = props;
+  // The cue belongs to the song that is playing; a stale one is never drawn.
+  const cue = useMixCue(player.mixCue);
+  const pending = cue && cue.from.id === player.current?.id ? cue : null;
   const idle = useIdleListening(player.state.playing && !player.buffering && !!player.current);
   const showing = expanded || idle.immersive;
   // Only this bar follows the position; the rest of the interface stays still.
@@ -382,6 +395,8 @@ export function PlayerBar(props: PlayerProps) {
             >
               {player.blend ? (
                 <MixVisual blend={player.blend} />
+              ) : pending ? (
+                <MixCueVisual cue={pending} />
               ) : (
                 <AnimatePresence mode="popLayout" initial={false}>
                   <motion.span
@@ -406,7 +421,11 @@ export function PlayerBar(props: PlayerProps) {
               onClick={(event) => onOpen(event.currentTarget)}
             >
               <strong>{player.current?.title ?? 'Nothing playing'}</strong>
-              <span className="compact-artist">{player.current?.artist ?? 'Select a song'}</span>
+              {pending ? (
+                <MixCueLabel cue={pending} />
+              ) : (
+                <span className="compact-artist">{player.current?.artist ?? 'Select a song'}</span>
+              )}
             </button>
           </div>
           <div className="compact-transport">
@@ -557,6 +576,7 @@ export function PlayerBar(props: PlayerProps) {
             <PlayerDetails
               {...props}
               time={time}
+              cue={pending}
               readerActive={!idle.immersive}
               lyricsOpen={lyricsOpen}
               onDisclosure={setLyricsOpen}

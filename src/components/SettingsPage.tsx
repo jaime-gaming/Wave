@@ -8,6 +8,7 @@ import {
   Library,
   HardDrive,
   Info,
+  Smartphone,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useWaveMotion } from '../ui/motion';
@@ -16,6 +17,7 @@ const sections = [
   { id: 'playback', title: 'Playback', icon: SlidersHorizontal },
   { id: 'lyrics', title: 'Lyrics', icon: Captions },
   { id: 'library', title: 'Library', icon: Library },
+  { id: 'devices', title: 'Devices', icon: Smartphone },
   { id: 'storage', title: 'Storage', icon: HardDrive },
   { id: 'about', title: 'About', icon: Info },
 ] as const;

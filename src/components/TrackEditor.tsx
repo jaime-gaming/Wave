@@ -3,6 +3,7 @@ import { RotateCcw, Save } from 'lucide-react';
 import type { Track, TrackMetadata } from '../domain/types';
 import { Modal } from './Modal';
 import { ArtworkPicker } from './ArtworkPicker';
+import { ClipSection } from './ClipSection';
 
 export function TrackEditor({
   track,
@@ -69,6 +70,7 @@ export function TrackEditor({
             />
           </label>
         ))}
+        <ClipSection track={track} />
         {error && (
           <p className="form-error" role="alert">
             {error}

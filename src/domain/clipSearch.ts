@@ -132,6 +132,34 @@ export function scoreClip(candidate: ClipCandidate, source: ClipSource): number 
   return Math.min(1, score);
 }
 
+/**
+ * Every convincing match, best first.
+ *
+ * Automatic discovery picks one, but a wrong match should not be a dead end: the
+ * same ranking is offered as a short list so the listener can say "not this one"
+ * and choose another without pasting a link.
+ */
+export function rankClips(
+  candidates: ClipCandidate[],
+  source: ClipSource,
+  limit = 5,
+): ClipCandidate[] {
+  const seen = new Set<string>();
+  return candidates
+    .filter((candidate) => {
+      if (!/^[A-Za-z0-9_-]{11}$/u.test(candidate.videoId) || seen.has(candidate.videoId))
+        return false;
+      const score = scoreClip(candidate, source);
+      if (score < 0.45) return false;
+      seen.add(candidate.videoId);
+      return true;
+    })
+    .map((candidate) => ({ candidate, score: scoreClip(candidate, source) }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, Math.max(1, limit))
+    .map((entry) => entry.candidate);
+}
+
 /** Best candidate above the confidence floor, or null when none is convincing. */
 export function pickClip(candidates: ClipCandidate[], source: ClipSource): ClipCandidate | null {
   let best: ClipCandidate | null = null;

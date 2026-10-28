@@ -15,6 +15,7 @@ import {
   parseInvidiousResults,
   parsePipedResults,
   pickClip,
+  rankClips,
   type ClipCandidate,
 } from '../domain/clipSearch';
 import { storeClip, type StoredClip } from '../domain/videoClips';
@@ -170,34 +171,20 @@ export interface ClipSearchOptions {
  * Searches for the song's clip. Never throws: a blocked request, an offline
  * device and a provider that changed shape all resolve to `unavailable`.
  */
-export async function findClip(
-  source: { title: string; artist: string; duration: number },
-  options: ClipSearchOptions = {},
-): Promise<ClipSearchResult> {
-  const query = clipQuery(source);
-  if (!query) return { status: 'empty' };
-  const key = query;
-  const store = options.store === undefined ? storage() : options.store;
-  const cache = readCache(store);
-  const cached = cache[key];
-  if (!options.refresh && cached) {
-    if ('miss' in cached) {
-      // Retried once the negative answer is old enough to be worth doubting.
-      if (Date.now() - cached.at < MISS_TTL_MS) return { status: 'empty' };
-    } else {
-      return {
-        status: 'found',
-        cached: true,
-        candidate: {
-          videoId: cached.videoId,
-          title: cached.title,
-          author: cached.author,
-          duration: cached.duration,
-        },
-      };
-    }
-  }
-
+/**
+ * Asks the hosts once and returns everything they offered.
+ *
+ * Discovery needs one answer; the song's options need a shortlist. Both start
+ * here so a retry, a cooldown and a timeout behave the same way in both places.
+ */
+async function askProviders(
+  query: string,
+  options: ClipSearchOptions,
+  /** Stops at the first host whose answer is already good enough. */
+  stopAt?: (batch: ClipCandidate[]) => boolean,
+): Promise<
+  { status: 'unavailable' } | { status: 'answered'; answered: boolean; candidates: ClipCandidate[] }
+> {
   const fetcher = options.fetcher ?? (typeof fetch === 'function' ? fetch : undefined);
   if (!fetcher) return { status: 'unavailable' };
   // An explicit retry means the user asked again: give every host another chance.
@@ -206,6 +193,7 @@ export async function findClip(
   const providerTimeout = options.providerTimeoutMs ?? CLIP_PROVIDER_TIMEOUT_MS;
   const deadline = Date.now() + budget;
   let answered = false;
+  const candidates: ClipCandidate[] = [];
   const now = Date.now();
 
   for (const provider of options.providers ?? CLIP_PROVIDERS) {
@@ -235,14 +223,55 @@ export async function findClip(
     }
     // The host answered with JSON: it is alive, even if nothing matches.
     answered = true;
-    const best = pickClip(provider.parse(payload), source);
-    if (!best) continue;
     cooling.delete(provider.name);
+    const parsed = provider.parse(payload);
+    candidates.push(...parsed);
+    // One good match is enough for discovery: asking the remaining hosts would
+    // cost seven more requests for an answer we already have.
+    if (stopAt?.(parsed)) break;
+  }
+  return { status: 'answered', answered, candidates };
+}
+
+export async function findClip(
+  source: { title: string; artist: string; duration: number },
+  options: ClipSearchOptions = {},
+): Promise<ClipSearchResult> {
+  const query = clipQuery(source);
+  if (!query) return { status: 'empty' };
+  const key = query;
+  const store = options.store === undefined ? storage() : options.store;
+  const cache = readCache(store);
+  const cached = cache[key];
+  if (!options.refresh && cached) {
+    if ('miss' in cached) {
+      // Retried once the negative answer is old enough to be worth doubting.
+      if (Date.now() - cached.at < MISS_TTL_MS) return { status: 'empty' };
+    } else {
+      return {
+        status: 'found',
+        cached: true,
+        candidate: {
+          videoId: cached.videoId,
+          title: cached.title,
+          author: cached.author,
+          duration: cached.duration,
+        },
+      };
+    }
+  }
+
+  const fetched = await askProviders(query, options, (batch) => pickClip(batch, source) !== null);
+  if (fetched.status === 'unavailable') return { status: 'unavailable' };
+  const best = pickClip(fetched.candidates, source);
+  if (best) {
     writeCache({ ...cache, [key]: { ...best, at: Date.now() } }, store);
     return { status: 'found', candidate: best, cached: false };
   }
 
-  if (!answered) return { status: 'unavailable' };
+  // A dead host is not an answer about the song: say the search failed instead
+  // of telling the listener no clip exists.
+  if (!fetched.answered) return { status: 'unavailable' };
   // A real answer with no convincing match is remembered for a day, so Wave does
   // not ask on every visit but a later search can still find a new upload.
   writeCache({ ...cache, [key]: { at: Date.now(), miss: true } }, store);
@@ -256,4 +285,32 @@ export function rememberClip(
   store: Storage | null = storage(),
 ): StoredClip | null {
   return storeClip(trackId, candidate.videoId, 0, store);
+}
+
+/**
+ * The shortlist for a song: what discovery would pick, plus the runners-up.
+ *
+ * Used by the song's own options, where choosing a different clip is a normal
+ * thing to want — the automatic match is a guess, and a guess you cannot correct
+ * is worse than no guess at all. Nothing is stored until a candidate is chosen.
+ */
+export async function searchClips(
+  source: { title: string; artist: string; duration: number },
+  options: ClipSearchOptions = {},
+): Promise<{ status: 'found' | 'empty' | 'unavailable'; candidates: ClipCandidate[] }> {
+  const query = clipQuery(source);
+  if (!query) return { status: 'empty', candidates: [] };
+  const fetched = await askProviders(query, { ...options, refresh: true });
+  if (fetched.status === 'unavailable') return { status: 'unavailable', candidates: [] };
+  const ranked = rankClips(fetched.candidates, source, 6);
+  return { status: ranked.length ? 'found' : 'empty', candidates: ranked };
+}
+
+/** Replaces the clip for a song with a chosen candidate, keeping it local. */
+export function chooseClip(
+  trackId: string,
+  candidate: ClipCandidate,
+  startAt = 0,
+): StoredClip | null {
+  return storeClip(trackId, candidate.videoId, startAt);
 }
