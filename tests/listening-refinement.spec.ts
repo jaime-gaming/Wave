@@ -325,6 +325,42 @@ test('Privacy uses the exact Wave background and follows appearance changes from
   await expect(page.getByRole('heading', { name: 'Privacy & rights', exact: true })).toBeVisible();
   await other.close();
 });
+test('a mix is announced before it happens, then the sleeve splits and the join follows', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await setup(page);
+  await page.getByRole('button', { name: 'Open now playing', exact: true }).click();
+  const full = page.getByRole('dialog', { name: 'Now playing' });
+  // Jump to twenty seconds before the end of the file: that is the lead-in.
+  await page.evaluate(() => {
+    const playing = (window as unknown as { __refineAudio: HTMLAudioElement[] }).__refineAudio.find(
+      (a) => !a.paused,
+    )!;
+    playing.currentTime = playing.duration - 19;
+  });
+  await expect(full.locator('.mix-cue')).toBeVisible();
+  await expect(full.getByText('Mixing', { exact: true })).toBeVisible();
+  await expect(full.locator('.mix-cue-next')).toHaveCount(1);
+  // The cue is not a static picture: the split opens as the join approaches.
+  const before = await full
+    .locator('.mix-cue')
+    .evaluate((el) => Number(getComputedStyle(el).getPropertyValue('--cue-open')));
+  await page.evaluate(() => {
+    const playing = (window as unknown as { __refineAudio: HTMLAudioElement[] }).__refineAudio.find(
+      (a) => !a.paused,
+    )!;
+    playing.currentTime = playing.duration - 2;
+  });
+  await expect
+    .poll(() =>
+      full
+        .locator('.mix-cue')
+        .evaluate((el) => Number(getComputedStyle(el).getPropertyValue('--cue-open'))),
+    )
+    .toBeGreaterThan(before);
+});
+
 test('the transport stays on screen while a song plays, in the cinema view too, and the lyric keeps following', async ({
   page,
 }) => {

@@ -21,17 +21,20 @@ describe('the lead-in to a mix', () => {
     expect(store.get()).toBeNull();
   });
 
-  it('updates the picture every frame but only announces a new second', () => {
+  it('announces a new second, and a visible change, but not every frame', () => {
     const store = new MixCueStore();
     store.set(cue(20, 0.1));
     const listener = vi.fn();
     store.subscribe(listener);
-    // Same second: the fraction moves, nobody re-renders.
-    store.set(cue(20, 0.42));
+    // A fraction this small is invisible: the picture stays where it is.
+    store.set(cue(20, 0.11));
     expect(listener).not.toHaveBeenCalled();
+    // Two per cent is enough to redraw the split.
+    store.set(cue(20, 0.42));
+    expect(listener).toHaveBeenCalledTimes(1);
     expect(store.get()?.progress).toBe(0.42);
     store.set(cue(19, 0.5));
-    expect(listener).toHaveBeenCalledTimes(1);
+    expect(listener).toHaveBeenCalledTimes(2);
   });
 
   it('starts a new cue when the song it is leaving changes', () => {

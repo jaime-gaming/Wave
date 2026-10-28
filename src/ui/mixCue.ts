@@ -27,6 +27,7 @@ export const MIX_CUE_SECONDS = 20;
 
 export class MixCueStore {
   private value: MixCue | null = null;
+  private announced = -1;
   private listeners = new Set<() => void>();
 
   get = () => this.value;
@@ -36,20 +37,22 @@ export class MixCueStore {
     if (!next && !previous) return;
     if (!next || !previous) {
       this.value = next;
+      this.announced = next ? next.progress : -1;
       this.emit();
       return;
     }
-    // One notification per whole second, not per frame: the label counts seconds
-    // and the picture moves by a fraction the CSS interpolates itself.
+    // Not once per frame — that would re-render two components twenty times a
+    // second — but often enough that the cover opens in steps nobody can see:
+    // a new second, a new song, or a two-percent change in the fraction.
     if (
       previous.from.id === next.from.id &&
       previous.to.id === next.to.id &&
-      previous.seconds === next.seconds
-    ) {
-      previous.progress = next.progress;
+      previous.seconds === next.seconds &&
+      Math.abs(next.progress - this.announced) < 0.02
+    )
       return;
-    }
     this.value = next;
+    this.announced = next.progress;
     this.emit();
   }
 
