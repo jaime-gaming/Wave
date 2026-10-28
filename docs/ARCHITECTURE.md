@@ -126,7 +126,7 @@ The sync layer (`src/sync`) was written before it had a door. It now has one, an
 
 ### The lead-in to a mix
 
-`MixCueStore` (`src/ui/mixCue.ts`) is a tiny external store, subscribed by the two places that draw it, holding one cue: which song is leaving, which is arriving, the whole seconds left and a 0–1 progress. The engine's 20 Hz loop writes it only while the current song is playing, Mix is on, a next song exists and less than `MIX_CUE_SECONDS` (20) remains. It notifies once per whole second, because the picture moves by a fraction CSS interpolates and only the count changes. `MixCueVisual` splits the playing cover in two and opens it over the last 30 % of the lead-in, revealing the incoming sleeve behind it; when the real handover starts, `MixVisual` takes over with no jump.
+`MixCueStore` (`src/ui/mixCue.ts`) is a tiny external store, subscribed by the two places that draw it, holding one cue: which song is leaving, which is arriving, the whole seconds left and a 0–1 progress. The engine's 20 Hz loop writes it only while the current song is playing, Mix is on, a next song exists and less than `MIX_CUE_SECONDS` (20) remains. It notifies once per whole second, because the picture moves by a fraction CSS interpolates and only the count changes. `MixCueVisual` renders one cover that takes a breath (scale and brightness driven by the same progress value) and nothing else; when the real handover starts, `MixVisual` takes over with no jump. `MixCueLabel` is one word whose highlight is a CSS gradient clipped to the text, with a grey fallback under reduced motion. Both places that draw it animate their own box, so the text around the cue closes as smoothly as it opened.
 
 ### Search ranking
 
@@ -310,7 +310,7 @@ The lyric editor owns a separate abortable search and result preview. Automatic 
 
 Import-worker jobs now time out after thirty seconds, clear settled timers, dispose idle workers and handle message transport failure. Timeout fallback retains the importer's filename/source-Blob path without repeating the same potentially stuck parse on the UI thread; later imports can create a fresh worker.
 
-## 0.1.0 independent Windows structure
+## Independent Windows structure
 
 The Windows client keeps WPF and OS decoders, not the React bundle. `MainWindow` owns native playback/session state, `MainWindow.Browse` builds collections/search/playlists/queue views, and `MainWindow.Settings` owns the six settings destinations and editor. `Collections.cs` contains dependency-free playlist resolution, queue movement, bounded Mix windows, tag-based daily groups and atomic JSON helpers. A separate console contracts runner exercises these rules; an isolated WPF smoke entry point captures real native layouts without accessing the user's library. Optional lyrics remains the only provider flow.
 

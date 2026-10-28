@@ -287,23 +287,34 @@ Settings tests must navigate through the relevant menu, not query unmounted cont
 
 Run `release-010.spec.ts` for offline daily genre groups and native queue coherence, explicit unplayed-song lyric preview/save, failure/cooldown/manual-draft preservation, and larger text on a 320 px viewport. Unit checks additionally cover deterministic day changes, input immutability, sparse libraries, worker timeouts/recovery and shared cooldown/oversized-body cancellation. Live lyric provider coverage and native builds require separate validation. The editor regressions also verify that dialog padding cannot discard a draft and that Close/Cancel/Remove/Save remain visible while the body scrolls at 320×360 with larger text.
 
-## Merge-time 0.1.0 publication
+## Merge-time publication
 
-Release 0.1.0 is dated 17 October 2026. Publication requires maintainer authorization and successful checks on the exact candidate. Keep its description to Highlights; detailed QA belongs in this document and `VALIDATION.md`.
+Release 0.1.1 is dated 27 October 2026. Publication requires maintainer authorization and successful checks on the exact candidate. Keep its description to Highlights; detailed QA belongs in this document and `VALIDATION.md`.
 
 When proceeding with the approved merge:
 
-1. Run `npm run test:release` and `npm run release:check -- v0.1.0`. They reject inconsistent web/native versions, a wrong tag name or missing/mismatched release notes without publishing anything. Require successful web and native checks on the latest PR revision and review the remaining device/runtime limitations.
-2. Mark PR #1 ready, then merge with `gh pr merge 1 --squash --subject "Wave 0.1.0 Release" --body "" --match-head-commit <validated-head-sha>`. Use the exact squash commit title `Wave 0.1.0 Release`. Preserve the feature branch as a recovery reference. Do not bypass failing checks or create a release from an unmerged candidate SHA.
-3. Read the actual merge commit from the merged PR and confirm it matches the final `main` revision. Create the annotated `v0.1.0` tag at that commit through GitHub. Never force-update an existing tag; inspect it first if retrying a partially completed publication.
-4. Prepare/update the draft GitHub Release with the reviewed `RELEASE_NOTES_0.1.0.md`. Verify its target and dereferenced tag match the merge commit before publishing. A draft does not publish a tag. After creating the tag, manually dispatch `Release assets` with that tag to populate and verify the draft assets before publishing. It also runs on release publication. The workflow builds that exact tag and attaches the relative-base web ZIP, the existing product film and `SHA256SUMS.txt`. Its ZIP includes source-commit metadata and the unchanged notices. If attachment upload fails, rerun the workflow with the same tag using its manual dispatch; never move the tag to retry. The build must be on main ancestry. `python3 -m unittest discover -s scripts -p test_package_release.py` checks deterministic packaging and input boundaries.
+1. Run `npm run test:release` and `npm run release:check -- v0.1.1`. They reject inconsistent web/native versions, a wrong tag name or missing/mismatched release notes without publishing anything. Require successful web and native checks on the latest PR revision and review the remaining device/runtime limitations.
+2. Mark PR #1 ready, then merge with `gh pr merge 1 --squash --subject "Wave 0.1.1 Release" --body "" --match-head-commit <validated-head-sha>`. Use the exact squash commit title `Wave 0.1.1 Release`. Preserve the feature branch as a recovery reference. Do not bypass failing checks or create a release from an unmerged candidate SHA.
+3. Read the actual merge commit from the merged PR and confirm it matches the final `main` revision. Create the annotated `v0.1.1` tag at that commit through GitHub. Never force-update an existing tag; inspect it first if retrying a partially completed publication.
+4. Prepare/update the draft GitHub Release with the reviewed `RELEASE_NOTES_0.1.1.md`. Verify its target and dereferenced tag match the merge commit before publishing. A draft does not publish a tag. After creating the tag, manually dispatch `Release assets` with that tag to populate and verify the draft assets before publishing. It also runs on release publication. The workflow builds that exact tag and attaches the relative-base web ZIP, the existing product film and `SHA256SUMS.txt`. Its ZIP includes source-commit metadata and the unchanged notices. If attachment upload fails, rerun the workflow with the same tag using its manual dispatch; never move the tag to retry. The build must be on main ancestry. `python3 -m unittest discover -s scripts -p test_package_release.py` checks deterministic packaging and input boundaries.
 5. Native debug/unsigned CI artifacts are test builds, not signed installers. Do not silently relabel or attach them as production-ready packages.
 
 PR preparation alone does not authorize publication. GitHub Releases and Pages are separate: verify the Pages branch configuration/deployment rather than treating a successful tag operation as proof of hosting. Pages uses the committed `/docs` site: run `npm run build:pages` after web changes and select Deploy from a branch → main → /docs in repository Settings → Pages. No custom Pages deployment Action is required. Do not change repository visibility as a side effect of release preparation. Successful compilation does not establish Android/Windows UI or playback parity with the web client.
 
+## Documentation images
+
+The PNGs in `docs/media/` are photographs of the running app, not mockups. Recapture them after a change that alters a screen they show:
+
+```sh
+npm run dev
+npm run capture:docs
+```
+
+`scripts/capture-docs.ts` builds a disposable library in its own browser context (generated WAV files, generated covers, demo lyrics), imports it, and screenshots Home, a daily mix, Now Playing and the phone Home at 1440×900 and 390×844. `WAVE_URL` points it at another origin and `CHROMIUM_EXECUTABLE_PATH` at another Chromium. Review the four PNGs before committing them; the `Documentation images` workflow runs the same script against a production build and uploads the result, for anyone without a browser to hand.
+
 ## Release media
 
-The README's PNGs and `docs/media/wave-0.1.0-promo.mp4` are the intentional exception to the generated-artifact rule. The current film is 60 seconds, 1920×1080, H.264/yuv420p at 30 fps, with stereo AAC acoustic-piano music and fast-start metadata. It uses English captions and actual web/mobile-viewport interactions in an isolated demo library. It does not establish native feature parity or live-provider availability.
+The README's PNGs and `docs/media/wave-promo.mp4` are the intentional exception to the generated-artifact rule. The current film is 60 seconds, 1920×1080, H.264/yuv420p at 30 fps, with stereo AAC acoustic-piano music and fast-start metadata. It uses English captions and actual web/mobile-viewport interactions in an isolated demo library. It does not establish native feature parity or live-provider availability.
 
 See [promo production](media/PROMO_PRODUCTION.md) for the approved storyboard, reproducible capture/composition commands, sample provenance and validation procedure. Keep raw recordings, piano samples, tool binaries and temporary renders under ignored `.cache/`. The earlier `scripts/create-promo.ts` creates the superseded short silent version, not the current film. No script posts to social media.
 

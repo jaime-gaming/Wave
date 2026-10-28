@@ -59,7 +59,7 @@ or re-encode that audio; a song also imported as a file always plays from the lo
 
 ## Wave 1.1 (planned, not active)
 
-Release 0.1.0 has no sync, no accounts and no provider playlist import. The 1.1
+Release 0.1.1 has no sync, no accounts and no provider playlist import. The 1.1
 foundation in the source tree is not connected to the interface, so none of the
 following data flows is active yet. Before any of it ships, this file must list
 each one explicitly: borrowed audio copies on a second device and how to delete

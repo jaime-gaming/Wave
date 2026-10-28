@@ -1197,111 +1197,88 @@
   height: 100%;
   border-radius: inherit;
 }
-/* A band of light that leans as it crosses, matching the line under the word. */
-.mix-cue-sheen {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  border-radius: inherit;
-  background: linear-gradient(
-    104deg,
-    transparent 34%,
-    color-mix(in srgb, var(--text) 22%, transparent) 50%,
-    transparent 66%
-  );
-  background-size: 240% 100%;
-  background-position: calc(140% - var(--cue-progress, 0) * 150%) 50%;
-  mix-blend-mode: soft-light;
-  opacity: var(--cue-glow, 0);
-}
 @media (prefers-reduced-motion: reduce) {
   .mix-cue-cover {
     transform: none;
     filter: none;
     transition: none;
   }
-  .mix-cue-sheen {
-    display: none;
-  }
 }
 .mix-cue-label {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 5px;
+  display: inline-block;
   /* Quiet on purpose: a note in the margin, not an announcement. */
   color: var(--muted, #9aa2b1);
   line-height: 1;
   white-space: nowrap;
-  animation: mix-cue-in 0.5s ease both;
 }
+/*
+ * The light lives in the letters.
+ *
+ * A brighter copy of the word sits in a gradient that is wider than the text and
+ * slides across it, so each letter brightens as the highlight reaches it and
+ * returns to grey behind it. The grey colour underneath is what a browser
+ * without `background-clip: text` paints, so nothing disappears if the clipping
+ * is unsupported — the word simply stays still.
+ */
 .mix-cue-word {
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  opacity: 0.9;
-}
-/* One thin line, crossed by a short highlight, left to right, then a pause. */
-.mix-cue-line {
-  position: relative;
-  display: block;
-  width: 100%;
-  min-width: 54px;
-  height: 1px;
-  overflow: hidden;
-  background: color-mix(in srgb, currentColor 24%, transparent);
-}
-.mix-cue-line::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    color-mix(in srgb, var(--text, #fff) 92%, transparent) 50%,
-    transparent 100%
+  background-image: linear-gradient(
+    100deg,
+    currentColor 0%,
+    currentColor 36%,
+    color-mix(in srgb, var(--text, #fff) 55%, currentColor) 44%,
+    var(--text, #fff) 50%,
+    color-mix(in srgb, var(--text, #fff) 55%, currentColor) 56%,
+    currentColor 64%,
+    currentColor 100%
   );
-  transform: translateX(-100%);
-  animation: mix-cue-sweep 3.6s cubic-bezier(0.45, 0, 0.2, 1) infinite;
+  background-size: 220% 100%;
+  background-position: 100% 50%;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: mix-cue-shimmer 4.4s cubic-bezier(0.4, 0, 0.3, 1) infinite;
 }
-@keyframes mix-cue-sweep {
-  0% {
-    transform: translateX(-100%);
+@keyframes mix-cue-shimmer {
+  0%,
+  16% {
+    background-position: 100% 50%;
   }
-  46%,
+  62%,
   100% {
-    transform: translateX(100%);
-  }
-}
-@keyframes mix-cue-in {
-  from {
-    opacity: 0;
-    transform: translateY(3px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+    background-position: 0% 50%;
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .mix-cue-label {
+  .mix-cue-word {
     animation: none;
-  }
-  .mix-cue-line::after {
-    animation: none;
-    opacity: 0;
+    background-image: none;
+    -webkit-text-fill-color: currentColor;
   }
 }
+/*
+ * The space the cue occupies is part of the transition.
+ *
+ * The label is pulled in from below while its own box grows from nothing, so
+ * the artist line above it is pushed down gently instead of jumping the moment
+ * a blend is announced. The gap lives inside the animated box for the same
+ * reason: a margin would stay behind after the height had gone.
+ */
 .stage-cue {
+  overflow: hidden;
+}
+.stage-cue .mix-cue-label {
+  display: block;
   margin-top: 10px;
 }
 /* On the stage there is room for the word to be read, not just noticed. */
 .stage-cue .mix-cue-word {
   font-size: 12px;
-}
-.stage-cue .mix-cue-line {
-  min-width: 72px;
+  letter-spacing: 0.16em;
 }
 
 /*

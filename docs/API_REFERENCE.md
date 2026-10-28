@@ -470,7 +470,7 @@ Idle entry now additionally requires `document.hasFocus()`. `blur` wakes the pla
 - `LocalMetadataReview({tracks})` recomputes `metadataIssues` from current fields, not old online suggestions, and pages eight incomplete songs at a time. No field is remotely completed or silently reverted.
 - Settings preferences retain their existing storage keys. The six menu IDs are component-local navigation, not new server routes.
 
-### 0.1.0 candidate additions
+### Additions in the current release
 
 - `dailyMixes(tracks, localDayKey): DailyMix[]` returns at most three disjoint genre-tag groups, with explicit artist-tag fallback for songs without useful genres. A group needs three unique song IDs; results cap at thirty per group, retain original Track objects and never mutate saved playlists. Stable ID ordering and a day/group seed make selection deterministic for an unchanged library/day; the first song rotates daily.
 - `localDayKey(date?)` uses the browser's local calendar, not UTC midnight. `DailyMixes` refreshes at the next local midnight and on focus/visibility changes; current playback is not replaced when the displayed mixes refresh.

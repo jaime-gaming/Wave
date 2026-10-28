@@ -17,6 +17,8 @@ it('shows the cover that is playing, breathing, and nothing else', () => {
   expect(container.querySelectorAll('.mix-cue-cover .stage-artwork')).toHaveLength(1);
   expect(container.querySelector('.mix-cue-half')).toBeNull();
   expect(container.querySelector('.mix-cue-next')).toBeNull();
+  // The light is in the word now, so nothing crosses the cover.
+  expect(container.querySelector('.mix-cue-sheen')).toBeNull();
   const root = container.querySelector<HTMLElement>('.mix-cue')!;
   expect(root.style.getPropertyValue('--cue-progress')).toBe('0.5');
 });
@@ -24,11 +26,11 @@ it('shows the cover that is playing, breathing, and nothing else', () => {
 it('keeps the movement inside its range whatever the engine reports', () => {
   const { container, rerender } = render(<MixCueVisual cue={{ ...cue, progress: 2 }} />);
   const root = container.querySelector<HTMLElement>('.mix-cue')!;
+  expect(Number(root.style.getPropertyValue('--cue-progress'))).toBe(1);
   expect(Number(root.style.getPropertyValue('--cue-breath'))).toBe(1);
-  expect(Number(root.style.getPropertyValue('--cue-glow'))).toBe(1);
   rerender(<MixCueVisual cue={{ ...cue, progress: -3 }} />);
+  expect(Number(root.style.getPropertyValue('--cue-progress'))).toBe(0);
   expect(Number(root.style.getPropertyValue('--cue-breath'))).toBe(0);
-  expect(Number(root.style.getPropertyValue('--cue-glow'))).toBe(0);
 });
 
 it('says what is happening once, in words, for a screen reader', () => {
@@ -38,11 +40,13 @@ it('says what is happening once, in words, for a screen reader', () => {
   expect(status).toHaveTextContent('Mixing');
 });
 
-it('keeps the word minimal: no bars, no spinner, one thin line', () => {
+it('is one word and nothing else: no bars, no spinner, no rule beside it', () => {
   const { container } = render(<MixCueLabel cue={cue} />);
-  // The three animated bars were the opposite of minimal next to a grey word.
+  // The animated bars, the sweeping line and the tracked-out capitals were
+  // three ideas for one three-second note; the word carries it alone.
   expect(container.querySelector('.mix-cue-waves')).toBeNull();
   expect(container.querySelector('.mix-cue-scan')).toBeNull();
-  expect(container.querySelectorAll('.mix-cue-line')).toHaveLength(1);
+  expect(container.querySelector('.mix-cue-line')).toBeNull();
   expect(container.querySelectorAll('.mix-cue-word')).toHaveLength(1);
+  expect(container.querySelector('.mix-cue-label')?.textContent).toBe('Mixing');
 });

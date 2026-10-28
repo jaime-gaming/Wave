@@ -15,7 +15,8 @@
     "format:check": "prettier --check .",
     "release:check": "node scripts/check-release.mjs",
     "test:release": "node --test scripts/check-release.test.mjs",
-    "build:pages": "node scripts/build-pages.mjs"
+    "build:pages": "node scripts/build-pages.mjs",
+    "capture:docs": "node --experimental-strip-types scripts/capture-docs.ts"
   },
   "dependencies": {
     "@fontsource-variable/nunito-sans": "^5.3.0",

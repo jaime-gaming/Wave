@@ -174,14 +174,21 @@ function PlayerDetails({
             ) : (
               <p>Choose a song from your library.</p>
             )}
+            {/*
+              The cue shares the line under the title with the artist, and the
+              block around it is what has to move: a word that appears and
+              disappears without the text around it reflowing leaves a gap that
+              snaps shut. The height is animated with the fade, so the title,
+              the artist and the words all settle together.
+            */}
             <AnimatePresence initial={false}>
               {cue && (
                 <motion.div
                   className="stage-cue"
                   key="stage-cue"
-                  initial={animation.enabled ? { opacity: 0, y: 4 } : false}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={animation.enabled ? { opacity: 0, y: -2 } : undefined}
+                  initial={animation.enabled ? { opacity: 0, height: 0, y: 4 } : false}
+                  animate={{ opacity: 1, height: 'auto', y: 0 }}
+                  exit={animation.enabled ? { opacity: 0, height: 0, y: -2 } : undefined}
                   transition={animation.effects}
                 >
                   <MixCueLabel cue={cue} />
@@ -436,11 +443,42 @@ export function PlayerBar(props: PlayerProps) {
               onClick={(event) => onOpen(event.currentTarget)}
             >
               <strong>{player.current?.title ?? 'Nothing playing'}</strong>
-              {pending ? (
-                <MixCueLabel cue={pending} />
-              ) : (
-                <span className="compact-artist">{player.current?.artist ?? 'Select a song'}</span>
-              )}
+              {/*
+                One line, two states: the artist normally, "Mixing" while the
+                next song is being announced. Swapping the text in place made
+                the bar jump a pixel and read as a glitch, so the line hands over
+                instead — the old text leaves downwards, the new one arrives
+                from below it.
+              */}
+              <span className="compact-subline">
+                <AnimatePresence mode="wait" initial={false}>
+                  {pending ? (
+                    <motion.span
+                      className="compact-subline-item"
+                      key="mixing"
+                      initial={animation.enabled ? { opacity: 0, y: 6 } : { opacity: 1 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={animation.enabled ? { opacity: 0, y: -6 } : undefined}
+                      transition={animation.effects}
+                    >
+                      <MixCueLabel cue={pending} />
+                    </motion.span>
+                  ) : (
+                    <motion.span
+                      className="compact-subline-item"
+                      key={`artist:${player.current?.id ?? 'none'}`}
+                      initial={animation.enabled ? { opacity: 0, y: 6 } : { opacity: 1 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={animation.enabled ? { opacity: 0, y: -6 } : undefined}
+                      transition={animation.effects}
+                    >
+                      <span className="compact-artist">
+                        {player.current?.artist ?? 'Select a song'}
+                      </span>
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </span>
             </button>
           </div>
           <div className="compact-transport">

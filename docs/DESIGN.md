@@ -165,7 +165,9 @@ Nothing in the interface promises more than the engine does. When the analysis h
 
 ## A mix is announced
 
-Nothing in a player usually tells you that two songs are about to meet, and that is why a good handover can feel like a glitch. Wave says it plainly for the last twenty seconds: the cover splits down its middle, the halves step aside, and the next sleeve is already there — dimmed, waiting, arriving. The word is "Mixing", once, with three small bars, and it replaces the artist name in the compact bar for exactly those twenty seconds. It is the one place Wave talks about what Mix is doing, and it earns its place because the alternative is a surprise.
+A handover with no warning reads as a glitch, so Wave says it once. Eight seconds before the blend a small grey "Mixing" appears under the song title, in the same place as the artist, and it stays for the whole handover. The word is the entire animation: a soft highlight crosses the letters and a plain grey word stays behind it. The cover above it takes a slow breath (a slight push in, a slight dim), and the block of text below the title opens so the artist line is pushed down gently rather than jumping. In the compact bar the same word takes the artist's place and hands back to it the same way. This is the only place the interface talks about what Mix is doing.
+
+The light lives in the letters rather than beside them: a wider gradient highlight slides across a `background-clip: text` copy of the word, so each letter brightens as the highlight reaches it. A plain grey word is painted underneath, so a browser without text clipping shows a still word instead of a hole. Reduced motion stops the highlight on its first frame and keeps the word.
 
 ## Pairing, told honestly
 
@@ -293,13 +295,13 @@ The lyric editor owns a separate abortable search and result preview. Automatic 
 
 Import-worker jobs now time out after thirty seconds, clear settled timers, dispose idle workers and handle message transport failure. Timeout fallback retains the importer's filename/source-Blob path without repeating the same potentially stuck parse on the UI thread; later imports can create a fresh worker.
 
-## 0.1.0 independent Windows structure
+## Independent Windows structure
 
 The Windows client keeps WPF and OS decoders, not the React bundle. `MainWindow` owns native playback/session state, `MainWindow.Browse` builds collections/search/playlists/queue views, and `MainWindow.Settings` owns the six settings destinations and editor. `Collections.cs` contains dependency-free playlist resolution, queue movement, bounded Mix windows, tag-based daily groups and atomic JSON helpers. A separate console contracts runner exercises these rules; an isolated WPF smoke entry point captures real native layouts without accessing the user's library. Optional lyrics remains the only provider flow.
 
 Web daily mix views retain an explicit selection snapshot, resolve it against current tracks and persist saved copies through one IndexedDB transaction. The Home card is navigation, not an implicit play action. Promotional captures use an isolated demo browser context and original assets, never a real user library.
 
-## Release 0.1.0 refinements
+## Refinements carried into the current release
 
 On phones, Home's collection shortcuts use a balanced three-plus-two grid; no category is hidden behind a horizontal shelf. Daily mixes open a playlist-like page with artwork, label, count/duration, explicit Play/Shuffle, Save as playlist and ordinary song rows. Reset scrolling on entry so a previously scrolled Home does not crop the new heading. Wrap actions at narrow widths and retain at least 44 px targets.
 

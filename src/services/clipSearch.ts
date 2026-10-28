@@ -15,6 +15,7 @@ import {
   clipQuery,
   isAudioOnly,
   isMusicVideo,
+  scoreClip,
   parseInvidiousResults,
   parsePipedResults,
   pickClip,
@@ -333,16 +334,17 @@ export async function findClip(
       // Retried once the negative answer is old enough to be worth doubting.
       if (Date.now() - cached.at < MISS_TTL_MS) return { status: 'empty' };
     } else {
-      return {
-        status: 'found',
-        cached: true,
-        candidate: {
-          videoId: cached.videoId,
-          title: cached.title,
-          author: cached.author,
-          duration: cached.duration,
-        },
+      const candidate = {
+        videoId: cached.videoId,
+        title: cached.title,
+        author: cached.author,
+        duration: cached.duration,
       };
+      // The rules get stricter, and a song keeps yesterday's answer forever.
+      // A remembered clip that no longer passes them — a lyric video saved
+      // before those stopped counting as clips — is searched again instead of
+      // being played because it happens to be in the cache.
+      if (scoreClip(candidate, source) >= 0.45) return { status: 'found', cached: true, candidate };
     }
   }
 
