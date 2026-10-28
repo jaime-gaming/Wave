@@ -19,7 +19,7 @@
         <p class="intro">
           Understand what stays here, when Wave connects, and the controls you have.
         </p>
-        <p class="updated">Updated 17 October 2026 · Development version</p>
+        <p class="updated">Updated 28 October 2026 · Development version</p>
       </header>
       <p class="notice">
         Wave is local-first, not a backup service. Keep your original music files. Public deployment
@@ -109,8 +109,61 @@
           Autoplay selects only from your local songs, using artist, album, available genre/year,
           favorites, duration and recent-session IDs with weighted variety. No online recommendation
           profile or streaming audio is requested. Repeat modes take priority; Autoplay can be
-          switched off. Mix chooses the handover locally without uploading audio, changing
-          tempo/pitch or rewriting your files.
+          switched off.
+        </p>
+        <p>
+          Mix works on the device. Wave analyses a downmixed copy of two songs while they play and
+          plans the handover in memory; nothing is uploaded. During an overlap only the
+          <em>playback</em> changes: the two decks are faded against each other, the low end changes
+          hands, the outgoing song loses its top and the incoming one may be tempo-matched with
+          pitch preserved. All of it is reverted when the overlap ends, and the stored file, its
+          sample rate, its bit depth and its bitrate are never touched.
+        </p>
+      </section>
+      <section class="privacy-topic">
+        <h2>Video clips and songs from YouTube</h2>
+        <p>
+          <strong>Clips.</strong> To find the video behind a song, Wave sends only the song title
+          and artist to public YouTube front-ends (Piped and Invidious instances) and keeps the
+          chosen video id in this browser. Those servers also receive connection information such as
+          your IP address. No audio, artwork or library list leaves the device, and a clip is only
+          ever searched for the song you are playing. You can remove a remembered clip from that
+          song's options.
+        </p>
+        <p>
+          <strong>Songs added from YouTube.</strong> Wave stores the video id, not a file. The title
+          and length are read from YouTube's oEmbed endpoint; when that request is blocked by the
+          browser, noembed, a Piped instance or an Invidious instance is tried instead, carrying the
+          video id and the usual connection information. Nothing about your library is included.
+        </p>
+        <p>
+          <strong>Playback.</strong> A YouTube song, and the muted clip behind Now Playing, stream
+          directly from YouTube inside your browser. That traffic, and the fact that a video was
+          watched, belongs to YouTube's own policy rather than to Wave. Wave does not download,
+          proxy, extract or re-encode that audio, and a song you also imported as a file always
+          plays from your copy instead.
+        </p>
+      </section>
+      <section class="privacy-topic">
+        <h2>Word-by-word lyric sources are optional</h2>
+        <p>
+          Word-by-word highlighting works with the lyrics Wave already has. Two extra community
+          sources that publish word timings — NetEase and Kugou — are asked only if you turn on
+          <strong>Word-level lyric sources</strong> in Settings, which is off initially. Only the
+          song title and artist are sent; both services see connection information such as your IP
+          address and neither publishes a stable API contract. Their answers are parsed on the
+          device and saved as ordinary lyrics. Turning the switch off stops new requests; lyrics
+          already saved stay available offline.
+        </p>
+      </section>
+      <section class="privacy-topic">
+        <h2>Offline copy of the interface</h2>
+        <p>
+          The web edition registers a service worker that stores the interface — HTML, scripts,
+          styles, fonts and icons — so Wave opens without a connection. Audio, artwork, lyrics and
+          video references are never added to that cache; they stay in the library storage described
+          above. Unregistering the service worker or clearing site data removes the offline copy,
+          and the next visit needs a connection.
         </p>
       </section>
       <section class="privacy-topic">

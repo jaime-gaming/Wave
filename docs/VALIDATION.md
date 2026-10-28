@@ -6,7 +6,7 @@ Release 0.1.1 · 27 October 2026. Historical run dates are retained below.
 
 - `npm run format:check`: passed.
 - `npm run lint`: passed.
-- `npm test`: **438 tests passed across 75 files** (latest run; 200 tests across 42 files at the 0.1.0 release).
+- `npm test`: **441 tests passed across 74 files** (latest run; 200 tests across 42 files at the 0.1.0 release).
 - `npm run test:e2e`: **89 Chromium browser tests passed** in the final complete run (7.6 minutes).
 - `npm run build`: passed. Vite reports its advisory 500 KB chunk-size warning (main chunk approximately 547 KB, gzip 172 KB); this is not a build failure.
 - `npm run build -- --base=/Wave/`: passed; a production static-server smoke test verified Home, Settings, fonts/assets, `/Wave/wave.svg`, the privacy page and its return link under the repository path without HTTP/page errors.
@@ -42,6 +42,15 @@ Browser coverage includes paused restoration of saved queue/native position, art
 - A library row without stored audio now reports it. This is derived during render, not set from an effect, so it cannot race playback.
 - Clip discovery no longer accepts a pasted link: `VideoBackdrop` renders search states only. Nothing verified the discovery result against live YouTube from this workspace.
 - Lyric sizes were increased in every view; the visual result was **not** screenshotted (no browser engine in this workspace).
+
+### 0.1.1 corrections: the bar stays, the mix is a mix, lyrics follow anywhere
+
+- `npx tsc -b`, `npx eslint .`, `npx prettier --check .`, `npm run build`, `npm run release:check -- v0.1.1` and `npm test` (441 tests across 74 files) pass.
+- The transport is no longer hidden by an idle timer: the hook that did it was removed together with its CSS, because a control that disappears on its own is a control that looks broken. `useIdleListening`'s 30-second cinema view is unchanged. A new Chromium test waits five still seconds with a song playing and asserts the Pause button and the seek slider are still visible; **it was not run** here (no browser binary in this workspace), so the claim rests on the code path and the DOM test for the removed hook being gone.
+- Mix: `MixAudio` (15 tests) now proves that at the midpoint of a handover the outgoing deck is at least 10 dB down in the low shelf while the incoming one is not, that the outgoing deck's low-pass has closed while the incoming deck's stays at 20 kHz, and that both are restored when the overlap ends. `mixPlanner` proves the staged curve is monotonic, jump-free, at constant power and reaches level early, and that a bar line is used for the start. **Nothing was listened to**: the claims are about gain and filter values over time, not about how a join sounds on a device.
+- The graph is no longer discarded when the audio context refuses to start; the engine retries from its timer and attaches then. This is covered indirectly (the EQ test routes through a running context); a refused-then-resumed context was **not** reproduced in a browser here.
+- Lyrics follow in the cinema view: `LyricsPanel` proves the read-only cinema renderer scrolls as the song advances (a second time position produces a new scroll) while staying read-only. The stored-scroll assertion in the Chromium test is **unverified** here.
+- Privacy: `public/privacy.html` and `PRIVACY.md` gained sections for clip discovery, YouTube songs, the optional word-level sources, the offline cache and Mix's playback-only processing, and were re-dated to 28 October 2026. The privacy page's palette test still passes the heading check; no test asserts the new wording.
 
 ### 0.1.1 corrections: one transport, frameless lyrics, cheaper lists
 

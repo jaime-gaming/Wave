@@ -16,20 +16,6 @@ export function mixCues(envelope: EnergyEnvelope | undefined, duration: number):
     end = Math.max(duration - 4, Math.min(duration, (last + 1) * step + 0.2));
   return { start: start >= 0.35 ? start : 0, end: duration - end >= 0.35 ? end : duration };
 }
-/** Equal-power staged handover: bring in, hold both recordings, then release the tail. */
-export function mixGains(progress: number, mix: boolean): { outgoing: number; incoming: number } {
-  const p = Math.max(0, Math.min(1, progress));
-  const smooth = (x: number) => x * x * (3 - 2 * x);
-  const phase = mix
-    ? p < 0.35
-      ? 0.45 * smooth(p / 0.35)
-      : p < 0.6
-        ? 0.45 + 0.1 * smooth((p - 0.35) / 0.25)
-        : 0.55 + 0.45 * smooth((p - 0.6) / 0.4)
-    : p;
-  return { outgoing: Math.cos((phase * Math.PI) / 2), incoming: Math.sin((phase * Math.PI) / 2) };
-}
-
 /**
  * The most a mix may start before the end of the *file*, whatever the analysis
  * believes the audible end to be. A handover that begins earlier is not a mix,

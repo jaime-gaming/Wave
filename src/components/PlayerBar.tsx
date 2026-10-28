@@ -2,7 +2,6 @@ import { MusicLighting } from './MusicLighting';
 import { VideoBackdrop } from './VideoBackdrop';
 import { YouTubeStage } from './YouTubeStage';
 import { useIdleListening } from '../hooks/useIdleListening';
-import { useControlsIdle } from '../hooks/useControlsIdle';
 import { MixVisual } from './MixVisual';
 import { WaveSeek } from './WaveSeek';
 import { LyricsPanel } from './LyricsPanel';
@@ -347,10 +346,6 @@ export function PlayerBar(props: PlayerProps) {
   } = props;
   const idle = useIdleListening(player.state.playing && !player.buffering && !!player.current);
   const showing = expanded || idle.immersive;
-  // Inside Now Playing the transport steps back after a couple of still seconds
-  // and returns on the first movement; the full immersive screen is left to the
-  // long idle, so the two never fight over the same moment.
-  const controls = useControlsIdle(showing && !idle.immersive && player.state.playing);
   // Only this bar follows the position; the rest of the interface stays still.
   const time = usePlaybackTime(player.clock);
   const colors = useArtworkColor(player.state.playing ? player.current?.artwork : undefined);
@@ -516,7 +511,7 @@ export function PlayerBar(props: PlayerProps) {
           }
           closeIcon={<ChevronDown size={24} />}
           returnFocusRef={expanded ? returnFocusRef : undefined}
-          className={`player-modal ${idle.immersive ? 'is-immersive' : ''}${controls.idle ? ' controls-idle' : ''}`}
+          className={`player-modal ${idle.immersive ? 'is-immersive' : ''}`}
           style={player.blend ? undefined : colors}
           onClose={() => {
             idle.wake();
@@ -558,8 +553,6 @@ export function PlayerBar(props: PlayerProps) {
             className="player-normal-view"
             inert={idle.immersive}
             aria-hidden={idle.immersive}
-            onPointerDown={controls.wake}
-            onKeyDown={controls.wake}
           >
             <PlayerDetails
               {...props}

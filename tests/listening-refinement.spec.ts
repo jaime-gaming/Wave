@@ -325,3 +325,30 @@ test('Privacy uses the exact Wave background and follows appearance changes from
   await expect(page.getByRole('heading', { name: 'Privacy & rights', exact: true })).toBeVisible();
   await other.close();
 });
+test('the transport stays on screen while a song plays, and the cinema view keeps scrolling the lyric', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await setup(page, true);
+  await page.getByRole('button', { name: 'Open now playing', exact: true }).click();
+  const full = page.getByRole('dialog', { name: 'Now playing' });
+  await page.clock.install();
+  await full.getByRole('button', { name: 'Play' }).click();
+  // Five still seconds with the song running: the transport does not go away.
+  await page.clock.fastForward(5000);
+  await expect(full.getByRole('button', { name: 'Pause' })).toBeVisible();
+  await expect(full.getByRole('slider', { name: 'Seek', exact: true })).toBeVisible();
+  await expect(page.locator('.player-modal')).not.toHaveClass(/controls-idle/);
+
+  // After the long idle the cinema view opens, and the lyric keeps following.
+  await page.clock.fastForward(26000);
+  await expect(page.locator('.immersive-stage')).toBeVisible();
+  const scrolled = await page
+    .locator('.lyrics-cinematic .lyrics-scroll')
+    .evaluate((node) => node.scrollTop);
+  await page.clock.fastForward(20000);
+  const later = await page
+    .locator('.lyrics-cinematic .lyrics-scroll')
+    .evaluate((node) => node.scrollTop);
+  expect(later).toBeGreaterThanOrEqual(scrolled);
+});

@@ -21,8 +21,14 @@ export const BEATS_PER_BAR = 4;
 export const MAX_STRETCH = 0.08;
 export const MIN_BARS = 4;
 export const MAX_BARS = 16;
-/** How long a blend should last, near enough. */
-export const TARGET_SECONDS = 9;
+/**
+ * How long a blend should last, near enough.
+ *
+ * Eight seconds was a crossfade: two songs sliding past each other. A mix needs
+ * long enough for the new song to arrive, the two to play together and the old
+ * one to leave — two phrases at a normal tempo, so about twelve seconds.
+ */
+export const TARGET_SECONDS = 12;
 /**
  * How much of the incoming song Mix may skip to find a downbeat. Starting the
  * new song deep inside itself is the worst thing a mix can do: the listener
@@ -89,10 +95,21 @@ function trusted(analysis: TrackAnalysis | undefined): analysis is TrackAnalysis
   );
 }
 
-/** Nearest beat-aligned time in A at or before `time`, inside the audible tail. */
+/**
+ * Time in A at or before `time`, on a bar line when one is close enough.
+ *
+ * Songs are built in bars, not in beats: leaving on a bar is what makes the
+ * handover land on a phrase instead of in the middle of one. The bar line is
+ * only used when it is inside the audible tail; otherwise the nearest beat is
+ * the honest answer.
+ */
 function alignOutgoing(analysis: TrackAnalysis, time: number): number {
   const { bpm, offset } = analysis.beats;
   const period = 60 / bpm;
+  const bar = period * BEATS_PER_BAR;
+  const barStart = offset + Math.floor((time - offset) / bar) * bar;
+  const start = Math.max(analysis.trimmed.start, barStart);
+  if (start <= time && time - start < bar) return start;
   const beats = (time - offset) / period;
   return Math.max(analysis.trimmed.start, offset + Math.floor(beats) * period);
 }
@@ -317,8 +334,36 @@ export function bassSwapGains(progress: number): { outgoing: number; incoming: n
   return { outgoing: Math.cos((smooth * Math.PI) / 2), incoming: Math.sin((smooth * Math.PI) / 2) };
 }
 
-/** Equal-power gains for the broadband fade, matching Apple-style crossfade. */
+const smoothstep = (value: number) => {
+  const t = clamp(value, 0, 1);
+  return t * t * (3 - 2 * t);
+};
+
+/** Equal-power gains for a plain crossfade: A leaves exactly as fast as B arrives. */
 export function planGains(progress: number): { outgoing: number; incoming: number } {
   const p = clamp(progress, 0, 1);
   return { outgoing: Math.cos((p * Math.PI) / 2), incoming: Math.sin((p * Math.PI) / 2) };
+}
+
+/**
+ * Equal-power gains for a mix, which is not a crossfade.
+ *
+ * A crossfade slides one song out while the other slides in at the same rate, so
+ * both are half-heard for the whole overlap. A mix is staged: the new song comes
+ * in quickly and sits at level (that is the moment you hear it arrive), the two
+ * play together for a few bars, and then the old song gets out of the way. The
+ * power sum stays at one the whole way, so nothing clips and no band drops out —
+ * only the balance changes, and it changes in a shape you can hear as a decision
+ * rather than a slide.
+ */
+export function handoverGains(progress: number): { outgoing: number; incoming: number } {
+  const p = clamp(progress, 0, 1);
+  // Fast arrival, a held middle, then the outgoing song leaves on the phrase.
+  const phase =
+    p < 0.28
+      ? 0.5 * smoothstep(p / 0.28)
+      : p < 0.62
+        ? 0.5 + 0.06 * smoothstep((p - 0.28) / 0.34)
+        : 0.56 + 0.44 * smoothstep((p - 0.62) / 0.38);
+  return { outgoing: Math.cos((phase * Math.PI) / 2), incoming: Math.sin((phase * Math.PI) / 2) };
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mixCues, mixGains, mixWindowReached } from './mix';
+import { mixCues, mixWindowReached } from './mix';
 it('conservatively bounds silence cues without trimming quiet music', () => {
   const values = new Float32Array(200);
   values.fill(0.1, 20, 180);
@@ -19,20 +19,6 @@ it('keeps short, silent, missing or unsupported recordings unchanged', () => {
     start: 0,
     end: 5,
   });
-});
-it('uses a staged monotonic handover with continuous complementary power', () => {
-  let previous = 0;
-  for (let i = 0; i <= 1000; i++) {
-    const gains = mixGains(i / 1000, true);
-    expect(Math.hypot(gains.incoming, gains.outgoing)).toBeCloseTo(1, 12);
-    expect(gains.incoming).toBeGreaterThanOrEqual(previous);
-    previous = gains.incoming;
-  }
-  expect(mixGains(0, true)).toEqual({ outgoing: 1, incoming: 0 });
-  expect(mixGains(1, true).incoming).toBe(1);
-  expect(mixGains(0.15, true).incoming).not.toBeCloseTo(mixGains(0.15, false).incoming, 3);
-  for (const p of [0.35, 0.6])
-    expect(mixGains(p - 1e-6, true).incoming).toBeCloseTo(mixGains(p + 1e-6, true).incoming, 5);
 });
 it('selects a bounded pair-specific window automatically', async () => {
   const { automaticMixSeconds } = await import('./mix');
