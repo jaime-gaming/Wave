@@ -31,7 +31,7 @@ import { Artwork } from './Artwork';
 import { Modal } from './Modal';
 import { formatTime, type Track } from '../domain/types';
 import type { usePlayer } from '../hooks/usePlayer';
-import { useArtworkColor } from '../hooks/useArtworkColor';
+import { usePlayerColors } from '../hooks/usePlayerColors';
 import { usePlaybackTime } from '../hooks/playbackClock';
 
 type PlayerProps = {
@@ -174,11 +174,20 @@ function PlayerDetails({
             ) : (
               <p>Choose a song from your library.</p>
             )}
-            {cue && (
-              <div className="stage-cue">
-                <MixCueLabel cue={cue} />
-              </div>
-            )}
+            <AnimatePresence initial={false}>
+              {cue && (
+                <motion.div
+                  className="stage-cue"
+                  key="stage-cue"
+                  initial={animation.enabled ? { opacity: 0, y: 4 } : false}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={animation.enabled ? { opacity: 0, y: -2 } : undefined}
+                  transition={animation.effects}
+                >
+                  <MixCueLabel cue={cue} />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         </motion.div>
         <div className="stage-controls">
@@ -364,7 +373,10 @@ export function PlayerBar(props: PlayerProps) {
   const showing = expanded || idle.immersive;
   // Only this bar follows the position; the rest of the interface stays still.
   const time = usePlaybackTime(player.clock);
-  const colors = useArtworkColor(player.state.playing ? player.current?.artwork : undefined);
+  const colors = usePlayerColors(
+    player.state.playing ? player.current?.artwork : undefined,
+    player.blend,
+  );
   const animation = useWaveMotion();
   useEffect(() => {
     if (!expanded) return;
@@ -377,7 +389,7 @@ export function PlayerBar(props: PlayerProps) {
         className="player-bar"
         data-track-id={player.current?.id}
         aria-label="Music player"
-        style={player.blend ? undefined : colors}
+        style={colors}
         inert={showing}
         aria-hidden={showing}
         onClick={(event) => {
@@ -534,7 +546,7 @@ export function PlayerBar(props: PlayerProps) {
           closeIcon={<ChevronDown size={24} />}
           returnFocusRef={expanded ? returnFocusRef : undefined}
           className={`player-modal ${idle.immersive ? 'is-immersive' : ''}`}
-          style={player.blend ? undefined : colors}
+          style={colors}
           onClose={() => {
             idle.wake();
             onExpanded(false);

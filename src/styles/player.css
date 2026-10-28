@@ -91,9 +91,6 @@
   background: var(--container);
   position: relative;
 }
-.stage-cover:hover:not(:disabled) {
-  filter: none;
-}
 .stage-cover-transition,
 .stage-cover .mix-artwork {
   width: 100%;
@@ -106,9 +103,9 @@
 }
 /*
  * A mix is drawn in two moves, because it is heard in two moves: the new cover
- * opens from the centre while it is arriving, and the old one only steps back
- * once both songs are already playing together. Every value is one progress
- * number, so the sleeve, the ring and the sound stay on the same clock.
+ * settles in while it is arriving, and the old one only steps back once both
+ * songs are already playing together. Every value is one progress number, so the
+ * sleeve and the sound stay on the same clock.
  */
 .mix-artwork {
   position: relative;
@@ -117,9 +114,10 @@
   height: 100%;
   /* The layers are absolute, so the frame needs a floor of its own: in the
      compact bar the parent is sized by its content, which would otherwise be
-     nothing at all. */
-  min-width: 56px;
-  min-height: 56px;
+     nothing at all. It has to stay smaller than the smallest cover Wave draws
+     (40 px), or a mix would push the bar apart. */
+  min-width: 34px;
+  min-height: 34px;
   aspect-ratio: 1;
   overflow: hidden;
   border-radius: inherit;
@@ -137,43 +135,54 @@
   border-radius: inherit;
 }
 .mix-outgoing {
-  opacity: calc(1 - var(--mix-leave, 0) * 0.92);
-  transform: scale(calc(1 - var(--mix-leave, 0) * 0.08));
-  filter: saturate(calc(1 - var(--mix-leave, 0) * 0.4))
-    brightness(calc(1 - var(--mix-leave, 0) * 0.16));
+  /* Sinks back and goes, rather than dissolving in place. */
+  opacity: calc(1 - var(--mix-leave, 0));
+  transform: scale(calc(1 - var(--mix-leave, 0) * 0.05))
+    translateY(calc(var(--mix-leave, 0) * -1.5%));
+  filter: saturate(calc(1 - var(--mix-leave, 0) * 0.45))
+    brightness(calc(1 - var(--mix-leave, 0) * 0.22));
 }
 .mix-incoming {
-  /* Also a plain fade, so the arrival is still legible where masks are not. */
-  opacity: calc(0.15 + var(--mix-progress, 0) * 0.85);
-  transform: scale(calc(1.08 - var(--mix-arrive, 0) * 0.08));
-  -webkit-mask-image: radial-gradient(
-    circle at 50% 50%,
-    #000 calc(var(--mix-arrive, 0) * 74%),
-    transparent calc(var(--mix-arrive, 0) * 74% + 14%)
-  );
-  mask-image: radial-gradient(
-    circle at 50% 50%,
-    #000 calc(var(--mix-arrive, 0) * 74%),
-    transparent calc(var(--mix-arrive, 0) * 74% + 14%)
-  );
+  /* Invisible until it is the new record arriving: no double exposure. */
+  opacity: var(--mix-arrive, 0);
+  transform: scale(calc(1.06 - var(--mix-arrive, 0) * 0.06));
 }
-/* A quiet ring of light where the two sleeves meet, brightest at the handover. */
+/* The soft focus is a stage gesture; at 48 px it would only look like mush. */
+.stage-cover .mix-incoming {
+  filter: blur(calc((1 - var(--mix-arrive, 0)) * 10px));
+}
+/* One band of light crossing the sleeve while the two songs meet. */
 .mix-seam {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  box-shadow: inset 0 0 0 1px
-    color-mix(in srgb, var(--player-accent, var(--primary)) 45%, transparent);
-  opacity: calc(var(--mix-peak, 0) * 0.55);
   pointer-events: none;
+  background: linear-gradient(
+    104deg,
+    transparent 36%,
+    color-mix(in srgb, var(--text, #fff) 24%, transparent) 50%,
+    transparent 64%
+  );
+  background-size: 240% 100%;
+  background-position: calc(140% - var(--mix-progress, 0) * 160%) 50%;
+  mix-blend-mode: soft-light;
+  opacity: calc(var(--mix-peak, 0) * 0.85);
 }
 @media (prefers-reduced-motion: no-preference) {
   .mix-outgoing,
   .mix-incoming {
     transition:
-      transform 0.18s linear,
-      opacity 0.18s linear,
-      mask-image 0.18s linear;
+      transform 0.2s linear,
+      opacity 0.2s linear,
+      filter 0.2s linear;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stage-cover .mix-incoming {
+    filter: none;
+  }
+  .mix-seam {
+    display: none;
   }
 }
 .stage-cover .stage-artwork {
@@ -808,41 +817,93 @@
 }
 
 /* Video clip backdrop: fills the expanded player, muted, with Wave's own chrome. */
+/*
+ * The clip, edge to edge.
+ *
+ * A backdrop has one job: fill the screen without black bars and without the
+ * provider's interface. The frame is sized from its own container (not from the
+ * viewport, which is what made it overhang on phones and letterbox on very wide
+ * windows) and then zoomed a little, so the player's title bar, its channel
+ * badge and the logo in the corner all fall outside the visible area. Nothing of
+ * YouTube's chrome is left on top of the picture, and nothing is left to click.
+ */
 .video-backdrop {
   position: absolute;
   inset: 0;
   z-index: -1;
   overflow: hidden;
   background: #05070c;
-  display: grid;
-  place-items: center;
+  container-type: size;
 }
 .video-backdrop-frame {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 100vw;
-  height: 56.25vw;
-  min-width: 177.78dvh;
-  min-height: 100dvh;
+  /* 16:9 that covers the container in either direction. */
+  width: max(100cqw, 177.78cqh);
+  height: max(56.25cqw, 100cqh);
   max-width: none;
   max-height: none;
   border: 0;
-  transform: translate(-50%, -50%) scale(1.02);
+  transform: translate(-50%, -50%) scale(1.24);
+  transform-origin: center;
   pointer-events: none;
-  filter: saturate(1.05);
+  border-radius: 0;
+  /* Hidden until the player reports it is really playing: see `.is-revealed`. */
+  opacity: 0;
+  filter: saturate(1.06) brightness(0.98);
+  transition:
+    opacity 0.85s ease,
+    filter 0.6s ease,
+    transform 0.6s ease;
 }
+/* Older engines without container units: the viewport is the next best ruler. */
+@supports not (width: 1cqw) {
+  .video-backdrop-frame {
+    width: 100vw;
+    height: 56.25vw;
+    min-width: 177.78dvh;
+    min-height: 100dvh;
+  }
+}
+.video-backdrop.is-revealed .video-backdrop-frame {
+  opacity: 1;
+}
+/*
+ * A paused song pauses the picture, and YouTube answers a pause with its own
+ * overlay: a play button, the title and a "watch on YouTube" button. Rather than
+ * show that, the picture softens into a still, blurred wash until the music
+ * comes back.
+ */
+.video-backdrop.is-paused .video-backdrop-frame {
+  filter: blur(30px) brightness(0.55) saturate(0.85);
+  transform: translate(-50%, -50%) scale(1.32);
+}
+@media (prefers-reduced-motion: reduce) {
+  .video-backdrop-frame {
+    transition: opacity 0.2s linear;
+  }
+}
+/*
+ * Edges closed off: the top band is where the player draws its title, the bottom
+ * corner is where it draws its logo, and both are covered by the picture losing
+ * itself into the interface. The middle stays untouched.
+ */
 .video-backdrop-veil {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(120% 90% at 50% 0%, rgba(0, 0, 0, 0.05) 0%, rgba(0, 0, 0, 0.55) 70%),
     linear-gradient(
       180deg,
-      rgba(0, 0, 0, 0.35) 0%,
-      rgba(0, 0, 0, 0.15) 40%,
-      rgba(0, 0, 0, 0.7) 100%
-    );
+      rgba(4, 6, 11, 0.96) 0%,
+      rgba(4, 6, 11, 0.62) 6%,
+      rgba(4, 6, 11, 0.12) 16%,
+      rgba(4, 6, 11, 0) 34%,
+      rgba(4, 6, 11, 0) 62%,
+      rgba(4, 6, 11, 0.42) 84%,
+      rgba(4, 6, 11, 0.94) 100%
+    ),
+    radial-gradient(130% 100% at 50% 42%, rgba(4, 6, 11, 0) 46%, rgba(4, 6, 11, 0.58) 100%);
   pointer-events: none;
 }
 
@@ -967,8 +1028,12 @@
     rgba(0, 0, 0, 0.55) 100%
   );
 }
+/* A YouTube song is the picture itself: shown at once, never cropped. */
 .video-backdrop--source .video-backdrop-frame {
   pointer-events: none;
+  opacity: 1;
+  transform: translate(-50%, -50%);
+  filter: none;
 }
 
 /* A YouTube song that is playing while Now Playing is collapsed. */
@@ -1099,125 +1164,131 @@
 }
 
 /*
- * The lead-in to a mix: the playing cover splits down the middle, the two halves
- * step aside, and the next song is already behind them when the join happens.
+ * The announcement.
  *
- * Everything here is one progress value from the engine, so the picture is
- * always on the same clock as the sound. Under reduced motion the halves stay
- * closed and only the incoming sleeve fades in — the meaning survives, the
- * movement does not.
+ * The playing cover, breathing: a very slow push in, a slight dim and a band of
+ * light crossing it. No split, no second sleeve, no ring — those read as a
+ * glitch next to the word, and the word is what does the announcing.
  */
 .mix-cue {
   position: relative;
   display: block;
   width: 100%;
   height: 100%;
-  min-width: 56px;
-  min-height: 56px;
+  min-width: 34px;
+  min-height: 34px;
   aspect-ratio: 1;
   overflow: hidden;
   border-radius: inherit;
   isolation: isolate;
 }
-.mix-cue-next,
-.mix-cue-half {
+.mix-cue-cover {
   position: absolute;
   inset: 0;
+  transform: scale(calc(1 + var(--cue-breath, 0) * 0.045));
+  filter: brightness(calc(1 - var(--cue-breath, 0) * 0.18))
+    saturate(calc(1 - var(--cue-breath, 0) * 0.1));
+  transition:
+    transform 0.5s linear,
+    filter 0.5s linear;
 }
-.mix-cue-next .artwork,
-.mix-cue-half .artwork {
+.mix-cue-cover .artwork {
   width: 100%;
   height: 100%;
   border-radius: inherit;
 }
-/* The next sleeve is visible from the start, dimmed, and comes up as it parts. */
-.mix-cue-next {
-  opacity: calc(0.35 + var(--cue-open, 0) * 0.65);
-  transform: scale(calc(1.04 - var(--cue-open, 0) * 0.04));
-}
-.mix-cue-left {
-  clip-path: inset(0 50% 0 0);
-  transform: translateX(calc(var(--cue-open, 0) * -13%));
-}
-.mix-cue-right {
-  clip-path: inset(0 0 0 50%);
-  transform: translateX(calc(var(--cue-open, 0) * 13%));
-}
-/* A thin line of light in the gap, breathing while the cue is waiting. */
-.mix-cue-seam {
-  position: absolute;
-  top: 6%;
-  bottom: 6%;
-  left: 50%;
-  width: 1.5px;
-  margin-left: -0.75px;
-  border-radius: 2px;
-  background: linear-gradient(
-    to bottom,
-    transparent,
-    color-mix(in srgb, var(--secondary) 70%, transparent) 22%,
-    color-mix(in srgb, var(--secondary) 70%, transparent) 78%,
-    transparent
-  );
-  opacity: calc(0.25 + var(--cue-breathe, 0) * 0.4 + var(--cue-open, 0) * 0.35);
-  transform: scaleY(calc(0.86 + var(--cue-open, 0) * 0.14));
-  pointer-events: none;
-}
-.mix-cue-label {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  overflow: hidden;
-  /* Quiet on purpose: a note in the margin, not an announcement. */
-  color: var(--muted, #9aa2b1);
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-.mix-cue-word {
-  position: relative;
-}
-/* The sweep: a soft vertical line of light that crosses the word, left to
-   right, then waits a few seconds before crossing again. */
-.mix-cue-scan {
+/* A band of light that leans as it crosses, matching the line under the word. */
+.mix-cue-sheen {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(
+    104deg,
+    transparent 34%,
+    color-mix(in srgb, var(--text) 22%, transparent) 50%,
+    transparent 66%
+  );
+  background-size: 240% 100%;
+  background-position: calc(140% - var(--cue-progress, 0) * 150%) 50%;
+  mix-blend-mode: soft-light;
+  opacity: var(--cue-glow, 0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .mix-cue-cover {
+    transform: none;
+    filter: none;
+    transition: none;
+  }
+  .mix-cue-sheen {
+    display: none;
+  }
+}
+.mix-cue-label {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  /* Quiet on purpose: a note in the margin, not an announcement. */
+  color: var(--muted, #9aa2b1);
+  line-height: 1;
+  white-space: nowrap;
+  animation: mix-cue-in 0.5s ease both;
+}
+.mix-cue-word {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.9;
+}
+/* One thin line, crossed by a short highlight, left to right, then a pause. */
+.mix-cue-line {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-width: 54px;
+  height: 1px;
+  overflow: hidden;
+  background: color-mix(in srgb, currentColor 24%, transparent);
+}
+.mix-cue-line::after {
+  content: '';
+  position: absolute;
+  inset: 0;
   background: linear-gradient(
     90deg,
     transparent 0%,
-    color-mix(in srgb, var(--on-surface, #fff) 0%, transparent) 38%,
-    color-mix(in srgb, var(--on-surface, #fff) 72%, transparent) 50%,
-    color-mix(in srgb, var(--on-surface, #fff) 0%, transparent) 62%,
+    color-mix(in srgb, var(--text, #fff) 92%, transparent) 50%,
     transparent 100%
   );
-  mix-blend-mode: soft-light;
-  transform: translateX(-110%);
-  animation: mix-cue-scan 4.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  transform: translateX(-100%);
+  animation: mix-cue-sweep 3.6s cubic-bezier(0.45, 0, 0.2, 1) infinite;
 }
-@keyframes mix-cue-scan {
+@keyframes mix-cue-sweep {
   0% {
-    transform: translateX(-110%);
-    opacity: 0;
+    transform: translateX(-100%);
   }
-  4% {
-    opacity: 1;
-  }
-  26% {
-    transform: translateX(110%);
-    opacity: 0.9;
-  }
-  28%,
+  46%,
   100% {
-    transform: translateX(110%);
+    transform: translateX(100%);
+  }
+}
+@keyframes mix-cue-in {
+  from {
     opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .mix-cue-scan {
+  .mix-cue-label {
+    animation: none;
+  }
+  .mix-cue-line::after {
     animation: none;
     opacity: 0;
   }
@@ -1225,51 +1296,12 @@
 .stage-cue {
   margin-top: 10px;
 }
-.stage-cue .mix-cue-label {
-  font-size: 13px;
+/* On the stage there is room for the word to be read, not just noticed. */
+.stage-cue .mix-cue-word {
+  font-size: 12px;
 }
-/* Three bars that rise and fall out of phase: a mix, not a spinner. */
-.mix-cue-waves {
-  display: inline-flex;
-  align-items: flex-end;
-  gap: 2px;
-  height: 12px;
-}
-.mix-cue-waves i {
-  display: block;
-  width: 2.5px;
-  height: 100%;
-  border-radius: 2px;
-  background: currentColor;
-  transform-origin: bottom;
-  animation: mix-cue-wave 1.1s ease-in-out infinite;
-}
-.mix-cue-waves i:nth-child(2) {
-  animation-delay: 0.18s;
-}
-.mix-cue-waves i:nth-child(3) {
-  animation-delay: 0.36s;
-}
-@keyframes mix-cue-wave {
-  0%,
-  100% {
-    transform: scaleY(0.35);
-    opacity: 0.6;
-  }
-  40% {
-    transform: scaleY(1);
-    opacity: 1;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .mix-cue-left,
-  .mix-cue-right {
-    transform: none;
-  }
-  .mix-cue-waves i {
-    animation: none;
-    transform: scaleY(0.7);
-  }
+.stage-cue .mix-cue-line {
+  min-width: 72px;
 }
 
 /*
@@ -1295,6 +1327,10 @@
   box-shadow:
     0 4px 10px #0003,
     0 30px 70px -20px #000a;
+}
+.stage-cover:active:not(:disabled) {
+  transform: translateY(-1px) scale(0.996);
+  transition-duration: 0.12s;
 }
 .stage-play {
   box-shadow:

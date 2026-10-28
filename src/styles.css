@@ -1886,6 +1886,16 @@ kbd {
   height: 54px;
   border-radius: 17px;
 }
+/* The cue replaces the artist line: one word and one thin line, never wider
+   than the title beside it. */
+.compact-track .mix-cue-label {
+  width: min(100%, 96px);
+  gap: 4px;
+}
+.compact-track .mix-cue-word {
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+}
 .compact-transport {
   display: flex;
   align-items: center;
@@ -6090,10 +6100,19 @@ h1 {
   font-size: 12px;
 }
 .clip-current a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 12.5px;
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+.clip-current a:hover {
+  color: var(--primary);
 }
 /* A link is the fallback when discovery cannot answer: the clip is never a dead end. */
 .clip-link {

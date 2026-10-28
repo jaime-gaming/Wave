@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Film, Link2, Loader2, Trash2 } from 'lucide-react';
+import { ExternalLink, Film, Link2, Loader2, Trash2 } from 'lucide-react';
 import { searchClips, chooseClip } from '../services/clipSearch';
 import { autoClipStart } from '../domain/clipSearch';
 import { CLIPS_CHANGED, getClip, loadClips, removeClip } from '../domain/videoClips';
@@ -80,11 +80,13 @@ export function ClipSection({ track }: { track: Track }) {
             <span>
               <small>Playing behind this song</small>
               <a
+                className="clip-current-link"
                 href={`https://www.youtube.com/watch?v=${clip.videoId}`}
                 target="_blank"
                 rel="noreferrer"
               >
-                youtube.com/watch?v={clip.videoId}
+                Open on YouTube
+                <ExternalLink size={13} aria-hidden="true" />
               </a>
             </span>
             <button
