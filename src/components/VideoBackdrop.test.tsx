@@ -36,7 +36,7 @@ describe('video clip backdrop', () => {
         expect.objectContaining({ signal: expect.anything() }),
       ),
     );
-    expect(rememberClip).toHaveBeenCalledWith('track-video', candidate);
+    expect(rememberClip).toHaveBeenCalledWith('track-video', candidate, expect.any(Number));
     expect(await screen.findByTitle(/video clip for/i)).toBeInTheDocument();
   });
 

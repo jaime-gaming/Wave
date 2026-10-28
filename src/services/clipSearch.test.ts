@@ -57,6 +57,57 @@ describe('automatic clip search', () => {
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
 
+  it('asks a second host when the first one is slow, and takes the first good answer', async () => {
+    // The first host never answers. Before the hedge, one dead instance could
+    // spend the whole budget and the search said "unreachable" with the rest of
+    // the list still untried.
+    const fetcher = vi.fn().mockImplementation((url: string) => {
+      const target = String(url);
+      if (target.includes('pipedapi.kavin.rocks')) return new Promise(() => {});
+      if (target.includes('inv.nadeko.net')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [
+            {
+              type: 'video',
+              videoId: 'dX3k_QDnzHE',
+              title: 'M83 - Midnight City (Official Video)',
+              author: 'M83',
+              lengthSeconds: 244,
+            },
+          ],
+        });
+      }
+      return Promise.resolve(piped([]));
+    });
+    const result = await findClip(song, { fetcher, hedgeMs: 10, providerTimeoutMs: 5_000 });
+    expect(result.status).toBe('found');
+    // Two hosts were asked; the healthy one answered and the search stopped there.
+    expect(fetcher.mock.calls.slice(0, 2).map((call) => String(call[0]))).toEqual([
+      expect.stringContaining('pipedapi.kavin.rocks'),
+      expect.stringContaining('inv.nadeko.net'),
+    ]);
+  });
+
+  it('places the clip where the music is, not where the upload begins', () => {
+    // 24 s of intro on the upload: start the clip inside it, bounded and rounded.
+    expect(
+      rememberClip(
+        'track-1',
+        { videoId: 'dX3k_QDnzHE', title: '', author: '', duration: 270 },
+        240,
+      ),
+    ).toMatchObject({ startAt: 18 });
+    // A clip about as long as the song starts at the beginning.
+    expect(
+      rememberClip(
+        'track-2',
+        { videoId: 'dX3k_QDnzHE', title: '', author: '', duration: 245 },
+        244,
+      ),
+    ).toMatchObject({ startAt: 0 });
+  });
+
   it('reports unavailable when nothing answers, without throwing', async () => {
     const fetcher = vi.fn().mockRejectedValue(new Error('blocked'));
     expect(await findClip(song, { fetcher })).toEqual({ status: 'unavailable' });

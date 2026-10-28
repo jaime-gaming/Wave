@@ -371,6 +371,37 @@ export function planTransitionCached(
   return plan;
 }
 
+/**
+ * Re-anchors a plan to where the song actually is.
+ *
+ * The plan is built from the tail of the song, so its `startAt` is a bar line a
+ * little before the last `seconds` of audio. If playback reaches that point on
+ * time, nothing happens here. If it arrives late — a throttled tab, a seek, a
+ * phone that slept — starting the blend at that moment would put the new song in
+ * halfway through a bar, which is exactly what makes a mix feel off. The blend is
+ * therefore moved forward by whole bars, never by a fraction, and loses those
+ * bars from its length. When too little is left for a phrase, the plan is
+ * abandoned so the engine can fall back instead of staggering.
+ */
+export function realignPlan(plan: TransitionPlan, position: number): TransitionPlan | null {
+  if (plan.mode !== 'beatmatched' || plan.seconds <= 0 || plan.bars < 2) return plan;
+  if (!Number.isFinite(position)) return plan;
+  const bar = plan.seconds / plan.bars;
+  const late = position - plan.startAt;
+  if (late <= bar * 0.25) return plan;
+  const skipped = Math.ceil(late / bar);
+  const bars = plan.bars - skipped;
+  // Two bars is the shortest overlap that still reads as a mix.
+  if (bars < 2) return null;
+  return {
+    ...plan,
+    bars,
+    seconds: Math.round(bars * bar * 100) / 100,
+    startAt: Math.round((plan.startAt + skipped * bar) * 1000) / 1000,
+    notes: [...plan.notes, 'The blend moved to the next bar to stay on the phrase.'],
+  };
+}
+
 /** True when the plan can be executed by the current engine. */
 export function isUsablePlan(plan: TransitionPlan, remaining: number): boolean {
   return plan.mode !== 'cut' && plan.seconds >= 0.5 && remaining > 0.25;

@@ -11,6 +11,7 @@ import {
   planGains,
   planTransition,
   planTransitionCached,
+  realignPlan,
   TARGET_SECONDS,
 } from './mixPlanner';
 import type { TrackAnalysis } from '../audio/dsp';
@@ -301,5 +302,41 @@ describe('the mix curve', () => {
       expect(value - previous).toBeLessThan(0.02);
       previous = value;
     }
+  });
+});
+
+describe('keeping the blend on the phrase', () => {
+  const plan = {
+    mode: 'beatmatched' as const,
+    seconds: 20,
+    startAt: 200,
+    cue: 12,
+    incomingRate: 1,
+    stretched: false,
+    bassSwapAt: 0.5,
+    bars: 10,
+    phaseAligned: true,
+    notes: [] as string[],
+  };
+
+  it('leaves a plan alone when the song reaches the cue point on time', () => {
+    expect(realignPlan(plan, 200)).toEqual(plan);
+    expect(realignPlan(plan, 199.9)).toEqual(plan);
+  });
+
+  it('moves a late blend to the next bar instead of starting mid-bar', () => {
+    const late = realignPlan(plan, 203.4);
+    // 20 s over 10 bars: each bar is 2 s, so the blend moves 4 s and loses 2 bars.
+    expect(late).toMatchObject({ startAt: 204, bars: 8, seconds: 16 });
+    expect(late?.notes.join(' ')).toMatch(/next bar/);
+  });
+
+  it('gives up rather than stagger when the phrase is gone', () => {
+    expect(realignPlan(plan, 218)).toBeNull();
+  });
+
+  it('does not touch fallbacks or cuts', () => {
+    expect(realignPlan({ ...plan, mode: 'crossfade' }, 260)).not.toBeNull();
+    expect(realignPlan({ ...plan, mode: 'cut', seconds: 0, bars: 0 }, 260)).not.toBeNull();
   });
 });

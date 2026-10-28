@@ -64,7 +64,9 @@ export function MixCueLabel({ cue }: { cue: MixCue }) {
         <i />
         <i />
       </span>
-      Mixing
+      <span className="mix-cue-word">Mixing</span>
+      {/* A thin line of light crosses the word, pauses, and crosses again. */}
+      <span className="mix-cue-scan" aria-hidden="true" />
     </span>
   );
 }

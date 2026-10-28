@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   clampVideoOffset,
+  fitClipTime,
   planVideoSync,
   VIDEO_HARD_DRIFT_SECONDS,
   VIDEO_OFFSET_LIMIT_SECONDS,
@@ -123,5 +124,48 @@ describe('video clip sync', () => {
     ).toBe('Resyncing video clip');
     expect(videoDisplayTime({ position: 10, playing: true, ready: true }, 2)).toBe(8);
     expect(videoDisplayTime({ position: 1, playing: true, ready: true }, 5)).toBe(0);
+  });
+});
+
+describe('fitting the picture to the song', () => {
+  it('aims at the placed start of the clip, not at the beginning of the upload', () => {
+    // The music starts 18 s into the upload: at 30 s of the song the picture
+    // belongs at 48 s, and it is not treated as drift.
+    expect(
+      planVideoSync({ position: 30, playing: true }, ready(48), {
+        startAt: 18,
+        duration: 240,
+        now: 0,
+      }),
+    ).toEqual({ type: 'none' });
+    expect(
+      planVideoSync({ position: 30, playing: true }, ready(30), {
+        startAt: 18,
+        duration: 240,
+        now: 0,
+      }),
+    ).toEqual({ type: 'seek', to: 48 });
+  });
+
+  it('does not clamp the placement like a manual nudge', () => {
+    // 45 s in is beyond the manual offset limit; a placement is free to go there.
+    expect(fitClipTime(10, 45)).toBe(10);
+    expect(
+      planVideoSync({ position: 10, playing: true }, ready(0), {
+        startAt: 45,
+        duration: 240,
+        now: 0,
+      }),
+    ).toEqual({ type: 'seek', to: 55 });
+  });
+
+  it('starts the picture again when the clip is shorter than the song', () => {
+    expect(fitClipTime(10, 0, 180)).toBe(10);
+    // Past the end of the video, aim back inside it instead of beyond.
+    expect(fitClipTime(200, 6, 180)).toBe(26);
+    expect(fitClipTime(380, 0, 180)).toBe(20);
+    // Unknown or negligible lengths change nothing.
+    expect(fitClipTime(200, 0)).toBe(200);
+    expect(fitClipTime(200, 0, 3)).toBe(200);
   });
 });

@@ -67,7 +67,7 @@ export function VideoBackdrop({
       { signal: controller.signal, refresh: attempt > 0 },
     ).then((result) => {
       if (controller.signal.aborted) return;
-      if (result.status === 'found' && rememberClip(track.id, result.candidate)) {
+      if (result.status === 'found' && rememberClip(track.id, result.candidate, track.duration)) {
         setClips(loadClips());
         return;
       }
@@ -219,15 +219,19 @@ function ClipPlayer({
       command(
         planVideoSync({ position: time, playing }, latest.current, {
           duration,
-          // No manual offset: the correction loop closes small drift by itself.
+          // The clip may be placed inside a longer upload, so the target is the
+          // song's position plus that start. Without it the loop would treat the
+          // offset as drift and drag the picture back to the beginning.
           offset: 0,
+          startAt: clip.startAt,
+          clipLength: clip.duration,
           now: Date.now(),
           cooldownUntil: cooldown.current,
         }),
       );
     }, 500);
     return () => clearInterval(timer);
-  }, [time, playing, duration, command]);
+  }, [time, playing, duration, clip.startAt, clip.duration, command]);
 
   return (
     // Decoration: the song's transport is the only control surface.

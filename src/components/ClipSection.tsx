@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Film, Loader2, Trash2 } from 'lucide-react';
+import { Film, Link2, Loader2, Trash2 } from 'lucide-react';
 import { searchClips, chooseClip } from '../services/clipSearch';
+import { autoClipStart } from '../domain/clipSearch';
 import { CLIPS_CHANGED, getClip, loadClips, removeClip } from '../domain/videoClips';
-import { youtubeThumbnailUrl } from '../domain/youtube';
+import { parseYouTubeLink, youtubeThumbnailUrl } from '../domain/youtube';
 import type { ClipCandidate } from '../domain/clipSearch';
 import type { Track } from '../domain/types';
 
@@ -19,6 +20,8 @@ export function ClipSection({ track }: { track: Track }) {
   const [status, setStatus] = useState<'idle' | 'searching' | 'empty' | 'unavailable'>('idle');
   const [candidates, setCandidates] = useState<ClipCandidate[]>([]);
   const [offset, setOffset] = useState(clip?.startAt ?? 0);
+  const [link, setLink] = useState('');
+  const [linkError, setLinkError] = useState(false);
 
   useEffect(() => {
     const sync = () => {
@@ -42,7 +45,23 @@ export function ClipSection({ track }: { track: Track }) {
     setStatus(result.status === 'found' ? 'idle' : result.status);
   };
 
-  const pick = (candidate: ClipCandidate, startAt = 0) => {
+  const applyLink = () => {
+    const parsed = parseYouTubeLink(link);
+    if (!parsed || parsed.kind !== 'video') {
+      setLinkError(true);
+      return;
+    }
+    setLinkError(false);
+    setLink('');
+    // Nothing is known about this upload's length, so it starts where it starts;
+    // the offset field below is right there if it needs a nudge.
+    pick({ videoId: parsed.videoId, title: '', author: '', duration: 0 }, 0);
+  };
+
+  const pick = (
+    candidate: ClipCandidate,
+    startAt = autoClipStart(candidate.duration, track.duration),
+  ) => {
     chooseClip(track.id, candidate, startAt);
     setCandidates([]);
     window.dispatchEvent(new Event(CLIPS_CHANGED));
@@ -90,7 +109,10 @@ export function ClipSection({ track }: { track: Track }) {
               value={offset}
               onChange={(event) => setOffset(Math.max(0, Number(event.target.value) || 0))}
               onBlur={() =>
-                pick({ videoId: clip.videoId, title: '', author: '', duration: 0 }, offset)
+                pick(
+                  { videoId: clip.videoId, title: '', author: '', duration: clip.duration ?? 0 },
+                  offset,
+                )
               }
             />
             <span>s</span>
@@ -117,7 +139,38 @@ export function ClipSection({ track }: { track: Track }) {
       )}
       {status === 'unavailable' && (
         <p className="clip-empty" role="status">
-          The clip search is unreachable right now.
+          The clip search is unreachable right now. You can paste a link instead.
+        </p>
+      )}
+      <form
+        className="clip-link"
+        onSubmit={(event) => {
+          event.preventDefault();
+          applyLink();
+        }}
+      >
+        <label>
+          <Link2 size={16} aria-hidden="true" />
+          <input
+            type="url"
+            inputMode="url"
+            placeholder="youtube.com/watch?v=…"
+            aria-label="YouTube link for this clip"
+            aria-invalid={linkError || undefined}
+            value={link}
+            onChange={(event) => {
+              setLink(event.target.value);
+              setLinkError(false);
+            }}
+          />
+        </label>
+        <button type="submit" className="text-button" disabled={!link.trim()}>
+          Use this video
+        </button>
+      </form>
+      {linkError && (
+        <p className="clip-empty" role="status">
+          That is not a YouTube video link.
         </p>
       )}
       {!!candidates.length && (

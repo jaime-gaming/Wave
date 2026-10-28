@@ -42,7 +42,7 @@ describe('loan policy', () => {
     expect(usage).toMatchObject({ bytes: 10 * MB, tracks: 1, freeBytes: 90 * MB, full: false });
   });
 
-  it('evicts the least recently used unpinned loan to make room', () => {
+  it('never removes a loan to make room for a new one', () => {
     const existing = [
       loan({ loanId: 'old', lastUsedAt: 10 }),
       loan({ loanId: 'new', lastUsedAt: 90 }),
@@ -51,10 +51,13 @@ describe('loan policy', () => {
       capacityBytes: 30 * MB,
       maxTracks: 10,
     });
-    // 20 MB in use of a 30 MB budget: the oldest loan goes before the new one fits.
-    expect(result.evicted.map((entry) => entry.loanId)).toEqual(['old']);
-    expect(result.granted.map((entry) => entry.loanId)).toEqual(['extra']);
-    expect(result.loans.map((entry) => entry.loanId)).toEqual(['new', 'extra']);
+    // 20 MB are already borrowed of a 30 MB budget. The listener's songs stay
+    // where they are, and the new request is refused with a reason the page can
+    // show, so nothing disappears behind their back.
+    expect(result.evicted).toEqual([]);
+    expect(result.granted).toEqual([]);
+    expect(result.rejected[0].reason).toBe('capacity');
+    expect(result.loans.map((entry) => entry.loanId)).toEqual(['old', 'new']);
   });
 
   it('never evicts pinned loans and rejects what cannot fit', () => {

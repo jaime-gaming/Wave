@@ -6,10 +6,9 @@ import { MAX_LOAN_TRACK_BYTES } from './protocol';
  * The user's decision for Wave 1.1 is deliberately simple: **loans are bounded
  * by space, not by a timer.** The borrowing device shows a list of offline
  * devices and can delete any loan (or a whole device) at any time; the granting
- * device can revoke what it shared. Nothing renews silently and nothing is
- * deleted behind the user's back, with one exception: when a new loan does not
- * fit, the least recently used unpinned loan is evicted first, and that eviction
- * is reported so the interface can explain it.
+ * device can revoke what it shared. Nothing renews silently and **nothing is
+ * ever deleted to make room**: a song that does not fit is refused, with the
+ * numbers in the message, and the listener decides what to hand back.
  *
  * `expiresAt` exists in the model only for a future explicit option and is
  * ignored unless a caller sets it.
@@ -134,8 +133,11 @@ export function grantLoans(
   now = Date.now(),
 ): GrantResult {
   validatePolicy(policy);
-  let loans = existing.slice();
+  const loans = existing.slice();
   const granted: LoanRecord[] = [];
+  // Nothing is ever removed to make room. Borrowed songs are the listener's
+  // songs while they are here; a full budget is a conversation the interface
+  // shows, not a silent deletion.
   const evicted: LoanRecord[] = [];
   const rejected: GrantResult['rejected'] = [];
 
@@ -163,15 +165,6 @@ export function grantLoans(
     }
 
     const sizeOf = (list: LoanRecord[]) => list.reduce((sum, loan) => sum + loan.size, 0);
-    while (
-      loans.length + 1 > policy.maxTracks ||
-      sizeOf(loans) + request.size > policy.capacityBytes
-    ) {
-      const [next] = evictionOrder(loans);
-      if (!next) break;
-      loans = loans.filter((loan) => loan.loanId !== next.loanId);
-      evicted.push(next);
-    }
     if (
       loans.length + 1 > policy.maxTracks ||
       sizeOf(loans) + request.size > policy.capacityBytes

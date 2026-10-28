@@ -71,6 +71,8 @@ export class PairingSession {
   failure?: PairingFailure;
   sas?: string;
   peer?: DeviceInfo;
+  /** The peer's raw public key, kept so a known device can be recognised. */
+  peerPublicKey?: Uint8Array;
   sessionKey?: CryptoKey;
   private startedAt = 0;
   private localConfirmed = false;
@@ -226,6 +228,7 @@ export class PairingSession {
       platform: frame.platform,
       protocolVersion: frame.protocolVersion,
     };
+    this.peerPublicKey = peerKey;
     this.sas = await sasCode(this.options.identity.publicKey, peerKey);
     this.setState('awaiting-confirmation');
     this.options.onSas?.(this.sas);

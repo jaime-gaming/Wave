@@ -1,19 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import QRCode from 'qrcode';
 import { DeviceLink, type LinkStatus, type PeerLibrary } from '../sync/link';
 import { createTransport, type Transport } from '../sync/transport';
 import { decodeSignal } from '../sync/signal';
+import { loadIdentity } from '../sync/identity';
 import {
+  deleteDeviceLoans,
+  deleteLoan,
   forgetDevice,
   getDevices,
   getLoans,
   getSyncUsage,
-  deleteDeviceLoans,
-  deleteLoan,
+  type SyncDevice,
 } from '../sync/store';
-import type { LoanRecord } from '../sync/loan';
-import type { DeviceSummary } from '../sync/loan';
+import type { DeviceSummary, LoanRecord } from '../sync/loan';
 import type { LibraryEntry } from '../sync/protocol';
-import type { SyncDevice } from '../sync/store';
 import type { Track } from '../domain/types';
 
 const DEVICE_ID_KEY = 'wave-device-id';
@@ -39,7 +40,7 @@ function deviceId() {
 }
 
 /** A name that says which device this is, without asking. */
-function defaultName() {
+export function defaultDeviceName() {
   try {
     const saved = localStorage.getItem(DEVICE_NAME_KEY);
     if (saved) return saved;
@@ -58,27 +59,41 @@ export function setDeviceName(name: string) {
   }
 }
 
-export const LINK_STEPS = ['invite', 'join', 'confirm', 'browse'] as const;
-export type LinkStep = (typeof LINK_STEPS)[number];
+/** The link a QR code carries. Opening it on the other device is enough. */
+export function pairingLink(payload: string) {
+  const base = `${location.origin}${location.pathname}`;
+  return `${base}#wave-pair=${encodeURIComponent(payload)}`;
+}
 
-/**
- * Linking two devices, from the interface's point of view.
- *
- * The page gives a track list and gets back a paired peer, its library, and the
- * loans that arrived. Everything cryptographic stays in `src/sync`; this file
- * only sequences it and keeps the results in state.
- */
+/** Reads a pairing payload from a scanned or opened link. */
+export function readPairingLink(text: string): string | null {
+  const value = text.trim();
+  if (!value) return null;
+  const match = /(?:^|[#&?])wave-pair=([^&\s]+)/u.exec(value);
+  if (match) {
+    try {
+      return decodeURIComponent(match[1]);
+    } catch {
+      return null;
+    }
+  }
+  return value.startsWith('wave1.') ? value : null;
+}
+
+/** What the page is doing, in one word each. */
+export type LinkStage =
+  'idle' | 'show-code' | 'scan-reply' | 'scan-invite' | 'show-reply' | 'confirm' | 'connected';
+
 export function useDevices(tracks: Track[]) {
   const tracksRef = useRef(tracks);
   useEffect(() => {
     tracksRef.current = tracks;
   }, [tracks]);
+
   const [status, setStatus] = useState<LinkStatus>({ kind: 'idle' });
-  const [step, setStep] = useState<LinkStep>('invite');
-  /** The code this device should show, if it is the host. */
-  const [showCode, setShowCode] = useState('');
-  /** The code this device should send back, if it is the guest. */
-  const [replyCode, setReplyCode] = useState('');
+  const [stage, setStage] = useState<LinkStage>('idle');
+  const [qr, setQr] = useState('');
+  const [link, setLink] = useState('');
   const [peerLibrary, setPeerLibrary] = useState<PeerLibrary | null>(null);
   const [devices, setDevices] = useState<SyncDevice[]>([]);
   const [loans, setLoans] = useState<LoanRecord[]>([]);
@@ -88,8 +103,8 @@ export function useDevices(tracks: Track[]) {
   const [progress, setProgress] = useState<{ received: number; total: number } | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const link = useRef<DeviceLink | null>(null);
-  const transport = useRef<Transport | null>(null);
+  const linkRef = useRef<DeviceLink | null>(null);
+  const transportRef = useRef<Transport | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -104,13 +119,11 @@ export function useDevices(tracks: Track[]) {
       setUsedBytes(usage.usage.bytes);
       setCapacityBytes(usage.usage.capacityBytes);
     } catch {
-      // Private mode or a wiped database: the page simply shows nothing saved.
+      // Private mode or a wiped database: nothing saved is a fine answer.
     }
   }, []);
 
   useEffect(() => {
-    // Reading the sync database is an external read, not a render input; the
-    // results arrive in the callback below.
     let active = true;
     void (async () => {
       try {
@@ -126,7 +139,7 @@ export function useDevices(tracks: Track[]) {
         setUsedBytes(usage.usage.bytes);
         setCapacityBytes(usage.usage.capacityBytes);
       } catch {
-        // Private mode or a wiped database: nothing saved is a fine answer.
+        // Nothing stored yet.
       }
     })();
     return () => {
@@ -135,14 +148,14 @@ export function useDevices(tracks: Track[]) {
   }, []);
 
   const reset = useCallback(() => {
-    link.current?.close();
-    transport.current?.close();
-    link.current = null;
-    transport.current = null;
+    linkRef.current?.close();
+    transportRef.current?.close();
+    linkRef.current = null;
+    transportRef.current = null;
     setStatus({ kind: 'idle' });
-    setStep('invite');
-    setShowCode('');
-    setReplyCode('');
+    setStage('idle');
+    setQr('');
+    setLink('');
     setPeerLibrary(null);
     setProgress(null);
   }, []);
@@ -153,102 +166,127 @@ export function useDevices(tracks: Track[]) {
     async (polite: boolean) => {
       if (typeof RTCPeerConnection === 'undefined')
         throw new Error('This browser cannot link devices. Try Chrome, Edge or Safari.');
-      const device = await DeviceLink.create({
-        tracks: () =>
-          tracksRef.current.map((track) => ({
-            id: track.id,
-            title: track.title,
-            artist: track.artist,
-            album: track.album,
-            size: track.blob?.size ?? 0,
-            blob: track.blob ?? new Blob(),
-          })),
-        name: defaultName(),
-        deviceId: deviceId(),
-        onStatus: setStatus,
-        onLibrary: setPeerLibrary,
-        onProgress: (value) =>
-          setProgress(value ? { received: value.received, total: value.total } : null),
-        onLoaned: () => void refresh(),
-        onError: setError,
-      });
+      const identity = await loadIdentity(deviceId(), defaultDeviceName());
+      const device = DeviceLink.create(
+        {
+          tracks: () =>
+            tracksRef.current.map((track) => ({
+              id: track.id,
+              title: track.title,
+              artist: track.artist,
+              album: track.album,
+              size: track.blob?.size ?? 0,
+              blob: track.blob ?? new Blob(),
+            })),
+          name: defaultDeviceName(),
+          deviceId: identity.deviceId,
+          onStatus: (next) => {
+            setStatus(next);
+            if (next.kind === 'connected') setStage('connected');
+            if (next.kind === 'confirm') setStage('confirm');
+          },
+          onLibrary: setPeerLibrary,
+          onProgress: (value) =>
+            setProgress(value ? { received: value.received, total: value.total } : null),
+          onLoaned: () => void refresh(),
+          onError: setError,
+        },
+        identity,
+      );
       const wire = createTransport(
         { polite },
         { onMessage: () => undefined, onState: () => undefined },
       );
-      link.current = device;
-      transport.current = wire;
+      linkRef.current = device;
+      transportRef.current = wire;
       return { device, wire };
     },
     [refresh],
   );
 
-  /** Host: make a code and wait for the guest's reply. */
-  const startInvite = useCallback(async () => {
+  const show = useCallback(async (payload: string) => {
+    const value = pairingLink(payload);
+    setLink(value);
+    setQr(
+      await QRCode.toDataURL(value, {
+        errorCorrectionLevel: 'L',
+        margin: 1,
+        width: 360,
+        color: { dark: '#0b0e15', light: '#ffffff' },
+      }),
+    );
+  }, []);
+
+  /** Host: creates the invite and shows it as a QR code. */
+  const invite = useCallback(async () => {
     setError('');
     setBusy(true);
     try {
       reset();
       const { device, wire } = await makeLink(false);
-      const code = await device.invite(wire);
-      setShowCode(code);
-      setStep('invite');
+      await show(await device.invite(wire));
+      setStage('show-code');
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'The code could not be created.');
     } finally {
       setBusy(false);
     }
-  }, [makeLink, reset]);
+  }, [makeLink, reset, show]);
 
-  /** Guest: paste the host's code, and get the reply to send back. */
-  const joinWithCode = useCallback(
-    async (hostCode: string) => {
-      setError('');
-      setBusy(true);
-      try {
-        await decodeSignal(hostCode);
-        reset();
-        const { device, wire } = await makeLink(true);
-        const reply = await device.join(wire, hostCode);
-        setReplyCode(reply ?? '');
-        setStep('join');
-      } catch (reason) {
-        setError(
-          reason instanceof Error
-            ? reason.message
-            : 'That code could not be read. Copy it again, whole.',
-        );
-      } finally {
-        setBusy(false);
-      }
-    },
-    [makeLink, reset],
-  );
-
-  /** Host: paste the guest's reply to complete the connection. */
-  const acceptReply = useCallback(async (code: string) => {
+  /** Host: applies the reply the other device showed. */
+  const acceptReply = useCallback(async (raw: string) => {
     setError('');
     setBusy(true);
     try {
-      await transport.current?.acceptCode(code);
-      setStep('confirm');
+      const payload = readPairingLink(raw);
+      if (!payload) throw new Error('That does not look like a Wave code.');
+      await decodeSignal(payload);
+      await transportRef.current?.acceptCode(payload);
+      setStage('confirm');
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'That reply could not be read.');
+      setError(reason instanceof Error ? reason.message : 'That code could not be read.');
     } finally {
       setBusy(false);
     }
   }, []);
 
+  /** Guest: joins from a scanned or opened invite, then shows a reply QR. */
+  const join = useCallback(
+    async (raw: string) => {
+      setError('');
+      setBusy(true);
+      try {
+        const payload = readPairingLink(raw);
+        if (!payload) throw new Error('That does not look like a Wave code.');
+        await decodeSignal(payload);
+        reset();
+        const { device, wire } = await makeLink(true);
+        const reply = await device.join(wire, payload);
+        if (reply) {
+          await show(reply);
+          setStage('show-reply');
+        }
+      } catch (reason) {
+        setError(
+          reason instanceof Error ? reason.message : 'That code could not be read. Try again.',
+        );
+      } finally {
+        setBusy(false);
+      }
+    },
+    [makeLink, reset, show],
+  );
+
   const confirm = useCallback(() => {
-    link.current?.confirm();
-    setStep('browse');
+    linkRef.current?.confirm();
+    setStage('connected');
   }, []);
 
   const request = useCallback(async (entries: LibraryEntry[]) => {
     setError('');
     try {
-      const count = await link.current?.request(entries);
-      if (count) setProgress({ received: 0, total: 0 });
+      await linkRef.current?.request(entries);
+      setProgress({ received: 0, total: 0 });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'The songs could not be requested.');
     }
@@ -262,6 +300,7 @@ export function useDevices(tracks: Track[]) {
     [refresh],
   );
 
+  /** Removing a device is explicit, and takes its borrowed songs with it. */
   const removeDevice = useCallback(
     async (id: string) => {
       await deleteDeviceLoans(id);
@@ -273,10 +312,9 @@ export function useDevices(tracks: Track[]) {
 
   return {
     status,
-    step,
-    setStep,
-    showCode,
-    replyCode,
+    stage,
+    qr,
+    link,
     peerLibrary,
     devices,
     loans,
@@ -289,8 +327,8 @@ export function useDevices(tracks: Track[]) {
     connected: status.kind === 'connected',
     confirmCode: status.kind === 'confirm' ? status.code : '',
     peerName: status.kind === 'confirm' || status.kind === 'connected' ? status.peerName : '',
-    startInvite,
-    joinWithCode,
+    invite,
+    join,
     acceptReply,
     confirm,
     request,

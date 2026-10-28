@@ -22,8 +22,14 @@ const sections = [
   { id: 'about', title: 'About', icon: Info },
 ] as const;
 type Section = (typeof sections)[number]['id'];
-export function SettingsPage(props: Record<Section, ReactNode> & { onBack: () => void }) {
-  const [selected, setSelected] = useState<Section | null>(null);
+export function SettingsPage(
+  props: Record<Section, ReactNode> & {
+    onBack: () => void;
+    /** Opens straight into one section, used by a `#wave-pair=` link. */
+    initialSection?: Section | null;
+  },
+) {
+  const [selected, setSelected] = useState<Section | null>(props.initialSection ?? null);
   const heading = useRef<HTMLHeadingElement>(null);
   const root = useRef<HTMLElement>(null);
   const previous = useRef<Section | null>(null);

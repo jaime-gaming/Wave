@@ -41,6 +41,13 @@ export interface VideoState {
 export interface SyncOptions {
   /** Seconds added to the song position before comparing (user adjustment). */
   offset?: number;
+  /**
+   * Where the clip was placed inside its upload. Unlike `offset` this is not a
+   * nudge, so it is not clamped: a video can start music a minute in.
+   */
+  startAt?: number;
+  /** Length of the video, when known; a clip shorter than the song restarts. */
+  clipLength?: number;
   /** Duration of the song; clips longer than it are ignored past the end. */
   duration?: number;
   now?: number;
@@ -84,7 +91,11 @@ export function planVideoSync(
   const now = options.now ?? 0;
   const hard = options.hardDrift ?? VIDEO_HARD_DRIFT_SECONDS;
   const soft = options.softDrift ?? VIDEO_SOFT_DRIFT_SECONDS;
-  const wanted = Math.max(0, target.position + offset);
+  const startAt =
+    typeof options.startAt === 'number' && Number.isFinite(options.startAt)
+      ? Math.max(0, options.startAt)
+      : 0;
+  const wanted = fitClipTime(target.position + startAt + offset, startAt, options.clipLength);
 
   if (!target.playing) return video.playing ? { type: 'pause' } : { type: 'none' };
   if (target.position > duration + 0.5) return video.playing ? { type: 'pause' } : { type: 'none' };
@@ -108,6 +119,24 @@ export function planVideoSync(
   }
   if (video.rate !== undefined && video.rate !== 1) return { type: 'nudge', rate: 1 };
   return { type: 'none' };
+}
+
+/**
+ * Where the picture should be for a given moment of the song.
+ *
+ * When the upload is longer than the song, the song's end never reaches the
+ * video's end, so the start placement is all that matters. When the clip is
+ * shorter, the picture has to go round again: aiming past the end of the video
+ * made the embed ignore the seek and left a frozen frame, so the position is
+ * wrapped instead and the restart lands where the music is.
+ */
+export function fitClipTime(time: number, startAt = 0, clipLength?: number): number {
+  if (!Number.isFinite(time)) return 0;
+  const from = Math.max(0, Number.isFinite(startAt) ? startAt : 0);
+  const length = Number.isFinite(clipLength) ? (clipLength as number) : 0;
+  const span = length - from;
+  if (length <= 0 || span <= 5 || time < length) return Math.max(0, time);
+  return from + ((time - from) % span);
 }
 
 /** Progress bar value for the clip, so the UI never shows a negative time. */

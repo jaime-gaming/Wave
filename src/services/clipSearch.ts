@@ -11,6 +11,7 @@
  * the chosen clip is remembered locally so the search happens once per song.
  */
 import {
+  autoClipStart,
   clipQuery,
   parseInvidiousResults,
   parsePipedResults,
@@ -22,9 +23,13 @@ import { storeClip, type StoredClip } from '../domain/videoClips';
 
 export const CLIP_CACHE_KEY = 'wave-clip-search-v1';
 /** Whole search budget: a song either finds a clip quickly or says so. */
-export const CLIP_SEARCH_TIMEOUT_MS = 7_000;
+export const CLIP_SEARCH_TIMEOUT_MS = 9_000;
 /** How long one host is allowed to answer before the next one is asked. */
-export const CLIP_PROVIDER_TIMEOUT_MS = 2_500;
+export const CLIP_PROVIDER_TIMEOUT_MS = 4_000;
+/** How long a host gets on its own before the next one is asked as well. */
+export const CLIP_SEARCH_HEDGE_MS = 1_200;
+/** How many hosts can be in flight at once. */
+export const CLIP_PROVIDERS_MAX_WORKERS = 4;
 /** A host that just failed is skipped for this long instead of being retried. */
 export const PROVIDER_COOLDOWN_MS = 10 * 60_000;
 /** An "empty" answer is re-checked after a day: instances move, matches appear. */
@@ -94,6 +99,30 @@ export const CLIP_PROVIDERS: Provider[] = [
       `https://iv.ggtyler.dev/api/v1/search?q=${encodeURIComponent(query)}&type=video`,
     parse: parseInvidiousResults,
   },
+  {
+    name: 'piped.drgns',
+    url: (query) =>
+      `https://pipedapi.drgns.space/search?q=${encodeURIComponent(query)}&filter=videos`,
+    parse: parsePipedResults,
+  },
+  {
+    name: 'invidious.f5',
+    url: (query) =>
+      `https://invidious.f5.si/api/v1/search?q=${encodeURIComponent(query)}&type=video`,
+    parse: parseInvidiousResults,
+  },
+  {
+    name: 'piped.leptons',
+    url: (query) =>
+      `https://pipedapi.leptons.xyz/search?q=${encodeURIComponent(query)}&filter=videos`,
+    parse: parsePipedResults,
+  },
+  {
+    name: 'invidious.melmac',
+    url: (query) =>
+      `https://iv.melmac.space/api/v1/search?q=${encodeURIComponent(query)}&type=video`,
+    parse: parseInvidiousResults,
+  },
 ];
 
 /** Hosts that failed recently, by name; skips dead instances for a while. */
@@ -161,6 +190,8 @@ export interface ClipSearchOptions {
   timeoutMs?: number;
   /** How long one host gets before the next one is asked. */
   providerTimeoutMs?: number;
+  /** How long a single host may take before the next one is asked as well. */
+  hedgeMs?: number;
   /** Skip the local cache; used by the manual retry button. */
   refresh?: boolean;
   providers?: Provider[];
@@ -168,19 +199,21 @@ export interface ClipSearchOptions {
 }
 
 /**
- * Searches for the song's clip. Never throws: a blocked request, an offline
- * device and a provider that changed shape all resolve to `unavailable`.
- */
-/**
- * Asks the hosts once and returns everything they offered.
+ * Asks the hosts and returns everything they offered.
  *
  * Discovery needs one answer; the song's options need a shortlist. Both start
  * here so a retry, a cooldown and a timeout behave the same way in both places.
+ *
+ * The hosts are interchangeable and their health changes by the hour, so they
+ * are asked one after another with a hedge: when a host has not answered within
+ * `hedgeMs` the next one is asked as well, and the first convincing answer ends
+ * the search. Asking strictly in order meant a single dead instance could spend
+ * the whole budget and the clip search reported "unreachable" while healthy
+ * hosts sat untried at the back of the list.
  */
 async function askProviders(
   query: string,
   options: ClipSearchOptions,
-  /** Stops at the first host whose answer is already good enough. */
   stopAt?: (batch: ClipCandidate[]) => boolean,
 ): Promise<
   { status: 'unavailable' } | { status: 'answered'; answered: boolean; candidates: ClipCandidate[] }
@@ -191,48 +224,90 @@ async function askProviders(
   if (options.refresh) cooling.clear();
   const budget = options.timeoutMs ?? CLIP_SEARCH_TIMEOUT_MS;
   const providerTimeout = options.providerTimeoutMs ?? CLIP_PROVIDER_TIMEOUT_MS;
+  const hedge = options.hedgeMs ?? CLIP_SEARCH_HEDGE_MS;
   const deadline = Date.now() + budget;
-  let answered = false;
-  const candidates: ClipCandidate[] = [];
-  const now = Date.now();
+  const startedAt = Date.now();
+  const queue = (options.providers ?? CLIP_PROVIDERS).filter(
+    (provider) => Boolean(options.providers) || !coolingDown(provider.name, startedAt),
+  );
 
-  for (const provider of options.providers ?? CLIP_PROVIDERS) {
-    if (Date.now() >= deadline) break;
-    if (!options.providers && coolingDown(provider.name, now)) continue;
+  const candidates: ClipCandidate[] = [];
+  let answered = false;
+  let cursor = 0;
+  let done = false;
+  let release = () => {};
+  const stopped = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  // Resolves true when the wait ran out, false when someone else found the answer.
+  const wait = (ms: number) =>
+    new Promise<boolean>((resolve) => {
+      const timer = setTimeout(() => resolve(true), ms);
+      void stopped.then(() => {
+        clearTimeout(timer);
+        resolve(false);
+      });
+    });
+
+  const inFlight = new Set<AbortController>();
+  const ask = async (provider: Provider) => {
     const controller = new AbortController();
-    const wait = Math.min(providerTimeout, Math.max(500, deadline - Date.now()));
-    const timer = setTimeout(() => controller.abort(), wait);
+    inFlight.add(controller);
+    const waitMs = Math.min(providerTimeout, Math.max(1200, deadline - Date.now()));
+    const timer = setTimeout(() => controller.abort(), waitMs);
     const onAbort = () => controller.abort();
     options.signal?.addEventListener('abort', onAbort);
-    let payload: unknown;
     try {
       const response = await fetcher(provider.url(query), {
         signal: controller.signal,
         headers: { accept: 'application/json' },
-      });
+        // The front-ends cache their own answers; a retry should not be served
+        // the same stale list.
+        cache: options.refresh ? 'reload' : 'default',
+      } as RequestInit);
       if (!response?.ok) throw new Error('provider refused');
-      payload = await response.json();
+      const payload: unknown = await response.json();
+      // It answered with JSON: the host is alive even if nothing matches.
+      answered = true;
+      cooling.delete(provider.name);
+      candidates.push(...provider.parse(payload));
+      if (stopAt?.(candidates) && !done) {
+        done = true;
+        // The answer is in: nothing else that is still in flight is needed.
+        for (const active of inFlight) active.abort();
+        release();
+      }
     } catch {
       // Dead, blocked, rate limited or not JSON at all: skip this host for a
-      // while and ask the next one.
+      // while and let the others carry the search.
       cooling.set(provider.name, Date.now() + PROVIDER_COOLDOWN_MS);
-      continue;
     } finally {
       clearTimeout(timer);
+      inFlight.delete(controller);
       options.signal?.removeEventListener('abort', onAbort);
     }
-    // The host answered with JSON: it is alive, even if nothing matches.
-    answered = true;
-    cooling.delete(provider.name);
-    const parsed = provider.parse(payload);
-    candidates.push(...parsed);
-    // One good match is enough for discovery: asking the remaining hosts would
-    // cost seven more requests for an answer we already have.
-    if (stopAt?.(parsed)) break;
-  }
+  };
+
+  const worker = async (index: number) => {
+    if (index > 0 && !(await wait(Math.min(index * hedge, Math.max(0, deadline - Date.now()))))) {
+      return;
+    }
+    while (!done && cursor < queue.length && Date.now() < deadline) {
+      await ask(queue[cursor++]);
+    }
+  };
+
+  const workers = Math.max(1, Math.min(queue.length, CLIP_PROVIDERS_MAX_WORKERS));
+  const running = Promise.all(Array.from({ length: workers }, (_, index) => worker(index)));
+  // Whichever comes first: every host tried, or one good answer.
+  await Promise.race([running, stopped]);
   return { status: 'answered', answered, candidates };
 }
 
+/**
+ * Searches for the song's clip. Never throws: a blocked request, an offline
+ * device and a provider that changed shape all resolve to `unavailable`.
+ */
 export async function findClip(
   source: { title: string; artist: string; duration: number },
   options: ClipSearchOptions = {},
@@ -282,9 +357,20 @@ export async function findClip(
 export function rememberClip(
   trackId: string,
   candidate: ClipCandidate,
+  songSeconds?: number,
   store: Storage | null = storage(),
 ): StoredClip | null {
-  return storeClip(trackId, candidate.videoId, 0, store);
+  // The clip is placed where the music is, not where the video begins: an upload
+  // with a ten-second title card would otherwise stay ten seconds behind the song
+  // for its whole length. `autoClipStart` is a bounded guess, and the editor can
+  // correct it.
+  return storeClip(
+    trackId,
+    candidate.videoId,
+    autoClipStart(candidate.duration, songSeconds ?? 0),
+    store,
+    candidate.duration,
+  );
 }
 
 /**
@@ -312,5 +398,5 @@ export function chooseClip(
   candidate: ClipCandidate,
   startAt = 0,
 ): StoredClip | null {
-  return storeClip(trackId, candidate.videoId, startAt);
+  return storeClip(trackId, candidate.videoId, startAt, undefined, candidate.duration);
 }
