@@ -1,6 +1,6 @@
 # Validation record
 
-Release 0.1.1 · 27 October 2026. Historical run dates are retained below.
+Release 0.1.1 · 28 October 2026. Historical run dates are retained below.
 
 ## Web
 
@@ -51,6 +51,13 @@ Browser coverage includes paused restoration of saved queue/native position, art
 - The graph is no longer discarded when the audio context refuses to start; the engine retries from its timer and attaches then. This is covered indirectly (the EQ test routes through a running context); a refused-then-resumed context was **not** reproduced in a browser here.
 - Lyrics follow in the cinema view: `LyricsPanel` proves the read-only cinema renderer scrolls as the song advances (a second time position produces a new scroll) while staying read-only. The stored-scroll assertion in the Chromium test is **unverified** here.
 - Privacy: `public/privacy.html` and `PRIVACY.md` gained sections for clip discovery, YouTube songs, the optional word-level sources, the offline cache and Mix's playback-only processing, and were re-dated to 28 October 2026. The privacy page's palette test still passes the heading check; no test asserts the new wording.
+
+### 0.1.1 corrections: longer blends, a transport in the listening screen
+
+- `npx tsc -b`, `npx eslint .`, `npx prettier --check .`, `npm run build`, `npm run release:check -- v0.1.1` and `npm test` (441 tests across 74 files) pass.
+- Blend length: `TARGET_SECONDS` is 20 and the bar count is still rounded to whole phrases, so at 120 BPM Mix uses 12 bars (24 s) instead of 8 (16 s), at 174 BPM 16 bars (22 s), at 60 BPM 4 bars (16 s); when both sides sing the overlap is halved. `mixPlanner` asserts the new counts and that an explicit request is clamped to 16 bars. **Nothing was listened to**: the numbers describe planned overlap, not the feel of a join.
+- Android and Windows now blend with `handoverGains` (same curve as the web build) over a 16-second window. Their contract tests were updated but **neither platform was compiled, linted or run** here: no Kotlin/Gradle or .NET toolchain is installed in this workspace.
+- The listening screen now renders its own transport (previous, play/pause, next, position and times) inside the 30-second cinema view. There is **no component test for `PlayerBar`** — it needs the full player context — and the added Chromium assertion was **not run** (no browser binary in this workspace). The claim rests on the rendered structure and on the CSS: the bar sits at reduced opacity until the pointer or the keyboard reaches it and has no timer that removes it.
 
 ### 0.1.1 corrections: one transport, frameless lyrics, cheaper lists
 

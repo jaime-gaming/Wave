@@ -604,6 +604,46 @@ export function PlayerBar(props: PlayerProps) {
                   onEdit={() => {}}
                 />
               )}
+              {/*
+                The listening screen is still a player: the bar never goes away,
+                it just gets quiet. Movement makes it readable instead of
+                invisible, and the keyboard reaches every control.
+              */}
+              <div className="immersive-transport">
+                <button
+                  className="immersive-skip"
+                  aria-label="Previous track"
+                  onClick={player.previous}
+                >
+                  <SkipBack size={22} />
+                </button>
+                <button
+                  className="immersive-play"
+                  aria-label={player.state.playing ? 'Pause' : 'Play'}
+                  onClick={() => player.dispatch({ type: 'toggle' })}
+                >
+                  {player.state.playing ? <Pause size={26} /> : <Play size={26} />}
+                </button>
+                <button
+                  className="immersive-skip"
+                  aria-label="Next track"
+                  onClick={() => player.dispatch({ type: 'next' })}
+                >
+                  <SkipForward size={22} />
+                </button>
+                <div className="immersive-seek">
+                  <WaveSeek
+                    time={time}
+                    duration={player.duration}
+                    playing={player.state.playing && !player.buffering}
+                    onSeek={player.seek}
+                  />
+                  <div className="immersive-times">
+                    <span>{formatTime(time)}</span>
+                    <span>{formatTime(player.duration || player.current.duration || 0)}</span>
+                  </div>
+                </div>
+              </div>
             </motion.div>
           )}
         </Modal>

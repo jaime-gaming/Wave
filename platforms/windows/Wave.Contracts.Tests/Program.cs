@@ -4,7 +4,10 @@ void Check(bool condition, string name) { if (!condition) throw new Exception(na
 var a = new Song("a", "First", "Artist", "Album", "a.wav", "a.wav");
 var b = a with { Id = "b", Title = "Second" };
 Check(NativeCollections.Resolve(new[] { "b", "missing", "b", "a" }, new[] { a, b }).Select(s => s.Id).SequenceEqual(new[] { "b", "a" }), "ordered playlist snapshot excludes missing/duplicate IDs");
-Check(Math.Abs(NativeCollections.MixWindow(90, 60) - 7.2) < .00001 && NativeCollections.MixWindow(8, 90) == 0 && NativeCollections.MixWindow(double.NaN, 90) == 0, "automatic bounded mix window");
+Check(Math.Abs(NativeCollections.MixWindow(90, 60) - 12) < .00001 && NativeCollections.MixWindow(90, 90) == 16 && NativeCollections.MixWindow(8, 90) == 0 && NativeCollections.MixWindow(double.NaN, 90) == 0, "automatic bounded mix window");
+var (handOut, handIn) = NativeCollections.HandoverGains(.25);
+var (lateOut, lateIn) = NativeCollections.HandoverGains(.75);
+Check(Math.Abs(handOut * handOut + handIn * handIn - 1) < 1e-9 && handIn > .6 && lateOut < .6 && lateIn > .8, "staged handover arrives early and leaves late");
 var queue = new List<Song> { a, b };
 Check(NativeCollections.Move(queue, 1, 0)[0].Id == "b" && queue[0].Id == "a", "queue movement does not mutate the active snapshot");
 Check(JsonSerializer.Deserialize<Preferences>("{\"Crossfade\":0}") is { Mix: null, Crossfade: 0 }, "legacy disabled overlap remains disabled");

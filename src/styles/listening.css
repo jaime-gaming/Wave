@@ -818,3 +818,78 @@ body,
     display: none;
   }
 }
+
+/*
+ * The listening screen keeps a transport. It is deliberately quiet — a third of
+ * the ink until the pointer or the keyboard arrives — but it is always there,
+ * because a player whose controls vanish is a player you cannot trust.
+ */
+.immersive-transport {
+  position: fixed;
+  left: 50%;
+  bottom: max(18px, env(safe-area-inset-bottom));
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(620px, calc(100vw - 32px));
+  padding: 8px 14px;
+  border-radius: 26px;
+  transform: translateX(-50%);
+  background: color-mix(in srgb, var(--player-tonal) 72%, transparent);
+  color: var(--player-ink);
+  opacity: 0.62;
+  transition: opacity 0.3s var(--ease-out);
+}
+.immersive-transport:hover,
+.immersive-transport:focus-within {
+  opacity: 1;
+}
+.immersive-transport button {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  color: inherit;
+}
+.immersive-transport button:hover {
+  background: color-mix(in srgb, var(--player-ink) 10%, transparent);
+}
+.immersive-play {
+  background: var(--player-accent);
+  color: var(--player-on-accent);
+}
+.immersive-play:hover {
+  background: var(--player-accent);
+}
+.immersive-seek {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+.immersive-times {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+}
+@media (max-width: 599px) {
+  .immersive-transport {
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 22px;
+  }
+  .immersive-transport button {
+    width: 36px;
+    height: 36px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .immersive-transport {
+    transition: none;
+  }
+}

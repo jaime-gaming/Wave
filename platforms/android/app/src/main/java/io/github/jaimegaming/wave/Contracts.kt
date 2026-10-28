@@ -12,4 +12,19 @@ fun parseLrc(raw: String): List<LyricLine> {
 /** The bar shows tenths of a second, so a position is published when it moves one. */
 fun shouldPublishTime(last: Double, next: Double, fading: Boolean) = fading || kotlin.math.abs(next - last) >= .1
 fun powerGains(progress: Double): Pair<Float,Float> { val angle=progress.coerceIn(0.0,1.0)*Math.PI/2; return cos(angle).toFloat() to sin(angle).toFloat() }
+/** A blend long enough to be a mix: an arrival, a passage together and a departure. */
+const val BLEND_SECONDS = 16.0
+/** Smooth 0..1 ramp; the handover uses it so no level ever steps. */
+fun smoothstep(value: Double): Double { val t=value.coerceIn(0.0,1.0);return t*t*(3-2*t) }
+/**
+ * Staged handover, kept in step with the web build: the incoming song is at level
+ * by a quarter of the blend and holds, the outgoing song only leaves in the second
+ * half. Constant power throughout, so the join never dips.
+ */
+fun handoverGains(progress: Double): Pair<Float,Float> {
+    val p=progress.coerceIn(0.0,1.0)
+    val phase=when { p<.28 -> .5*smoothstep(p/.28); p<.62 -> .5+.06*smoothstep((p-.28)/.34); else -> .56+.44*smoothstep((p-.62)/.38) }
+    val angle=phase*Math.PI/2
+    return cos(angle).toFloat() to sin(angle).toFloat()
+}
 fun canonical(value:String) = Normalizer.normalize(value,Normalizer.Form.NFKD).replace(Regex("\\p{M}"),"").lowercase().replace(Regex("[^\\p{L}\\p{N}]+")," ").trim()

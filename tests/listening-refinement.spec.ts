@@ -325,7 +325,7 @@ test('Privacy uses the exact Wave background and follows appearance changes from
   await expect(page.getByRole('heading', { name: 'Privacy & rights', exact: true })).toBeVisible();
   await other.close();
 });
-test('the transport stays on screen while a song plays, and the cinema view keeps scrolling the lyric', async ({
+test('the transport stays on screen while a song plays, in the cinema view too, and the lyric keeps following', async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -343,6 +343,14 @@ test('the transport stays on screen while a song plays, and the cinema view keep
   // After the long idle the cinema view opens, and the lyric keeps following.
   await page.clock.fastForward(26000);
   await expect(page.locator('.immersive-stage')).toBeVisible();
+  // The listening screen is still a player: it carries its own transport, and
+  // that transport is not on a timer either.
+  const stageTransport = page.locator('.immersive-transport');
+  await expect(stageTransport).toBeVisible();
+  await expect(stageTransport.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+  await expect(stageTransport.getByRole('slider', { name: 'Seek', exact: true })).toBeVisible();
+  await page.clock.fastForward(10000);
+  await expect(stageTransport.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
   const scrolled = await page
     .locator('.lyrics-cinematic .lyrics-scroll')
     .evaluate((node) => node.scrollTop);

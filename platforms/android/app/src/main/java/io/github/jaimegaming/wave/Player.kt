@@ -46,7 +46,7 @@ class Player {
                     val tail = outgoing
                     if (tail != null) {
                         val progress = (time / fadeLength).coerceIn(0.0, 1.0)
-                        val gains = powerGains(progress)
+                        val gains = handoverGains(progress)
                         tail.setVolume(gains.first * volume, gains.first * volume)
                         player.setVolume(gains.second * volume, gains.second * volume)
                         if (progress >= 1) {
