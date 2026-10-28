@@ -4,6 +4,7 @@ import {
   isSafeOrigin,
   parseYouTubeLink,
   readEmbedEvent,
+  readEmbedProgress,
   youtubeEmbedUrl,
   youtubeThumbnailUrl,
 } from './youtube';
@@ -90,5 +91,34 @@ describe('YouTube links', () => {
     ).toBeNull();
     expect(embedPlayerState(0)).toBe('ended');
     expect(embedPlayerState(4)).toBeNull();
+  });
+});
+
+describe('the player clock', () => {
+  it('reads a position even when the player sends no state', () => {
+    // The periodic delivery does not always carry `playerState`; the position is
+    // still the only thing that can keep the picture on the song.
+    expect(readEmbedProgress({ event: 'infoDelivery', info: { currentTime: 31.5 } }, ID)).toEqual({
+      currentTime: 31.5,
+      duration: 0,
+    });
+    expect(
+      readEmbedProgress(
+        { event: 'infoDelivery', info: { currentTime: 4, playerState: 2, duration: 180 } },
+        ID,
+      ),
+    ).toEqual({ currentTime: 4, duration: 180, state: 'paused' });
+  });
+
+  it('refuses anything it cannot trust', () => {
+    expect(readEmbedProgress({ event: 'onReady' }, ID)).toBeNull();
+    expect(readEmbedProgress({ event: 'infoDelivery', info: {} }, ID)).toBeNull();
+    expect(
+      readEmbedProgress(
+        { event: 'infoDelivery', info: { currentTime: 4, videoData: { video_id: 'aaaaaaaaaaa' } } },
+        ID,
+      ),
+    ).toBeNull();
+    expect(readEmbedProgress('nope', ID)).toBeNull();
   });
 });

@@ -211,6 +211,44 @@ export function readEmbedEvent(
 }
 
 /**
+ * The player's own clock, when it reports one.
+ *
+ * The periodic `infoDelivery` message does not always carry a `playerState`, and
+ * a player that is merely sending its position is still perfectly useful: that
+ * position is the only way to know whether the picture is where the song is.
+ * State is therefore optional here; the caller keeps the last one it knew.
+ */
+export function readEmbedProgress(
+  data: unknown,
+  expectedVideoId: string,
+): { currentTime: number; duration: number; state?: EmbedPlayerState } | null {
+  if (!data || typeof data !== 'object') return null;
+  const payload = data as { event?: unknown; info?: unknown };
+  if (payload.event !== 'infoDelivery' || !payload.info || typeof payload.info !== 'object')
+    return null;
+  const info = payload.info as {
+    playerState?: unknown;
+    currentTime?: unknown;
+    duration?: unknown;
+    videoData?: { video_id?: unknown };
+  };
+  const videoId =
+    typeof info.videoData?.video_id === 'string' ? info.videoData.video_id : expectedVideoId;
+  if (videoId !== expectedVideoId) return null;
+  if (typeof info.currentTime !== 'number' || !Number.isFinite(info.currentTime)) return null;
+  const state = embedPlayerState(info.playerState);
+  const duration =
+    typeof info.duration === 'number' && Number.isFinite(info.duration) && info.duration > 0
+      ? info.duration
+      : 0;
+  return {
+    currentTime: Math.max(0, info.currentTime),
+    duration,
+    ...(state ? { state } : {}),
+  };
+}
+
+/**
  * A refused video from the embedded player.
  *
  * The IFrame API reports failures as documented error codes: 2 (bad parameter),

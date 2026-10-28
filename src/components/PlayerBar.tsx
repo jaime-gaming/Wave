@@ -4,7 +4,7 @@ import { YouTubeStage } from './YouTubeStage';
 import { useIdleListening } from '../hooks/useIdleListening';
 import { MixVisual } from './MixVisual';
 import { MixCueLabel, MixCueVisual } from './MixCueVisual';
-import { useMixCue, type MixCue } from '../ui/mixCue';
+import { cueForTrack, useMixCue, type MixCue } from '../ui/mixCue';
 import { WaveSeek } from './WaveSeek';
 import { LyricsPanel } from './LyricsPanel';
 import { useEffect, useState } from 'react';
@@ -356,7 +356,10 @@ export function PlayerBar(props: PlayerProps) {
   } = props;
   // The cue belongs to the song that is playing; a stale one is never drawn.
   const cue = useMixCue(player.mixCue);
-  const pending = cue && cue.from.id === player.current?.id ? cue : null;
+  // Either side of the cue can be the song that is playing: the cue arrives
+  // while the outgoing song is still on, and by the time the two meet the
+  // interface has already moved on to the incoming one.
+  const pending = cueForTrack(cue, player.current?.id);
   const idle = useIdleListening(player.state.playing && !player.buffering && !!player.current);
   const showing = expanded || idle.immersive;
   // Only this bar follows the position; the rest of the interface stays still.

@@ -96,3 +96,95 @@ describe('video clip backdrop', () => {
     expect(JSON.parse(localStorage.getItem(CLIP_STORAGE_KEY) ?? '{}')).toEqual({});
   });
 });
+
+describe('keeping the picture on the song', () => {
+  const open = async () => {
+    localStorage.setItem(
+      CLIP_STORAGE_KEY,
+      JSON.stringify({ 'track-video': { videoId: 'dQw4w9WgXcQ', startAt: 0, addedAt: 1 } }),
+    );
+    const view = render(<VideoBackdrop {...props} />);
+    const frame = (await screen.findByTitle(/video clip for/i)) as HTMLIFrameElement;
+    const sent: Array<Record<string, unknown>> = [];
+    Object.defineProperty(frame, 'contentWindow', {
+      configurable: true,
+      value: {
+        postMessage: (raw: string) => sent.push(JSON.parse(raw) as Record<string, unknown>),
+      },
+    });
+    return { view, frame, sent };
+  };
+
+  it('asks the player to report, then seeks it when the picture is behind', async () => {
+    const { frame, sent } = await open();
+    // The player only answers a page that has said it is listening; without it
+    // Wave never learned where the picture was, which is why the clip never
+    // lined up with the song.
+    await waitFor(() => expect(sent.some((m) => m.event === 'listening')).toBe(true));
+    expect(sent[0]).toMatchObject({ event: 'listening', id: 'wave-clip-player' });
+
+    // The player reports the beginning of the video while the song is at 12 s.
+    act(() => {
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data: JSON.stringify({
+            event: 'infoDelivery',
+            info: { currentTime: 0.4, playerState: 1, duration: 200 },
+          }),
+          source: frame.contentWindow,
+        }),
+      );
+    });
+    await waitFor(
+      () => expect(sent.some((m) => m.event === 'command' && m.func === 'seekTo')).toBe(true),
+      { timeout: 2_000 },
+    );
+    const seek = sent.find((m) => m.event === 'command' && m.func === 'seekTo');
+    // The song's position is the one the interface last reported, plus whatever
+    // has elapsed since — never the stale number on its own.
+    const [to, allowSeekAhead] = seek?.args as [number, boolean];
+    expect(to).toBeGreaterThanOrEqual(12);
+    expect(to).toBeLessThan(13);
+    expect(allowSeekAhead).toBe(true);
+  });
+
+  it('leaves a picture that is already where the song is', async () => {
+    const { frame, sent } = await open();
+    await waitFor(() => expect(sent.length).toBeGreaterThan(0));
+    sent.length = 0;
+    act(() => {
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data: JSON.stringify({
+            event: 'infoDelivery',
+            info: { currentTime: 12.05, playerState: 1, duration: 200 },
+          }),
+          source: frame.contentWindow,
+        }),
+      );
+    });
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    expect(sent.some((m) => m.func === 'seekTo')).toBe(false);
+  });
+
+  it('ignores messages from anywhere else', async () => {
+    const { sent } = await open();
+    await waitFor(() => expect(sent.length).toBeGreaterThan(0));
+    sent.length = 0;
+    act(() => {
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data: JSON.stringify({
+            event: 'infoDelivery',
+            info: { currentTime: 0, playerState: 1, duration: 200 },
+          }),
+          source: window,
+        }),
+      );
+    });
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    // Nothing is applied: the page is still asking to be heard, but no command
+    // comes from a message it did not expect.
+    expect(sent.some((m) => m.event === 'command')).toBe(false);
+  });
+});

@@ -71,6 +71,10 @@ export class PairingSession {
   failure?: PairingFailure;
   sas?: string;
   peer?: DeviceInfo;
+  /** A confirmation that arrived before this side had a code to compare. */
+  private earlyConfirm?: string;
+  /** The user confirmed while the handshake was still running. */
+  private wantsConfirm = false;
   /** The peer's raw public key, kept so a known device can be recognised. */
   peerPublicKey?: Uint8Array;
   sessionKey?: CryptoKey;
@@ -143,6 +147,13 @@ export class PairingSession {
 
   /** The user compared the six-digit code on both devices. */
   confirm(): void {
+    // A handshake in flight is not a refusal: the button can be pressed while
+    // the key exchange is still finishing, so the intent is remembered and
+    // carried out the moment the code is known.
+    if (this.state === 'inviting') {
+      this.wantsConfirm = true;
+      return;
+    }
     if (this.state !== 'awaiting-confirmation' || !this.sas) return;
     this.localConfirmed = true;
     this.sendRaw(encodeFrame({ type: 'pair-confirm', sas: this.sas }));
@@ -232,9 +243,27 @@ export class PairingSession {
     this.sas = await sasCode(this.options.identity.publicKey, peerKey);
     this.setState('awaiting-confirmation');
     this.options.onSas?.(this.sas);
+    // Whatever arrived while the key exchange was still running is applied now,
+    // in the order the peer sent it.
+    const earlyConfirm = this.earlyConfirm;
+    this.earlyConfirm = undefined;
+    if (earlyConfirm !== undefined) this.receiveConfirm(earlyConfirm);
+    if (this.wantsConfirm) {
+      this.wantsConfirm = false;
+      this.confirm();
+    }
   }
 
   private receiveConfirm(sas: string): void {
+    // The two devices derive the same code at almost the same moment, and one
+    // of them confirms immediately. The other may still be finishing its own
+    // key exchange when that confirmation arrives; treating it as a protocol
+    // error failed an otherwise perfect pairing, so it is held until the code
+    // exists and checked then.
+    if (this.state === 'inviting') {
+      this.earlyConfirm = sas;
+      return;
+    }
     if (this.state !== 'awaiting-confirmation' || !this.sas) {
       this.fail('protocol');
       return;
