@@ -1,6 +1,6 @@
 # Wave Roadmap
 
-**Version: 0.1.0 · Release date: 17 October 2026.**
+**Version: 0.1.1 · Release date: 27 October 2026.**
 
 Wave 1.1 scope (device sync, YouTube links and playlist import) is specified in
 [SPEC_1.1](SPEC_1.1.md); its foundation is implemented but not user-facing yet.
@@ -122,7 +122,7 @@ Local smart mixes and advanced search may be explored after library and playback
 
 Use the [issue tracker](https://github.com/jaime-gaming/Wave/issues) to propose or discuss work. Include the user benefit, browser constraints, privacy impact, and a test plan. See [CONTRIBUTING.md](../CONTRIBUTING.md).
 
-Release 0.1.0 is dated 17 October 2026; published assets and tag identity are recorded on the GitHub Release. There is no released 1.0.0 or completed Android parity.
+Release 0.1.1 is dated 27 October 2026; published assets and tag identity are recorded on the GitHub Release. There is no released 1.0.0 or completed Android parity.
 
 Immediate import persistence, exact-byte renamed-file deduplication, compact covers/lyrics and browser-controlled eviction protection are implemented. Portable backup/export and lossless reduction of original audio storage are not implemented; original bytes necessarily occupy their original size.
 
@@ -209,6 +209,14 @@ Provider limits are part of the scope, not an implementation detail: new Spotify
 applications cannot read playlists owned by other accounts, and Wave never
 downloads Spotify audio. YouTube audio is never extracted.
 
+## Release 0.1.1 · 27 October 2026
+
+- [x] Match the screen to the music: one accent colour taken from the cover, applied to the mark and the browser tab.
+- [x] Mix announced a few seconds ahead, with the cue timed to the actual blend instead of a fixed countdown.
+- [x] Video clips fitted to the song's own length, and discovery restricted to real music videos.
+- [x] QR device linking, with nothing saved removed to make room.
+- [ ] Real-device pass on the clip backdrop, the blend and the animation timings.
+
 ## Release 0.1.0 · 17 October 2026
 
 - [x] Explicit lyric search in the editor without playback; preview and save remain separate.
@@ -224,4 +232,4 @@ downloads Spotify audio. YouTube audio is never extracted.
 - [x] Mobile Home shows all collection destinations without hidden horizontal shortcuts.
 - [x] Windows native navigation, collections, six Settings menus and expanded/compact player redesign.
 - [x] User-oriented README, actual screenshots and captioned MP4 promotion.
-- [ ] Publish the approved merged revision as tag/Release v0.1.0; documentation/media alone do not publish it.
+- [x] Publish the merged revision as tag/Release v0.1.0; documentation/media alone do not publish it.

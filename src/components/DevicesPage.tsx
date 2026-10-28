@@ -22,7 +22,7 @@ const failureText = (reason: string) =>
     authentication: 'The two devices did not agree on the same key. Start again.',
     replay: 'A message arrived twice and was refused. Start again.',
     protocol: 'The two devices are not speaking the same protocol.',
-    transport: 'The connection closed. Nothing was lost — start again when you are ready.',
+    transport: 'The connection closed. Nothing was lost. Start again when you are ready.',
   })[reason] ?? 'The link failed. Nothing was changed.';
 
 /**
@@ -205,7 +205,7 @@ export function DevicesPage({
             </button>
           </div>
           <p className="devices-note">
-            The link stays remembered. Next time, scanning one code is enough — the six digits are
+            The link stays remembered. Next time, scanning one code is enough. The six digits are
             skipped because both devices already know each other's key.
           </p>
           {devices.progress && (

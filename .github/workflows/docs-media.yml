@@ -1,0 +1,41 @@
+name: Documentation images
+
+# The README and the docs pages show the running app. Those images go stale as
+# the interface changes, so this workflow can photograph the current one without
+# anyone needing a browser on their laptop: it starts the built site, runs the
+# capture script against it and publishes the PNGs as a download. Committing them
+# stays a manual, reviewed step.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      - name: Serve the build
+        run: |
+          npx vite preview --host 127.0.0.1 --port 5173 --strictPort &
+          for attempt in $(seq 1 40); do
+            curl -fsS http://127.0.0.1:5173/ > /dev/null && exit 0
+            sleep 1
+          done
+          echo "The preview server never answered." && exit 1
+      - run: npm run capture:docs
+        env:
+          WAVE_URL: http://127.0.0.1:5173
+      - uses: actions/upload-artifact@v4
+        with:
+          name: documentation-images
+          path: docs/media/*.png
+          retention-days: 14

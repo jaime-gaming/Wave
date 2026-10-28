@@ -1,6 +1,6 @@
-# Wave 0.1.0 — product film
+# Wave product film
 
-The current deliverable is [`wave-0.1.0-promo.mp4`](wave-0.1.0-promo.mp4): a 60-second, horizontal 1920×1080 film at 30 fps, with English captions, light/minimal presentation, real interface recordings and instrumental acoustic-piano music. It replaces the earlier short silent demonstration.
+The current deliverable is [`wave-promo.mp4`](wave-promo.mp4): a 60-second, horizontal 1920×1080 film at 30 fps, with English captions, light/minimal presentation, real interface recordings and instrumental acoustic-piano music. It replaces the earlier short silent demonstration.
 
 ## Storyboard
 
@@ -69,7 +69,7 @@ python scripts/render-promo.py --ffmpeg /path/to/ffmpeg
 /path/to/ffmpeg -v error -i .cache/promo-v2/promo-master.mp4 -f null -
 # Inspect duration, codecs, frame count, aspect ratio, audio levels and fast-start.
 # Review representative decoded frames and watch/listen before publication.
-cp .cache/promo-v2/promo-master.mp4 docs/media/wave-0.1.0-promo.mp4
+cp .cache/promo-v2/promo-master.mp4 docs/media/wave-promo.mp4
 ```
 
 The final container is MP4 with H.264 High/yuv420p and AAC, with its `moov` atom before media data for progressive playback. The pipeline neither posts to social media nor tags, merges, pushes or publishes a release. The older `scripts/create-promo.ts` is retained only as the earlier short-film pipeline and can overwrite the same destination; use the commands above for this version.

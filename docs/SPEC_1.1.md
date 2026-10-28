@@ -1,7 +1,7 @@
 # Wave 1.1 — Device sync, YouTube links and playlist import
 
 Status: **technical foundation implemented; not yet connected to the interface.**
-Scope decisions recorded on 27 October 2026. Release 0.1.0 remains the published version.
+Scope decisions recorded on 27 October 2026. Release 0.1.1 is the published version.
 
 This document is the contract for Wave 1.1. It records what was decided, what is
 implemented in the source tree, what still has to be built, and which parts of the
@@ -379,7 +379,7 @@ PRIVACY.md must be updated **before** release, not after:
   retention, and remain off by default.
 - The Spotify Developer Policy and YouTube Terms must be reviewed by the
   maintainer. Wave's current public claims ("no accounts, no backend, no music
-  uploads") stay true for release 0.1.0 but will need qualification for 1.1:
+  uploads") stay true for release 0.1.1 but will need qualification for 1.1:
   there is no Wave account and no Wave cloud, but paired devices can copy files,
   and a relay can be involved.
 - This is not legal advice, and provider approval is not implied by the code.

@@ -1890,7 +1890,16 @@ kbd {
    than the title beside it. */
 .compact-track .mix-cue-label {
   width: min(100%, 96px);
-  gap: 4px;
+}
+/* The line under the compact title hands over instead of swapping. */
+.compact-subline {
+  display: block;
+  overflow: hidden;
+  min-height: 1.15em;
+}
+.compact-subline-item {
+  display: inline-flex;
+  max-width: 100%;
 }
 .compact-track .mix-cue-word {
   font-size: 9.5px;

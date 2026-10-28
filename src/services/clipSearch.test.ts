@@ -108,6 +108,36 @@ describe('automatic clip search', () => {
     ).toMatchObject({ startAt: 0 });
   });
 
+  it('does not replay a remembered clip that the current rules reject', async () => {
+    // Saved before lyric videos stopped counting as clips. The cache is a
+    // shortcut, not a verdict: it is re-checked against today's rules.
+    const stored = {
+      videoId: 'eeeeeeeeeee',
+      title: 'M83 - Midnight City (Lyric Video)',
+      author: 'M83',
+      duration: 244,
+      at: 1,
+    };
+    localStorage.setItem(CLIP_CACHE_KEY, JSON.stringify({ 'm83 midnight city': stored }));
+    const fetcher = vi.fn().mockResolvedValue(piped([goodItem]));
+    const result = await findClip(song, { fetcher });
+    expect(result.status).toBe('found');
+    if (result.status !== 'found') return;
+    expect(result.candidate.title).toContain('Official Video');
+    expect(result.cached).toBe(false);
+    expect(fetcher).toHaveBeenCalled();
+  });
+
+  it('never settles for the only lyric video the hosts returned', async () => {
+    const lyric = {
+      ...goodItem,
+      url: '/watch?v=eeeeeeeeeee',
+      title: 'M83 - Midnight City (Lyrics)',
+    };
+    const fetcher = vi.fn().mockResolvedValue(piped([lyric]));
+    expect(await findClip(song, { fetcher })).toEqual({ status: 'empty' });
+  });
+
   it('reports unavailable when nothing answers, without throwing', async () => {
     const fetcher = vi.fn().mockRejectedValue(new Error('blocked'));
     expect(await findClip(song, { fetcher })).toEqual({ status: 'unavailable' });

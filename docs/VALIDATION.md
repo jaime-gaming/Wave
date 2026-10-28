@@ -6,7 +6,7 @@ Release 0.1.1 · 28 October 2026. Historical run dates are retained below.
 
 - `npm run format:check`: passed.
 - `npm run lint`: passed.
-- `npm test`: **446 tests passed across 74 files** (latest run; 200 tests across 42 files at the 0.1.0 release).
+- `npm test`: **500 tests passed across 81 files** (latest run; 200 tests across 42 files at the 0.1.0 release).
 - `npm run test:e2e`: **89 Chromium browser tests passed** in the final complete run (7.6 minutes).
 - `npm run build`: passed. Vite reports its advisory 500 KB chunk-size warning (main chunk approximately 547 KB, gzip 172 KB); this is not a build failure.
 - `npm run build -- --base=/Wave/`: passed; a production static-server smoke test verified Home, Settings, fonts/assets, `/Wave/wave.svg`, the privacy page and its return link under the repository path without HTTP/page errors.
@@ -51,6 +51,16 @@ Browser coverage includes paused restoration of saved queue/native position, art
 - The graph is no longer discarded when the audio context refuses to start; the engine retries from its timer and attaches then. This is covered indirectly (the EQ test routes through a running context); a refused-then-resumed context was **not** reproduced in a browser here.
 - Lyrics follow in the cinema view: `LyricsPanel` proves the read-only cinema renderer scrolls as the song advances (a second time position produces a new scroll) while staying read-only. The stored-scroll assertion in the Chromium test is **unverified** here.
 - Privacy: `public/privacy.html` and `PRIVACY.md` gained sections for clip discovery, YouTube songs, the optional word-level sources, the offline cache and Mix's playback-only processing, and were re-dated to 28 October 2026. The privacy page's palette test still passes the heading check; no test asserts the new wording.
+
+### 0.1.1 corrections: lyric videos, the light in the word, the version sweep
+
+- `npx tsc -b`, `npx eslint .`, `npx prettier --check .`, `npm run build`, `npm run build:pages`, `npm run release:check` and `npm test` (**500 tests across 81 files**) pass.
+- Lyric videos are rejected rather than penalised. `isLyricVideo` matches whole words only, so a title containing "Letters" or a "Video Oficial" mark is untouched, while "Lyric Video", "Lyrics", "Letra", "Paroles" and their translations score 0 and are never returned as a clip. Service tests cover a remembered clip that the new rules reject: the cache entry is re-scored instead of replayed, and a search that only returns a lyric video ends as `empty`. **No live host was queried**: the words are the whole rule, and what YouTube titles actually say was not measured.
+- The cue: the light moved from a rule under the word to the letters themselves, through a `background-clip: text` gradient with a plain grey word painted underneath. The line, its keyframes and the sheen over the cover were deleted, and `MixCueVisual.test` asserts the sheen and the rule are gone. **No browser was available to look at it**, so the sweep and the `text-fill-color` fallback are unverified visually; a browser without text clipping shows a still word, which is the intended failure.
+- The interface around the cue now opens and closes with it: the stage cue animates its height alongside its fade, and the compact bar hands the artist line over to the word and back. Asserted only through the rendered DOM (`MixCueVisual`, `PlayerBar`); the motion itself was not watched.
+- Documentation: README rewritten, release notes and changelog rewritten to describe the release that actually shipped, and every remaining 0.1.0 reference outside the historical changelog sections moved to 0.1.1 (`PRIVACY.md`, `ROADMAP.md`, `DEVELOPMENT.md`, `PLATFORMS.md`, `SPEC_1.1.md`, `WINDOWS_RELEASE.md`, the release workflow default). `docs/media/wave-0.1.0-promo.mp4` is now `wave-promo.mp4`.
+- Screenshots: recaptured from the running app with `scripts/capture-docs.ts` (`npm run capture:docs`) in a headless Chromium, using a disposable demo library and the same generated covers as the film. Home, a daily mix, Now Playing and the phone Home were replaced and each one was looked at: the colour is the song's, the lyrics follow the sung line, and nothing is stretched or clipped at 1440×900 or 390×844. The capture runs against the dev server here; the `Documentation images` workflow does the same against a production build on demand and uploads the PNGs.
+- The cue's shimmer was checked frame by frame in the same headless browser by sampling the brightness of each letter over time: the highlight travels across the word and the letters behind it return to grey. The layout around it (the stage block opening, the compact line handing over) was **not** photographed mid-transition, so its timing is unverified.
 
 ### 0.1.1 corrections: the clip on screen, the video that is a video, the mix
 

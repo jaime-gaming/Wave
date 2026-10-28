@@ -1,124 +1,113 @@
 # Changelog
 
-## 0.1.1 — 28 October 2026
+## 0.1.1 — 27 October 2026
 
-- **The clip is a clip, and nothing of YouTube is on it.** Two things were wrong. The frame was sized from the viewport instead of from the player, so it letterboxed on a wide window and overhung on a phone; it now covers its own container in either direction. And the embed's own interface — the title bar at the top, the channel badge, the logo in the corner, the play button over a paused picture — was sitting on top of the backdrop. The picture is now zoomed just enough to put all of that outside the visible area, the edges are closed off by the veil, the clip only appears once it is actually moving, and a paused song softens the picture into a still, blurred wash instead of showing the player's pause screen. The one place YouTube still appears is a YouTube song, where the video is the source and its player is the point.
-- **Discovery looks for videos, not for songs.** A search for "artist title" happily returns the label's own art track — a static sleeve on a channel called "Artist - Topic" — and Wave was choosing it, so a third of the clips were a still image. Auto-generated uploads are rejected outright, uploads that call themselves a video ("Official Video", "Music Video", "Videoclip", and the same in Spanish and French) are ranked above the ones that do not, "official audio" and "lyric video" step back, and a music video is allowed to run a little longer than the record. When the plain search still comes back with nothing but songs, one more request asks for the video by name before settling.
-- **The mix no longer flashes.** The bar and the stage take their tint from the cover, and during a handover the tint was dropped entirely — so the whole player snapped to the default blue at the exact moment the two songs met, then snapped back. The two palettes are now interpolated along the same progress value the sleeve uses, which is where the blend should feel smoothest, not worst.
-- **The blend reads as one record, not two.** The incoming cover opened through a circle in the middle of the outgoing one, and both were at partial strength for most of the overlap: two covers stacked, with a ring drawn around them. The new cover is now invisible until it starts arriving, settles in from slightly large with a soft focus, and the old one sinks back and goes. The only ornament is a single band of light crossing the sleeve while the two songs meet.
-- **"Mixing" is minimal now.** Three animated bars, a grey word with wide tracking and a light beam blended over the whole label was three ideas at once. It is one word in small grey capitals with a single thin line beneath it, crossed left to right by a short highlight, then a pause. The cover it sits under no longer splits down the middle either: it takes a slow breath — a slight push in, a slight dim, one band of light — and the blend that follows does the transition.
-- **Smaller things.** The stage cover lifts on hover and settles on press, the cue fades in and out instead of appearing, the sleeve inside the compact bar no longer pushes the bar apart mid-mix (the layers had a 56 px floor in a 40 px box), and the clip row in a song's options says "Open on YouTube" instead of printing the raw address.
+### Mix
 
-- **The clip actually follows the song.** Wave never asked the embedded player to report, and a YouTube player answers nothing — not one position, not one state — until the page sends it a `listening` message. So the correction loop was running against a picture it had never seen, decided the video was not ready, and never issued a single command: the clip played from its own start and drifted wherever it liked. The page now sends the handshake, repeats it until the player answers, keeps a slow repeat for a player that reloads itself, and takes the position from the player's own delivery — with or without the state that usually comes with it. On the first answer it places the picture where the song is instead of where the upload begins, and the target it corrects against is the song's clock plus whatever has elapsed since the interface last reported it.
-- **The interface and the tab wear the song's colour.** The Wave mark was painted with the body text colour, so it only changed by accident. It is now drawn in the accent the cover gives the interface, with a half-second fade between songs. The favicon follows the same hue: a rounded tile and the same wave, regenerated once per song as a `data:` URI — no request, no canvas, and untouched while nothing is playing.
-- **The mix is announced, for real this time.** The cue was timed from the end of the file, but a mix starts a whole phrase before the end, so the word appeared only after the two songs had already met — and the moment they met, the bar had already moved on to the next song, and the cue was thrown away as stale. The lead-in is now measured from the start of the blend (eight seconds before it, then held through the whole handover), and the cue belongs to either of its two songs, so the bar cannot hide it. Same grey word, same line of light, now on screen when it says it is.
-- **A confirmation that arrives early no longer kills a pairing.** The two devices show the same six digits at almost the same instant, and the one that confirms first can reach the other while it is still finishing its key exchange. That was a protocol error, which failed a pairing that had worked perfectly; the confirmation is now held until the code exists and checked then. The same applies to pressing confirm during the handshake.
+- Mix replaces the old crossfade. Both songs are analysed off the main thread (tempo, beat grid
+  and phase, phrases, silence at the ends, drops, vocal regions), and the handover is planned
+  around the result.
+- The overlap is 16 to 24 seconds, a whole number of phrases at the song's tempo, and it starts
+  on a bar line instead of wherever the previous song happened to end.
+- The new song arrives early and holds at level while the outgoing one leaves in the second
+  half. The low end changes hands once, and the outgoing song loses its top through a low-pass
+  as it goes.
+- The new song is cued on its first full bar, not on its first second, so a beatless intro no
+  longer fades in under the previous song.
+- Tempo is matched within 8 % with pitch preserved, and the two songs are level matched for the
+  length of the overlap. The louder one is turned down; the quieter one is never boosted.
+- Everything happens on the playback graph. Files, sample rate, bit depth and bitrate are
+  untouched, and the filter and the stretch are reverted when the overlap ends.
+- A blend that playback reaches late moves forward by whole bars, and is abandoned rather than
+  started crooked if too little of it is left.
+- A song with no analysis (a YouTube song) still gets a timed handover instead of a bare fade.
 
-- **Linking two devices is one QR code.** The pairing flow asked for codes to be typed from one screen into the other. It is now a camera and a link: the first device shows a code, the second reads it with the app's own reader and shows a reply, the first reads that, and the two are linked — nothing is copied by hand. A link is the same thing in text form (`#wave-pair=…`), so a code can also be sent through any chat, and opening it goes straight to Settings → Devices. Each device keeps a stable key pair, so **a device you have linked before is recognised and re-confirmed without the six digits**; the digits are only shown the first time two strangers meet. Nothing on the other side is deleted to make room any more: when the shared budget is full Wave says so and asks what to hand back instead of quietly dropping the oldest song. The reader runs only while the sheet is open, uses the browser's own detector where it exists and a small decoder otherwise, and stops the camera the moment it closes.
-- **The mix is announced.** A handover used to arrive without warning. Eight seconds before the join, a small grey **Mixing** appears next to the artwork with a line of light crossing it from left to right, then pauses, then crosses again; it stays for the whole blend instead of vanishing at the moment the songs meet. Reduced motion drops the sweep and keeps the word.
-- **The clip is fitted to the song.** The video was always started at the beginning of the upload, so an intro card or a long title sequence put the picture behind the music for the whole song, and a clip shorter than the song was seeked past its end and froze. Wave now places the clip where the music starts — a bounded guess, larger at the start of the upload, and editable in the song's options — and follows the song's own length: a shorter clip starts again instead of being aimed past its last frame. The correction loop compares against that placement, so the placement is not mistaken for drift.
-- **Clip search reaches a host that answers.** Hosts were asked one at a time, so a single slow instance could spend the whole budget and report "unreachable" with healthy hosts still untried at the back of the list. Twelve front-ends are now asked with a 1.2 s hedge and four in flight, the first convincing match ends the search, a host that fails is skipped for ten minutes, and in-flight requests are cancelled once an answer is in. If every host is unreachable, the song's options offer the link field, so a clip is never a dead end.
-- **A late blend moves to the next bar.** The engine used to start a planned mix anywhere inside its last seconds, which put the incoming song halfway through a bar and is what made a handover feel off. It now waits for the plan's own bar line; if playback arrives late — a throttled tab, a seek, a phone that slept — the blend moves forward by whole bars and loses those bars from its length, and when too little is left for a phrase it is abandoned rather than started crooked.
-- **Android is offered where it belongs.** A phone that opens the web client is told once, in a small sheet above the player, that Wave exists as an Android app: download it, or keep using the web. Either answer is remembered, a device that already runs the app installed to its home screen is never asked, and Settings → About can open the same sheet again on purpose.
-- **The mix announces itself.** A handover used to arrive unannounced: one song, then suddenly two. A few seconds before the join the cover **splits down the middle** and steps aside to reveal the next one behind it, with a quiet "Mixing" label and three small bars that rise and fall out of phase. The halves stay almost closed until the join is close and open over the last few seconds, so the picture is not spent before the sound arrives. One progress value from the engine drives it, so the sleeve cannot drift from the mix, and with reduced motion only the cross-dissolve remains. The cue is redrawn every two per cent rather than every frame: smooth to the eye, and still not a twenty-times-a-second render. The same cue appears in the compact bar, where it replaces the artist name for the length of the cue.
-- **Linking two devices is now a real feature, not a plan.** Devices was a settings section that did not exist: the protocol, pairing and loan storage were written, tested and unreachable. It is now Settings → Devices, and it works without an account or a server:
-  - one device **shows a code**, the other reads it and gives back a reply (see the QR-first flow at the top of this section); both then show the same six digits the first time two devices meet. The codes carry the full SDP after candidates are gathered, compressed when the browser can and plain when it cannot, and a public STUN server is asked so two devices on different networks can still meet directly;
-  - once linked, the other device's **library is a list you can browse** and a song can be brought across with one checkbox; the sender chunks its own file, the receiver verifies the SHA-256 and only then stores it, and progress is shown while it arrives;
-  - borrowed songs appear with their size, can be added to the library, or deleted to free space at any time; remembered devices are listed with what they lent, and forgetting one removes everything it left behind.
-    The interface never sees a key: pairing, sealing and verification stay in `src/sync`, which is where they were tested.
-- **Search finds what you meant.** Results were filtered but never ordered, so typing a name put a song that merely contained those letters above the one you were looking for. Songs are now ranked — exact title, title prefix, a word in the title, the artist, the album — with library order kept inside a rank so the list does not shuffle between keystrokes. **Enter plays the best match, Escape clears**, and the last five searches are kept as chips under the empty search box.
-- **A clip you can correct.** The chosen video is shown in the song's editor with the videos that were close runners-up, a thumbnail for each, a start-offset field for clips with an intro, and a way to remove it. Discovery is a guess, and a guess you cannot correct is worse than no guess. One good match still stops the search: the shortlist is only fetched when you ask for it.
-- **The listening screen, finished.** Softer shadow under the cover with a two-pixel lift on hover, a play button that reads as a physical key rather than a coloured rectangle, a sung lyric that lifts instead of merely changing colour, and transitions that settle rather than snap. Nothing moved; the composition is the one that was already there.
-- **The transport no longer hides itself.** The previous build faded the transport out after two still seconds in Now Playing and brought it back on the next mouse move; on a phone, where there is no pointer drift to wake it, that read as the player bar disappearing. The bar now stays where it is while a song plays. The long-idle cinema view (30 s of a playing song) still opens by itself and still leaves on the first movement or key press.
-- **Mix stops sounding like a crossfade.** The overlap was a symmetric equal-power slide — both songs at half level for the whole overlap — and the low-end swap and filter only ran when a beat grid happened to be available, so most handovers were literally a crossfade. Now:
-  - the incoming song arrives **early and holds** (it is at level by a quarter of the overlap) while the outgoing song leaves in the second half, which is what makes the join audible as a decision;
-  - the **low end changes hands once**, on the incoming song's first bars, and the outgoing song **loses its top** through a playback-only low-pass (20 kHz → 1.6 kHz) as it leaves;
-  - the overlap starts on a **bar line** and is now **long enough to mix in**: 16–24 s instead of about 12 (three phrases at 120 BPM, up from two), so there is a bar to arrive, a stretch where both songs play and a bar to leave;
-  - the new song is **cued on its first full bar, not on its first second**. A record almost always opens with a beatless intro or a single held chord; fading that under the outgoing song is the reason a join had no arrival — there was nothing arriving. Mix now starts the new song where the drums are already playing, never more than twenty seconds in, and never at all past a voice, so a song that opens with a sung line still starts on its first beat;
-  - the two records are **level-matched for the length of the overlap**. Two songs mastered years apart rarely meet at the same level, and a new song six decibels quieter sounds like the old one fading out however well the beats line up. Only the louder deck is turned down, never the quieter one up, by at most six decibels, and only while the two are playing together;
-  - a handover that has no plan (a song the analysis could not read) is no longer an eight-second fade: it is timed like a mix, up to sixteen seconds;
-  - every Mix handover gets these moves, planned or not, so a song with a poor analysis no longer sounds like a bare fade while the next one sounds mixed;
-  - the audio graph is kept across a refused start instead of being discarded, which previously left a whole session without the bass swap or the filter.
-    Files, sample rate, bit depth and bitrate are still untouched; the filter and the tempo match are reverted when the overlap ends.
-- **Privacy & rights is up to date.** The page now covers clip discovery and Piped/Invidious, songs added from YouTube and the oEmbed fallback chain, that video traffic belongs to YouTube, the optional NetEase/Kugou word-level sources, the offline interface cache, and that Mix only changes playback. `PRIVACY.md` gains the same two sections and both were re-dated.
-- **Lyrics follow the song in the cinema view too.** The 30-second listening screen used to scroll once when it opened and then leave the first verse on screen; it now keeps the sung line centred for the whole song, at a size you can read from across the room.
-- **The blend is drawn the way it is heard.** The sleeve used to swap by fading one cover over another, and the two covers were stacked as plain blocks rather than layered. Now the new cover **opens from its centre** while it is arriving and the old one **settles back and steps behind it**, driven by one progress value so the picture and the sound cannot drift apart. Under reduced motion the transform and the mask are dropped and only the plain cross-dissolve remains.
-- **The listening screen has a transport of its own.** The 30-second cinema view was a picture of a song: artwork, credits, lyrics, no way to pause, move or skip without leaving it. It now carries a quiet bar at the bottom — previous, play/pause, next and the song's position — that sits at reduced weight until the pointer or the keyboard arrives and is part of the screen, never something that appears and disappears. The bar's own view stays hidden behind it, so there is still exactly one transport at any moment.
-- **One transport, not two.** The video clip had a bar of its own — status line, offset slider, close and remove — sitting on top of the song's controls while the song was already driving the clip. The clip is now a muted backdrop and nothing else: no bar, no slider, no buttons, `aria-hidden`, pointer events off, and the correction loop keeps it in step from the song's clock. The YouTube link and "Remove video clip" moved into the song's options, where they cannot be mistaken for transport controls.
-- **Lyrics have no frame.** The reader was a card around the words — a tinted panel with a 30 px radius, plus a gradient pill and a bar behind the sung line. All of it is gone. The sung line now _grows_ (scale, accent colour, heavier weight) and the other lines stay quiet; long lines wrap instead of being shrunk to fit, so the smallest lyric on screen is still a lyric you can read. Sizes were raised again in every view: 26–42 px in the stage, 30–64 px in the cinema view, 22–32 px on phones, and the lyric column takes a larger share of Now Playing.
-- **Mix cannot skip a song any more.** The engine decided to hand over as soon as its analysis said the audible part was ending, so a track whose analysis put the end early could be cut in the middle — a mix that skipped most of the song. A handover is now only allowed inside the final seconds of the _file_, whatever the analysis reports, and the fallback overlap is measured the same way. Everything else about the mix (bar-aligned start, the incoming song entering at its own beginning, tempo match, bass swap) is unchanged.
-- **Empty and error views are one shape.** Library, queue, lyric reader and clip search now use the same block: symbol, what happened, what to do next, actions. Empty views that appear because of an action announce themselves as a live status, and the clip search shows a single quiet note under the heading instead of a dark sheet over the whole player.
-- **Lists are cheaper and calmer.** Library rows are one height, one corner and one hover, with tighter type and a 48 px cover; rows arrive in pages of 80 as the list is scrolled instead of all existing at once, rows off screen skip layout and paint, and only the first twelve rows get an entrance animation. The lyric fill samples at 12 Hz instead of 20.
-- **Android is its own app now.** The phone build was one 100-line file of chained one-liners: a single screen with a text row for every song, a "Next" label instead of a control, and a now-playing view that was the same list with a slider on top. It is now laid out the way a phone app should be:
-  - one package, one job per file — `Theme` (palette, type scale, shape), `Components` (mark, titles, rows, absence views), `Cover`, `PlayerBar`, `NowPlaying`, `Screens`, `EditSongDialog`, `WaveState`, `WaveApp`;
-  - a real shell: three destinations in a bottom bar, a **mini player that sits above it and never hides**, a thin position line on the bar, and a full listening screen with large artwork, a transport, and lyrics that keep the sung line in view;
-  - sleeves are read **from the file** — decoded off the main thread, cached, never copied — and a file without artwork gets a tile tinted from its own palette instead of a grey box;
-  - light and dark themes follow the system instead of a single forced dark palette, rotation keeps playing instead of restarting the song, and the library, the player and the lyric lookups live in one state object rather than in every screen.
-- **Android and Windows blend like the web.** Both platforms were still running a six-second equal-power fade — the thing this release exists to remove — so each now uses the staged handover and a sixteen-second window. Android also publishes the position ten times a second instead of on every 33 ms pulse (ramps still do), parses a lyric once per text instead of on every position change, and scrolls the sung line into view; Windows restyles only the two lines that change and marks the sung line with weight and colour instead of a blur. Both show 0.1.1 in their interfaces and user agents, and `npm run release:check` fails if any of those labels drifts from `package.json`.
+### The announcement
 
-- **Clip search reaches more hosts.** A single Piped or Invidious instance is regularly down, rate limited or behind a challenge, and Wave only knew two of them, so the backdrop usually reported that clip search was unreachable. Public front-ends are asked within a nine-second budget with 4 s per host and a short hedge between them (see the top of this section); "Search again" retries every host, and a song that had no match is re-checked after a day instead of never.
-- **The interface no longer re-renders with the clock.** Playback position lived in React state at the top of the tree, so every tick — twenty a second — re-rendered the whole app, including every row of the library. Position now lives in a small store that only the player bar subscribes to, the progress is repainted ten times a second instead of twenty, the blend reports a change every two percent, and OS media-session position is reported once a second instead of on every tick. Settings, a daily mix and the metadata review are downloaded only when opened, long libraries skip the layout and paint of rows that are off screen, the ambient light is smaller on phones and absent under reduced motion, and the startup mark is not replayed when the app is reopened in the same tab.
-- **Mix stops skipping the song.** The incoming song used to start after its intro — up to 45 % into the track — so a handover often began near the middle of a song you had not heard yet. It started at its own beginning, nudged to the next downbeat within six seconds, and a vocal at the join shortened the overlap instead of moving the entry. (A later pass in this release moved the entry to the first full bar of the body, which is what a record being cued actually sounds like — see the top of this section.) The overlap is also shorter (about four bars, roughly 6–11 s, instead of sixteen), plans are memoised instead of being recomputed every tick, and a song always plays at least half of its own length before the next one begins, whatever the analysis says.
-- **Lyrics stopped shrinking.** The three-line frame gives every line a third of the reader, and long lines were being shrunk to fit it, as far as 12 px. Neighbouring lines now sit at three quarters of the active size and a long line is clamped at no less than 18 px instead of being shrunk until it fits.
+- Eight seconds before a blend a small grey **Mixing** appears under the song title and stays for
+  the whole handover. The cue is measured from the start of the blend, so it cannot appear after
+  the songs have already met.
+- The word is the whole animation: a soft highlight travels across the letters and a plain grey
+  word stays behind it. Reduced motion keeps the word and drops the sweep.
+- The text block around the cue opens and closes with it, so nothing jumps when a blend is
+  announced. The same cue replaces the artist name in the compact bar for the length of the
+  handover.
 
-- **A song is never silent.** Wave used to hand the audio element to a Web Audio graph as soon as Mix was on; if the browser kept the audio context suspended (it does until a gesture is trusted, and it can suspend it again later), the element's output went into a graph that was not running and nothing reached the speakers. A media element is now only attached once the context reports `running`, a graph that cannot run is dropped and the song plays natively, and resume is retried from the play gesture, from the first pointer or key press, and once a second while playing. The level, the samples and the file are untouched.
-- **YouTube songs start and stay audible.** Play is commanded again every 500 ms with the volume alongside it, until the embed confirms it is playing, instead of giving up after one message; a leftover fade-out gain from a previous handover can no longer keep the next song at zero.
-- **The lyric reader scrolls again.** Now Playing, the cinema view and the phone layout show the whole lyric as a page of text, fading at the top and bottom edges, with the sung line centred and highlighted. The three-row frame that showed one line at a time is gone: it hid the verses around the current line and made long songs feel like a slideshow.
-- **Layers and spacing.** One z-index scale for the whole interface (ambient light behind content, then content, rail, player bar, menus, toasts, drop overlay, skip link) and the ambient backdrop no longer paints over text. The page title, header and workspace margins were reduced so the first songs are in view, with a shared 4/8/12/16/20/28 px spacing scale.
+### Video clips
 
-- **YouTube songs load reliably.** YouTube's own oEmbed endpoint sends no CORS headers to a browser, so reading a title there always failed. Title, channel and length now come from the first of four sources that answers (YouTube oEmbed, noembed, Piped, Invidious), with a 5 s timeout per source and a 9 s budget for the chain; the id is validated before any request. When the embed is slow, play is commanded again until the video confirms it instead of waiting for a message that may never arrive, and the embed URL now includes autoplay when the song was already playing at mount. Length from the provider is stored with the song, so Mix and the seek bar know it before playback starts.
-- **The interface stops explaining itself.** Mix is one switch: Wave picks the overlap, the tempo match and the handover. The blend now chooses its own bar count from the tempo so it lasts about 18 seconds, instead of an 8/16-bar setting. Removed: the last-handover panel, the BPM readout, the daily-mix "about 124 BPM" line and its ordering sentence, the note about how word timings are interpolated, the provider link under the lyrics, the word-by-word explainer, the always-visible paste-a-link form for clips (it now appears under the search result when discovery has nothing to offer) and the About paragraphs that were not options.
-- **Notes that help stay.** Which formats can be imported, "Tap a line to seek", the queue's reorder hint, the timing-offset explanation, "only the link is sent" in Add music, that browser storage can be evicted, and that the word-level lyric sources are unofficial.
-- **Settings contain settings.** Section cards are one word each; empty-state prose and the storage/privacy essay are gone. The only remaining note is the one the user asked for: the word-level lyric sources are unofficial.
-- **Lyrics are larger.** Every lyric size moved up a step: the panel (24–36 px), Now Playing (28–44 px), cinematic (30–62 px) and phones (23–32 px), with the small-screen and landscape rules raised to match.
-- **A video that refuses to be embedded now says so**, with a link to open it on YouTube, instead of staying silent; a library row whose audio is no longer stored says so too. Clips are only ever found automatically now: the paste-a-link form is gone, and a miss offers another search.
-- **Mobile web and installability.** Web app manifest, maskable and Apple touch icons generated from the same wave mark (`node scripts/make-icons.mjs`), standalone display, safe-area padding, 44 px targets for coarse pointers, no hover-only affordances, momentum scrolling in lyric and queue panes, and an offline shell service worker that caches the interface only — never audio.
-- **Design pass.** One elevation scale and one hairline border for raised surfaces, a gradient on the library header, calmer scrollbars, a consistent hover pill on text buttons, and hover lifts that are disabled under reduced motion.
-- **Android shell.** Edge-to-edge layout with drawing-safe insets, and Mix as a single switch in place of the crossfade-length slider.
+- Clips are discovered automatically through public YouTube front-ends. Twelve hosts are asked
+  with a short hedge, the first convincing match ends the search, a dead host is skipped for ten
+  minutes, and a search that finds nothing is retried a day later.
+- Discovery looks for a music video. Auto-generated art tracks and lyric videos are rejected
+  outright, uploads that call themselves a video are ranked first, and "official audio" steps
+  back. When the plain search only returns songs, one more request asks for the video by name.
+- The clip fills the screen in any aspect ratio and none of YouTube's interface shows on it: no
+  title bar, no channel badge, no logo, no pause overlay. A paused song softens to a blurred
+  still.
+- The clip is placed where the music starts rather than where the upload begins, and follows the
+  song's length: a shorter clip starts again instead of freezing on its last frame.
+- The embedded player never reported anything until the page sent it a `listening` message, so
+  the correction loop was comparing against a picture it had never seen. It now handshakes,
+  retries, and corrects small drift by easing the playback rate instead of jumping the picture.
+- A remembered clip that no longer passes the rules is searched again instead of replayed.
+- The song's options show the chosen clip with its runners-up, a start offset, and a way to
+  remove it.
 
-## Unreleased — YouTube playback, offline states, listening-order mixes
+### YouTube songs
 
-- **A YouTube song sounds like YouTube.** The embed is the source and the clock, muted only when it is a backdrop. When the same song is imported as a file, the file wins: it plays offline, it is analysed for Mix and it is the copy the user owns. The YouTube row stays in the library so the song is not lost if the file disappears.
-- **Mix works across YouTube songs too.** A song with no local bytes cannot be beat matched, so Wave crossfades instead: the embed and the local deck ramp in opposite directions with the same equal-power curve, inside a window sized from the two durations. The outgoing deck fades through `MixAudio.fadeOut/fadeIn`; the embed ramps its own volume, so both ends of the handover move together. The player stays mounted while Now Playing is collapsed, so a song never restarts because a view opened.
-- **Offline is visible, not surprising.** Controls that need the network read **Offline** and grey out instead of failing on click: lyric search, clip discovery and "from YouTube". Icon-only controls keep their name and gain an accessible "offline" suffix. Everything cached (saved lyrics, remembered clips, local files) keeps working.
-- **Daily mixes are built for listening.** Groups still come from tags, but the order uses the tempo and energy Wave already measures for Mix: slowest first, energy as the tie-breaker, and never the same artist twice in a row. A card now says what it is ("about 124 BPM · 1975–1985 · 18 songs") and there can be four mixes instead of three.
-- **Cinematic motion.** New tokens separate springs (things you open or move) from eased fades (things that only change appearance); artwork settles with a short blur, cards rise in sequence and headers fade in behind them. Reduced motion collapses every token to zero.
-- **Word-level lyrics from more sources (opt-in).** NetEase YRC and Kugou KRC are parsed into real per-word timings, with a decoder for Kugou's obfuscated payload, provider matching that refuses live/remix/karaoke rows, and a duration sanity check. Off by default and documented in PRIVACY; LRCLIB remains the default and the fallback when either side falls back to line timing.
-- **Copy pass.** Lyric empty states were still partly Spanish and now read as English throughout, with shorter sentences and fewer template phrases in the interface, the docs and the code comments.
+- Add music asks where the song comes from. From this device imports files; from YouTube stores
+  the link and plays the song in YouTube's own player, with no download, proxy or extraction.
+- When the same song is also imported as a file, the file wins: it works offline and can be
+  mixed. The YouTube entry stays in the library so the song is not lost.
+- A YouTube song keeps playing at the same position while Now Playing is closed.
 
-## Unreleased before 0.1.1 — Mix as a real mix, YouTube songs, discovered clips
+### Library, search and daily mixes
 
-- **Mix replaces crossfade.** Three stages now run in order. _(1) Analysis_, in a worker on a downmixed 11 kHz copy: tempo (autocorrelation with a 120 BPM prior and parabolic refinement), beat phase, 8/16-bar phrase structure, silence trimming of intro and outro, energy segments for drops and breakdowns, and a spectral vocal estimate. _(2) Planner_: the overlap is a whole number of bars (8 or 16, configurable), starts on A's beat grid and enters B on a bar after its intro, relocating to a clear bar when B starts with a vocal; the tempo gap is closed with at most ±8 % time-stretching (`playbackRate` with pitch preserved, playback-only and reset afterwards). _(3) Engine_: equal-power `cos/sin` gains, a −22 dB lowshelf bass swap at 180 Hz around the middle of the overlap, and a shortened overlap when both sides have vocals. Files, sample rate, bit depth and bitrate are never touched.
-- **Add music now asks where it comes from.** _From this device_ imports files; _From YouTube_ stores a video reference, reads its title through YouTube's oEmbed endpoint and plays the song through the official embed, with its video, Wave's transport and no download, proxy or extraction. YouTube songs are labelled in the library and excluded from byte comparisons, Mix analysis and sync.
-- **Video clips are found automatically.** Wave searches public YouTube front-ends, ranks candidates by title similarity, the artist's own channel and length agreement, rejects karaoke/cover/reaction/instrumental uploads, and remembers the choice locally. Pasting a link remains as a fallback when no search provider answers.
-- **YouTube songs keep playing while Now Playing is collapsed**, in a one-pixel host, and resume at the same position when the view opens again.
-- **Better video sync.** Small drift is now closed by easing the muted clip's playback rate (0.9×/1.1×) instead of seeking; only drift of 1.1 s or more, or a lost clip, triggers a seek, still bounded by a cooldown.
-- **FLAC import.** MP3, WAV, M4A, OGG and FLAC are accepted; FLAC is stored and played untouched.
-- **Word-by-word lyrics are built in.** The Settings toggle is gone; the line-level view remains as the fallback when a lyric has no timings.
-- **Settings and UI.** Playback now shows the detected tempo and the handover Wave has planned (bars, stretch, bass swap and the planner's reasons); the obsolete Mix style and crossfade-length controls are removed, and the header action is a single **Add music** button that opens the source chooser.
+- Daily mixes group the library by genre tag, ordered by the tempo and energy Wave already
+  measures, with no artist twice in a row. Play, shuffle, or save the selection as an ordinary
+  playlist.
+- Search ranks results: exact title, title prefix, a word in the title, artist, album. Enter
+  plays the best match, Escape clears, and recent searches stay as chips.
+- FLAC can be imported alongside MP3, WAV, M4A and OGG. Files are stored and played as they are.
+- Offline controls read **Offline** and grey out instead of failing after a click.
 
-## Unreleased — Mix, karaoke lyrics, video clip and import formats
+### Lyrics
 
-- Add an Apple Music style Mix: an equal-power crossfade with a 1–12 s length the user chooses, started inside audible audio and never longer than half of either song. Wave's staged blend remains available as a second style. Only `volume` is scheduled: files, sample rate, bit depth and bitrate are untouched.
-- Add word-by-word lyric highlighting. Enhanced LRC/SYLT word timestamps are used exactly; ordinary synced lyrics get a deterministic estimate from syllables and punctuation, labelled `derived` in the DOM and explained in Settings.
-- Add a video clip backdrop for Now Playing: a muted `youtube-nocookie` embed with its own chrome hidden, driven by Wave's transport, with drift detection, a ±10 s sync offset, local per-song clip storage and an explicit YouTube link. YouTube's watermark, ads and overlay cannot be removed by Wave and the clip is never used for audio.
-- Restrict importing to **MP3, WAV, M4A and OGG** as requested; previously imported FLAC/AIFF/Opus/WebM/AAC songs keep playing, and the import summary now names the accepted formats.
-- New UI: Mix style and length in Settings → Playback, word-by-word toggle in Settings → Lyrics, video clip switch in Settings → Playback and a Film button in Now Playing.
+- Word-by-word highlighting is built in, with line-level timing as the fallback and a labelled
+  estimate when a lyric carries no timings.
+- The lyrics are not boxed. They are larger than in 0.1.0 in every view, and they keep following
+  the sung line in the stage, the cinema view and on a phone.
+- Optional word-level sources (NetEase, Kugou) are off by default. LRCLIB remains the default
+  provider, and saved lyrics work offline.
 
-## Unreleased — Wave 1.1 foundation
+### Devices
 
-- Establish audio integrity as a non-negotiable invariant: copies are compared with whole-file SHA-256 before storage, sizes must match exactly, lossless sources keep their sample rate and bit depth, and no transfer path can re-encode or resample. Verified with a 24-bit WAV round trip.
-- Fix a 13.8 s main-thread stall when matching a 300-song playlist against 5 000 local songs; inverted-index matching now takes ~0.7 s with results proven identical to the exhaustive comparison.
-- Harden the sync channel: monotonic sequence numbers detect replayed frames, the receive counter advances only after authentication, sealed envelopes are size-bounded before decryption, and corrupt transfers are always released for retry.
-- Page library indexes under the 96 KiB frame limit, validate sender metadata, and cap imports at 5 000 entries.
+- Settings → Devices links two devices with a QR code, read by the app's own camera reader, or
+  with a link. Nothing is typed or copied by hand.
+- A device that has been linked before is recognised and re-confirmed without the six digits.
+- The other device's library can be browsed and a song borrowed. The receiver verifies the
+  SHA-256 before storing it, and nothing already saved is deleted to make room.
+- No account and no server are involved.
 
-- Add the versioned sync protocol: total frame validation, 96 KiB frame ceiling, 48 KiB audio chunks, SHA-256 verification and rejection of duplicate, missing or oversized chunks before anything is stored.
-- Add ECDH P-256 + HKDF pairing with a six-digit confirmation code, 120 s invite expiry, AES-GCM sealed frames and a transport-agnostic state machine that never applies data from a mismatched or tampered peer.
-- Add temporary device loans bounded by space rather than time, with least-recently-used eviction of unpinned loans, per-device summaries, manual deletion and revocation.
-- Persist loans and their verified audio atomically in a separate `wave-sync` database; the `wave-library` schema is unchanged and audio is stored as checked bytes.
-- Add YouTube link parsing (watch, youtu.be, shorts, embed, live, music, playlists, start times), privacy-enhanced embed URLs and validated player events. Audio is never extracted.
-- Add Spotify/YouTube playlist link parsing and deterministic matching against the local collection, reporting matched, ambiguous and missing songs without writing anything until confirmation.
-- Document scope, provider limits, threat model and remaining phases in [SPEC_1.1](docs/SPEC_1.1.md). No interface, provider client or Android port is wired yet.
+### Interface
+
+- The Wave mark and the browser tab take their colour from the cover of the song that is
+  playing, with a half-second fade between songs. During a blend the two palettes are
+  interpolated instead of dropping to the default blue.
+- Settings is six sections instead of one long sheet, and each section mounts only when opened.
+- Light and dark themes, larger text, reduced motion, and touch targets sized for a phone.
+- The player bar stays where it is while a song plays; the long-idle cinema view still opens on
+  its own and leaves on the first movement or key press.
+- The web app installs to a home screen and opens offline.
+
+### Android and Windows
+
+- The Android app was redesigned: new navigation, a listening screen, the same six settings
+  sections and Mix parity for the local path, on a smaller feature set than the web.
+- Android phones that open the web client are offered the native app once, and never asked
+  again. Settings → About can open the same sheet on purpose.
+- The Windows app is a native C#/WPF shell with the web's layout. It remains an unsigned test
+  build.
 
 ## 0.1.0 — 17 October 2026
 
