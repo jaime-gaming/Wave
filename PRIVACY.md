@@ -1,6 +1,6 @@
 # Privacy and local storage
 
-Updated: 17 October 2026. Applies to Wave's current development source. Deployment operators must provide their own legal identity and privacy contact before a public release; this file is not a completed GDPR operator notice.
+Updated: 28 October 2026. Applies to Wave's current development source. Deployment operators must provide their own legal identity and privacy contact before a public release; this file is not a completed GDPR operator notice.
 
 ## On your device
 
@@ -37,6 +37,25 @@ The web edition registers a service worker that stores the interface — HTML, s
 ## Website host
 
 Opening a GitHub Pages deployment downloads the app from GitHub and may disclose IP/device/request information to GitHub. See https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement. “Local-first” describes the library, not an assertion that hosts/providers collect no information. A different host has its own processing and notice. Fonts are bundled locally; no font CDN is used.
+
+## Mix never touches your files
+
+Mix runs on the device. Wave analyses a downmixed copy of the two songs while they play and plans
+the handover in memory; nothing is uploaded and no catalogue is consulted. During the overlap only
+playback changes: the decks are faded against each other, the low end swaps, the outgoing song's
+top is rolled off with a Web Audio low-pass and the incoming deck may be tempo-matched with pitch
+preserved. Every one of those is reverted when the overlap ends. The stored file, its sample rate,
+its bit depth and its bitrate are never modified, and no processed copy is kept.
+
+## Video clips and YouTube songs
+
+Clip discovery sends the song title and artist to public Piped or Invidious instances and stores
+the chosen video id locally; no audio or image leaves the device, and only the song being played is
+searched. A song added from YouTube stores the video id only: its title and length come from
+YouTube's oEmbed endpoint, falling back to noembed, Piped or Invidious when the browser blocks that
+request. A YouTube song and any muted backdrop clip stream from YouTube inside the browser, so that
+traffic and the viewing record belong to YouTube's policy. Wave does not download, proxy, extract
+or re-encode that audio; a song also imported as a file always plays from the local copy.
 
 ## Wave 1.1 (planned, not active)
 

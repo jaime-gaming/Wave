@@ -185,3 +185,48 @@ it('shows the whole lyric, not a three-line window, and centres the sung line', 
     globalThis.ResizeObserver = previousObserver;
   }
 });
+
+it('follows the song in the cinema view too, not only in Now Playing', () => {
+  const previous = HTMLElement.prototype.scrollTo;
+  const previousObserver = globalThis.ResizeObserver;
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  } as unknown as typeof ResizeObserver;
+  const scrolled: number[] = [];
+  HTMLElement.prototype.scrollTo = vi.fn((options?: ScrollToOptions) => {
+    if (typeof options?.top === 'number') scrolled.push(options.top);
+  }) as unknown as typeof HTMLElement.prototype.scrollTo;
+  try {
+    const raw = Array.from(
+      { length: 30 },
+      (_, i) =>
+        `[${String(Math.floor((i * 5) / 60)).padStart(2, '0')}:${String((i * 5) % 60).padStart(2, '0')}]Line ${i + 1}`,
+    );
+    const track = makeTrack({ lyrics: parseLyrics(raw.join('\n')) });
+    const props = {
+      stage: true as const,
+      cinematic: true as const,
+      track,
+      duration: 200,
+      onSeek: vi.fn(),
+      onEdit: vi.fn(),
+    };
+    const { container, rerender } = render(<LyricsPanel {...props} time={5} />);
+    // The first verse has already asked the reader to move, and so does the next.
+    expect(scrolled.length).toBeGreaterThan(0);
+    const before = scrolled.length;
+    rerender(<LyricsPanel {...props} time={125} />);
+    expect(scrolled.length).toBeGreaterThan(before);
+    const active = [...container.querySelectorAll('.lyric-line')].filter(
+      (line) => line.getAttribute('aria-current') === 'true',
+    );
+    expect(active[0].textContent).toBe('Line 26');
+    // Cinema is read-only: no row is a seek target.
+    expect(screen.queryAllByRole('button')).toHaveLength(0);
+  } finally {
+    HTMLElement.prototype.scrollTo = previous;
+    globalThis.ResizeObserver = previousObserver;
+  }
+});

@@ -208,9 +208,12 @@ export function LyricsPanel({
     // Only the scroll is adjusted. Lyrics are never shrunk to fit: a line that is
     // too long wraps, and the reader scrolls, because small lyrics are unreadable
     // lyrics — this is the size the type is set to and it stays there.
+    //
+    // The cinema view follows too: a lyric page that stops on the first verse is
+    // not a lyric page, and the long listen is exactly where it matters most.
     const fit = (smooth: boolean) => {
       const line = el.querySelector<HTMLElement>('.lyric-line.active');
-      if (!line || cinematic || !follow) return;
+      if (!line || (!follow && !cinematic)) return;
       el.scrollTo({
         top: line.offsetTop - el.clientHeight / 2 + line.clientHeight / 2,
         behavior: smooth && animation.enabled ? 'smooth' : 'instant',

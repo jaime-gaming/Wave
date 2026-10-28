@@ -1,5 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { BASS_CUT_DB, BASS_SHELF_HZ, bassShelfDb, MixGraph, stretchRate } from './mixGraph';
+import {
+  BASS_CUT_DB,
+  BASS_SHELF_HZ,
+  bassShelfDb,
+  CLOSED_AIR_HZ,
+  filterOutHz,
+  MixGraph,
+  OPEN_AIR_HZ,
+  stretchRate,
+} from './mixGraph';
 import type { TrackAnalysis } from './dsp';
 
 /** Minimal AudioContext double: enough to verify wiring and automation. */
@@ -164,5 +173,37 @@ describe('bass swap and stretch', () => {
     expect(stretchRate(analysis(126, 0.1), 120)).toBe(1);
     expect(stretchRate(undefined, 120)).toBe(1);
     expect(stretchRate(analysis(126), 0)).toBe(1);
+  });
+});
+
+describe('the outgoing filter', () => {
+  it('stays wide open for the first half and closes as the song leaves', () => {
+    expect(filterOutHz(0)).toBe(OPEN_AIR_HZ);
+    expect(filterOutHz(0.4)).toBe(OPEN_AIR_HZ);
+    expect(filterOutHz(1)).toBe(CLOSED_AIR_HZ);
+    // Monotonic, so the sweep is heard as one movement instead of pumping.
+    let previous = OPEN_AIR_HZ;
+    for (let step = 0; step <= 100; step++) {
+      const value = filterOutHz(step / 100);
+      expect(value).toBeLessThanOrEqual(previous);
+      previous = value;
+    }
+  });
+
+  it('clamps the corner so a deck can never be left sounding thin', () => {
+    const { context, filters } = fakeContext();
+    vi.stubGlobal('AudioContext', function AudioContext() {
+      return context;
+    });
+    const graph = MixGraph.create()!;
+    const element = document.createElement('audio');
+    graph.chain(element);
+    const air = filters[1];
+    expect(air.type).toBe('lowpass');
+    expect(air.frequency.value).toBe(OPEN_AIR_HZ);
+    graph.setAir(element, 40);
+    expect(air.frequency.value).toBe(CLOSED_AIR_HZ);
+    graph.setAir(element, Number.NaN);
+    expect(air.frequency.value).toBe(OPEN_AIR_HZ);
   });
 });

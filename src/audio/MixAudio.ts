@@ -1,6 +1,6 @@
-import { mixCues, mixGains, type MixCues } from '../domain/mix';
-import { planGains, type TransitionPlan } from '../domain/mixPlanner';
-import { bassShelfDb, MixGraph, stretchRate } from './mixGraph';
+import { mixCues, type MixCues } from '../domain/mix';
+import { handoverGains, planGains, type TransitionPlan } from '../domain/mixPlanner';
+import { bassShelfDb, filterOutHz, MixGraph, OPEN_AIR_HZ, stretchRate } from './mixGraph';
 import type { TrackAnalysis } from './dsp';
 import { sourceEnvelope } from './sourceEnvelope';
 interface Deck {
@@ -35,6 +35,8 @@ export class MixAudio {
     /** Bass swap only when the plan asked for it and Web Audio is available. */
     bassSwap: boolean;
     bassSwapAt: number;
+    /** Rolling the outgoing song's top down, only with Web Audio. */
+    filterOut: boolean;
   };
   private mixEnabled = false;
   private graph: MixGraph | null = null;
@@ -68,7 +70,9 @@ export class MixAudio {
       // Retry occasionally so playback never continues silently.
       if (this.graph && !this.graph.running && performance.now() - this.lastResume > 1000) {
         this.lastResume = performance.now();
-        void this.graph.resume();
+        void this.graph.resume().then((running) => {
+          if (running) this.attachDecks();
+        });
       }
       this.applyGains();
       const now = performance.now();
@@ -132,11 +136,16 @@ export class MixAudio {
     this.graph ??= MixGraph.create();
     if (!this.graph) return;
     const running = await this.graph.resume();
-    if (!running) {
-      // Keep the element unplugged so it still reaches the speakers.
-      this.graph = null;
-      return;
-    }
+    // Keep the graph even when it cannot run yet: the elements stay unplugged (so
+    // the song is never silent) and the context is retried from the timer. Tossing
+    // it here is what made a mix fall back to a bare crossfade for a whole session.
+    if (!running) return;
+    this.attachDecks();
+  }
+
+  /** Attaches both decks once the context is really running. Chains are cached. */
+  private attachDecks() {
+    if (!this.graph?.running) return;
     this.attachGraph(this.active);
     if (this.spare) this.attachGraph(this.spare);
     this.prime(this.active);
@@ -246,6 +255,7 @@ export class MixAudio {
   }
   private assign(deck: Deck, blob: Blob) {
     this.release(deck);
+    if (this.graph) this.graph.setAir(deck.element, OPEN_AIR_HZ);
     deck.blob = blob;
     deck.url = URL.createObjectURL(blob);
     deck.element.src = deck.url;
@@ -350,19 +360,28 @@ export class MixAudio {
     this.startTransition(blob, plan.seconds, guard, onStarted, {
       cue: plan.cue,
       rate: plan.incomingRate,
-      bassSwap: plan.mode === 'beatmatched' && !!this.graph?.available,
       bassSwapAt: plan.bassSwapAt,
     });
   }
   transition(blob: Blob, seconds: number, guard: () => boolean, onStarted: () => void) {
     this.startTransition(blob, seconds, guard, onStarted, {});
   }
+  /** Whether the EQ moves (bass swap, filter out) can be applied right now. */
+  private get eqAvailable() {
+    return this.mixEnabled && !!this.graph?.available;
+  }
   private startTransition(
     blob: Blob,
     seconds: number,
     guard: () => boolean,
     onStarted: () => void,
-    options: { cue?: number; rate?: number; bassSwap?: boolean; bassSwapAt?: number },
+    options: {
+      cue?: number;
+      rate?: number;
+      bassSwap?: boolean;
+      bassSwapAt?: number;
+      filterOut?: boolean;
+    },
   ) {
     const incoming = this.spare,
       outgoing = this.active;
@@ -409,8 +428,12 @@ export class MixAudio {
           seconds: length,
           cue,
           mixed: this.mixEnabled,
-          bassSwap: options.bassSwap === true,
+          // Every handover Mix performs gets the low-end swap and the filter out,
+          // planned or not: a song that was analysed badly must not sound like a
+          // bare crossfade while the next one sounds like a mix.
+          bassSwap: options.bassSwap ?? this.eqAvailable,
           bassSwapAt: options.bassSwapAt ?? 0.5,
+          filterOut: options.filterOut ?? this.eqAvailable,
         };
         this.callbacks.buffering(false);
         this.report();
@@ -438,6 +461,7 @@ export class MixAudio {
       deck.element.preservesPitch = true;
       if (this.graph) {
         this.graph.setBass(deck.element, 0);
+        this.graph.setAir(deck.element, OPEN_AIR_HZ);
         this.graph.setGain(deck.element, 1);
       }
     }
@@ -509,22 +533,31 @@ export class MixAudio {
         (this.fading.incoming.element.currentTime - this.fading.cue) / this.fading.seconds,
       ),
     );
-    const gains = this.fading.bassSwap
-      ? planGains(progress)
-      : mixGains(progress, this.fading.mixed);
+    // A mix is staged, not symmetric: the new song arrives early and stays, the
+    // old one leaves afterwards. That difference is the whole point of the
+    // feature — a symmetric equal-power slide is just a crossfade.
+    const gains = this.fading.mixed ? handoverGains(progress) : planGains(progress);
     this.applyDeckGain(this.fading.outgoing, gains.outgoing);
     this.applyDeckGain(this.fading.incoming, gains.incoming);
     if (this.fading.bassSwap && this.graph) {
-      // Cross point near the middle: A's lows close as B's open, so the kick never
-      // disappears between the two songs.
+      // A's lows close as B's open, so the kick never disappears between the two
+      // songs and the low end clearly changes hands once.
       this.graph.setBass(this.fading.outgoing.element, bassShelfDb('outgoing', progress));
       this.graph.setBass(this.fading.incoming.element, bassShelfDb('incoming', progress));
+    }
+    if (this.fading.filterOut && this.graph) {
+      // The outgoing song loses its top as it leaves: the clearest sign that this
+      // is a mix and not two songs sliding past each other.
+      this.graph.setAir(this.fading.outgoing.element, filterOutHz(progress));
     }
     if (progress >= 1) {
       const finished = this.fading;
       this.release(finished.outgoing);
       finished.incoming.element.playbackRate = 1;
-      if (this.graph) this.graph.setBass(finished.incoming.element, 0);
+      if (this.graph) {
+        this.graph.setBass(finished.incoming.element, 0);
+        this.graph.setAir(finished.incoming.element, OPEN_AIR_HZ);
+      }
       this.fading = undefined;
       this.callbacks.blend?.(null);
     }

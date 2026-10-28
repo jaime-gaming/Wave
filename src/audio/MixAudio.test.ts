@@ -1,5 +1,5 @@
 import { sourceEnvelope } from './sourceEnvelope';
-import { mixGains } from '../domain/mix';
+import { handoverGains } from '../domain/mixPlanner';
 vi.mock('./sourceEnvelope', () => ({ sourceEnvelope: vi.fn().mockResolvedValue(undefined) }));
 import { beforeEach, afterEach, it, expect, vi } from 'vitest';
 import { MixAudio } from './MixAudio';
@@ -326,7 +326,7 @@ it('mixes from conservative cue points with the unshifted recording clock and or
   expect(engine.active.blob).toBe(b);
   elements[1].currentTime = 2.15;
   vi.advanceTimersByTime(100);
-  expect(elements[1].volume).toBeCloseTo(mixGains(0.15, true).incoming);
+  expect(elements[1].volume).toBeCloseTo(handoverGains(0.15).incoming);
   expect(Math.hypot(...elements.map((a) => a.volume))).toBeCloseTo(1);
   expect(events.time).toHaveBeenLastCalledWith(2.15);
   expect(events.blend).toHaveBeenLastCalledWith(
@@ -441,4 +441,81 @@ it('reports analysed tempo so the planner can stretch a deck', () => {
   expect(engine.stretchFor(blob, 120)).toBeCloseTo(0.952, 3);
   expect(engine.stretchFor(blob, 160)).toBe(1);
   expect(engine.analysisFor(undefined)).toBeUndefined();
+});
+
+it('moves the low end and closes the outgoing top when a mix is possible', async () => {
+  // A minimal AudioContext with the two filters each deck needs.
+  const param = () => {
+    const value = {
+      value: 0,
+      targets: [] as number[],
+      setTargetAtTime(v: number) {
+        this.value = v;
+        this.targets.push(v);
+      },
+    };
+    return value;
+  };
+  const node = () => ({ connect: () => undefined, disconnect: () => undefined });
+  const filters: {
+    type: string;
+    frequency: ReturnType<typeof param>;
+    gain: ReturnType<typeof param>;
+  }[] = [];
+  const context = {
+    state: 'running' as AudioContextState,
+    currentTime: 0,
+    destination: node(),
+    createMediaElementSource: () => node(),
+    createBiquadFilter: () => {
+      const filter = { ...node(), type: 'lowpass', frequency: param(), gain: param() };
+      filters.push(filter);
+      return filter;
+    },
+    createGain: () => ({ ...node(), gain: param() }),
+    resume: async () => undefined,
+    close: async () => undefined,
+  };
+  vi.stubGlobal('AudioContext', function AudioContext() {
+    return context;
+  });
+  engine = new MixAudio(callbacks());
+  const a = new Blob(['first']),
+    b = new Blob(['second']);
+  engine.load(a);
+  Object.defineProperty(elements[0], 'duration', { value: 30 });
+  engine.setMixEnabled(true);
+  await engine.play();
+  engine.prepare(b);
+  Object.defineProperty(elements[1], 'duration', { value: 30 });
+  elements[1].dispatchEvent(new Event('loadedmetadata'));
+  await Promise.resolve();
+  expect(filters.length).toBeGreaterThanOrEqual(4);
+  const [outShelf, outAir, inShelf, inAir] = filters;
+  expect(outShelf.type).toBe('lowshelf');
+  expect(inAir.type).toBe('lowpass');
+
+  elements[0].currentTime = 26;
+  engine.transition(
+    b,
+    4,
+    () => true,
+    () => {},
+  );
+  await Promise.resolve();
+  elements[1].currentTime = 2;
+  vi.advanceTimersByTime(100);
+  // Halfway through the overlap the low end has changed hands...
+  expect(outShelf.gain.value).toBeLessThan(-10);
+  expect(inShelf.gain.value).toBeGreaterThan(-10);
+  // ...and the outgoing song has lost its top.
+  expect(outAir.frequency.value).toBeLessThan(20_000);
+  // The incoming song is never filtered.
+  expect(inAir.frequency.value).toBe(20_000);
+
+  // When the handover ends nothing stays filtered or shifted.
+  elements[1].currentTime = 6;
+  vi.advanceTimersByTime(100);
+  expect(inAir.frequency.value).toBe(20_000);
+  expect(inShelf.gain.value).toBe(0);
 });

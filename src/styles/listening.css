@@ -345,9 +345,11 @@
 .lyrics-cinematic .lyrics-scroll {
   gap: clamp(12px, 3dvh, 28px);
 }
+/* Neighbours step back so the sung line reads first; they stay legible because
+   the cinema view is also where a long listen happens. */
 .lyrics-cinematic .lyric-line:not(.active) {
-  filter: blur(2px);
-  opacity: 0.3;
+  filter: blur(1px);
+  opacity: 0.5;
 }
 .lyric-line {
   transition:

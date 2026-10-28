@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   automaticBars,
   bassSwapGains,
+  handoverGains,
   isUsablePlan,
   MAX_CUE_LEAD,
   MAX_STRETCH,
@@ -35,9 +36,9 @@ describe('Mix transition planning', () => {
       analysis({ duration: 200, trimmed: { start: 0, end: 198 } }),
     );
     expect(plan.mode).toBe('beatmatched');
-    expect(plan.bars).toBe(4);
-    // 4 bars at 120 BPM = 8 s.
-    expect(plan.seconds).toBeCloseTo(8, 5);
+    // Two phrases at 120 BPM: long enough to be a mix rather than a slide.
+    expect(plan.bars).toBe(8);
+    expect(plan.seconds).toBeCloseTo(16, 5);
     // The incoming song starts at its beginning, not somewhere in the middle.
     expect(plan.cue).toBeLessThanOrEqual(MAX_CUE_LEAD);
     // The overlap must start on a beat of the outgoing grid.
@@ -123,8 +124,9 @@ describe('Mix transition planning', () => {
       vocals: [{ start: 0, end: 300, strength: 0.9 }],
     });
     const plan = planTransition(outgoing, incoming);
-    expect(plan.bars).toBe(2);
-    expect(plan.seconds).toBeCloseTo(4, 5);
+    // Half of eight bars, so the two voices collide for one phrase instead of two.
+    expect(plan.bars).toBe(4);
+    expect(plan.seconds).toBeCloseTo(8, 5);
     expect(plan.notes.join(' ')).toMatch(/halved/i);
   });
 
@@ -175,7 +177,7 @@ describe('gain curves', () => {
   });
 
   it('chooses its own bar count so a blend lasts about the target length', () => {
-    expect(automaticBars(120)).toBe(4);
+    expect(automaticBars(120)).toBe(8);
     expect(automaticBars(174)).toBe(8);
     expect(automaticBars(60)).toBe(4);
     expect(automaticBars(0)).toBe(4);
@@ -211,5 +213,41 @@ describe('gain curves', () => {
     expect(second).toBe(first);
     // Different options are a different plan.
     expect(planTransitionCached(a, b, { fallbackSeconds: 4 })).not.toBe(first);
+  });
+});
+
+describe('the mix curve', () => {
+  it('brings the new song in early and lets the old one leave afterwards', () => {
+    // A quarter of the way in the new song is already at level, which is what
+    // makes the handover audible as an arrival instead of a slide.
+    expect(handoverGains(0.25).incoming).toBeGreaterThan(0.65);
+    // A symmetric crossfade would still be barely half way there.
+    expect(handoverGains(0.25).incoming).toBeGreaterThan(planGains(0.25).incoming + 0.25);
+    // The old song is still there when the new one lands: this is a mix, not a cut.
+    expect(handoverGains(0.25).outgoing).toBeGreaterThan(0.6);
+    // And it is the one that leaves in the second half of the overlap.
+    expect(handoverGains(0.5).outgoing).toBeGreaterThan(handoverGains(0.75).outgoing);
+    expect(handoverGains(0.9).outgoing).toBeLessThan(0.2);
+  });
+
+  it('stays at constant power the whole way, so nothing clips or drops out', () => {
+    for (let step = 0; step <= 200; step++) {
+      const { outgoing, incoming } = handoverGains(step / 200);
+      expect(Math.hypot(outgoing, incoming)).toBeCloseTo(1, 12);
+    }
+  });
+
+  it('starts with the old song alone and ends with the new one alone', () => {
+    expect(handoverGains(0)).toEqual({ outgoing: 1, incoming: 0 });
+    expect(handoverGains(1).incoming).toBeCloseTo(1, 12);
+    expect(handoverGains(1).outgoing).toBeCloseTo(0, 12);
+    // No jumps anywhere: a step would be heard as a click.
+    let previous = 0;
+    for (let step = 0; step <= 400; step++) {
+      const value = handoverGains(step / 400).incoming;
+      expect(value).toBeGreaterThanOrEqual(previous - 1e-9);
+      expect(value - previous).toBeLessThan(0.02);
+      previous = value;
+    }
   });
 });
