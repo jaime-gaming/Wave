@@ -52,6 +52,15 @@ Browser coverage includes paused restoration of saved queue/native position, art
 - Lyrics follow in the cinema view: `LyricsPanel` proves the read-only cinema renderer scrolls as the song advances (a second time position produces a new scroll) while staying read-only. The stored-scroll assertion in the Chromium test is **unverified** here.
 - Privacy: `public/privacy.html` and `PRIVACY.md` gained sections for clip discovery, YouTube songs, the optional word-level sources, the offline cache and Mix's playback-only processing, and were re-dated to 28 October 2026. The privacy page's palette test still passes the heading check; no test asserts the new wording.
 
+### 0.1.1 corrections: a mix cue, linked devices, ranked search
+
+- `npx tsc -b`, `npx eslint .`, `npx prettier --check .`, `npm run build`, `npm run build:pages`, `npm run release:check -- v0.1.1` and `npm test` (**458 tests across 77 files**) pass.
+- Mix cue: `mixCue` (3 tests) proves the store announces a cue once, updates the fraction without notifying, and starts a new cue when the leaving song changes; `MixCueVisual` (3 tests) proves the split renders, that progress outside 0–1 is clamped, and that the label carries the destination in words. The timing that produces the cue lives in the engine's loop and is **not covered by a unit test**; the Chromium assertion for it was **not run** (no browser binary here).
+- Devices: `signal` encoding, `transport` and `link` are **untested by design in this workspace** — they need a second peer and a real `RTCPeerConnection`. The existing `src/sync` suites (pairing, session, protocol, loans, store) still pass unchanged, which proves the layer under the new page, not the page itself. **No two-device connection, no transfer and no NAT traversal was attempted.**
+- search ranking: `searchRank` (6 tests) covers the ladder, accent handling, stable ties, the limit and the recent-search list including a refusing store.
+- Clip shortlist: `rankClips` is covered indirectly by the clip tests; `findClip` now stops at the first host with a good match (proven by the existing "called once" assertion), and the shortlist path that asks every host is **not exercised by a test**.
+- Android and Windows were not touched this round; the earlier "not compiled" note still stands.
+
 ### 0.1.1 corrections: cued entries, a drawn blend, an Android app
 
 - `npx tsc -b`, `npx eslint .`, `npx prettier --check .`, `npm run build`, `npm run build:pages`, `npm run release:check -- v0.1.1` and `npm test` (**446 tests across 74 files**) pass.

@@ -1097,3 +1097,208 @@
     padding-block: 22%;
   }
 }
+
+/*
+ * The lead-in to a mix: the playing cover splits down the middle, the two halves
+ * step aside, and the next song is already behind them when the join happens.
+ *
+ * Everything here is one progress value from the engine, so the picture is
+ * always on the same clock as the sound. Under reduced motion the halves stay
+ * closed and only the incoming sleeve fades in — the meaning survives, the
+ * movement does not.
+ */
+.mix-cue {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-width: 56px;
+  min-height: 56px;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: inherit;
+  isolation: isolate;
+}
+.mix-cue-next,
+.mix-cue-half {
+  position: absolute;
+  inset: 0;
+}
+.mix-cue-next .artwork,
+.mix-cue-half .artwork {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+}
+/* The next sleeve is visible from the start, dimmed, and comes up as it parts. */
+.mix-cue-next {
+  opacity: calc(0.35 + var(--cue-open, 0) * 0.65);
+  transform: scale(calc(1.04 - var(--cue-open, 0) * 0.04));
+}
+.mix-cue-left {
+  clip-path: inset(0 50% 0 0);
+  transform: translateX(calc(var(--cue-open, 0) * -13%));
+}
+.mix-cue-right {
+  clip-path: inset(0 0 0 50%);
+  transform: translateX(calc(var(--cue-open, 0) * 13%));
+}
+/* A thin line of light in the gap, breathing while the cue is waiting. */
+.mix-cue-seam {
+  position: absolute;
+  top: 6%;
+  bottom: 6%;
+  left: 50%;
+  width: 1.5px;
+  margin-left: -0.75px;
+  border-radius: 2px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    color-mix(in srgb, var(--secondary) 70%, transparent) 22%,
+    color-mix(in srgb, var(--secondary) 70%, transparent) 78%,
+    transparent
+  );
+  opacity: calc(0.25 + var(--cue-breathe, 0) * 0.4 + var(--cue-open, 0) * 0.35);
+  transform: scaleY(calc(0.86 + var(--cue-open, 0) * 0.14));
+  pointer-events: none;
+}
+.mix-cue-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--secondary);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.stage-cue {
+  margin-top: 10px;
+}
+.stage-cue .mix-cue-label {
+  font-size: 13px;
+}
+/* Three bars that rise and fall out of phase: a mix, not a spinner. */
+.mix-cue-waves {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 12px;
+}
+.mix-cue-waves i {
+  display: block;
+  width: 2.5px;
+  height: 100%;
+  border-radius: 2px;
+  background: currentColor;
+  transform-origin: bottom;
+  animation: mix-cue-wave 1.1s ease-in-out infinite;
+}
+.mix-cue-waves i:nth-child(2) {
+  animation-delay: 0.18s;
+}
+.mix-cue-waves i:nth-child(3) {
+  animation-delay: 0.36s;
+}
+@keyframes mix-cue-wave {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+    opacity: 0.6;
+  }
+  40% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mix-cue-left,
+  .mix-cue-right {
+    transform: none;
+  }
+  .mix-cue-waves i {
+    animation: none;
+    transform: scaleY(0.7);
+  }
+}
+
+/*
+ * Finishing passes on the listening screen.
+ *
+ * The composition is unchanged — cover and words on the left and right, the
+ * transport in one quiet card at the bottom, the way a good player has always
+ * looked. What is added is the last five per cent: a softer floor under the
+ * cover, a play button that reads as a physical key rather than a coloured
+ * rectangle, a sung lyric that lifts off the page instead of merely changing
+ * colour, and transitions that settle instead of snapping.
+ */
+.stage-cover {
+  box-shadow:
+    0 2px 6px #0002,
+    0 22px 60px -18px #0008;
+  transition:
+    transform 0.5s cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 0.5s cubic-bezier(0.2, 0, 0, 1);
+}
+.stage-cover:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow:
+    0 4px 10px #0003,
+    0 30px 70px -20px #000a;
+}
+.stage-play {
+  box-shadow:
+    0 1px 0 #fff3 inset,
+    0 8px 22px -8px color-mix(in srgb, var(--primary) 70%, transparent);
+  transition:
+    transform 0.22s cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 0.22s ease,
+    border-radius 0.32s cubic-bezier(0.2, 0, 0, 1);
+}
+.stage-play:hover:not(:disabled) {
+  box-shadow:
+    0 1px 0 #fff4 inset,
+    0 12px 28px -8px color-mix(in srgb, var(--primary) 85%, transparent);
+}
+.stage-play:active:not(:disabled) {
+  transform: scale(0.96);
+}
+.stage-skip,
+.stage-modes button,
+.stage-volume button {
+  transition:
+    color 0.18s ease,
+    background 0.18s ease,
+    transform 0.18s ease;
+}
+.stage-skip:hover:not(:disabled),
+.stage-modes button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--on-surface, #fff) 8%, transparent);
+}
+.lyric-line {
+  transition:
+    color 0.35s ease,
+    opacity 0.35s ease,
+    transform 0.35s cubic-bezier(0.2, 0, 0, 1);
+}
+.lyrics-stage:not(.lyrics-cinematic) .lyric-line.active {
+  transform: translateX(2px);
+}
+.stage-times,
+.compact-seek span,
+.wave-seek + span {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+@media (prefers-reduced-motion: reduce) {
+  .stage-cover,
+  .stage-cover:hover:not(:disabled),
+  .stage-play,
+  .lyric-line,
+  .lyrics-stage:not(.lyrics-cinematic) .lyric-line.active {
+    transition: none;
+    transform: none;
+  }
+}

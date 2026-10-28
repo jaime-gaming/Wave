@@ -60,6 +60,9 @@ import { usePlayer } from './hooks/usePlayer';
  * needed, so the first screen on a phone is not paying for the settings page,
  * the metadata review or a daily mix.
  */
+const DevicesPage = lazy(() =>
+  import('./components/DevicesPage').then((module) => ({ default: module.DevicesPage })),
+);
 const SettingsPage = lazy(() =>
   import('./components/SettingsPage').then((module) => ({ default: module.SettingsPage })),
 );
@@ -877,6 +880,14 @@ function WaveApp({
                       </div>
                       <LocalMetadataReview tracks={library.tracks} />
                     </>
+                  }
+                  devices={
+                    <DevicesPage
+                      tracks={library.tracks}
+                      onAddLoaned={async (blob, name) => {
+                        await importFiles([new File([blob], name, { type: blob.type })]);
+                      }}
+                    />
                   }
                   storage={
                     <>

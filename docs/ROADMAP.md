@@ -179,9 +179,11 @@ no interface, provider client or Android port exists yet.
 - [x] AES-GCM sealed frames, chunked transfer and SHA-256 verification before storage.
 - [x] Temporary loans bounded by **space** (default 2 GB / 2 000 songs), least-recently-used eviction of unpinned loans and per-device summaries.
 - [x] Separate `wave-sync` IndexedDB store; library schema untouched.
-- [ ] WebRTC data channel, LAN pairing and cross-network signalling relay (no audio in the relay).
-- [ ] On-demand playback of a song that lives on a paired device.
-- [ ] Settings → Devices, "Offline devices" list and borrowed-space budget.
+- [x] WebRTC data channel with hand-exchanged signalling codes (compressed, single paste each way, STUN for cross-network), so no relay and no server are needed.
+- [x] Settings → Devices: make or join a code, six-digit confirmation, the peer's library as a browsable list, per-song requests, live transfer progress, remembered devices, borrowed-space budget and removal.
+- [ ] On-demand streaming of a song that stays on a paired device instead of copying it.
+- [ ] A signalling relay for the networks that cannot connect peer to peer (symmetric NAT), carrying SDP and never audio.
+- [ ] Resuming an interrupted transfer instead of restarting it.
 - [ ] Android port of the protocol, loan store and foreground transfer.
 - [ ] Real two-device transfer, interrupted-transfer recovery and TURN/privacy review.
 
