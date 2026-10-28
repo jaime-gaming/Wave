@@ -1,5 +1,5 @@
 import { mixCues, type MixCues } from '../domain/mix';
-import { handoverGains, planGains, type TransitionPlan } from '../domain/mixPlanner';
+import { handoverGains, levelTrim, planGains, type TransitionPlan } from '../domain/mixPlanner';
 import { bassShelfDb, filterOutHz, MixGraph, OPEN_AIR_HZ, stretchRate } from './mixGraph';
 import type { TrackAnalysis } from './dsp';
 import { sourceEnvelope } from './sourceEnvelope';
@@ -37,6 +37,8 @@ export class MixAudio {
     bassSwapAt: number;
     /** Rolling the outgoing song's top down, only with Web Audio. */
     filterOut: boolean;
+    /** Level match between the two records, applied only for the overlap. */
+    trim: { outgoing: number; incoming: number };
   };
   private mixEnabled = false;
   private graph: MixGraph | null = null;
@@ -422,6 +424,10 @@ export class MixAudio {
         this.active = incoming;
         this.spare = outgoing;
         this.fading = {
+          trim: levelTrim(
+            outgoing.blob ? this.analyses.get(outgoing.blob) : undefined,
+            incoming.blob ? this.analyses.get(incoming.blob) : undefined,
+          ),
           outgoing,
           incoming,
           start: performance.now(),
@@ -537,8 +543,10 @@ export class MixAudio {
     // old one leaves afterwards. That difference is the whole point of the
     // feature — a symmetric equal-power slide is just a crossfade.
     const gains = this.fading.mixed ? handoverGains(progress) : planGains(progress);
-    this.applyDeckGain(this.fading.outgoing, gains.outgoing);
-    this.applyDeckGain(this.fading.incoming, gains.incoming);
+    // The level match rides on top of the curve, so a quieter record is not
+    // heard as the mix going quiet.
+    this.applyDeckGain(this.fading.outgoing, gains.outgoing * this.fading.trim.outgoing);
+    this.applyDeckGain(this.fading.incoming, gains.incoming * this.fading.trim.incoming);
     if (this.fading.bassSwap && this.graph) {
       // A's lows close as B's open, so the kick never disappears between the two
       // songs and the low end clearly changes hands once.
@@ -559,6 +567,8 @@ export class MixAudio {
         this.graph.setAir(finished.incoming.element, OPEN_AIR_HZ);
       }
       this.fading = undefined;
+      // Back to unity: from here the song plays exactly as it does alone.
+      this.graph?.setGain(finished.incoming.element, 1);
       this.callbacks.blend?.(null);
     }
   }

@@ -1,10 +1,10 @@
 # Wave platforms · 0.1.1
 
-**Release date: 17 October 2026.** Wave has three independent implementations, not WebView/Electron wrappers. The web client is the most complete; Windows follows its structure with native C#/WPF controls, while Android uses Kotlin/Compose. Libraries are separate and never synchronized or silently migrated.
+**Release date: 28 October 2026.** Wave has three independent implementations, not WebView/Electron wrappers. The web client is the most complete; Windows follows its structure with native C#/WPF controls, while Android uses Kotlin/Compose. Libraries are separate and never synchronized or silently migrated.
 
 | Capability                                | Web                                     | Windows                                     | Android                                       |
 | ----------------------------------------- | --------------------------------------- | ------------------------------------------- | --------------------------------------------- |
-| Home, local library, favorites            | Yes                                     | Yes                                         | Basic                                         |
+| Home, local library, favorites            | Yes                                     | Yes                                         | Home, library and favorites                   |
 | Dedicated Search                          | Yes                                     | Song search                                 | Library filter                                |
 | Albums/artists                            | Profiles and artwork                    | Native group/details views                  | Basic list                                    |
 | Browsable daily mixes and saved snapshots | Genre/artist tags                       | Genre/artist tags                           | Not yet                                       |
@@ -56,7 +56,9 @@ Requirements: JDK 17, SDK/build tools 36, Gradle 8.13 and Android Studio support
 gradle -p platforms/android testDebugUnitTest lintDebug assembleDebug
 ```
 
-Output: `platforms/android/app/build/outputs/apk/debug/app-debug.apk`, a debug test artifact. The pinned Ubuntu CI runner provides the SDK. Tests cover LRC/gain contracts; hosted unit/lint/assembly passed. Actual device import/playback, rotation-safe lifecycle, audio focus, foreground service/media session and signing remain gates. Document picker imports copy original bytes into app-private storage; uninstall removes this copy, so retain originals.
+Output: `platforms/android/app/build/outputs/apk/debug/app-debug.apk`, a debug test artifact. The pinned Ubuntu CI runner provides the SDK. Tests cover LRC/gain contracts; hosted unit/lint/assembly passed. Actual device import/playback, audio focus, foreground service/media session and signing remain gates.
+
+The phone build is structured as its own application rather than a compressed copy of the web: `ui/Theme.kt` (palette, type scale, shapes), `ui/Components.kt` (mark, titles, rows, absence views), `ui/Cover.kt` (sleeves read from the file, decoded off the main thread with a small cache), `ui/PlayerBar.kt`, `ui/NowPlaying.kt`, `ui/Screens.kt`, `ui/EditSongDialog.kt`, `ui/WaveState.kt` (library, player, imports and lyric lookups in one place) and `ui/WaveApp.kt` (destinations, mini player, overlay). Three destinations, a mini player that sits above the navigation and never hides, and a full listening screen with the lyric following the song replace the single scrolling screen. The activity declares its configuration changes, so rotation no longer restarts playback. Document picker imports copy original bytes into app-private storage; uninstall removes this copy, so retain originals.
 
 ## Publication gates
 

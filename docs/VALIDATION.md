@@ -6,7 +6,7 @@ Release 0.1.1 · 28 October 2026. Historical run dates are retained below.
 
 - `npm run format:check`: passed.
 - `npm run lint`: passed.
-- `npm test`: **441 tests passed across 74 files** (latest run; 200 tests across 42 files at the 0.1.0 release).
+- `npm test`: **446 tests passed across 74 files** (latest run; 200 tests across 42 files at the 0.1.0 release).
 - `npm run test:e2e`: **89 Chromium browser tests passed** in the final complete run (7.6 minutes).
 - `npm run build`: passed. Vite reports its advisory 500 KB chunk-size warning (main chunk approximately 547 KB, gzip 172 KB); this is not a build failure.
 - `npm run build -- --base=/Wave/`: passed; a production static-server smoke test verified Home, Settings, fonts/assets, `/Wave/wave.svg`, the privacy page and its return link under the repository path without HTTP/page errors.
@@ -51,6 +51,15 @@ Browser coverage includes paused restoration of saved queue/native position, art
 - The graph is no longer discarded when the audio context refuses to start; the engine retries from its timer and attaches then. This is covered indirectly (the EQ test routes through a running context); a refused-then-resumed context was **not** reproduced in a browser here.
 - Lyrics follow in the cinema view: `LyricsPanel` proves the read-only cinema renderer scrolls as the song advances (a second time position produces a new scroll) while staying read-only. The stored-scroll assertion in the Chromium test is **unverified** here.
 - Privacy: `public/privacy.html` and `PRIVACY.md` gained sections for clip discovery, YouTube songs, the optional word-level sources, the offline cache and Mix's playback-only processing, and were re-dated to 28 October 2026. The privacy page's palette test still passes the heading check; no test asserts the new wording.
+
+### 0.1.1 corrections: cued entries, a drawn blend, an Android app
+
+- `npx tsc -b`, `npx eslint .`, `npx prettier --check .`, `npm run build`, `npm run build:pages`, `npm run release:check -- v0.1.1` and `npm test` (**446 tests across 74 files**) pass.
+- Level match: `levelTrim` (2 tests) proves only the louder deck is attenuated, that -6 dB is the floor, and that songs that already match or cannot be measured are left alone. Whether a real pair actually meets by ear was **not tested**. the new song is cued on the first bar of its body (16.05 s in the fixture instead of 1.05), that a 45-second intro is entered at `MAX_ENTRY` and no deeper, that a song without segments still starts at its first beat, and that a vocal in the intro cancels the skip entirely. **Nothing was listened to**: these are plan values, not a judgement of how a join sounds.
+- Unplanned handovers: `automaticMixSeconds` now returns up to 16 s (16 s for a three-minute song instead of about 7.4 s). The mix tests assert the new bounds; the audible difference on a device is **unmeasured**.
+- Blend picture: `MixVisual` (4 tests) proves both covers are drawn from one progress value, that the arrival finishes before the departure starts, that values outside 0–1 are clamped, and that the seam exists. The e2e cover-geometry assertion was rewritten to measure each layer against its own transform; it was **not run** (no browser binary in this workspace).
+- Android: the app was reorganised into `ui/` (theme, components, cover loader, player bar, now playing, screens, editor, state, shell) and the activity now carries the version and the theme. Sleeves are read from the file through `MediaMetadataRetriever` with an LRU cache. **None of it was compiled, linted or run**: this workspace has no JDK, no Android SDK and no Gradle, so the Kotlin is unverified beyond review. Rotation keeping playback is a manifest declaration (`configChanges`), not something observed on a device.
+- Windows: `MixWindow` now returns 6–16 s instead of 1–8 s and `HandoverGains` replaces the inline equal-power curve. The contract runner was updated but **not executed** (no .NET here).
 
 ### 0.1.1 corrections: longer blends, a transport in the listening screen
 
