@@ -20,7 +20,7 @@ class Player {
     var crossfade = 0.0
         set(value) {
             if (field == value) return
-            field = value.coerceIn(0.0, 12.0)
+            field = value.coerceIn(0.0, BLEND_SECONDS)
             if (prepared && outgoing == null) prepareNext()
         }
     var volume = 1f

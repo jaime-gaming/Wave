@@ -104,6 +104,73 @@
 .stage-cover .mix-artwork {
   max-width: none;
 }
+/*
+ * A mix is drawn in two moves, because it is heard in two moves: the new cover
+ * opens from the centre while it is arriving, and the old one only steps back
+ * once both songs are already playing together. Every value is one progress
+ * number, so the sleeve, the ring and the sound stay on the same clock.
+ */
+.mix-artwork {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: inherit;
+  isolation: isolate;
+}
+.mix-outgoing,
+.mix-incoming {
+  position: absolute;
+  inset: 0;
+}
+.mix-outgoing .artwork,
+.mix-incoming .artwork {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+}
+.mix-outgoing {
+  opacity: calc(1 - var(--mix-leave, 0) * 0.92);
+  transform: scale(calc(1 - var(--mix-leave, 0) * 0.08));
+  filter: saturate(calc(1 - var(--mix-leave, 0) * 0.4))
+    brightness(calc(1 - var(--mix-leave, 0) * 0.16));
+}
+.mix-incoming {
+  /* Also a plain fade, so the arrival is still legible where masks are not. */
+  opacity: calc(0.15 + var(--mix-progress, 0) * 0.85);
+  transform: scale(calc(1.08 - var(--mix-arrive, 0) * 0.08));
+  -webkit-mask-image: radial-gradient(
+    circle at 50% 50%,
+    #000 calc(var(--mix-arrive, 0) * 74%),
+    transparent calc(var(--mix-arrive, 0) * 74% + 14%)
+  );
+  mask-image: radial-gradient(
+    circle at 50% 50%,
+    #000 calc(var(--mix-arrive, 0) * 74%),
+    transparent calc(var(--mix-arrive, 0) * 74% + 14%)
+  );
+}
+/* A quiet ring of light where the two sleeves meet, brightest at the handover. */
+.mix-seam {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px
+    color-mix(in srgb, var(--player-accent, var(--primary)) 45%, transparent);
+  opacity: calc(var(--mix-peak, 0) * 0.55);
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .mix-outgoing,
+  .mix-incoming {
+    transition:
+      transform 0.18s linear,
+      opacity 0.18s linear,
+      mask-image 0.18s linear;
+  }
+}
 .stage-cover .stage-artwork {
   width: 100%;
   height: 100%;

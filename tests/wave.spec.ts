@@ -1364,16 +1364,26 @@ for (const viewport of [
       })
       .toBe(true);
     await expect(full.locator('.mix-artwork')).toBeVisible();
+    // The two sleeves are drawn edge to edge inside the stage cover. Each layer
+    // now carries its own entrance transform, so the cover is measured against
+    // its own layer rather than against the frame it is moving inside.
     const coverSizes = await full.locator('.mix-artwork').evaluate((element) => {
       const frame = element.getBoundingClientRect();
       const cover = element.closest('.stage-cover')!.getBoundingClientRect();
       return [...element.querySelectorAll('.artwork')].map((artwork) => {
         const box = artwork.getBoundingClientRect();
+        const layer = artwork.parentElement!.getBoundingClientRect();
         return {
           width: box.width,
           height: box.height,
+          layerWidth: layer.width,
+          layerHeight: layer.height,
+          layerLeft: layer.left,
+          layerTop: layer.top,
           frameWidth: frame.width,
           frameHeight: frame.height,
+          frameLeft: frame.left,
+          frameTop: frame.top,
           coverWidth: cover.width,
           coverHeight: cover.height,
         };
@@ -1381,8 +1391,10 @@ for (const viewport of [
     });
     expect(coverSizes).toHaveLength(2);
     for (const size of coverSizes) {
-      expect(size.width).toBeCloseTo(size.frameWidth, 0);
-      expect(size.height).toBeCloseTo(size.frameHeight, 0);
+      expect(size.width).toBeCloseTo(size.layerWidth, 0);
+      expect(size.height).toBeCloseTo(size.layerHeight, 0);
+      expect(size.layerWidth).toBeCloseTo(size.frameWidth, 0);
+      expect(size.layerHeight).toBeCloseTo(size.frameHeight, 0);
       expect(size.frameWidth).toBeCloseTo(size.coverWidth, 0);
       expect(size.frameHeight).toBeCloseTo(size.coverHeight, 0);
     }

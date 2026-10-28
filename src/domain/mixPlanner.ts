@@ -1,4 +1,4 @@
-import { overlapsRegion, type TrackAnalysis } from '../audio/dsp';
+import { introEnd, overlapsRegion, type TrackAnalysis } from '../audio/dsp';
 
 /**
  * Mix planner: decides *how* two songs are joined, before any audio is touched.
@@ -32,11 +32,19 @@ export const MAX_BARS = 16;
  */
 export const TARGET_SECONDS = 20;
 /**
- * How much of the incoming song Mix may skip to find a downbeat. Starting the
- * new song deep inside itself is the worst thing a mix can do: the listener
- * loses the beginning of a song they may not know.
+ * How far Mix may move the incoming song to land on a downbeat.
  */
 export const MAX_CUE_LEAD = 6;
+/**
+ * How far into a song Mix may start it to reach the first bar with the drums
+ * already playing.
+ *
+ * A record is cued on its first kick, not on its first second. Twenty seconds is
+ * enough for the longest atmospheric intro and short enough that no verse, no
+ * chorus and no hook can hide in the part that is skipped — and nothing is
+ * skipped at all once a voice has been heard.
+ */
+export const MAX_ENTRY = 20;
 
 export type TransitionMode = 'beatmatched' | 'crossfade' | 'cut';
 
@@ -116,18 +124,32 @@ function alignOutgoing(analysis: TrackAnalysis, time: number): number {
   return Math.max(analysis.trimmed.start, offset + Math.floor(beats) * period);
 }
 
-/** Incoming start: the song's beginning, nudged to the next downbeat. */
+/**
+ * Incoming start: the song's first full bar, on a downbeat.
+ *
+ * This is the one move that separates a mix from two songs played over each
+ * other. A song almost always opens with a beatless intro or a single held
+ * chord; fading that under the outgoing song gives the join no arrival at all,
+ * because the new record has nothing to arrive with. A DJ cues at the first bar
+ * where the drums are already playing, and that is `introEnd`.
+ *
+ * The skip is bounded by `MAX_ENTRY` and forbidden as soon as a voice is present
+ * in the part that would be skipped: a song that opens with a sung line starts
+ * on its first beat like it always did.
+ */
 function alignIncoming(analysis: TrackAnalysis): number {
   const { bpm, offset } = analysis.beats;
   const period = 60 / bpm;
   const start = analysis.trimmed.start;
-  const beats = (start - offset) / period;
-  // Round up to the next bar so the incoming song enters on a downbeat, but
-  // never further than `MAX_CUE_LEAD`: nothing of the song is skipped.
+  const body = clamp(introEnd(analysis), start, start + MAX_ENTRY);
+  const entry = body - start > period ? body : start;
+  const skip = !overlapsRegion(analysis.vocals, start, entry, 0.05);
+  const from = skip ? entry : start;
+  // Round up to the next bar so the incoming song enters on a downbeat.
+  const beats = (from - offset) / period;
   const bar = Math.ceil(beats / BEATS_PER_BAR) * BEATS_PER_BAR;
   const aligned = offset + bar * period;
-  const lead = clamp(aligned, start, start + MAX_CUE_LEAD);
-  return clamp(lead, start, Math.max(start, analysis.trimmed.end - period));
+  return clamp(aligned, start, Math.max(start, analysis.trimmed.end - period));
 }
 
 /**
@@ -277,6 +299,39 @@ export function planTransition(
     phaseAligned,
     notes,
   };
+}
+
+/**
+ * How much each deck should be pulled down so the two arrive at the same level.
+ *
+ * A mix is judged by its join, and two records mastered years apart rarely meet
+ * at the same loudness: the new one at -6 dB sounds like the old one fading out,
+ * however well the beats line up. The quieter song is the reference; only the
+ * louder deck is turned down, never up, so nothing is pushed towards clipping.
+ * This is a playback gain for the length of the overlap — the file, its samples
+ * and its loudness on disk are untouched, and the deck is back at unity when the
+ * handover ends.
+ */
+export function levelTrim(
+  outgoing: TrackAnalysis | undefined,
+  incoming: TrackAnalysis | undefined,
+): { outgoing: number; incoming: number } {
+  const meanBody = (analysis: TrackAnalysis | undefined) => {
+    if (!analysis) return undefined;
+    const levels = analysis.segments
+      .filter((segment) => segment.kind === 'body' && segment.level > 0.01)
+      .map((segment) => segment.level);
+    if (!levels.length) return undefined;
+    return levels.reduce((total, level) => total + level, 0) / levels.length;
+  };
+  const a = meanBody(outgoing),
+    b = meanBody(incoming);
+  if (!a || !b) return { outgoing: 1, incoming: 1 };
+  const decibels = Math.max(-6, Math.min(6, 20 * Math.log10(b / a)));
+  if (!Number.isFinite(decibels) || Math.abs(decibels) < 0.5) return { outgoing: 1, incoming: 1 };
+  return decibels > 0
+    ? { outgoing: 1, incoming: Math.round(10 ** (-decibels / 20) * 1000) / 1000 }
+    : { outgoing: Math.round(10 ** (decibels / 20) * 1000) / 1000, incoming: 1 };
 }
 
 /**

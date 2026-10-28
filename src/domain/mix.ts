@@ -30,10 +30,18 @@ export function mixWindowReached(currentTime: number, duration: number, window: 
   return duration - currentTime <= tail;
 }
 
-/** Automatic window based on the shorter recording, bounded for short clips and full songs. */
+/**
+ * Overlap used when there is no usable plan.
+ *
+ * This used to shrink with the square root of the song and stop at eight
+ * seconds, so a handover between two songs the analysis could not read was a
+ * short fade — the exact thing Mix is supposed to replace. A real song now gets
+ * the same length the planner aims for; a very short file still gets a short
+ * overlap, and neither deck is ever faded for more than half its playing time.
+ */
 export function automaticMixSeconds(outgoing: number, incoming: number) {
   if (!Number.isFinite(outgoing) || !Number.isFinite(incoming) || outgoing <= 0 || incoming <= 0)
     return 0;
   const shortest = Math.min(outgoing, incoming);
-  return Math.min(8, Math.max(2, Math.sqrt(shortest) * 0.55), shortest / 2);
+  return Math.min(16, Math.max(4, shortest * 0.1), shortest / 2);
 }

@@ -4,7 +4,9 @@ import {
   bassSwapGains,
   handoverGains,
   isUsablePlan,
+  levelTrim,
   MAX_CUE_LEAD,
+  MAX_ENTRY,
   MAX_STRETCH,
   planGains,
   planTransition,
@@ -29,6 +31,39 @@ const analysis = (over: Partial<TrackAnalysis> = {}): TrackAnalysis => ({
   ...over,
 });
 
+describe('Level matching across a handover', () => {
+  const quiet = analysis({
+    segments: [
+      { start: 1, end: 16, level: 0.2, kind: 'intro' },
+      { start: 16, end: 210, level: 0.5, kind: 'body' },
+    ],
+  });
+  const loud = analysis({
+    segments: [
+      { start: 1, end: 16, level: 0.2, kind: 'intro' },
+      { start: 16, end: 210, level: 0.9, kind: 'body' },
+    ],
+  });
+
+  it('turns the louder record down instead of the quieter one up', () => {
+    const aLoud = levelTrim(loud, quiet);
+    expect(aLoud.outgoing).toBeLessThan(1);
+    expect(aLoud.incoming).toBe(1);
+    const bLoud = levelTrim(quiet, loud);
+    expect(bLoud.outgoing).toBe(1);
+    expect(bLoud.incoming).toBeLessThan(1);
+    // -6 dB is the ceiling, so a badly mastered pair cannot be silenced.
+    expect(bLoud.incoming).toBeGreaterThanOrEqual(0.5);
+  });
+
+  it('leaves decks alone when they already match or cannot be measured', () => {
+    expect(levelTrim(quiet, quiet)).toEqual({ outgoing: 1, incoming: 1 });
+    expect(levelTrim(quiet, undefined)).toEqual({ outgoing: 1, incoming: 1 });
+    const noBody = analysis({ segments: [] });
+    expect(levelTrim(quiet, noBody)).toEqual({ outgoing: 1, incoming: 1 });
+  });
+});
+
 describe('Mix transition planning', () => {
   it('mixes two songs with the same tempo on a bar boundary', () => {
     const plan = planTransition(
@@ -40,8 +75,12 @@ describe('Mix transition planning', () => {
     // and a departure, instead of one slide.
     expect(plan.bars).toBe(12);
     expect(plan.seconds).toBeCloseTo(24, 5);
-    // The incoming song starts at its beginning, not somewhere in the middle.
-    expect(plan.cue).toBeLessThanOrEqual(MAX_CUE_LEAD);
+    // The incoming song is cued on the first bar of its body, not on the beatless
+    // intro it opens with, and never deeper than MAX_ENTRY.
+    expect(plan.cue).toBeCloseTo(16.05, 2);
+    expect(plan.cue).toBeLessThanOrEqual(MAX_ENTRY + 2);
+    const entry = (plan.cue - 0.05) / (60 / 120);
+    expect(Math.abs(entry - Math.round(entry))).toBeLessThan(0.01);
     // The overlap must start on a beat of the outgoing grid.
     const period = 60 / 120;
     const beats = (plan.startAt - 0.05) / period;
@@ -102,7 +141,7 @@ describe('Mix transition planning', () => {
     expect(plan.seconds).toBeLessThanOrEqual(12);
   });
 
-  it('enters a song with a long intro at its beginning instead of after the intro', () => {
+  it('never skips more than MAX_ENTRY of an intro', () => {
     const longIntro = analysis({
       duration: 300,
       trimmed: { start: 0, end: 298 },
@@ -114,7 +153,19 @@ describe('Mix transition planning', () => {
     });
     const plan = planTransition(analysis(), longIntro);
     expect(plan.mode).toBe('beatmatched');
-    expect(plan.cue).toBeLessThanOrEqual(MAX_CUE_LEAD);
+    // A 45-second intro is a section, not a count-in: Mix takes the first bar
+    // inside it and no more.
+    expect(plan.cue).toBeLessThanOrEqual(MAX_ENTRY + 2);
+    expect(plan.notes.join(' ')).not.toMatch(/skipped/i);
+  });
+
+  it('keeps a song with no sections at its first beat', () => {
+    const plan = planTransition(
+      analysis(),
+      analysis({ segments: [], trimmed: { start: 2, end: 198 } }),
+    );
+    expect(plan.mode).toBe('beatmatched');
+    expect(plan.cue - 2).toBeLessThanOrEqual(MAX_CUE_LEAD + 1);
   });
 
   it('halves the overlap when both songs have vocals at the join', () => {
