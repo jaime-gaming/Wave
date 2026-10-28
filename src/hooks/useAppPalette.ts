@@ -1,4 +1,5 @@
 import { blendHue } from '../domain/palette';
+import { applyFavicon } from '../ui/favicon';
 import { useEffect, useRef } from 'react';
 import { useArtworkColor } from './useArtworkColor';
 import { useWaveMotion } from '../ui/motion';
@@ -65,6 +66,12 @@ export function useAppPalette(
       active.current?.skipTransition();
     };
   }, [artwork, hue, saturation, motion.enabled, mixing]);
+  // The tab follows the same hue as the interface, once per song rather than on
+  // every frame of a blend: a favicon is not animated, and rewriting it twenty
+  // times a second would only make the browser re-read it.
+  useEffect(() => {
+    applyFavicon(Number(hue ?? 226), Number.parseFloat(String(saturation ?? '24%')));
+  }, [hue, saturation]);
   const progress = blend?.progress,
     seconds = blend?.seconds;
   useEffect(() => {

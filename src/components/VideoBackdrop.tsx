@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Film } from 'lucide-react';
 import { EmptyState } from './EmptyState';
-import { readEmbedEvent, youtubeEmbedUrl } from '../domain/youtube';
+import { readEmbedProgress, youtubeEmbedUrl } from '../domain/youtube';
 import {
   planVideoSync,
   VIDEO_CORRECTION_COOLDOWN_MS,
@@ -14,6 +14,8 @@ import { networkAriaLabel, networkLabel, useOnline } from '../ui/network';
 import type { Track } from '../domain/types';
 
 const OFFLINE: VideoState = { position: 0, playing: false, ready: false };
+/** The iframe's id; the player echoes it back in every message it sends. */
+const FRAME_ID = 'wave-clip-player';
 
 /**
  * The video clip behind Now Playing, in the style of Spotify's canvas.
@@ -147,51 +149,74 @@ function ClipPlayer({
   const frame = useRef<HTMLIFrameElement | null>(null);
   const latest = useRef<VideoState>(OFFLINE);
   const cooldown = useRef(0);
+  /**
+   * The song's own clock, read by the loop without restarting it every tick.
+   *
+   * The interface reports the position ten times a second, so the last value is
+   * up to a tenth of a second old when the loop looks at it. Comparing against
+   * that stale number would park the picture permanently a little behind, so the
+   * time elapsed since the report is added back while the song plays.
+   */
+  const target = useRef({ position: time, playing, duration, at: 0 });
+  /** True once the player has answered at least once. */
+  const heard = useRef(false);
 
-  // Nothing is drawn from the embed's state any more; the sync loop only needs
-  // the latest value.
-  const publish = useCallback((next: VideoState) => {
-    latest.current = next;
+  useEffect(() => {
+    target.current = { position: time, playing, duration, at: performance.now() };
+  }, [time, playing, duration]);
+
+  const post = useCallback((message: Record<string, unknown>) => {
+    frame.current?.contentWindow?.postMessage(JSON.stringify(message), '*');
   }, []);
+
+  /**
+   * The player only talks to a page that has said it is listening.
+   *
+   * This is the whole reason the clip used to run on its own: without a
+   * `listening` message — which the official IFrame API sends for you — YouTube
+   * answers nothing, so Wave never learned where the picture was and never
+   * corrected it. Commands are also ignored until then.
+   */
+  const wake = useCallback(() => {
+    post({ event: 'listening', id: FRAME_ID, channel: 'widget' });
+    post({ event: 'listening', id: FRAME_ID });
+  }, [post]);
 
   const command = useCallback(
     (next: VideoCommand) => {
-      const target = frame.current?.contentWindow;
-      if (!target) return;
-      const post = (func: string, args: unknown[] = []) => {
-        target.postMessage(JSON.stringify({ event: 'command', func, args }), '*');
-      };
+      const send = (func: string, args: unknown[] = []) =>
+        post({ event: 'command', func, args, id: FRAME_ID });
       switch (next.type) {
         case 'play':
-          post('playVideo');
+          send('playVideo');
           break;
         case 'pause':
-          post('pauseVideo');
+          send('pauseVideo');
           break;
         case 'seek':
-          post('seekTo', [next.to, true]);
-          post('setPlaybackRate', [1]);
+          send('seekTo', [next.to, true]);
+          send('setPlaybackRate', [1]);
           cooldown.current = Date.now() + VIDEO_CORRECTION_COOLDOWN_MS;
-          publish({ ...latest.current, position: next.to, rate: 1 });
+          latest.current = { ...latest.current, position: next.to, rate: 1 };
           break;
         case 'seek-and-play':
-          post('seekTo', [next.to, true]);
-          post('setPlaybackRate', [1]);
-          post('playVideo');
+          send('seekTo', [next.to, true]);
+          send('setPlaybackRate', [1]);
+          send('playVideo');
           cooldown.current = Date.now() + VIDEO_CORRECTION_COOLDOWN_MS;
-          publish({ ...latest.current, position: next.to, playing: true, rate: 1 });
+          latest.current = { ...latest.current, position: next.to, playing: true, rate: 1 };
           break;
         case 'nudge':
           // Small drift is closed by playing the muted clip slightly faster or
           // slower for a moment, so the picture never jumps.
-          post('setPlaybackRate', [next.rate]);
-          publish({ ...latest.current, rate: next.rate });
+          send('setPlaybackRate', [next.rate]);
+          latest.current = { ...latest.current, rate: next.rate };
           break;
         default:
           break;
       }
     },
-    [publish],
+    [post],
   );
 
   // Messages from the embed are untrusted: only documented events for the
@@ -200,44 +225,70 @@ function ClipPlayer({
     const onMessage = (event: MessageEvent) => {
       if (event.source !== frame.current?.contentWindow) return;
       const data = typeof event.data === 'string' ? safeJson(event.data) : event.data;
-      const info = readEmbedEvent(data, clip.videoId);
+      const info = readEmbedProgress(data, clip.videoId);
       if (!info) return;
-      publish({
+      heard.current = true;
+      const previous = latest.current;
+      latest.current = {
         position: info.currentTime,
-        playing: info.state === 'playing' || info.state === 'buffering',
+        playing: info.state
+          ? info.state === 'playing' || info.state === 'buffering'
+          : previous.playing,
         ready: true,
-      });
+        rate: previous.rate,
+      };
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [clip.videoId, publish]);
+  }, [clip.videoId]);
 
-  // Wave drives the clip from its own clock; a correction is only issued when the
-  // picture drifts enough to be seen.
+  /**
+   * One loop for the whole conversation with the player: keep asking it to talk
+   * until it does, then correct the picture whenever it has drifted far enough
+   * to be seen.
+   */
   useEffect(() => {
+    let ticks = 0;
     const timer = setInterval(() => {
+      // The first seconds are the fragile ones: the frame is still loading, so
+      // the listening message is repeated until the player answers.
+      if (!heard.current) {
+        wake();
+        return;
+      }
+      ticks++;
+      // A long song repeats the handshake now and then: a player that reloaded
+      // itself (age gate, network hiccup) stops answering otherwise.
+      if (ticks % 20 === 0) wake();
+      const wanted = target.current;
+      const elapsed = wanted.playing ? (performance.now() - wanted.at) / 1000 : 0;
       command(
-        planVideoSync({ position: time, playing }, latest.current, {
-          duration,
-          // The clip may be placed inside a longer upload, so the target is the
-          // song's position plus that start. Without it the loop would treat the
-          // offset as drift and drag the picture back to the beginning.
-          offset: 0,
-          startAt: clip.startAt,
-          clipLength: clip.duration,
-          now: Date.now(),
-          cooldownUntil: cooldown.current,
-        }),
+        planVideoSync(
+          { position: wanted.position + elapsed, playing: wanted.playing },
+          latest.current,
+          {
+            duration: wanted.duration,
+            // The clip may be placed inside a longer upload, so the target is the
+            // song's position plus that start. Otherwise the placement would be
+            // mistaken for drift and the picture dragged back to the beginning.
+            offset: 0,
+            startAt: clip.startAt,
+            clipLength: clip.duration,
+            now: Date.now(),
+            cooldownUntil: cooldown.current,
+          },
+        ),
       );
-    }, 500);
+    }, 250);
     return () => clearInterval(timer);
-  }, [time, playing, duration, clip.startAt, clip.duration, command]);
+  }, [clip.startAt, clip.duration, command, wake]);
 
   return (
     // Decoration: the song's transport is the only control surface.
     <div className="video-backdrop" aria-hidden="true">
       <iframe
         ref={frame}
+        id={FRAME_ID}
         title={`Video clip for ${clipTitle(clip)}`}
         className="video-backdrop-frame"
         src={youtubeEmbedUrl(clip.videoId, {
@@ -253,6 +304,11 @@ function ClipPlayer({
         referrerPolicy="strict-origin-when-cross-origin"
         tabIndex={-1}
         aria-hidden="true"
+        onLoad={() => {
+          // A new document means a new handshake.
+          heard.current = false;
+          wake();
+        }}
       />
       <div className="video-backdrop-veil" aria-hidden="true" />
     </div>

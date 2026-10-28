@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { createIdentity, encodePairingLink, parsePairingLink } from './pairing';
+import { createIdentity, encodePairingLink, parsePairingLink, sasCode } from './pairing';
+import { keyFingerprint } from './identity';
 import { LoanInbox, PairingSession, type PairingFailure, type PairingState } from './session';
 import {
   base64ToBytes,
@@ -82,7 +83,10 @@ const settle = async () => {
  * Waits for a condition instead of guessing how long the handshake needs. Six
  * fixed waits are enough on an idle machine and not always enough on a busy one.
  */
-const settleUntil = async (ready: () => boolean, budget = 3000) => {
+// The budget is generous on purpose: pairing runs real ECDH, HKDF and AES work
+// in a worker pool shared with eighty other suites, and a three-second ceiling
+// made this wait time out on a loaded machine while the handshake was fine.
+const settleUntil = async (ready: () => boolean, budget = 10_000) => {
   const started = Date.now();
   while (!ready() && Date.now() - started < budget) {
     await new Promise((resolve) => setTimeout(resolve, 5));
@@ -401,5 +405,51 @@ describe('loan inbox validation', () => {
     expect(inbox.progress('loan-bad')).toBeNull();
     inbox.abortAll();
     expect(inbox.activeTransfers).toBe(0);
+  });
+});
+
+describe('a confirmation that arrives early', () => {
+  it('waits for the code instead of failing the pairing', async () => {
+    // Both devices show the same six digits at almost the same instant, and one
+    // of them confirms before the other has finished its own key exchange. That
+    // used to be treated as a protocol error and killed a perfect pairing.
+    const hostIdentity = await createIdentity(undefined, 'PC');
+    const guestIdentity = await createIdentity(undefined, 'Phone');
+    const sent: string[] = [];
+    const failures: string[] = [];
+    const guest = new PairingSession({
+      role: 'guest',
+      identity: guestIdentity,
+      deviceName: 'Phone',
+      platform: 'android',
+      send: (payload) => sent.push(payload),
+      onState: (_state, failure) => {
+        if (failure) failures.push(failure);
+      },
+      autoExpire: false,
+    });
+    const code = await sasCode(guestIdentity.publicKey, hostIdentity.publicKey);
+
+    // The hello starts an asynchronous handshake that is not awaited, so the
+    // confirmation that follows lands while the session is still inviting.
+    void guest.receive(
+      encodeFrame({
+        type: 'hello',
+        deviceId: hostIdentity.deviceId,
+        name: 'PC',
+        platform: 'web',
+        protocolVersion: 1,
+        publicKey: keyFingerprint(hostIdentity.publicKey),
+      }),
+    );
+    await guest.receive(encodeFrame({ type: 'pair-confirm', sas: code }));
+    expect(guest.failure).toBeUndefined();
+    // The listener pressing the button at that same moment is honoured too.
+    guest.confirm();
+
+    await settleUntil(() => guest.state === 'paired');
+    expect(guest.state).toBe('paired');
+    expect(failures).toEqual([]);
+    expect(sent.some((payload) => payload.includes('pair-confirm'))).toBe(true);
   });
 });

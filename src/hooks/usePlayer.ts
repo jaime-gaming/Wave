@@ -9,7 +9,7 @@ import { playerReducer, shuffleQueue } from '../domain/player';
 import { resolvePlayable } from '../domain/youtubeTrack';
 import { planEdgeHandover } from '../domain/edgeMix';
 import { PlaybackClock } from './playbackClock';
-import { MIX_CUE_SECONDS, MixCueStore } from '../ui/mixCue';
+import { cueTiming, MixCueStore } from '../ui/mixCue';
 import type { Track } from '../domain/types';
 
 function savedVolume(key = 'wave-volume') {
@@ -306,71 +306,66 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
       },
       tick: () => {
         const next = target();
-        // The cue is a warning, not a progress bar: it appears while the current
-        // song is still playing normally, a whole phrase before the join.
-        const elementForCue = player.element;
-        const cueLeft =
-          Number.isFinite(elementForCue.duration) && elementForCue.duration > 0
-            ? elementForCue.duration - elementForCue.currentTime
-            : Infinity;
-        const cueTrack = stateRef.current.queue.length
-          ? context.current.tracks.find(
-              (track) => track.id === stateRef.current.queue[stateRef.current.index],
-            )
-          : undefined;
-        const live = blendRef.current;
-        if (player.transitioning && live) {
-          // While the two songs are actually meeting, the cue stays: the word is
-          // the explanation of what the ears are hearing.
-          const fromTrack = context.current.tracks.find((track) => track.blob === live.outgoing);
-          const toTrack = context.current.tracks.find((track) => track.blob === live.incoming);
-          if (fromTrack && toTrack)
-            mixCue.set({ from: fromTrack, to: toTrack, seconds: 0, progress: 1 });
-          else mixCue.clear();
-        } else if (
-          context.current.mixEnabled &&
-          next &&
-          cueTrack &&
-          cueLeft > 0 &&
-          cueLeft <= MIX_CUE_SECONDS
-        ) {
-          mixCue.set({
-            from: cueTrack,
-            to: next,
-            seconds: Math.max(1, Math.ceil(cueLeft)),
-            progress: Math.max(0, Math.min(1, 1 - cueLeft / MIX_CUE_SECONDS)),
-          });
-        } else mixCue.clear();
-        // Buffering the next song well before the mix point keeps the handover gapless.
-        if (next?.blob && player.mixRemaining <= 25) player.prepare(next.blob);
-        if (next?.blob) prime(next.blob);
-        if (player.mixRemaining <= 10 && !player.transitioning && extend()) return;
-        if (!next?.blob) return;
-        const element = player.element,
-          remaining = player.mixRemaining,
-          duration = element.duration;
-        if (!Number.isFinite(duration) || duration <= 0 || remaining <= 0) return;
-        const from = stateRef.current.queue[stateRef.current.index];
-        const stillTarget = () => {
-          if (stateRef.current.queue[stateRef.current.index] !== from) return false;
-          const live = target();
-          return !!live && live.id === next.id && live.blob === next.blob;
-        };
-        const onStarted = () => dispatch({ type: 'jump', id: next.id });
-        const window = automaticMixSeconds(duration, player.preparedDuration || next.duration);
+        const element = player.element;
+        const duration = element.duration;
+        const remaining = player.mixRemaining;
+        const hasClock = Number.isFinite(duration) && duration > 0;
+        // Both the cue and the handover are timed from the same window, so the
+        // warning can never describe a mix that starts somewhere else.
+        const window = hasClock
+          ? automaticMixSeconds(duration, player.preparedDuration || next?.duration || 0)
+          : 0;
         const outgoingAnalysis = cachedAnalysis(player.active.blob);
-        const incomingAnalysis = cachedAnalysis(next.blob);
+        const incomingAnalysis = next?.blob ? cachedAnalysis(next.blob) : undefined;
         const plan =
           outgoingAnalysis && incomingAnalysis
             ? planTransitionCached(outgoingAnalysis, incomingAnalysis, {
                 fallbackSeconds: window,
               })
             : undefined;
+        // How long before the end of the file the handover begins.
+        const blendWindow = Math.max(window, plan?.seconds ?? 0);
+        const cueTrack = stateRef.current.queue.length
+          ? context.current.tracks.find(
+              (track) => track.id === stateRef.current.queue[stateRef.current.index],
+            )
+          : undefined;
+        const live = blendRef.current;
+        if (player.transitioning) {
+          // While the two songs are actually meeting, the cue stays: the word is
+          // the explanation of what the ears are hearing. The blend is the only
+          // truth about which two songs those are.
+          const fromTrack = live
+            ? context.current.tracks.find((track) => track.blob === live.outgoing)
+            : cueTrack;
+          const toTrack = live
+            ? context.current.tracks.find((track) => track.blob === live.incoming)
+            : next;
+          if (fromTrack && toTrack && fromTrack.id !== toTrack.id)
+            mixCue.set({ from: fromTrack, to: toTrack, seconds: 0, progress: 1 });
+          else mixCue.clear();
+        } else if (context.current.mixEnabled && next && cueTrack && hasClock) {
+          const timing = cueTiming(remaining, blendWindow);
+          if (timing) mixCue.set({ from: cueTrack, to: next, ...timing });
+          else mixCue.clear();
+        } else mixCue.clear();
+        // Buffering the next song well before the mix point keeps the handover gapless.
+        if (next?.blob && player.mixRemaining <= 25) player.prepare(next.blob);
+        if (next?.blob) prime(next.blob);
+        if (player.mixRemaining <= 10 && !player.transitioning && extend()) return;
+        if (!next?.blob) return;
+        if (!hasClock || remaining <= 0) return;
+        const from = stateRef.current.queue[stateRef.current.index];
+        const stillTarget = () => {
+          if (stateRef.current.queue[stateRef.current.index] !== from) return false;
+          const latest = target();
+          return !!latest && latest.id === next.id && latest.blob === next.blob;
+        };
+        const onStarted = () => dispatch({ type: 'jump', id: next.id });
         // A handover belongs in the last seconds of the file. Whatever the
         // analysis believes about the end of the song, this is the rule that
         // keeps a mix from quietly turning into a skip.
-        if (!mixWindowReached(element.currentTime, duration, Math.max(window, plan?.seconds ?? 0)))
-          return;
+        if (!mixWindowReached(element.currentTime, duration, blendWindow)) return;
         // The cue is the plan's own bar line, not "one second before the end":
         // starting anywhere else lands the new song mid-bar, which is the
         // difference between a mix and two songs sliding past each other.
