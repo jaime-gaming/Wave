@@ -36,9 +36,10 @@ describe('Mix transition planning', () => {
       analysis({ duration: 200, trimmed: { start: 0, end: 198 } }),
     );
     expect(plan.mode).toBe('beatmatched');
-    // Two phrases at 120 BPM: long enough to be a mix rather than a slide.
-    expect(plan.bars).toBe(8);
-    expect(plan.seconds).toBeCloseTo(16, 5);
+    // Three phrases at 120 BPM: long enough for an arrival, a passage together
+    // and a departure, instead of one slide.
+    expect(plan.bars).toBe(12);
+    expect(plan.seconds).toBeCloseTo(24, 5);
     // The incoming song starts at its beginning, not somewhere in the middle.
     expect(plan.cue).toBeLessThanOrEqual(MAX_CUE_LEAD);
     // The overlap must start on a beat of the outgoing grid.
@@ -98,7 +99,7 @@ describe('Mix transition planning', () => {
     expect(plan.mode).toBe('beatmatched');
     // A vocal at the join shortens the overlap; it never moves the entry forward.
     expect(plan.cue).toBeLessThanOrEqual(MAX_CUE_LEAD);
-    expect(plan.seconds).toBeLessThanOrEqual(8);
+    expect(plan.seconds).toBeLessThanOrEqual(12);
   });
 
   it('enters a song with a long intro at its beginning instead of after the intro', () => {
@@ -124,9 +125,9 @@ describe('Mix transition planning', () => {
       vocals: [{ start: 0, end: 300, strength: 0.9 }],
     });
     const plan = planTransition(outgoing, incoming);
-    // Half of eight bars, so the two voices collide for one phrase instead of two.
-    expect(plan.bars).toBe(4);
-    expect(plan.seconds).toBeCloseTo(8, 5);
+    // Half of twelve bars, so the two voices collide for six bars, not twelve.
+    expect(plan.bars).toBe(6);
+    expect(plan.seconds).toBeCloseTo(12, 5);
     expect(plan.notes.join(' ')).toMatch(/halved/i);
   });
 
@@ -177,8 +178,8 @@ describe('gain curves', () => {
   });
 
   it('chooses its own bar count so a blend lasts about the target length', () => {
-    expect(automaticBars(120)).toBe(8);
-    expect(automaticBars(174)).toBe(8);
+    expect(automaticBars(120)).toBe(12);
+    expect(automaticBars(174)).toBe(16);
     expect(automaticBars(60)).toBe(4);
     expect(automaticBars(0)).toBe(4);
     expect(automaticBars(Number.NaN)).toBe(4);
@@ -195,13 +196,13 @@ describe('gain curves', () => {
       analysis({ beats: { bpm: 80, offset: 0.05, confidence: 0.9 } }),
     );
     expect(slow.mode).toBe('beatmatched');
-    expect(slow.bars).toBe(4);
+    expect(slow.bars).toBe(8);
     expect(slow.seconds).toBeGreaterThan(10);
     const fast = planTransition(
       analysis({ beats: { bpm: 172, offset: 0.05, confidence: 0.9 } }),
       analysis({ beats: { bpm: 174, offset: 0.05, confidence: 0.9 } }),
     );
-    expect(fast.bars).toBe(8);
+    expect(fast.bars).toBe(16);
     expect(fast.seconds).toBeLessThan(slow.seconds);
   });
 

@@ -143,7 +143,8 @@ public partial class MainWindow : Window
         Elapsed.Text = Clock(time); Duration.Text = Clock(Seek.Maximum);
         if (playing && outgoing != null) {
             double fraction = Math.Clamp(time / fadeLength, 0, 1);
-            outgoing.Volume = volume * Math.Cos(fraction * Math.PI / 2); active.Volume = volume * Math.Sin(fraction * Math.PI / 2);
+            var (outgoingGain, incomingGain) = NativeCollections.HandoverGains(fraction);
+            outgoing.Volume = volume * outgoingGain; active.Volume = volume * incomingGain;
             if (fraction >= 1) { outgoing.Close(); outgoing = null; PrepareNext(); }
         } else if (playing && spareReady && spare != null && active.NaturalDuration.HasTimeSpan && spare.NaturalDuration.HasTimeSpan) {
             double window = NativeCollections.MixWindow(active.NaturalDuration.TimeSpan.TotalSeconds, spare.NaturalDuration.TimeSpan.TotalSeconds);

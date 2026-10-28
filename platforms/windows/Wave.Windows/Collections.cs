@@ -25,9 +25,24 @@ public static class NativeCollections
         var known = songs.ToDictionary(s => s.Id);
         return ids.Distinct().Where(known.ContainsKey).Select(id => known[id]).ToList();
     }
+    /// <summary>A blend long enough to be a mix rather than a fade, in seconds.</summary>
+    public const double BlendSeconds = 16;
     public static double MixWindow(double outgoing, double incoming) =>
-        double.IsFinite(outgoing) && double.IsFinite(incoming) && Math.Min(outgoing, incoming) >= 12
-            ? Math.Clamp(Math.Min(outgoing, incoming) * .12, 1, 8) : 0;
+        double.IsFinite(outgoing) && double.IsFinite(incoming) && Math.Min(outgoing, incoming) >= 24
+            ? Math.Clamp(Math.Min(outgoing, incoming) * .2, 6, BlendSeconds) : 0;
+    /// <summary>
+    /// Staged handover, kept in step with the web build: the incoming song is at
+    /// level by a quarter of the blend and holds, the outgoing song only leaves in
+    /// the second half. Constant power throughout, so the join never dips.
+    /// </summary>
+    public static (double Outgoing, double Incoming) HandoverGains(double progress)
+    {
+        double p = Math.Clamp(progress, 0, 1);
+        double phase = p < .28 ? .5 * Smooth(p / .28) : p < .62 ? .5 + .06 * Smooth((p - .28) / .34) : .56 + .44 * Smooth((p - .62) / .38);
+        double angle = phase * Math.PI / 2;
+        return (Math.Cos(angle), Math.Sin(angle));
+    }
+    private static double Smooth(double value) { double t = Math.Clamp(value, 0, 1); return t * t * (3 - 2 * t); }
     public static List<Song> Move(List<Song> queue, int from, int to)
     {
         var copy = queue.ToList();

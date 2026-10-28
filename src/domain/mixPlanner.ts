@@ -20,15 +20,17 @@ import { overlapsRegion, type TrackAnalysis } from '../audio/dsp';
 export const BEATS_PER_BAR = 4;
 export const MAX_STRETCH = 0.08;
 export const MIN_BARS = 4;
+/** Hard ceiling for an explicit request; Mix itself chooses far fewer bars. */
 export const MAX_BARS = 16;
 /**
  * How long a blend should last, near enough.
  *
  * Eight seconds was a crossfade: two songs sliding past each other. A mix needs
- * long enough for the new song to arrive, the two to play together and the old
- * one to leave — two phrases at a normal tempo, so about twelve seconds.
+ * room for the three things a DJ does — bring the new song in, let both play,
+ * take the old one out — and that is two to four phrases, so about twenty
+ * seconds. Almost four times the playing time of either song stays untouched.
  */
-export const TARGET_SECONDS = 12;
+export const TARGET_SECONDS = 20;
 /**
  * How much of the incoming song Mix may skip to find a downbeat. Starting the
  * new song deep inside itself is the worst thing a mix can do: the listener

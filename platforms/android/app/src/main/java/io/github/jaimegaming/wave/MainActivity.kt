@@ -40,7 +40,7 @@ class MainActivity:ComponentActivity() {
         val preferences=remember { getSharedPreferences("wave",MODE_PRIVATE) }
         var songs by remember { mutableStateOf(repository.load()) };var page by remember { mutableStateOf("Home") };var query by remember { mutableStateOf("") };var busy by remember { mutableStateOf(false) };var message by remember { mutableStateOf("") };var lyricsOpen by remember { mutableStateOf(true) };var editing by remember { mutableStateOf<Song?>(null) }
         var online by remember { mutableStateOf(preferences.getBoolean("lyrics",false)) };var mix by remember { mutableStateOf(preferences.getBoolean("mix",true)) }
-        player.crossfade=if(mix) 6.0 else 0.0
+        player.crossfade=if(mix) BLEND_SECONDS else 0.0
         DisposableEffect(Unit) { onDispose { player.dispose() } }
         fun update(song:Song) { val updated=songs.map { if(it.id==song.id)song else it };repository.save(updated);songs=updated }
         fun fetch(song:Song) { scope.launch { busy=true;try { val raw=withContext(Dispatchers.IO) { client.find(song) };val latest=songs.find { it.id==song.id };if(latest!=null&&latest.title==song.title&&latest.artist==song.artist&&latest.lyrics.isEmpty())update(latest.copy(lyrics=raw,checkedAt=System.currentTimeMillis()));message=if(raw.isEmpty())"No matching lyrics." else "" }catch(error:Exception) { message=error.message ?: "Lyrics lookup failed" }finally { busy=false } } }
@@ -61,7 +61,7 @@ class MainActivity:ComponentActivity() {
                     when(page) {
                         "Settings" -> LazyColumn(verticalArrangement=Arrangement.spacedBy(18.dp),modifier=Modifier.fillMaxWidth()) {
                             item { TextButton(onClick={page="Home"}) {Text("Back")} }
-                            item { Row(modifier=Modifier.padding(top=20.dp)) { Text("Mix",modifier=Modifier.weight(1f));Switch(mix,onCheckedChange={ mix=it;preferences.edit().putBoolean("mix",it).apply();player.crossfade=if(it) 6.0 else 0.0 }) } }
+                            item { Row(modifier=Modifier.padding(top=20.dp)) { Text("Mix",modifier=Modifier.weight(1f));Switch(mix,onCheckedChange={ mix=it;preferences.edit().putBoolean("mix",it).apply();player.crossfade=if(it) BLEND_SECONDS else 0.0 }) } }
                             item { Row { Text("Automatic lyrics",modifier=Modifier.weight(1f));Switch(online,onCheckedChange={ online=it;preferences.edit().putBoolean("lyrics",it).apply() }) } }
                             item { Text("Storage",fontWeight=FontWeight.Bold);Text("${songs.size} songs",fontSize=13.sp) }
                         }
