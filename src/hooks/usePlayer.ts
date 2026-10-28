@@ -1,5 +1,5 @@
 import { automaticMixSeconds, mixWindowReached } from '../domain/mix';
-import { isUsablePlan, planTransitionCached } from '../domain/mixPlanner';
+import { isUsablePlan, planTransitionCached, realignPlan } from '../domain/mixPlanner';
 import { analyzeTrack, cachedAnalysis } from '../audio/mixAnalysis';
 import { continuationQueue } from '../domain/continuation';
 import { readPlaybackSession, writePlaybackSession } from '../domain/playbackSession';
@@ -55,6 +55,13 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
   const [clock] = useState(() => new PlaybackClock());
   /** The lead-in before a handover: see `mixCue.ts`. */
   const [mixCue] = useState(() => new MixCueStore());
+  /** The live handover, readable from the engine's 20 Hz loop. */
+  const blendRef = useRef<{
+    outgoing: Blob;
+    incoming: Blob;
+    progress: number;
+    seconds: number;
+  } | null>(null);
   const [blend, setBlend] = useState<{
     outgoing: Blob;
     incoming: Blob;
@@ -257,12 +264,14 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
       time: (value) => clock.set(value),
       // The blend drives a visual crossfade; a couple of dozen steps are plenty
       // and every one of them re-renders the bar it is drawn in.
-      blend: (next) =>
+      blend: (next) => {
+        blendRef.current = next;
         setBlend((previous) =>
           !next || !previous || Math.abs(next.progress - previous.progress) >= 0.02
             ? next
             : previous,
-        ),
+        );
+      },
       // Called with the same value on every tick; returning the previous value
       // lets React skip the render instead of rendering the app ten times a
       // second to store the same number.
@@ -309,21 +318,29 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
               (track) => track.id === stateRef.current.queue[stateRef.current.index],
             )
           : undefined;
-        if (
+        const live = blendRef.current;
+        if (player.transitioning && live) {
+          // While the two songs are actually meeting, the cue stays: the word is
+          // the explanation of what the ears are hearing.
+          const fromTrack = context.current.tracks.find((track) => track.blob === live.outgoing);
+          const toTrack = context.current.tracks.find((track) => track.blob === live.incoming);
+          if (fromTrack && toTrack)
+            mixCue.set({ from: fromTrack, to: toTrack, seconds: 0, progress: 1 });
+          else mixCue.clear();
+        } else if (
           context.current.mixEnabled &&
           next &&
           cueTrack &&
-          !player.transitioning &&
           cueLeft > 0 &&
           cueLeft <= MIX_CUE_SECONDS
-        )
+        ) {
           mixCue.set({
             from: cueTrack,
             to: next,
             seconds: Math.max(1, Math.ceil(cueLeft)),
             progress: Math.max(0, Math.min(1, 1 - cueLeft / MIX_CUE_SECONDS)),
           });
-        else mixCue.clear();
+        } else mixCue.clear();
         // Buffering the next song well before the mix point keeps the handover gapless.
         if (next?.blob && player.mixRemaining <= 25) player.prepare(next.blob);
         if (next?.blob) prime(next.blob);
@@ -354,14 +371,15 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
         // keeps a mix from quietly turning into a skip.
         if (!mixWindowReached(element.currentTime, duration, Math.max(window, plan?.seconds ?? 0)))
           return;
-        if (
-          plan &&
-          isUsablePlan(plan, remaining) &&
-          element.currentTime >= plan.startAt - 0.05 &&
-          remaining <= plan.seconds + 1
-        ) {
-          player.transitionWithPlan(next.blob, plan, stillTarget, onStarted);
-          return;
+        // The cue is the plan's own bar line, not "one second before the end":
+        // starting anywhere else lands the new song mid-bar, which is the
+        // difference between a mix and two songs sliding past each other.
+        if (plan && isUsablePlan(plan, remaining) && element.currentTime >= plan.startAt - 0.05) {
+          const aligned = realignPlan(plan, element.currentTime);
+          if (aligned) {
+            player.transitionWithPlan(next.blob, aligned, stillTarget, onStarted);
+            return;
+          }
         }
         // No usable plan: an equal-power overlap timed by the two lengths.
         if (remaining <= window) player.transition(next.blob, window, stillTarget, onStarted);

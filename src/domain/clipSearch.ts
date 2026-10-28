@@ -133,6 +133,25 @@ export function scoreClip(candidate: ClipCandidate, source: ClipSource): number 
 }
 
 /**
+ * Where a clip should start so the picture lines up with the song.
+ *
+ * A clip is almost never exactly as long as the record: uploads carry a title
+ * card, a few seconds of room tone, sometimes an outro. If the video is longer,
+ * some of that extra time is before the music, so starting the clip at zero puts
+ * the picture behind the song for its whole length. The excess is split between
+ * the two ends — more at the start, because that is where intros live — and the
+ * result is bounded, because a guess that is forty seconds wrong is worse than
+ * no guess at all. The listener can still nudge it from the song's editor.
+ */
+export function autoClipStart(clipSeconds: number, songSeconds: number): number {
+  if (!Number.isFinite(clipSeconds) || !Number.isFinite(songSeconds)) return 0;
+  if (clipSeconds <= 0 || songSeconds <= 0) return 0;
+  const extra = clipSeconds - songSeconds;
+  if (extra <= 2) return 0;
+  return Math.round(Math.min(60, extra * 0.6));
+}
+
+/**
  * Every convincing match, best first.
  *
  * Automatic discovery picks one, but a wrong match should not be a dead end: the

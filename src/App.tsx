@@ -73,6 +73,13 @@ import { Artwork } from './components/Artwork';
 import { LibraryContent } from './components/LibraryContent';
 import { Navigation, type Page } from './components/Navigation';
 import { Modal } from './components/Modal';
+import { AndroidAppSheet } from './components/AndroidAppSheet';
+import {
+  isAndroidBrowser,
+  isStandalone,
+  promptAlreadyAnswered,
+  rememberPromptAnswer,
+} from './ui/androidApp';
 import { PlayerBar } from './components/PlayerBar';
 import { getClip, loadClips, removeClip } from './domain/videoClips';
 import { AddMusicDialog } from './components/AddMusicDialog';
@@ -182,13 +189,30 @@ function WaveApp({
       void acceptDuration(currentId, decodedDuration);
   }, [decodedDuration, currentDuration, currentId, player.durationTrackId, acceptDuration]);
   const { dispatch } = player;
-  const [page, setPage] = useState<Page>('home');
+  /**
+   * A pairing link opens straight into Settings → Devices. The link is a QR
+   * code someone scanned or a URL they opened, and landing on Home would leave
+   * them to find the page themselves.
+   */
+  const [pairLink] = useState(() => /(?:#|&|\?)wave-pair=/u.test(location.hash + location.search));
+  const [page, setPage] = useState<Page>(pairLink ? 'settings' : 'home');
   const [dailySelection, setDailySelection] = useState<MixSelection | null>(null);
   const [view, setView] = useState<LibraryView>('songs');
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState('recent');
   const [group, setGroup] = useState<string | null>(null);
   const [queueOpen, setQueueOpen] = useState(false);
+  /**
+   * A phone browsing the web is offered the Android app once. It is asked after
+   * the interface has settled, so the first thing on screen is still the music,
+   * and never on a device that answered already or that already runs the app.
+   */
+  const [androidSheet, setAndroidSheet] = useState(false);
+  useEffect(() => {
+    if (!isAndroidBrowser(undefined, isStandalone()) || promptAlreadyAnswered()) return;
+    const timer = setTimeout(() => setAndroidSheet(true), 4_000);
+    return () => clearTimeout(timer);
+  }, []);
   const [playerOpen, setPlayerOpen] = useState(false);
   const playerOpener = useRef<HTMLElement | null>(null);
   const settingsPrevious = useRef<Page>('home');
@@ -700,6 +724,7 @@ function WaveApp({
             {page === 'settings' ? (
               <Suspense fallback={<div className="empty-state" aria-busy="true" />}>
                 <SettingsPage
+                  initialSection={pairLink ? 'devices' : null}
                   onBack={closeSettings}
                   appearance={
                     <>
@@ -905,6 +930,14 @@ function WaveApp({
                   }
                   about={
                     <>
+                      <button
+                        type="button"
+                        className="settings-source"
+                        onClick={() => setAndroidSheet(true)}
+                      >
+                        Wave for Android
+                        <ArrowUpRight size={16} />
+                      </button>
                       <a
                         className="settings-source"
                         href="https://github.com/jaime-gaming/Wave"
@@ -1146,6 +1179,21 @@ function WaveApp({
           </LibrarySurface>
         </AnimatePresence>
       </main>
+      <AnimatePresence>
+        {androidSheet && (
+          <AndroidAppSheet
+            key="android-app"
+            onDismiss={() => {
+              rememberPromptAnswer('dismissed');
+              setAndroidSheet(false);
+            }}
+            onKeepWeb={() => {
+              rememberPromptAnswer('web');
+              setAndroidSheet(false);
+            }}
+          />
+        )}
+      </AnimatePresence>
       <PlayerBar
         player={player}
         expanded={playerOpen}

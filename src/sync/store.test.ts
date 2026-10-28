@@ -47,13 +47,16 @@ describe('sync store', () => {
     expect(await getLoanedAudio('loan-1')).toBeUndefined();
   });
 
-  it('evicts the oldest loan transactionally when space runs out', async () => {
+  it('refuses a second loan instead of deleting the first', async () => {
     const policy = { capacityBytes: 10 * MB, maxTracks: 10 };
     await commitLoan(request('loan-1', 6 * MB), bytes(6 * MB), policy, 1_000);
-    await commitLoan(request('loan-2', 6 * MB), bytes(6 * MB), policy, 2_000);
-    expect((await getLoans()).map((loan) => loan.loanId)).toEqual(['loan-2']);
-    expect(await getLoanedAudio('loan-1')).toBeUndefined();
-    expect((await getLoanedAudio('loan-2'))?.size).toBe(6 * MB);
+    await expect(
+      commitLoan(request('loan-2', 6 * MB), bytes(6 * MB), policy, 2_000),
+    ).rejects.toThrow(/borrowed space/);
+    // What the listener already has stays exactly where it is.
+    expect((await getLoans()).map((loan) => loan.loanId)).toEqual(['loan-1']);
+    expect((await getLoanedAudio('loan-1'))?.size).toBe(6 * MB);
+    expect(await getLoanedAudio('loan-2')).toBeUndefined();
   });
 
   it('rejects a loan that cannot fit at all and keeps existing data', async () => {
@@ -98,13 +101,14 @@ describe('sync store', () => {
     expect(await getLoanedAudio('loan-1')).toBeUndefined();
   });
 
-  it('updates last use so eviction follows real playback', async () => {
-    const policy = { capacityBytes: 10 * MB, maxTracks: 10 };
+  it('records when a borrowed song was last played, without touching the rest', async () => {
+    const policy = { capacityBytes: 20 * MB, maxTracks: 10 };
     await commitLoan(request('loan-1', 5 * MB), bytes(5 * MB), policy, 1_000);
     await commitLoan(request('loan-2', 5 * MB), bytes(5 * MB), policy, 2_000);
     await markLoanedUsed(['loan-1'], 9_000);
-    await commitLoan(request('loan-3', 5 * MB), bytes(5 * MB), policy, 10_000);
-    expect((await getLoans()).map((loan) => loan.loanId).sort()).toEqual(['loan-1', 'loan-3']);
+    const loans = await getLoans();
+    expect(loans.map((loan) => loan.loanId).sort()).toEqual(['loan-1', 'loan-2']);
+    expect(loans.find((loan) => loan.loanId === 'loan-1')?.lastUsedAt).toBe(9_000);
   });
 
   it('reports usage against the active policy', async () => {

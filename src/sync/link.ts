@@ -1,8 +1,9 @@
 import { DEFAULT_CHUNK_BYTES, SyncError, type LibraryEntry } from './protocol';
 import { LoanInbox, PairingSession, type PairingFailure, type PairingState } from './session';
-import { createIdentity, type LocalIdentity } from './pairing';
+import type { LocalIdentity } from './pairing';
+import { keyFingerprint } from './identity';
 import { DEFAULT_LOAN_POLICY, type LoanPolicy, type LoanRequest } from './loan';
-import { commitLoan, saveDevice } from './store';
+import { commitLoan, getDevices, saveDevice } from './store';
 import type { SyncFrame } from './protocol';
 import type { Transport } from './transport';
 
@@ -72,12 +73,10 @@ export class DeviceLink {
   }
 
   /**
-   * Keys are generated per session: a pairing is a live connection between two
-   * open windows, not a stored credential. The device id is stable, so the other
-   * side can remember who it met.
+   * `identity` is this device's stable key pair (`identity.ts`). It is what lets
+   * the other side recognise us next time instead of starting from strangers.
    */
-  static async create(options: DeviceLinkOptions): Promise<DeviceLink> {
-    const identity = await createIdentity(options.deviceId);
+  static create(options: DeviceLinkOptions, identity: LocalIdentity): DeviceLink {
     return new DeviceLink(options, identity);
   }
 
@@ -150,6 +149,7 @@ export class DeviceLink {
             platform: session.peer.platform,
             pairedAt: Date.now(),
             lastSeenAt: Date.now(),
+            publicKey: session.peerPublicKey ? keyFingerprint(session.peerPublicKey) : undefined,
           });
           this.status({ kind: 'connected', peerName: session.peer.name });
           // A freshly paired peer gets our index straight away: browsing a
@@ -158,15 +158,42 @@ export class DeviceLink {
         } else if (state === 'failed')
           this.status({ kind: 'failed', reason: failure ?? 'transport' });
       },
-      onSas: (code) =>
-        this.status({
-          kind: 'confirm',
-          code,
-          peerName: session.peer?.name ?? 'the other device',
-        }),
+      onSas: (code) => {
+        void this.confirmIfKnown(session, code);
+      },
       onFrame: (frame) => void this.onFrame(frame),
     });
     return session;
+  }
+
+  /**
+   * A device we already trust confirms itself.
+   *
+   * The six digits exist to defeat a relay substituting its own key. When the
+   * peer's key is byte-for-byte the one saved the last time, there is nothing
+   * left to compare: that check was already made, and asking again is exactly
+   * the friction that teaches people to click through codes without reading
+   * them. An unknown key gets the full six-digit check.
+   */
+  private async confirmIfKnown(session: PairingSession, code: string) {
+    const peerId = session.peer?.deviceId;
+    const key = session.peerPublicKey ? keyFingerprint(session.peerPublicKey) : undefined;
+    if (peerId && key) {
+      try {
+        const known = (await getDevices()).find((device) => device.deviceId === peerId);
+        if (known?.publicKey && known.publicKey === key) {
+          session.confirm();
+          return;
+        }
+      } catch {
+        // No readable device list: fall back to the digits.
+      }
+    }
+    this.status({
+      kind: 'confirm',
+      code,
+      peerName: session.peer?.name ?? 'the other device',
+    });
   }
 
   private bind(transport: Transport, role: 'host' | 'guest') {

@@ -16,6 +16,12 @@ export interface StoredClip {
   /** Start offset inside the video, in seconds. */
   startAt: number;
   addedAt: number;
+  /**
+   * Length of the video, when it is known. Used only to fit the picture to the
+   * song: a clip shorter than the song has to be placed again instead of being
+   * seeked past its end. Zero when unknown.
+   */
+  duration?: number;
 }
 
 export type ClipMap = Record<string, StoredClip>;
@@ -41,7 +47,11 @@ function sanitize(value: unknown): ClipMap {
         : 0;
     const addedAt =
       typeof entry.addedAt === 'number' && Number.isFinite(entry.addedAt) ? entry.addedAt : 0;
-    map[trackId] = { videoId: entry.videoId, startAt: start, addedAt };
+    const duration =
+      typeof entry.duration === 'number' && Number.isFinite(entry.duration) && entry.duration > 0
+        ? Math.min(86_400, Math.floor(entry.duration))
+        : 0;
+    map[trackId] = { videoId: entry.videoId, startAt: start, addedAt, duration };
     if (Object.keys(map).length >= MAX_CLIP_ENTRIES) break;
   }
   return map;
@@ -90,6 +100,7 @@ export function saveClip(
     videoId: (parsed as YouTubeVideo).videoId,
     startAt: (parsed as YouTubeVideo).startAt ?? 0,
     addedAt: Date.now(),
+    duration: 0,
   };
   const map = { ...loadClips(store), [trackId]: clip };
   persist(map, store);
@@ -102,12 +113,14 @@ export function storeClip(
   videoId: string,
   startAt = 0,
   store: Storage | null = storage(),
+  duration = 0,
 ): StoredClip | null {
   if (!trackId || !/^[A-Za-z0-9_-]{11}$/u.test(videoId)) return null;
   const clip: StoredClip = {
     videoId,
     startAt: Number.isFinite(startAt) && startAt > 0 ? Math.floor(startAt) : 0,
     addedAt: Date.now(),
+    duration: Number.isFinite(duration) && duration > 0 ? Math.floor(duration) : 0,
   };
   persist({ ...loadClips(store), [trackId]: clip }, store);
   return clip;

@@ -22,8 +22,12 @@ export interface MixCue {
   progress: number;
 }
 
-/** How long the cue is shown before a handover. */
-export const MIX_CUE_SECONDS = 20;
+/**
+ * How long the cue is shown before a handover starts, and how long it stays
+ * afterwards. Long enough to read the word twice; the blend itself then keeps
+ * it on screen until the two songs have finished meeting.
+ */
+export const MIX_CUE_SECONDS = 8;
 
 export class MixCueStore {
   private value: MixCue | null = null;

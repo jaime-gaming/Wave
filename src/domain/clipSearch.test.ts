@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  autoClipStart,
   clipQuery,
   parseInvidiousResults,
   parsePipedResults,
@@ -90,5 +91,24 @@ describe('clip search', () => {
     ).toEqual([{ videoId: 'dX3k_QDnzHE', title: 'Midnight City', author: 'M83', duration: 244 }]);
     expect(parsePipedResults(null)).toEqual([]);
     expect(parseInvidiousResults({})).toEqual([]);
+  });
+});
+
+describe('autoClipStart', () => {
+  it('splits the extra length of the upload, keeping the larger part at the start', () => {
+    // A 30 s title card on a 240 s song: start 18 s in, which is where the music is.
+    expect(autoClipStart(270, 240)).toBe(18);
+    // Anything within two seconds is noise, not an intro.
+    expect(autoClipStart(242, 240)).toBe(0);
+    expect(autoClipStart(240, 240)).toBe(0);
+  });
+
+  it('never guesses wildly or divides by zero', () => {
+    expect(autoClipStart(3_600, 60)).toBe(60);
+    expect(autoClipStart(0, 240)).toBe(0);
+    expect(autoClipStart(240, 0)).toBe(0);
+    expect(autoClipStart(Number.NaN, 240)).toBe(0);
+    // A short clip inside a long song is not a start problem.
+    expect(autoClipStart(200, 400)).toBe(0);
   });
 });

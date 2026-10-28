@@ -28,6 +28,8 @@ export interface SyncDevice {
   platform: Platform;
   pairedAt: number;
   lastSeenAt: number;
+  /** Base64url of the peer's public key, so it can be recognised next time. */
+  publicKey?: string;
 }
 
 /**
@@ -78,7 +80,15 @@ export async function saveDevice(device: SyncDevice): Promise<SyncDevice> {
   if (!device.deviceId || !device.name.trim()) throw new Error('Invalid device.');
   const db = await openSyncStore();
   try {
-    const stored: SyncDevice = { ...device, name: device.name.trim().slice(0, 64) };
+    // A device that comes back keeps the day it was first paired: re-linking is
+    // not the same event as meeting, and the page says so.
+    const previous = await db.get('devices', device.deviceId);
+    const stored: SyncDevice = {
+      ...previous,
+      ...device,
+      pairedAt: previous?.pairedAt ?? device.pairedAt,
+      name: device.name.trim().slice(0, 64),
+    };
     await db.put('devices', stored);
     return stored;
   } finally {
