@@ -115,6 +115,11 @@
   display: block;
   width: 100%;
   height: 100%;
+  /* The layers are absolute, so the frame needs a floor of its own: in the
+     compact bar the parent is sized by its content, which would otherwise be
+     nothing at all. */
+  min-width: 56px;
+  min-height: 56px;
   aspect-ratio: 1;
   overflow: hidden;
   border-radius: inherit;
