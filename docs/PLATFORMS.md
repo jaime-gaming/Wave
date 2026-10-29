@@ -56,7 +56,7 @@ Requirements: JDK 17, SDK/build tools 36, Gradle 8.13 and Android Studio support
 gradle -p platforms/android testDebugUnitTest lintDebug assembleDebug
 ```
 
-Output: `platforms/android/app/build/outputs/apk/debug/app-debug.apk`, a debug test artifact. The pinned Ubuntu CI runner provides the SDK. Tests cover LRC/gain contracts; hosted unit/lint/assembly passed. Actual device import/playback, audio focus, foreground service/media session and signing remain gates.
+Output: `platforms/android/app/build/outputs/apk/debug/app-debug.apk`, a debug test artifact. The pinned Ubuntu CI runner provides the SDK and runs the unit tests, lint and the assembly. Tests cover the LRC, search, mix and listening contracts. Actual device import/playback, audio focus, the media session on a lock screen, the widget, the tile and signing remain gates: none of them was exercised outside a build.
 
 The web client offers the native app once to a phone that opens it: a small sheet above the player with **Download the app** and **Keep using the web**. Either answer is remembered in `localStorage` (`wave-android-prompt`), a device running the app from its home screen is never asked, and Settings → About can open the sheet again on purpose. The download button currently points at the **releases page** (`src/ui/androidApp.ts`), because the hosted workflow uploads a debug test APK as a build artifact rather than a release asset; until a signed APK is attached to a release, that button cannot deliver a file, and `ANDROID_APP_URL` is the one line to change when it can.
 
