@@ -1,6 +1,8 @@
 package io.github.jaimegaming.wave
 
+import android.annotation.SuppressLint
 import android.service.quicksettings.Tile
+import android.annotation.SuppressLint
 import android.service.quicksettings.TileService
 
 /**
@@ -20,6 +22,9 @@ class WaveTileService : TileService() {
         }
     }
 
+    // The PendingIntent form of startActivityAndCollapse arrived in Android 14; the
+    // Intent form is the only way to open the app from a tile before that.
+    @SuppressLint("StartActivityAndCollapseDeprecated")
     override fun onClick() {
         super.onClick()
         val player = (application as WaveApplication).player
