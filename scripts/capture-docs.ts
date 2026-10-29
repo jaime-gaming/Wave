@@ -223,6 +223,29 @@ await mobile.getByRole('button', { name: 'Remix', exact: true }).click();
 await mobile.waitForTimeout(900);
 await shot(mobile, 'remix-mobile.png');
 
+// A review pass photographs the layouts the docs do not show, so a change to the
+// header or the bottom dock can be looked at instead of imagined. Off unless asked.
+if (process.env.WAVE_REVIEW) {
+  await mobile.getByRole('button', { name: 'Library', exact: true }).click();
+  await mobile.waitForTimeout(800);
+  await shot(mobile, 'review-mobile-library.png');
+  await mobile.getByRole('button', { name: 'Home', exact: true }).click();
+  await mobile.waitForTimeout(500);
+  await mobile.getByRole('button', { name: /Play .*Electronic/ }).first().click();
+  await mobile.waitForTimeout(900);
+  await shot(mobile, 'review-mobile-playing.png');
+  await mobile.getByRole('button', { name: 'Open now playing', exact: true }).click();
+  await mobile.waitForTimeout(1200);
+  await shot(mobile, 'review-mobile-player.png');
+  await mobile.getByRole('button', { name: 'Close dialog' }).click();
+  await mobile.waitForTimeout(600);
+  for (const width of [1024, 820]) {
+    await mobile.setViewportSize({ width, height: 900 });
+    await mobile.waitForTimeout(700);
+    await shot(mobile, `review-${width}.png`);
+  }
+}
+
 await context.close();
 await browser.close();
 console.log('Documentation images written to docs/media/.');

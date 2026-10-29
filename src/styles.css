@@ -196,12 +196,6 @@ p {
 .library-header {
   padding: 24px 32px 26px;
 }
-.header-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 21px;
-}
 .header-actions {
   display: flex;
   gap: 12px;
@@ -1038,16 +1032,10 @@ kbd {
   }
   .library-header {
     position: relative;
-    padding: 32px 20px 21px;
+    padding: 22px 20px 16px;
   }
-  .header-top {
-    position: absolute;
-    top: 32px;
-    right: 20px;
-    margin: 0;
-  }
-  .title-row > div:first-child {
-    padding-right: 108px;
+  .title-row {
+    gap: 10px;
   }
   .workspace:not(.search-page) .search-box {
     display: none;
@@ -1058,11 +1046,6 @@ kbd {
   .header-actions .icon-button {
     width: 44px;
     height: 44px;
-  }
-  .title-row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 23px;
   }
   h1 {
     font-size: 56px;
@@ -4790,24 +4773,11 @@ select {
   .library-header {
     padding: 20px 16px 18px;
   }
-  .header-top {
-    top: 18px;
-    right: 16px;
-  }
   .header-actions {
     gap: 6px;
   }
   .title-row {
     gap: 12px;
-  }
-  .title-row > div:first-child {
-    padding-right: 100px;
-    width: 100%;
-  }
-  .title-row h1 {
-    font-size: clamp(32px, 9vw, 42px);
-    letter-spacing: -1.2px;
-    line-height: 1.15;
   }
   .library-summary {
     font-size: 12px;
@@ -5357,9 +5327,6 @@ select {
     width: 120px;
     height: 120px;
   }
-  .title-row > div:first-child {
-    padding-right: 94px;
-  }
 }
 
 /* Phone ergonomics: prevent iOS input zoom and keep controls finger-sized. */
@@ -5859,44 +5826,47 @@ a {
 }
 
 /*
- * The two utilities sit in the corner of the page, level with the title, rather
- * than in a row of their own above it. The header keeps one axis: the title
- * starts at the top of the page and the buttons are anchored to its corner, so
- * the eye does not have to step down through a stack of bars to reach the
- * content. The title keeps clear of them at every width.
+ * The header is one banner, not a stack.
+ *
+ * The title and what it is looking at sit on the left; the two utilities sit on
+ * the right, on the same line and level with the title. Nothing above them is
+ * reserved, so there is no empty band where a toolbar used to be, and the
+ * content starts immediately under the banner.
  */
 .library-header {
   position: relative;
+  display: flex;
+  flex-direction: column;
 }
-.header-top {
-  position: absolute;
-  top: 24px;
-  right: 32px;
-  margin: 0;
+.title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
 }
-/* Wide enough that the title and the buttons share a line: the title keeps the
-   corner clear. Below this the narrower header rules already inset it. */
-@media (min-width: 1051px) {
-  .title-row > div:first-child {
-    padding-right: 120px;
-  }
+.title-row > div:first-child {
+  min-width: 0;
 }
-/* The narrower header keeps its own inset, so the corner follows the padding. */
-@media (max-width: 1360px) {
-  .header-top {
-    right: 26px;
-  }
+.header-actions {
+  align-self: flex-start;
+  flex: none;
 }
-@media (max-width: 1050px) {
-  .header-top {
-    top: 32px;
-    right: 20px;
-  }
+/* The line under the title: the library's own numbers, quiet enough to read as
+   a caption and short enough never to wrap on a phone. */
+.library-summary {
+  color: var(--primary);
+  opacity: 0.8;
+  font-size: 13.5px;
+  line-height: 1.4;
+  margin: 6px 0 0;
 }
 @media (max-width: 700px) {
-  .header-top {
-    top: 18px;
-    right: 16px;
+  .title-row {
+    gap: 12px;
+  }
+  .library-summary {
+    font-size: 12.5px;
+    margin-top: 4px;
   }
 }
 
@@ -5906,12 +5876,10 @@ h1 {
   font-size: clamp(26px, 2.6vw, 38px);
   letter-spacing: -0.8px;
   line-height: 1.1;
+  margin: 0;
 }
 .title-row {
   margin-bottom: 12px;
-}
-.title-row > div:first-child {
-  min-width: 0;
 }
 @media (max-width: 700px) {
   h1 {
