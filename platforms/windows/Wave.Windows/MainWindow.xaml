@@ -4,10 +4,16 @@
     <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition x:Name="MiniHeight" Height="0"/></Grid.RowDefinitions>
     <ScrollViewer x:Name="NavigationPanel" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
       <StackPanel Margin="16,28,12,16">
-        <StackPanel Orientation="Horizontal" Margin="12,0,0,30">
-          <Path Data="M4,7 C7,7 7,23 12,23 C17,23 17,7 20,7 C23,7 23,23 28,23 C33,23 33,7 36,7" Stroke="{DynamicResource AccentBrush}" StrokeThickness="4.5" Width="40" Height="32" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
-          <TextBlock Text="Wave" FontSize="26" FontWeight="Bold" Margin="10,0"/>
-        </StackPanel>
+        <!-- The wordmark, drawn with the same pen as the web build: one path per
+             letter, so the name is Wave's lettering rather than a font that happens
+             to be nearby. -->
+        <Viewbox Width="84" Height="20" HorizontalAlignment="Left" Margin="12,4,0,30" Stretch="Uniform">
+          <Canvas Width="108" Height="20">
+            <Path Canvas.Left="-1" Canvas.Top="-6" Stroke="{DynamicResource AccentBrush}" StrokeThickness="4.2"
+                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                  Data="M4 8.6C7 8.6 7 23.4 12 23.4C17 23.4 17 8.6 20 8.6C23 8.6 23 23.4 28 23.4C33 23.4 33 8.6 36 8.6 M59 9.4v13.2 M52 9a7 7 0 1 0 0 14a7 7 0 0 0 0-14 M67 9.2L75 23L83 9.2 M91.06 16.9H104.9 M104.9 16.9A7 7 0 1 0 101.84 21.87"/>
+          </Canvas>
+        </Viewbox>
         <Button Content="Home" Tag="Home" Click="NavigateClick"/>
         <Button Content="Search" Tag="Search" Click="NavigateClick"/>
         <Button Content="Library" Tag="Library" Click="NavigateClick"/>

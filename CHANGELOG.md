@@ -31,12 +31,23 @@
   next to type. It takes the current theme's accent and follows the song's colour with
   everything else.
 - Page chrome no longer repeats "Wave" above every screen: the name lives in the sidebar.
+- The wordmark itself was redrawn: the letters are now spaced and shaped as one word — a round
+  `a` that meets its stem, a `v` that comes to a point, an `e` whose bar and bowl leave the stroke
+  open on the right — instead of four glyphs standing near each other. A wide rail shows the word;
+  a narrow one shows the W alone, the same curves at a size that still reads.
+- The **Add music** and **Settings** buttons are back in the top-right corner of the page, level
+  with the title rather than in a bar above it, so the header is one line instead of two.
 - Every **Add music** button opens the same chooser, offering **Import local files** and **Add
   from YouTube**. Local files stay the default; nothing in the app picks a source for you.
 - The song left playing while the app is idle keeps a real player bar — sleeve, title, transport
   and seek — instead of a faded caption. The bar never goes away on its own.
 - Motion is springier and just as quiet: buttons press, rows lift, notices arrive with one small
   overshoot. It is all off under `prefers-reduced-motion`.
+- Closing the big player now shows it closing: it shrinks and settles back towards the bar at the
+  bottom of the screen instead of disappearing between one frame and the next. It arrives the same
+  way, growing out of that bar. A dialog that is leaving no longer takes clicks meant for the page
+  behind it, and a YouTube song does not mount its second, silent player until the collapse has
+  finished.
 - Videoclips must come from the artist's own channel. A re-upload with the right title is no
   longer eligible, so the clip behind a song is never a stranger's video.
 - No build label anywhere in the UI or the public pages; the privacy page states the version it
@@ -45,7 +56,8 @@
 ### Android and Windows
 
 - Both native builds now set type in **Nunito Sans**, the same typeface the web loads, shipped
-  as four static instances under the SIL Open Font License.
+  as four static instances under the SIL Open Font License. The Windows sidebar draws the same
+  redrawn wordmark with the same path data, so the logo is not a font there either.
 - Both palettes are the web tokens verbatim: `#10141f` page, `#1d2230` card, `#b0c7ff` accent in
   the dark theme, and the light values beside them. A phone screenshot and a browser screenshot
   of the same screen are the same design, not two designs that agree in spirit.

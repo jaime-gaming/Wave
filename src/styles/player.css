@@ -1,5 +1,11 @@
 /* The expanded player owns its layout; transport and record do not inherit legacy grids. */
+/*
+ * The expanded player grows out of the bar and collapses back into it, so its
+ * origin is the bottom of the screen, where the compact player lives.
+ */
 .player-modal {
+  transform-origin: 50% 100%;
+  will-change: transform, opacity;
   --player-bg: var(--background);
   --player-ink: var(--text);
   --player-muted: var(--muted);
