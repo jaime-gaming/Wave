@@ -10,7 +10,11 @@ android {
 
 // The screenshot run needs the flag inside the test JVM, not just in Gradle's.
 tasks.withType(org.gradle.api.tasks.testing.Test::class.java).configureEach {
-    System.getProperty("wave.screenshots")?.let { systemProperty("wave.screenshots", it) }
+    // Resolved against the build root: the test JVM runs inside the module, so a
+    // relative path would land in app/app/build.
+    System.getProperty("wave.screenshots")?.let {
+        systemProperty("wave.screenshots", rootProject.file(it).absolutePath)
+    }
 }
 kotlin { jvmToolchain(17) }
 dependencies {
