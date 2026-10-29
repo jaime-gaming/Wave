@@ -2,22 +2,26 @@
 > wave@0.1.1 capture:docs
 > node --experimental-strip-types scripts/capture-docs.ts
 
+docs/media/home-desktop.png
+docs/media/remix-desktop.png
+docs/media/daily-mix-desktop.png
+docs/media/now-playing-desktop.png
+docs/media/home-mobile.png
+docs/media/remix-mobile.png
+docs/media/review-mobile-library.png
 node:internal/modules/run_main:123
     triggerUncaughtException(
     ^
 
-browserType.launch: Executable doesn't exist at /home/runner/.cache/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell
-╔════════════════════════════════════════════════════════════╗
-║ Looks like Playwright was just installed or updated.       ║
-║ Please run the following command to download new browsers: ║
-║                                                            ║
-║     npx playwright install                                 ║
-║                                                            ║
-║ <3 Playwright Team                                         ║
-╚════════════════════════════════════════════════════════════╝
-    at /home/runner/work/Wave/Wave/scripts/capture-docs.ts:168:32 {
-  log: [],
-  name: 'Error'
+locator.click: Timeout 30000ms exceeded.
+Call log:
+  - waiting for getByRole('button', { name: /Play .*Electronic/ }).first()
+
+    at /home/runner/work/Wave/Wave/scripts/capture-docs.ts:237:6 {
+  log: [
+    "  - waiting for getByRole('button', { name: /Play .*Electronic/ }).first()"
+  ],
+  name: 'TimeoutError'
 }
 
 Node.js v22.23.4
