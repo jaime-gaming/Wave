@@ -226,7 +226,7 @@ class WaveState(
         context.wave.preferences().edit().putBoolean(KEY_MIX, enabled).apply()
     }
 
-    fun setOnlineLyrics(enabled: Boolean) {
+    fun setLyricsOnline(enabled: Boolean) {
         onlineLyrics = enabled
         context.wave.preferences().edit().putBoolean(KEY_LYRICS, enabled).apply()
     }
@@ -333,7 +333,7 @@ class WaveState(
         if (open == Open.Playlist(playlist.id)) open = null
     }
 
-    fun addToPlaylist(playlist: Playlist, song: Song) {
+    fun putInPlaylist(playlist: Playlist, song: Song) {
         if (song.id in playlist.trackIds) {
             notice = "Already in ${playlist.name}."
             return
