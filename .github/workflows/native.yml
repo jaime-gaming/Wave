@@ -92,7 +92,13 @@ jobs:
             exit 0
           fi
           git commit -m 'Refresh the phone screenshots from the built app'
-          git push
+          # The Windows job publishes to the same branch and may land first.
+          for attempt in 1 2 3 4; do
+            git pull --rebase --quiet origin "$GITHUB_REF_NAME" || true
+            if git push --quiet; then exit 0; fi
+            sleep $((attempt * 5))
+          done
+          exit 1
       - uses: actions/upload-artifact@v4
         with:
           name: wave-android-debug-test-only
@@ -150,7 +156,12 @@ jobs:
             exit 0
           fi
           git commit -m 'Refresh the Windows screenshots from the built app'
-          git push
+          for attempt in 1 2 3 4; do
+            git pull --rebase --quiet origin "$GITHUB_REF_NAME" || true
+            if git push --quiet; then exit 0; fi
+            sleep $((attempt * 5))
+          done
+          exit 1
       - run: dotnet publish platforms/windows/Wave.Windows/Wave.Windows.csproj -c Release -r win-x64 --self-contained false -o artifacts/windows
       - name: Scan Windows output when Defender is available
         shell: pwsh
