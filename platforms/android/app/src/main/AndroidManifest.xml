@@ -1,17 +1,66 @@
-<?xml version="1.0" ?>
+<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- The collection is local; the network is only for optional lyrics and clips. -->
   <uses-permission android:name="android.permission.INTERNET"/>
-  <application android:label="Wave" android:icon="@drawable/wave_mark" android:theme="@style/WaveTheme" android:allowBackup="false" android:usesCleartextTraffic="false">
+  <!-- The lock-screen controls are a notification, so Android 13 asks for this. -->
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+  <!-- Playback continues with the screen off, as a media playback service. -->
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
+  <!-- Importing the music the phone already indexes reads the audio collection. -->
+  <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>
+  <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
+
+  <application
+    android:name=".WaveApplication"
+    android:label="@string/app_name"
+    android:icon="@drawable/wave_mark"
+    android:theme="@style/WaveTheme"
+    android:allowBackup="false"
+    android:usesCleartextTraffic="false"
+    android:enableOnBackInvokedCallback="true">
     <!-- Rotation and theme changes must not restart playback: the activity keeps
          its state and Compose picks the new configuration up itself. -->
     <activity
       android:name=".MainActivity"
       android:exported="true"
+      android:launchMode="singleTop"
       android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode">
       <intent-filter>
         <action android:name="android.intent.action.MAIN"/>
         <category android:name="android.intent.category.LAUNCHER"/>
       </intent-filter>
+      <!-- Long press the icon: Search, Remix and Favourites. -->
+      <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts"/>
     </activity>
+
+    <!-- The player outlives the screen: a media session, so the lock screen, the
+         shade, a watch and a car all show the same song. -->
+    <service
+      android:name=".PlaybackService"
+      android:exported="false"
+      android:foregroundServiceType="mediaPlayback"/>
+
+    <!-- Headset and notification buttons, delivered as plain broadcasts. -->
+    <receiver android:name=".PlaybackActionReceiver" android:exported="false"/>
+
+    <receiver android:name=".WaveWidgetProvider" android:exported="true">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+      </intent-filter>
+      <meta-data android:name="android.appwidget.provider" android:resource="@xml/wave_widget_info"/>
+    </receiver>
+
+    <!-- Play or pause from the quick settings panel. -->
+    <service
+      android:name=".WaveTileService"
+      android:exported="true"
+      android:icon="@drawable/wave_mark"
+      android:label="@string/app_name"
+      android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+      <intent-filter>
+        <action android:name="android.service.quicksettings.action.QS_TILE"/>
+      </intent-filter>
+    </service>
   </application>
 </manifest>
