@@ -859,11 +859,13 @@ private fun WeekBars(days: List<DaySlice>) {
                     animationSpec = spring(dampingRatio = 0.72f, stiffness = Spring.StiffnessMediumLow),
                     label = "week bar",
                 )
+                // A spring that overshoots would ask for a negative padding, so the
+                // share is held between nothing and the whole column.
                 Box(
                     Modifier
                         .weight(1f)
                         .fillMaxHeight()
-                        .padding(bottom = 96.dp * (1f - height)),
+                        .padding(bottom = 96.dp * (1f - height.coerceIn(0f, 1f))),
                 ) {
                     Box(
                         Modifier
@@ -941,7 +943,7 @@ private fun HourStrip(hours: List<Int>) {
                     Modifier
                         .weight(1f)
                         .fillMaxHeight()
-                        .padding(bottom = 44.dp * (1f - height)),
+                        .padding(bottom = 44.dp * (1f - height.coerceIn(0f, 1f))),
                 ) {
                     Box(
                         Modifier

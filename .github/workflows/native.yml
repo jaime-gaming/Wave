@@ -130,7 +130,14 @@ jobs:
           New-Item artifacts/windows-ui -ItemType Directory -Force | Out-Null
           $output = (Resolve-Path artifacts/windows-ui).Path
           $process = Start-Process platforms/windows/Wave.Windows/bin/Release/net10.0-windows/Wave.Windows.exe -ArgumentList @('--smoke-test', $output) -Wait -PassThru
-          if ($process.ExitCode -ne 0) { Get-Content artifacts/windows-ui/error.txt; throw 'Native UI smoke failed' }
+          if ($process.ExitCode -ne 0) {
+            Get-Content artifacts/windows-ui/error.txt -ErrorAction SilentlyContinue
+            # The log is not always reachable after a run, so the failure is also
+            # written as an annotation a person can read from the run summary.
+            $details = (Get-Content artifacts/windows-ui/error.txt -ErrorAction SilentlyContinue | Select-Object -First 8) -join ' | '
+            Write-Output "::error title=Windows smoke failure::$details"
+            exit 1
+          }
       - uses: actions/upload-artifact@v4
         if: always()
         with:
