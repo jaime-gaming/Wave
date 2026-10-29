@@ -11,13 +11,7 @@ public partial class MainWindow
 {
     private void ApplyTheme()
     {
-        bool light = preferences.Theme == "light";
-        var values = new Dictionary<string, string> {
-            ["BackgroundBrush"] = light ? "#F5F4FA" : "#10131B", ["SurfaceBrush"] = light ? "#FFFBFF" : "#1B1F2A",
-            ["TonalBrush"] = light ? "#E5E5F2" : "#2B3042", ["InkBrush"] = light ? "#202331" : "#E5E7F0",
-            ["MutedBrush"] = light ? "#535B70" : "#B3B9CC", ["AccentBrush"] = light ? "#405C96" : "#B6C8FF"
-        };
-        foreach (var pair in values) Application.Current.Resources[pair.Key] = new SolidColorBrush((Color)ColorConverter.ConvertFromString(pair.Value));
+        ApplyBrushes(preferences.Theme == "light");
         FontSize = preferences.LargerText ? 18 : 15;
     }
     private void RenderSettings(string? section = null)

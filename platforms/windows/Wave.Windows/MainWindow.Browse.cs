@@ -137,10 +137,6 @@ public partial class MainWindow
         CollectionHeader.Children.Add(actions);
     }
     /// <summary>
-    /// What has been listened to, and nothing else: how much, what most, and when
-    /// last. The only action near the numbers is the one that clears them.
-    /// </summary>
-    /// <summary>
     /// The week as one card, then the list it earns: Play Remix, or save it as an
     /// ordinary playlist. The detail of the old page — a fortnight of bars, a
     /// recent list — is deliberately gone; a recap is glanced at.
@@ -153,15 +149,13 @@ public partial class MainWindow
             CollectionHeader.Children.Add(Label("No week to look back on yet. Play a song and this page fills in: your week in one number, and a list of what you actually played.", 19));
             return;
         }
-        var week = new StackPanel { Margin = new Thickness(0, 8, 0, 14) };
-        week.Children.Add(Label("This week", 12));
-        week.Children.Add(Label(Listening.Time(recap.Seconds), 44));
-        week.Children.Add(Label($"{recap.Plays} {(recap.Plays == 1 ? "play" : "plays")} \u00b7 {recap.Tracks} songs \u00b7 {recap.Artists} artists", 13));
+        CollectionHeader.Children.Add(Label("This week", 12));
+        CollectionHeader.Children.Add(Label(Listening.Time(recap.Seconds), 44));
+        CollectionHeader.Children.Add(Label($"{recap.Plays} {(recap.Plays == 1 ? "play" : "plays")} \u00b7 {recap.Tracks} songs \u00b7 {recap.Artists} artists", 13));
         if (recap.PreviousSeconds > 0) {
             int delta = recap.Seconds - recap.PreviousSeconds;
-            week.Children.Add(Label($"{(delta >= 0 ? "+" : "\u2212")}{Listening.Time(Math.Abs(delta))} vs last week", 12));
+            CollectionHeader.Children.Add(Label($"{(delta >= 0 ? "+" : "\u2212")}{Listening.Time(Math.Abs(delta))} vs last week", 12));
         }
-        CollectionHeader.Children.Add(week);
         if (recap.Songs.Count > 0) {
             CollectionHeader.Children.Add(Label("Your Remix", 22));
             CollectionHeader.Children.Add(Label($"{recap.Songs.Count} songs you played most, in order.", 13));
