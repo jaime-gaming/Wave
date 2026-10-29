@@ -50,6 +50,9 @@ jobs:
         run: |
           set -euo pipefail
           npm run build
+          # The capture launches the headless shell, which the test runner does not
+          # install for itself.
+          npx playwright install chromium-headless-shell
           npx vite preview --host 127.0.0.1 --port 5173 --strictPort &
           for attempt in $(seq 1 40); do
             curl -fsS http://127.0.0.1:5173/ > /dev/null && break
