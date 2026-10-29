@@ -109,7 +109,7 @@ public partial class MainWindow
         }
         CollectionHeader.Children.Add(new ScrollViewer { Content = shelf, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalScrollBarVisibility = ScrollBarVisibility.Disabled, Margin = new Thickness(0, 0, 0, 2) });
 
-        var recent = tracks.OrderByDescending(s => s.AddedAt).Take(6).ToList();
+        var recent = tracks.TakeLast(6).Reverse().ToList();
         if (recent.Count > 0) {
             CollectionHeader.Children.Add(SectionHeading("Recently added songs"));
             foreach (var song in recent) CollectionHeader.Children.Add(SongRow(song, () => PlayCollection(recent, song.Id)));
