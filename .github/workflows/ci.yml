@@ -5,7 +5,7 @@ on:
   pull_request:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   web:
@@ -40,3 +40,43 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 7
+      # The images the README and the docs pages show are photographs of the
+      # built app. Taking them here, from the same code the checks just ran on,
+      # means they cannot describe a layout that no longer exists — and it means
+      # a design change can be looked at in a browser even when the person making
+      # it has none.
+      - name: Photograph the built site
+        if: github.event_name == 'push'
+        run: |
+          set -euo pipefail
+          npm run build
+          npx vite preview --host 127.0.0.1 --port 5173 --strictPort &
+          for attempt in $(seq 1 40); do
+            curl -fsS http://127.0.0.1:5173/ > /dev/null && break
+            sleep 1
+          done
+          WAVE_URL=http://127.0.0.1:5173 WAVE_REVIEW=1 npm run capture:docs
+      - name: Publish the web screenshots
+        if: github.event_name == 'push' && always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          shots=(docs/media/*.png)
+          if [[ ${#shots[@]} -eq 0 ]]; then
+            echo "No images were captured; nothing to publish."
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/media
+          if git diff --cached --quiet; then
+            echo "Images unchanged."
+            exit 0
+          fi
+          git commit -m 'Refresh the web screenshots from the built app'
+          for attempt in 1 2 3 4; do
+            git pull --rebase --quiet origin "$GITHUB_REF_NAME" || true
+            if git push --quiet; then exit 0; fi
+          done
+          echo "Could not publish the images." && exit 1
