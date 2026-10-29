@@ -24,7 +24,7 @@ public static class Listening
 {
     public const int ThresholdSeconds = 30;
     public const int Keep = 2000;
-    private const long Week = 7L * 24 * 60 * 60 * 1000;
+    private const long WeekMillis = 7L * 24 * 60 * 60 * 1000;
 
     public static int Threshold(double duration) =>
         !double.IsFinite(duration) || duration <= 0 ? ThresholdSeconds
@@ -51,7 +51,7 @@ public static class Listening
         var all = plays.ToList();
         var known = songs.DistinctBy(s => s.Id).ToDictionary(s => s.Id);
         var live = all.Where(p => known.ContainsKey(p.SongId)).ToList();
-        var week = all.Where(p => now - p.At is >= 0 and <= Week).ToList();
+        var week = all.Where(p => now - p.At is >= 0 and <= WeekMillis).ToList();
         var weekLive = week.Where(p => known.ContainsKey(p.SongId)).ToList();
         var counts = live.GroupBy(p => p.SongId).ToDictionary(g => g.Key, g => g.Count());
         var topSongs = counts
@@ -88,7 +88,7 @@ public static class Listening
     /// songs they earn. The week comes first; a thin week is topped up from the
     /// all-time list so the Remix is a playlist rather than a footnote.
     /// </summary>
-    public static WeekRecap Week(List<Play> plays, List<Song> songs, long now)
+    public static WeekRecap Recap(List<Play> plays, List<Song> songs, long now)
     {
         var byId = songs.DistinctBy(s => s.Id).ToDictionary(s => s.Id);
         var end = StartOfDay(now);
