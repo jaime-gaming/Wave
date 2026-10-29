@@ -5,7 +5,7 @@ namespace Wave.Windows;
 public partial class App : Application
 {
     /// <summary>
-    /// The six colours everything else refers to.
+    /// The colours everything else refers to.
     ///
     /// Each key resolves to one brush instance that is created once and then
     /// recoloured. WPF does not re-resolve a DynamicResource when the dictionary
@@ -33,6 +33,8 @@ public partial class App : Application
             ["InkBrush"] = light ? "#1A1D2B" : "#E3E5F1",
             ["MutedBrush"] = light ? "#555D70" : "#ACB2C4",
             ["AccentBrush"] = light ? "#375D98" : "#B0C7FF",
+            ["AccentTonalBrush"] = light ? "#CCDDFF" : "#324773",
+            ["OnAccentBrush"] = light ? "#FFFFFF" : "#092E62",
         };
         var fresh = new ResourceDictionary();
         bool replacedFrozen = false;

@@ -23,7 +23,8 @@ public partial class MainWindow
         }
         void Check(bool result, string text) { if (!result) throw new Exception(text); }
         await Capture("home-dark");
-        Check(CollectionHeader.Children.OfType<WrapPanel>().First().Children.Count == 5, "Home collection shortcuts missing.");
+        Check(CollectionHeader.Children.OfType<System.Windows.Controls.Primitives.UniformGrid>().First().Children.Count == 5, "Home collection shortcuts missing.");
+        Check(Songs.Visibility == Visibility.Collapsed, "Home should read as one page, not a list under a shelf.");
         Check(MiniPlayer.Visibility == Visibility.Collapsed, "Empty mini player should be hidden.");
         ShowPage("Search"); searchBox!.Text = "Local song 3"; Check(visible.Count == 1, "Native search failed.");
         ShowPage("Daily mix", DailyGroups()[0].Id); Check(visible.Count == 3, "Native daily mix is not browsable."); await Capture("daily-mix");

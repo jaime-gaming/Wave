@@ -75,12 +75,39 @@ public partial class MainWindow : Window
         SettingsView.Visibility = page == "Settings" ? Visibility.Visible : Visibility.Collapsed;
         if (NavigationPanel.Content is StackPanel navigation) foreach (var button in navigation.Children.OfType<Button>()) {
             bool selected = Equals(button.Tag, page == "Daily mix" ? "Home" : page);
-            button.SetResourceReference(Control.BackgroundProperty, selected ? "TonalBrush" : "BackgroundBrush");
-            button.FontWeight = selected ? FontWeights.SemiBold : FontWeights.Normal;
+            // The selected place is the only filled one on the rail, and the only
+            // one in the accent; the rest read as text until pointed at.
+            if (selected) {
+                button.SetResourceReference(Control.BackgroundProperty, "AccentTonalBrush");
+                button.SetResourceReference(Control.ForegroundProperty, "AccentBrush");
+                button.FontWeight = FontWeights.Bold;
+            } else {
+                button.ClearValue(Control.BackgroundProperty);
+                button.ClearValue(Control.ForegroundProperty);
+                button.FontWeight = FontWeights.SemiBold;
+            }
         }
+        LayoutPage();
         UpdateDock();
         if (page == "Settings") RenderSettings(); else if (!expanded) Refresh();
         if (preferences.Animations) LibraryView.BeginAnimation(OpacityProperty, new DoubleAnimation(.35, 1, TimeSpan.FromMilliseconds(180)));
+    }
+    /// <summary>
+    /// Home, Remix and Settings are pages made of headings, shelves and rows; they
+    /// have no song list of their own below the fold, so their opening fills the
+    /// card and scrolls as one thing. The library pages have a list, so their
+    /// opening stays a short band above it and only the list scrolls — one bar per
+    /// page, never two side by side.
+    /// </summary>
+    private bool WholePage => page is "Home" or "Remix";
+    private void LayoutPage()
+    {
+        bool whole = WholePage;
+        LibraryView.RowDefinitions[0].Height = whole ? new GridLength(1, GridUnitType.Star) : GridLength.Auto;
+        LibraryView.RowDefinitions[1].Height = whole ? GridLength.Auto : new GridLength(1, GridUnitType.Star);
+        HeaderScroll.MaxHeight = whole ? double.PositiveInfinity : 300;
+        Songs.Visibility = whole ? Visibility.Collapsed : Visibility.Visible;
+        UpdateDock();
     }
     private void UpdateDock()
     {
@@ -226,12 +253,21 @@ public partial class MainWindow : Window
         line.Opacity = sung ? 1 : .62;
     }
     private static string Clock(double seconds) { if (!double.IsFinite(seconds) || seconds < 0) seconds = 0; return $"{(int)seconds / 60}:{(int)seconds % 60:00}"; }
-    private void UpdatePlaybackLabels() { MiniToggle.Content = NowToggle.Content = playing ? "Pause" : "Play"; }
+    private void UpdatePlaybackLabels()
+    {
+        Iconography.Set(NowToggle, playing ? "pause" : "play", 22);
+        Iconography.Set(MiniToggle, playing ? "pause" : "play", 18);
+        NowToggle.ToolTip = MiniToggle.ToolTip = playing ? "Pause" : "Play";
+    }
     private void UpdateCurrent()
     {
         if (Current == null) return;
         MiniTitle.Text = NowTitle.Text = Current.Title; MiniArtist.Text = Current.Artist; NowArtist.Content = Current.Artist;
         NowArt.Background = ArtworkBrush(Current.Artwork); ArtPlaceholder.Visibility = Current.Artwork == null ? Visibility.Visible : Visibility.Collapsed;
+        MiniArt.Background = ArtworkBrush(Current.Artwork);
+        if (MiniArt.Child is TextBlock note) note.Visibility = Current.Artwork == null ? Visibility.Visible : Visibility.Collapsed;
+        if (Current.Favorite) FavoriteButton.SetResourceReference(Control.ForegroundProperty, "AccentBrush");
+        else FavoriteButton.ClearValue(Control.ForegroundProperty);
         UpdatePlaybackLabels(); RenderLyrics();
     }
     private ImageBrush? LoadImage(string? path) { try { if (path == null || !File.Exists(path)) return null; var image = new BitmapImage(); image.BeginInit(); image.CacheOption = BitmapCacheOption.OnLoad; image.DecodePixelWidth = 600; image.UriSource = new Uri(path); image.EndInit(); image.Freeze(); return new ImageBrush(image) { Stretch = Stretch.UniformToFill }; } catch { return null; } }
@@ -257,7 +293,21 @@ public partial class MainWindow : Window
     private void VolumeChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { if (!initialized) return; volume = e.NewValue; preferences = preferences with { Volume = volume }; preferencesDirty = true; if (outgoing == null) active.Volume = volume; }
     private void FavoriteClick(object sender, RoutedEventArgs e) { if (Current != null) Safe(() => Update(Current with { Favorite = !Current.Favorite })); }
     private void ShuffleClick(object sender, RoutedEventArgs e) { if (Current == null) return; var id = Current.Id; queue = new[] { Current }.Concat(queue.Where(s => s.Id != id).OrderBy(_ => Random.Shared.Next())).ToList(); index = 0; CancelFade(); PrepareNext(); Notify("Upcoming songs shuffled."); }
-    private void RepeatClick(object sender, RoutedEventArgs e) { repeat = repeat == "off" ? "all" : repeat == "all" ? "one" : "off"; RepeatButton.Content = "Repeat: " + repeat; PrepareNext(); }
+    private void RepeatClick(object sender, RoutedEventArgs e) { repeat = repeat == "off" ? "all" : repeat == "all" ? "one" : "off"; UpdateRepeat(); PrepareNext(); }
+    /// <summary>Repeat is a state, so the button says which one it is in.</summary>
+    private void UpdateRepeat()
+    {
+        RepeatButton.ToolTip = "Repeat: " + repeat;
+        var icon = Iconography.Draw("repeat", 20);
+        if (repeat == "one") {
+            var stack = new Grid();
+            stack.Children.Add(icon);
+            stack.Children.Add(new TextBlock { Text = "1", FontSize = 9, FontWeight = FontWeights.Bold, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Foreground = (Brush)Application.Current.Resources["InkBrush"] });
+            RepeatButton.Content = stack;
+        } else RepeatButton.Content = icon;
+        if (repeat == "off") RepeatButton.ClearValue(Control.ForegroundProperty);
+        else RepeatButton.SetResourceReference(Control.ForegroundProperty, "AccentBrush");
+    }
     private void NowClick(object sender, RoutedEventArgs e) { if (Current != null) ShowPage("Now playing"); }
     private void CollapseClick(object sender, RoutedEventArgs e) => ShowPage(previousPage);
     private void NowArtistClick(object sender, RoutedEventArgs e) { if (Current != null) ShowPage("Artists", Current.Artist); }
