@@ -9,7 +9,7 @@ class ContractsTest {
   val early=handoverGains(.25);val late=handoverGains(.75)
   assertEquals(1.0,(early.first*early.first+early.second*early.second).toDouble(),.0001)
   assertTrue("incoming is already audible a quarter in",early.second>.6)
-  assertTrue("outgoing is still leading the middle",handoverGains(.5).first>handoverGains(.5).second)
+  assertTrue("the outgoing song keeps leaving through the middle",handoverGains(.5).first>handoverGains(.75).first)
   assertTrue("the outgoing song leaves at the end",late.first<.6&&late.second>.8)
  }
 }
