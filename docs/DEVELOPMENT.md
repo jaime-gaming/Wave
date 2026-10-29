@@ -310,7 +310,14 @@ npm run dev
 npm run capture:docs
 ```
 
-`scripts/capture-docs.ts` builds a disposable library in its own browser context (generated WAV files, generated covers, demo lyrics), imports it, and screenshots Home, a daily mix, Now Playing and the phone Home at 1440×900 and 390×844. `WAVE_URL` points it at another origin and `CHROMIUM_EXECUTABLE_PATH` at another Chromium. Review the four PNGs before committing them; the `Documentation images` workflow runs the same script against a production build and uploads the result, for anyone without a browser to hand.
+`scripts/capture-docs.ts` builds a disposable library in its own browser context (generated WAV files, generated covers, demo lyrics, a week of plays), imports it, and screenshots Home, Remix, a daily mix, Now Playing, and Home and Remix at phone size — 1440×900 and 390×844. `WAVE_URL` points it at another origin and `CHROMIUM_EXECUTABLE_PATH` at another Chromium. Review the PNGs before committing them; the `Documentation images` workflow runs the same script against a production build and uploads the result, for anyone without a browser to hand.
+
+The native pictures are captured by the builds themselves, which is the only honest way to photograph a native app from a machine with no device:
+
+- `Wave.Windows.exe --smoke-test <folder>` renders the real window on a temporary library and writes a PNG per page. The `Native builds` job runs it and copies `artifacts/windows-ui/*.png` into `docs/media/windows-*.png`.
+- `gradle -p platforms/android testDebugUnitTest -Dwave.screenshots=app/build/wave-screenshots` runs `ScreenshotTest`, which renders the real `WaveApp` on the Robolectric graphics stack from a seeded library. Without the flag the tests are skipped, so an ordinary run stays quick. The same job copies them into `docs/media/android-*.png`.
+
+Both jobs commit what they produced when the run is a push to a branch, so `docs/media` always matches the build that made it. Neither is a mock-up and neither is retouched: what a reader sees is what the build drew. They are a layout record, not a substitute for a device pass.
 
 ## Release media
 

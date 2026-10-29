@@ -25,6 +25,23 @@ Release 0.1.1 · 28 October 2026. Historical run dates are retained below.
   after the rename. The listening specs do not touch this page, and `npm test` covers the
   component, but the full Playwright suite is the CI job's job.
 
+### Native screenshots (latest run)
+
+- `Native builds` → `windows`: the contract runner passes (including the four new week-recap
+  checks), the app compiles, and the isolated smoke run photographs Home, a daily mix, a saved
+  playlist, Remix, Settings and a narrow light-theme Library. Two faults it found were fixed: a
+  theme switch left the window on the old colour until the brushes were recoloured in place, and
+  every capture had a transparent background because `RenderTargetBitmap` only renders content.
+- `Native builds` → `android`: unit tests and lint pass and the debug APK assembles. The new
+  `ScreenshotTest` renders the real `WaveApp` on the Robolectric graphics stack and produced the
+  three phone PNGs. Getting it green exposed a real defect the build had been hiding: the
+  manifest declared no application class, no playback service, no receiver, no widget, no tile
+  and no shortcuts, so the shipped app would have crashed on launch and never shown a lock
+  screen control. That is fixed and is checked by the same run.
+- The PNGs are published from both jobs into `docs/media/` by name. Known limit: these are
+  layout captures from the app's own rendering, not photographs of a physical device; the
+  device gates in this file (audio focus, lock screen, car, DPI) still stand.
+
 ### Earlier runs
 
 - `npm run format:check`: passed.
