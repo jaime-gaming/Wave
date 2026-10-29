@@ -88,7 +88,9 @@ class LibraryContractsTest {
         assertEquals(270, summary.totalSeconds)
         assertEquals(3, summary.weekPlays)
         assertEquals("a", summary.topSongs.first().first.id)
-        assertEquals(2, summary.topSongs.first().second)
+        // Most played counts every play, including the one twenty days ago; only
+        // the week figures are bounded by the week.
+        assertEquals(3, summary.topSongs.first().second)
         assertEquals(listOf("One", "Two"), summary.topArtists.map { it.first })
         assertEquals(listOf("b", "a"), summary.recent.take(2).map { it.id })
         assertEquals(2, summary.uniqueSongs)

@@ -40,7 +40,7 @@ var played = new List<Play> {
 };
 var listened = Listening.Summarise(played, new List<Song> { a, b }, heardAt);
 Check(listened.TotalSeconds == 270 && listened.WeekPlays == 3 && listened.UniqueSongs == 2, "a deleted song keeps its seconds but leaves the lists");
-Check(listened.TopSongs[0].Song.Id == "a" && listened.TopSongs[0].Count == 2, "the most played song leads");
+Check(listened.TopSongs[0].Song.Id == "a" && listened.TopSongs[0].Count == 3, "the most played song leads, counting every play");
 Check(listened.Recent.Take(2).Select(s => s.Id).SequenceEqual(new[] { "b", "a" }), "recent listens are newest first");
 Check(Listening.Time(20) == "less than a minute" && Listening.Time(120) == "2 min" && Listening.Time(3600) == "1 h" && Listening.Time(5400) == "1 h 30 min", "listening time reads as words");
 var historyFolder = Path.Combine(Path.GetTempPath(), "wave-history-" + Guid.NewGuid());
