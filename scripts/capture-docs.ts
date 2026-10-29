@@ -224,27 +224,59 @@ await mobile.waitForTimeout(900);
 await shot(mobile, 'remix-mobile.png');
 
 // A review pass photographs the layouts the docs do not show, so a change to the
-// header or the bottom dock can be looked at instead of imagined. Off unless asked.
+// header or the bottom dock can be looked at instead of imagined. It also prints
+// what overflows the viewport, because a phone screenshot cannot show a scrollbar
+// that was pushed off the screen. Off unless asked.
 if (process.env.WAVE_REVIEW) {
+  const report = async (page: Page, label: string) => {
+    const facts = await page.evaluate(() => {
+      const doc = document.documentElement;
+      const width = doc.clientWidth;
+      const offenders = [...document.querySelectorAll('body *')]
+        .map((node) => {
+          const box = node.getBoundingClientRect();
+          return { node, box };
+        })
+        .filter(({ box }) => box.width > 0 && (box.right > width + 1 || box.left < -1))
+        .slice(0, 12)
+        .map(({ node, box }) => {
+          const element = node as HTMLElement;
+          const name = `${element.tagName.toLowerCase()}${element.className && typeof element.className === 'string' ? '.' + element.className.split(' ').filter(Boolean).join('.') : ''}`;
+          return `${name} [${Math.round(box.left)}..${Math.round(box.right)}]`;
+        });
+      return { width, scrollWidth: doc.scrollWidth, offenders };
+    });
+    console.log(
+      `[review] ${label}: viewport ${facts.width}px, scrollWidth ${facts.scrollWidth}px` +
+        (facts.offenders.length
+          ? `\n  overflowing: ${facts.offenders.join('\n               ')}`
+          : ''),
+    );
+  };
+
+  await report(mobile, 'home-mobile');
   await mobile.getByRole('button', { name: 'Library', exact: true }).click();
   await mobile.waitForTimeout(800);
+  await report(mobile, 'library-mobile');
   await shot(mobile, 'review-mobile-library.png');
-  await mobile.getByRole('button', { name: 'Home', exact: true }).click();
-  await mobile.waitForTimeout(500);
   await mobile
-    .getByRole('button', { name: /Play .*Electronic/ })
+    .getByRole('button', { name: /^Play .* by / })
     .first()
     .click();
-  await mobile.waitForTimeout(900);
+  await mobile.waitForTimeout(1000);
   await shot(mobile, 'review-mobile-playing.png');
+  await report(mobile, 'playing-mobile');
   await mobile.getByRole('button', { name: 'Open now playing', exact: true }).click();
-  await mobile.waitForTimeout(1200);
+  await mobile.waitForTimeout(1300);
   await shot(mobile, 'review-mobile-player.png');
+  await report(mobile, 'player-mobile');
   await mobile.getByRole('button', { name: 'Close dialog' }).click();
-  await mobile.waitForTimeout(600);
+  await mobile.waitForTimeout(800);
+  await mobile.getByRole('button', { name: 'Home', exact: true }).click();
   for (const width of [1024, 820]) {
     await mobile.setViewportSize({ width, height: 900 });
     await mobile.waitForTimeout(700);
+    await report(mobile, `home-${width}`);
     await shot(mobile, `review-${width}.png`);
   }
 }
