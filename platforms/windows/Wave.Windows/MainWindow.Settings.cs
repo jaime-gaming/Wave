@@ -45,7 +45,7 @@ public partial class MainWindow
         }
         var backToAll = new Button { Style = (Style)FindResource("TextButton"), Foreground = (Brush)Application.Current.Resources["MutedBrush"], Margin = new Thickness(2, 4, 2, 10) };
         backToAll.Content = Iconography.With("chevron-left", "Back to settings", 16, 6);
-        backToAll.Click += (_, _) => Safe(RenderSettings);
+        backToAll.Click += (_, _) => Safe(() => RenderSettings());
         SettingsBody.Children.Add(backToAll);
         SettingsBody.Children.Add(Label(section, 26));
         void Toggle(string text, bool value, Action<bool> changed) {
