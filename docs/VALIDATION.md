@@ -15,12 +15,18 @@ Release 0.1.1 · 28 October 2026. Historical run dates are retained below.
   the redrawn wordmark in the desktop sidebar and the two corner buttons level with the page
   title, so the Windows path data and the layout are confirmed by a real render, not only by a
   diff. The phone is unaffected: it has no sidebar.
-- **Not verified here:** the browser. This environment has no Chromium that the linker will load
+- **Not verified here:** a browser in this sandbox. There is no Chromium the linker will load
   (`libnspr4` is missing and cannot be installed), so the wordmark was reviewed as a rendered SVG
   at 62 px, 84 px and rail size, and the header corner was reasoned about from the existing
-  breakpoints rather than photographed. `npm run capture:docs` and `npm run test:e2e` have not
-  been run at this revision. The browser suite was already red for measurement reasons before this
-  round; that is unchanged and not claimed.
+  breakpoints rather than photographed. `npm run capture:docs` was not run: the web screenshots in
+  `docs/media` still show the previous header.
+- `Checks` → run 40967266137: release checks, package tests, format, lint, `npm test`,
+  `build:pages` and the committed-Pages verification all pass. The Playwright job is **red with
+  ten failing tests**, the same number and the same assertion shapes (three `toBeVisible`, two
+  `toHaveAttribute`, `toHaveValue`, `toBeCloseTo`, a timeout, a `toBe` and a `toHaveCount`) as the
+  revision before this round and the one before that. The job's result file cannot be downloaded
+  from this environment, so the failing tests are identified by count and shape rather than by
+  name; nothing here claims the suite is green.
 
 ### The look this round: wordmark, Remix charts, native typeface (previous run)
 
