@@ -1,9 +1,19 @@
 import { WaveMark } from './WaveMark';
 import { motion } from 'motion/react';
 import { useWaveMotion } from '../ui/motion';
-import { Home, Library, Search, Settings, Disc3, Heart, ListMusic, Users } from 'lucide-react';
+import {
+  Home,
+  Library,
+  Search,
+  Settings,
+  AudioLines,
+  Disc3,
+  Heart,
+  ListMusic,
+  Users,
+} from 'lucide-react';
 import type { LibraryView } from '../domain/types';
-export type Page = 'home' | 'search' | 'library' | 'settings';
+export type Page = 'home' | 'search' | 'library' | 'listening' | 'settings';
 export function Navigation({
   page,
   onPage,
@@ -34,6 +44,7 @@ export function Navigation({
             { id: 'home', name: 'Home', icon: Home },
             { id: 'search', name: 'Search', icon: Search },
             { id: 'library', name: 'Library', icon: Library },
+            { id: 'listening', name: 'Listening', icon: AudioLines },
           ] as const
         ).map(({ id, name, icon: Icon }) => (
           <motion.button

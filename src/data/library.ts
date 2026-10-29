@@ -12,12 +12,14 @@ import {
   type PlaylistChange,
   type PlaylistDetails,
 } from '../domain/playlists';
+import type { PlayEvent } from '../domain/listening';
 
 interface WaveDatabase extends DBSchema {
   tracks: { key: string; value: Track };
   playlists: { key: string; value: Playlist };
   artists: { key: string; value: ArtistProfile };
   albumOrders: { key: string; value: AlbumOrder };
+  plays: { key: string; value: PlayEvent; indexes: { 'by-at': number } };
 }
 const DATABASE_NAME = 'wave-library';
 
@@ -30,14 +32,28 @@ async function abortFailedTransaction(tx: { abort: () => void; done: Promise<unk
   await tx.done.catch(() => undefined);
 }
 
+/**
+ * Schema versions.
+ *
+ * 1: tracks. 2: playlists. 3: artist profiles and album order. 4: listening
+ * history. Each step is additive, so an old library opens and keeps every row;
+ * a play is only ever appended, and the store is pruned by the domain rules
+ * rather than by a migration.
+ */
+export const LIBRARY_VERSION = 4;
+
 export function openLibrary() {
-  return openDB<WaveDatabase>(DATABASE_NAME, 3, {
+  return openDB<WaveDatabase>(DATABASE_NAME, LIBRARY_VERSION, {
     upgrade(db, oldVersion) {
       if (oldVersion < 1) db.createObjectStore('tracks', { keyPath: 'id' });
       if (oldVersion < 2) db.createObjectStore('playlists', { keyPath: 'id' });
       if (oldVersion < 3) {
         db.createObjectStore('artists', { keyPath: 'name' });
         db.createObjectStore('albumOrders', { keyPath: 'id' });
+      }
+      if (oldVersion < 4) {
+        const plays = db.createObjectStore('plays', { keyPath: 'id' });
+        plays.createIndex('by-at', 'at');
       }
     },
     blocking(_old, _next, event) {
