@@ -10,7 +10,10 @@ fun parseLrc(raw: String): List<LyricLine> {
     return raw.take(100000).lineSequence().flatMap { row -> val text=regex.replace(row,"").trim(); regex.findAll(row).map { m -> LyricLine((m.groupValues[1].toDouble()*60+m.groupValues[2].toDouble()+("0."+m.groupValues[3].ifEmpty { "0" }).toDouble()-offset).coerceAtLeast(0.0),text) } }.take(2000).sortedBy { it.time }.toList()
 }
 /** The bar shows tenths of a second, so a position is published when it moves one. */
-fun shouldPublishTime(last: Double, next: Double, fading: Boolean) = fading || kotlin.math.abs(next - last) >= .1
+// A tenth of a second, minus a hair: 10.1 - 10.0 is 0.09999999999999964 in
+// binary floating point, and the bar still has to move at ten past ten.
+fun shouldPublishTime(last: Double, next: Double, fading: Boolean) =
+    fading || kotlin.math.abs(next - last) >= .1 - 1e-9
 fun powerGains(progress: Double): Pair<Float,Float> { val angle=progress.coerceIn(0.0,1.0)*Math.PI/2; return cos(angle).toFloat() to sin(angle).toFloat() }
 /** A blend long enough to be a mix: an arrival, a passage together and a departure. */
 const val BLEND_SECONDS = 16.0
