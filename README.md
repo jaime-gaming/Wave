@@ -65,10 +65,23 @@ page. Both are unsigned test builds, not store installers.
   <img src="docs/media/remix-mobile.png" alt="Remix on a phone" width="300" />
 </p>
 
-Every image above is a real capture of the web app with a generated demo library, taken by
-`npm run capture:docs`. The Windows and Android apps have their own layout, described in
-[Platforms](docs/PLATFORMS.md); their screens are photographed from the builds themselves, in the
-Windows smoke run on CI and on a real phone for Android.
+**Windows**, the same library in a native window:
+
+![Wave for Windows: the collection, daily mixes and the songs underneath](docs/media/windows-home-dark.png)
+
+**Android**, from the built app itself:
+
+<p align="center">
+  <img src="docs/media/android-home.png" alt="Wave for Android: home" width="260" />
+  <img src="docs/media/android-remix.png" alt="Wave for Android: Remix" width="260" />
+  <img src="docs/media/android-library.png" alt="Wave for Android: the library" width="260" />
+</p>
+
+Every image is a real capture, not a mock-up. The web ones come from `npm run capture:docs`
+against a generated demo library; the Windows ones are drawn by `Wave.Windows.exe --smoke-test`
+on its own throwaway library; the Android ones are rendered by the app's `ScreenshotTest` on the
+real Compose stack. Each of those runs on CI and commits what it produced, so the pictures here
+are the current build. See [Platforms](docs/PLATFORMS.md) for the pages that are not shown.
 
 ## Why Wave, next to Spotify, Apple Music or YouTube Music
 
