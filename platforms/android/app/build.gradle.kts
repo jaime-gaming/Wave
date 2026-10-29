@@ -14,5 +14,8 @@ dependencies {
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.core:core-ktx:1.16.0")
+    // The media session is what puts the song on the lock screen, in the shade
+    // and in a car, and what lets a headset pause it.
+    implementation("androidx.media:media:1.7.0")
     testImplementation("junit:junit:4.13.2")
 }
