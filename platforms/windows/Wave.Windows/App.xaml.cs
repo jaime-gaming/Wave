@@ -9,12 +9,18 @@ public partial class App : Application
     ///
     /// Each key resolves to one brush instance that is created once and then
     /// recoloured. WPF does not re-resolve a DynamicResource when the dictionary
-    /// that holds it is replaced, so a swap left half the window on the old
-    /// theme; changing the colour of a brush it already points at repaints
+    /// that holds it is replaced quietly, so a swap left half the window on the
+    /// old theme; changing the colour of a brush it already points at repaints
     /// everything that uses it.
+    ///
+    /// Two things can get in the way of that: WPF is free to freeze a brush once
+    /// it is in a sealed dictionary, and a frozen brush is read-only. In that
+    /// case the dictionary is taken out and put back with fresh brushes, which
+    /// invalidates every DynamicResource rather than leaving any of them on the
+    /// colour they first saw.
     /// </summary>
     private static readonly Dictionary<string, SolidColorBrush> palette = new();
-    private static bool registered;
+    private static ResourceDictionary? held;
 
     public static void ApplyBrushes(bool light)
     {
@@ -28,14 +34,29 @@ public partial class App : Application
             ["MutedBrush"] = light ? "#555D70" : "#ACB2C4",
             ["AccentBrush"] = light ? "#375D98" : "#B0C7FF",
         };
-        var dictionary = new ResourceDictionary();
+        var fresh = new ResourceDictionary();
+        bool replacedFrozen = false;
         foreach (var (key, value) in colors) {
-            if (!palette.TryGetValue(key, out var brush)) palette[key] = brush = new SolidColorBrush();
+            if (!palette.TryGetValue(key, out var brush) || brush.IsFrozen) {
+                brush = new SolidColorBrush();
+                palette[key] = brush;
+                replacedFrozen = held != null;
+            }
             brush.Color = (Color)ColorConverter.ConvertFromString(value);
-            dictionary[key] = brush;
+            fresh[key] = brush;
         }
-        // Only the first call registers the keys; later calls just recolour them.
-        if (!registered) { Current.Resources.MergedDictionaries.Add(dictionary); registered = true; }
+        if (held == null) { Current.Resources.MergedDictionaries.Add(fresh); held = fresh; return; }
+        if (!replacedFrozen) {
+            try {
+                foreach (var (key, brush) in palette) held[key] = brush;
+                return;
+            } catch (InvalidOperationException) {
+                // A sealed dictionary refuses the write; fall through to a swap.
+            }
+        }
+        Current.Resources.MergedDictionaries.Remove(held);
+        Current.Resources.MergedDictionaries.Add(fresh);
+        held = fresh;
     }
 
     protected override async void OnStartup(StartupEventArgs e)
