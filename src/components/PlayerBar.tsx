@@ -682,28 +682,33 @@ export function PlayerBar(props: PlayerProps) {
                 it just gets quiet. Movement makes it readable instead of
                 invisible, and the keyboard reaches every control.
               */}
-              <div className="immersive-transport">
-                <button
-                  className="immersive-skip"
-                  aria-label="Previous track"
-                  onClick={player.previous}
-                >
-                  <SkipBack size={22} />
-                </button>
-                <button
-                  className="immersive-play"
-                  aria-label={player.state.playing ? 'Pause' : 'Play'}
-                  onClick={() => player.dispatch({ type: 'toggle' })}
-                >
-                  {player.state.playing ? <Pause size={26} /> : <Play size={26} />}
-                </button>
-                <button
-                  className="immersive-skip"
-                  aria-label="Next track"
-                  onClick={() => player.dispatch({ type: 'next' })}
-                >
-                  <SkipForward size={22} />
-                </button>
+              {/*
+                The bar, not a hint of one. The listening screen used to fade its
+                controls to a third of their ink, so a still room looked like a
+                player that had gone away; it is the same player at the bottom of
+                the screen and it stays at full strength until you leave.
+              */}
+              <div className="immersive-bar">
+                <Artwork track={player.current} className="immersive-bar-art" />
+                <div className="immersive-bar-track">
+                  <strong>{player.current.title}</strong>
+                  <span>{player.current.artist}</span>
+                </div>
+                <div className="immersive-bar-transport">
+                  <button aria-label="Previous track" onClick={player.previous}>
+                    <SkipBack size={21} />
+                  </button>
+                  <button
+                    className="immersive-play"
+                    aria-label={player.state.playing ? 'Pause' : 'Play'}
+                    onClick={() => player.dispatch({ type: 'toggle' })}
+                  >
+                    {player.state.playing ? <Pause size={24} /> : <Play size={24} />}
+                  </button>
+                  <button aria-label="Next track" onClick={() => player.dispatch({ type: 'next' })}>
+                    <SkipForward size={21} />
+                  </button>
+                </div>
                 <div className="immersive-seek">
                   <WaveSeek
                     time={time}

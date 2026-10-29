@@ -115,7 +115,7 @@ export function DailyMixPage({
         group={null}
         onGroup={() => {}}
         onClearSearch={() => {}}
-        onImport={() => {}}
+        onAdd={() => {}}
         currentId={currentId}
         playing={playing}
         onPlay={onPlay}

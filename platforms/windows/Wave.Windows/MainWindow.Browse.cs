@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 namespace Wave.Windows;
 
@@ -156,6 +157,10 @@ public partial class MainWindow
             int delta = recap.Seconds - recap.PreviousSeconds;
             CollectionHeader.Children.Add(Label($"{(delta >= 0 ? "+" : "\u2212")}{Listening.Time(Math.Abs(delta))} vs last week", 12));
         }
+        if (recap.Genres.Count > 0)
+            CollectionHeader.Children.Add(Label($"Mostly {recap.Genres[0].Genre}", 13));
+        if (recap.Days.Count > 0) CollectionHeader.Children.Add(WeekChart(recap.Days));
+        if (recap.Hours.Any(hour => hour > 0)) CollectionHeader.Children.Add(HourChart(recap.Hours));
         if (recap.Songs.Count > 0) {
             CollectionHeader.Children.Add(Label("Your Remix", 22));
             CollectionHeader.Children.Add(Label($"{NativeCollections.Count(recap.Songs.Count, "song")} you played most, in order.", 13));
@@ -186,6 +191,72 @@ public partial class MainWindow
             Refresh();
         }));
     }
+    /// <summary>
+    /// The week as seven bars, the same chart the web page draws: one column
+    /// per day, height in proportion to the day's minutes, quiet days keeping a
+    /// stub so the week never changes width.
+    /// </summary>
+    private UIElement WeekChart(List<DaySlice> days)
+    {
+        int peak = Math.Max(1, days.Max(day => day.Seconds));
+        var bars = new UniformGrid { Columns = days.Count, Height = 96, Margin = new Thickness(4, 8, 4, 0) };
+        var labels = new UniformGrid { Columns = days.Count, Margin = new Thickness(4, 6, 4, 6) };
+        var accent = (Brush)Application.Current.Resources["AccentBrush"];
+        foreach (var day in days)
+        {
+            double share = day.Seconds == 0 ? 0.05 : Math.Max(0.09, day.Seconds / (double)peak);
+            bars.Children.Add(new Border
+            {
+                Width = 30,
+                Height = 96 * share,
+                CornerRadius = new CornerRadius(9, 9, 0, 0),
+                Background = accent,
+                Opacity = day.Equals(days[^1]) ? 1 : 0.55,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Bottom,
+            });
+            labels.Children.Add(new TextBlock
+            {
+                Text = DateTimeOffset.FromUnixTimeMilliseconds(day.At).LocalDateTime.ToString("ddd", System.Globalization.CultureInfo.CurrentCulture).Substring(0, 1),
+                FontSize = 11,
+                Foreground = (Brush)Application.Current.Resources["MutedBrush"],
+                HorizontalAlignment = HorizontalAlignment.Center,
+            });
+        }
+        return new StackPanel { Children = { Label("How the week went", 22), bars, labels } };
+    }
+
+    /// <summary>When in the day: one thin column per hour, the busiest lit.</summary>
+    private UIElement HourChart(List<int> hours)
+    {
+        int peak = Math.Max(1, hours.Max());
+        int peakHour = hours.IndexOf(peak);
+        var columns = new UniformGrid { Columns = hours.Count, Height = 56, Margin = new Thickness(4, 8, 4, 6) };
+        var accent = (Brush)Application.Current.Resources["AccentBrush"];
+        for (int hour = 0; hour < hours.Count; hour++)
+        {
+            double share = hours[hour] == 0 ? 0.06 : Math.Max(0.1, hours[hour] / (double)peak);
+            columns.Children.Add(new Border
+            {
+                Width = 10,
+                Height = 56 * share,
+                CornerRadius = new CornerRadius(3),
+                Background = accent,
+                Opacity = hour == peakHour ? 1 : 0.34,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Bottom,
+            });
+        }
+        return new StackPanel
+        {
+            Children =
+            {
+                Label($"When you listen \u00b7 around {peakHour:00}:00", 22),
+                columns,
+            },
+        };
+    }
+
     private UIElement CountRow(string title, int count, Action action)
     {
         var row = new DockPanel { Margin = new Thickness(0, 4, 0, 4) };

@@ -1,5 +1,8 @@
 package io.github.jaimegaming.wave.ui
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -8,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -22,12 +26,19 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.jaimegaming.wave.DailyMix
+import io.github.jaimegaming.wave.DaySlice
 import io.github.jaimegaming.wave.count
 import io.github.jaimegaming.wave.Playlist
 import io.github.jaimegaming.wave.Song
@@ -722,6 +733,8 @@ fun RemixScreen(state: WaveState, onOpenSong: (Song) -> Unit) {
                 }
             }
         }
+        item { WeekBars(recap.days) }
+        if (recap.hours.any { it > 0 }) item { HourStrip(recap.hours) }
         if (songs.isNotEmpty()) {
             item {
                 SectionTitle("Your Remix")
@@ -816,6 +829,141 @@ fun RemixScreen(state: WaveState, onOpenSong: (Song) -> Unit) {
         }
     }
 }
+
+/**
+ * The week as seven bars.
+ *
+ * One column per day, height in proportion to the day's minutes, grown once when
+ * the screen opens with the same spring the web page uses. Quiet days keep a
+ * stub so the week never changes width.
+ */
+@Composable
+private fun WeekBars(days: List<DaySlice>) {
+    if (days.isEmpty()) return
+    val peak = (days.maxOfOrNull { it.seconds } ?: 0).coerceAtLeast(1)
+    var grown by remember { mutableStateOf(false) }
+    LaunchedEffect(days) { grown = true }
+    Column(Modifier.padding(top = 4.dp)) {
+        SectionTitle("How the week went")
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(96.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.Bottom,
+        ) {
+            days.forEachIndexed { index, day ->
+                val share = if (day.seconds == 0) 0.05f else (day.seconds.toFloat() / peak).coerceAtLeast(0.09f)
+                val height by animateFloatAsState(
+                    targetValue = if (grown) share else 0f,
+                    animationSpec = spring(dampingRatio = 0.72f, stiffness = Spring.StiffnessMediumLow),
+                    label = "week bar",
+                )
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .padding(bottom = 96.dp * (1f - height)),
+                ) {
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(topStart = 9.dp, topEnd = 9.dp))
+                            .background(
+                                if (index == days.lastIndex) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
+                            ),
+                    )
+                }
+            }
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            days.forEach { day ->
+                Text(
+                    text = weekdayLetter(day.at),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+    }
+}
+
+/**
+ * When in the day: one thin column per hour, the busiest lit.
+ *
+ * A week of listening has a shape in the clock as well as in the calendar, and
+ * this is that shape without a chart library or an axis.
+ */
+@Composable
+private fun HourStrip(hours: List<Int>) {
+    val peakHour = hours.indices.maxByOrNull { hours[it] } ?: 0
+    val peak = hours.maxOrNull()?.coerceAtLeast(1) ?: 1
+    var grown by remember { mutableStateOf(false) }
+    LaunchedEffect(hours) { grown = true }
+    Column(Modifier.padding(top = 4.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = "When you listen",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = "Around " + peakHour.toString().padStart(2, '0') + ":00",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+                .padding(top = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(3.dp),
+            verticalAlignment = Alignment.Bottom,
+        ) {
+            hours.forEachIndexed { hour, plays ->
+                val share = if (plays == 0) 0.06f else (plays.toFloat() / peak).coerceAtLeast(0.1f)
+                val height by animateFloatAsState(
+                    targetValue = if (grown) share else 0f,
+                    animationSpec = spring(dampingRatio = 0.72f, stiffness = Spring.StiffnessMediumLow),
+                    label = "hour column",
+                )
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .padding(bottom = 44.dp * (1f - height)),
+                ) {
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(
+                                if (hour == peakHour) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.primary.copy(alpha = 0.34f),
+                            ),
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** "M", "T", "W" — the first letter of the local weekday. */
+private fun weekdayLetter(at: Long): String =
+    java.text.SimpleDateFormat("EEEEE", java.util.Locale.getDefault())
+        .format(java.util.Date(at))
+        .take(1)
+        .uppercase(java.util.Locale.getDefault())
 
 /** One song of the Remix: its place, its count, and a way in. */
 @Composable

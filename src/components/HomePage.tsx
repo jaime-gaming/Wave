@@ -21,7 +21,7 @@ export const HomePage = memo(function HomePage({
   playing,
   loading,
   busy,
-  onImport,
+  onAdd,
   onMix,
   onView,
   onAlbum,
@@ -42,7 +42,7 @@ export const HomePage = memo(function HomePage({
   playing: boolean;
   loading: boolean;
   busy: boolean;
-  onImport: () => void;
+  onAdd: () => void;
   onMix: (mix: DailyMix, number: number) => void;
   onView: (view: LibraryView) => void;
   onAlbum: (id: string) => void;
@@ -81,7 +81,7 @@ export const HomePage = memo(function HomePage({
       <section aria-label="Your collection" className="home-overview">
         <div className="section-heading">
           <h2>Your collection</h2>
-          <button className="tonal-button" disabled={busy} onClick={onImport}>
+          <button className="tonal-button" disabled={busy} onClick={onAdd}>
             <Plus size={18} />
             Add music
           </button>
@@ -172,7 +172,7 @@ export const HomePage = memo(function HomePage({
             query=""
             currentId={current?.id}
             playing={playing}
-            onImport={onImport}
+            onAdd={onAdd}
             onGroup={() => {}}
             onClearSearch={() => {}}
             onPlay={onPlay}

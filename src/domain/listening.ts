@@ -323,6 +323,12 @@ export interface WeekRecap {
   artists: number;
   /** The seven days before this one, for the comparison line. */
   previousSeconds: number;
+  /** One entry per day of the window, oldest first, quiet days included. */
+  days: DayTotal[];
+  /** Plays per hour of the local day for the week, 0–23. */
+  hours: number[];
+  /** The week's listening split by the genre tag on the files. */
+  genres: { genre: string; seconds: number; plays: number }[];
   topTracks: TrackTotal[];
   topArtists: ArtistTotal[];
   mix: Track[];
@@ -379,6 +385,34 @@ export function weeklyRecap(plays: PlayEvent[], tracks: Track[], now: number): W
     (a, b) => b.plays - a.plays || b.seconds - a.seconds || b.lastPlayed - a.lastPlayed,
   );
 
+  // The shape of the week: a bar per day, a point per hour, a slice per genre.
+  // All three are the same plays counted three ways, so they always agree with
+  // the headline number.
+  const days: DayTotal[] = Array.from({ length: 7 }, (_, index) => {
+    const at = start + index * DAY_MS;
+    return { key: dayKey(at), at, seconds: 0, plays: 0 };
+  });
+  const hours = Array.from({ length: 24 }, () => 0);
+  const genres = new Map<string, { genre: string; seconds: number; plays: number }>();
+  for (const play of inWeek) {
+    const index = Math.min(6, Math.max(0, Math.round((startOfDay(play.at) - start) / DAY_MS)));
+    days[index].seconds += play.seconds;
+    days[index].plays++;
+    hours[new Date(play.at).getHours()]++;
+    const track = byId.get(play.trackId);
+    if (!track) continue;
+    // One play can carry several tags; each of them gets the whole listen, so
+    // the slices add up to the week rather than to a fraction of it.
+    for (const raw of track.genres ?? []) {
+      const genre = raw?.trim();
+      if (!genre) continue;
+      const entry = genres.get(genre) ?? { genre, seconds: 0, plays: 0 };
+      entry.seconds += play.seconds;
+      entry.plays++;
+      genres.set(genre, entry);
+    }
+  }
+
   // The week first, then whatever is still worth hearing from before it, until
   // the list is long enough to be a playlist rather than a footnote.
   const mix: Track[] = ranked.map((entry) => entry.track);
@@ -401,6 +435,9 @@ export function weeklyRecap(plays: PlayEvent[], tracks: Track[], now: number): W
     tracks: heard.size,
     artists: artistTotals.size,
     previousSeconds: previous.reduce((total, play) => total + play.seconds, 0),
+    days,
+    hours,
+    genres: [...genres.values()].sort((a, b) => b.seconds - a.seconds),
     topTracks: ranked.slice(0, 8),
     topArtists: [...artistTotals.values()]
       .sort((a, b) => b.plays - a.plays || b.seconds - a.seconds)

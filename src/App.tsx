@@ -393,6 +393,14 @@ function WaveApp({
   const busy = library.loading || !!library.progress;
   const chooseFiles = useCallback(() => input.current?.click(), []);
   const [addOpen, setAddOpen] = useState(false);
+  /**
+   * Every "Add music" in the app opens the same chooser.
+   *
+   * A button that jumps straight to the file picker decides for the listener
+   * that what they want is a file on this device; a YouTube song is the other
+   * half of what Wave can add, so the two are always offered together.
+   */
+  const openAddMusic = useCallback(() => setAddOpen(true), []);
   const [addBusy, setAddBusy] = useState(false);
   /** YouTube songs are added to the library and start playing straight away. */
   const addFromYouTube = useCallback(
@@ -656,7 +664,6 @@ function WaveApp({
       <main id="main" tabIndex={-1} className={`workspace ${page}-page`}>
         <header className="library-header">
           <div className="header-top">
-            <span className="app-name">Wave</span>
             <div className="header-actions">
               <button
                 className="icon-button import-header"
@@ -987,7 +994,7 @@ function WaveApp({
                 onAlbum={openAlbum}
                 onPlaylist={openPlaylist}
                 onBrowse={browse}
-                onImport={chooseFiles}
+                onAdd={openAddMusic}
               />
             ) : page === 'remix' ? (
               <RemixPage
@@ -998,7 +1005,7 @@ function WaveApp({
                 playing={player.state.playing}
                 onPlay={player.play}
                 onArtist={openArtist}
-                onImport={chooseFiles}
+                onAdd={openAddMusic}
                 onSave={async (songs) => {
                   // Saving is explicit: the list becomes an ordinary playlist and
                   // nothing about the history changes.
@@ -1057,7 +1064,7 @@ function WaveApp({
                 playing={player.state.playing}
                 loading={library.loading}
                 busy={busy}
-                onImport={chooseFiles}
+                onAdd={openAddMusic}
                 onView={browse}
                 onAlbum={openAlbum}
                 onArtist={openArtist}
@@ -1212,7 +1219,7 @@ function WaveApp({
                   hideGroupHeader={view === 'artists'}
                   onGroup={chooseGroup}
                   onClearSearch={clearSearch}
-                  onImport={chooseFiles}
+                  onAdd={openAddMusic}
                   busy={busy}
                   currentId={player.current?.id}
                   playing={player.state.playing}

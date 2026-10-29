@@ -19,5 +19,9 @@
     <EnableCompressionInSingleFile>false</EnableCompressionInSingleFile>
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
-  <ItemGroup><Resource Include="Wave.ico" /></ItemGroup>
+  <ItemGroup>
+    <Resource Include="Wave.ico" />
+    <!-- Nunito Sans, the typeface the web build loads (SIL Open Font License). -->
+    <Resource Include="Assets\NunitoSans-*.ttf" />
+  </ItemGroup>
 </Project>

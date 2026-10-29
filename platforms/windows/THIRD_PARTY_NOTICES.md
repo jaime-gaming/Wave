@@ -5,3 +5,5 @@ Wave source is MIT-licensed; preserve the root LICENSE. WPF and .NET use MIT wit
 CI publishes an unsigned **framework-dependent** test archive, requiring a separately installed .NET 10 Windows Desktop runtime. It does not bundle that runtime. The .NET runtime v10.0.0 upstream LICENSE and THIRD-PARTY-NOTICES are preserved in this directory and copied to the archive as a baseline for SDK-generated host components. Sources: https://github.com/dotnet/runtime/tree/v10.0.0.
 
 Before public production distribution, verify notices against the exact SDK/runtime artifacts. Any future self-contained archive bundles a runtime and must include its resolved pack's license/third-party files; the baseline here is not a release SBOM or proof of completeness. No signed installer is claimed.
+
+Nunito Sans is shipped as four static instances under `Wave.Windows/Assets` (SIL Open Font License 1.1, `NunitoSans-OFL.txt` beside them) so the desktop window sets the same type as the web build rather than Segoe UI.

@@ -33,7 +33,7 @@ type Props = {
   onAlbum: (id: string) => void;
   onPlaylist: (id: string) => void;
   onBrowse: (v: LibraryView) => void;
-  onImport: () => void;
+  onAdd: () => void;
   onCreatePlaylist: () => void;
 };
 export const SearchPage = memo(function SearchPage({
@@ -44,7 +44,7 @@ export const SearchPage = memo(function SearchPage({
   onQuery,
   onBrowse,
   loading,
-  onImport,
+  onAdd,
   busy,
   currentId,
   playing,
@@ -234,7 +234,7 @@ export const SearchPage = memo(function SearchPage({
                 group={null}
                 onGroup={() => {}}
                 onClearSearch={() => onQuery('')}
-                onImport={onImport}
+                onAdd={onAdd}
                 busy={busy}
                 currentId={currentId}
                 playing={playing}

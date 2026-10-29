@@ -13,6 +13,15 @@ import { type Transition, type Variants } from 'motion/react';
 export const MotionPreference = createContext(true);
 
 export const spatial: Transition = { type: 'spring', stiffness: 420, damping: 26, mass: 0.9 };
+/**
+ * The wobble.
+ *
+ * A spring that is under-damped on purpose: it arrives, goes a hair past and
+ * comes back. Damping is high enough that there is exactly one small overshoot
+ * and no visible ring, because a component that visibly bounces is a gimmick and
+ * one that settles with weight is a detail.
+ */
+export const wobble: Transition = { type: 'spring', stiffness: 460, damping: 17, mass: 0.85 };
 export const fastSpatial: Transition = { type: 'spring', stiffness: 650, damping: 29, mass: 0.7 };
 export const expressive: Transition = { type: 'spring', stiffness: 280, damping: 25, mass: 1 };
 /** Slow, wide movement for the stage: openings and artwork. */
@@ -48,6 +57,7 @@ export function useWaveMotion() {
   return {
     enabled,
     spatial: enabled ? spatial : { duration: 0 },
+    wobble: enabled ? wobble : { duration: 0 },
     fast: enabled ? fastSpatial : { duration: 0 },
     expressive: enabled ? expressive : { duration: 0 },
     cinematic: enabled ? cinematic : { duration: 0 },
