@@ -21,16 +21,38 @@ Release 0.1.1 · 28 October 2026. Historical run dates are retained below.
 - The full Playwright suite was already red before this round for measurement reasons unrelated to
   the pages touched here; that has not changed and is not claimed as green.
 
-### Native typeface and charts (not built here)
+### Native typeface and charts (CI, run 40959131226)
 
-- The Android and Windows changes in this round — Nunito Sans in `res/font` and `Assets`, the
-  web-token palettes, the recap day bars and hour strip — were written but **not compiled or run**
-  in this environment: no JDK, Gradle or .NET SDK is available in it. The Kotlin and C# contract
-  checks for the new recap fields were added so CI exercises them, and the Robolectric screenshot
-  capture will show the result. Do not read this record as a passed native build.
+- `Native builds` → **green**: both jobs. Android compiles, unit tests pass (including a new
+  `weekRecap` check that the seven bars, the twenty-four hours and the genre slices add up to the
+  week), lint passes, the debug APK assembles, and the Robolectric capture published fresh
+  `docs/media/android-*.png`.
+- Windows compiles, the contract runner passes (three new checks), and the smoke run photographed
+  Home, a daily mix, a playlist, Remix, Settings and the narrow light Library, publishing
+  `docs/media/windows-*.png`.
+- Two faults were found by that run and fixed in the commits after it: the bar springs overshoot on
+  purpose, so a share above one asked Compose for a negative padding and threw; and WPF had frozen
+  the palette brushes by the time the window applied its theme, so recolouring a frozen brush threw
+  instead of repainting. Both are now avoided by construction rather than by tuning a constant.
+- What the screenshots show: the same typeface as the web, the same colours, and the same week
+  chart. What they also show, honestly: the phone keeps its bottom navigation and the desktop keeps
+  its single scrolling collection panel, so the three builds share the design language and the
+  Remix page but not a pixel-identical shell. That is the remaining gap, not a claim of parity.
 - The font files are four static instances cut with `fontTools` from
-  `@fontsource-variable/nunito-sans` (weight axis 400/500/600/700), renamed to one family so
-  WPF resolves them as one face with four weights. The licence travels with them.
+  `@fontsource-variable/nunito-sans` (weights 400/500/600/700), renamed to one family so WPF
+  resolves them as one face with four weights. The licence travels with them.
+
+### Browser suite at this revision (CI, run 40959131235)
+
+- The `web` job is **red**, with the same ten failing tests as the revision before this round and no
+  new ones: the check-run annotations list eleven failure annotations, ten of them test failures,
+  the same shape and the same count as `56f5710`. Nothing in the suite was disabled to get there.
+- The two spec edits in this round — the listening screen's transport is `.immersive-bar`, and the
+  context-menu check right-clicks `.workspace h1` instead of the removed `.app-name` — ran in that
+  job. Neither added a failure; both live in specs that were already failing for measurement
+  reasons.
+- `remix.spec.ts` did not fail in that run, so the rewritten Remix page still passes its four
+  browser tests.
 
 ### Remix and the weekly recap (previous run)
 
