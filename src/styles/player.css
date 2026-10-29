@@ -551,8 +551,8 @@
     gap: 16px;
   }
   .stage-cover {
-    width: min(38vw, 19dvh);
-    min-width: min(38vw, 19dvh);
+    width: min(44vw, 21dvh);
+    min-width: min(44vw, 21dvh);
     flex: 0 0 auto;
   }
   .stage-cover .stage-artwork,
