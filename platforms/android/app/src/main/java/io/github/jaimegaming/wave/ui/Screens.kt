@@ -41,6 +41,7 @@ import io.github.jaimegaming.wave.DaySlice
 import io.github.jaimegaming.wave.count
 import io.github.jaimegaming.wave.Playlist
 import io.github.jaimegaming.wave.Song
+import io.github.jaimegaming.wave.WeekRecap
 import io.github.jaimegaming.wave.listeningTime
 import io.github.jaimegaming.wave.weekRange
 
@@ -732,6 +733,7 @@ fun RemixScreen(state: WaveState, onOpenSong: (Song) -> Unit) {
                 }
             }
         }
+        item { WeekFacts(recap) }
         item { WeekBars(recap.days) }
         if (recap.hours.any { it > 0 }) item { HourStrip(recap.hours) }
         if (songs.isNotEmpty()) {
@@ -826,6 +828,77 @@ fun RemixScreen(state: WaveState, onOpenSong: (Song) -> Unit) {
                     .padding(horizontal = 10.dp, vertical = 8.dp),
             )
         }
+    }
+}
+
+/**
+ * Three facts, the way the web page opens its recap: who, when, what kind.
+ *
+ * The artists themselves are listed further down the page, where they can be
+ * opened; these three are answers, not buttons.
+ */
+@Composable
+private fun WeekFacts(recap: WeekRecap) {
+    val busiest = recap.days.maxByOrNull { it.seconds }
+    val artist = recap.topArtists.firstOrNull()
+    val genre = recap.genres.firstOrNull()
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Fact(
+            label = "Top artist",
+            value = artist?.first ?: "Nobody yet",
+            detail = artist?.let { count(it.second, "play") } ?: "Play something",
+            modifier = Modifier.weight(1f),
+        )
+        Fact(
+            label = "Busiest day",
+            value = if (busiest != null && busiest.seconds > 0) weekdayLetter(busiest.at) else "—",
+            detail = if (busiest != null && busiest.seconds > 0) listeningTime(busiest.seconds) else "Quiet week",
+            modifier = Modifier.weight(1f),
+        )
+        Fact(
+            label = "Genre",
+            value = genre?.genre ?: "Untagged",
+            detail = genre?.let { listeningTime(it.seconds) } ?: "No tags yet",
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+@Composable
+private fun Fact(label: String, value: String, detail: String, modifier: Modifier = Modifier) {
+    Column(
+        modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+    ) {
+        Text(
+            text = label.uppercase(java.util.Locale.getDefault()),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onBackground,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = 2.dp),
+        )
+        Text(
+            text = detail,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
