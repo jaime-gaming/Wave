@@ -1,5 +1,6 @@
 package io.github.jaimegaming.wave.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
@@ -7,10 +8,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.layout.only
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -19,7 +20,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.sp
@@ -30,25 +30,45 @@ import io.github.jaimegaming.wave.Song
  * content.
  *
  * Everything the phone version does is reachable from here in two taps at most:
- * the three destinations, the player, and the two ways into a song (play it, or
- * open it to edit it).
+ * the five destinations, the player, the queue, and every way into a song.
  */
 @Composable
-fun WaveApp(version: String) {
+fun WaveApp(version: String, opening: Opening = Opening.Default) {
     val context = LocalContext.current
     val state = rememberWaveState(context)
     val player = state.player
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         state.importMusic(uris)
     }
-    val addMusic: () -> Unit = { picker.launch(arrayOf("audio/*")) }
+    val folder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { tree ->
+        tree?.let { state.importFolder(it) }
+    }
+    val addMusic: () -> Unit = { state.addOpen = true }
 
+    LaunchedEffect(opening) {
+        when (opening) {
+            is Opening.Where -> state.destination = opening.destination
+            Opening.Favorites -> {
+                state.destination = Destination.Library
+                state.shelf = Shelf.Favorites
+            }
+            Opening.Player -> if (player.current != null) state.nowPlayingOpen = true
+            Opening.Default -> Unit
+        }
+    }
     DisposableEffect(Unit) {
         onDispose { state.dispose() }
     }
-    val currentSong = player.current?.let { playing -> state.songs.find { it.id == playing.id } }
+    val currentSong = player.current?.let { playing -> state.songs.find { it.id == playing.id } ?: playing }
     LaunchedEffect(currentSong?.id, state.onlineLyrics) {
         currentSong?.let { state.maybeLookupLyrics(it) }
+    }
+
+    // Back closes what is open, in the order it was opened, before it leaves.
+    BackHandler(enabled = state.nowPlayingOpen) { state.nowPlayingOpen = false }
+    BackHandler(enabled = !state.nowPlayingOpen && state.queueOpen) { state.queueOpen = false }
+    BackHandler(enabled = !state.nowPlayingOpen && !state.queueOpen && state.open != null) {
+        state.open = null
     }
 
     Box(Modifier.fillMaxSize()) {
@@ -84,18 +104,12 @@ fun WaveApp(version: String) {
                             Destination.values().forEach { item ->
                                 NavigationBarItem(
                                     selected = state.destination == item,
-                                    onClick = { state.destination = item },
-                                    icon = {
-                                        Text(
-                                            text = when (item) {
-                                                Destination.Home -> "⌂"
-                                                Destination.Library -> "♫"
-                                                Destination.Settings -> "⚙"
-                                            },
-                                            fontSize = 17.sp,
-                                        )
+                                    onClick = {
+                                        state.destination = item
+                                        if (item != Destination.Library) state.open = null
                                     },
-                                    label = { Text(item.label) },
+                                    icon = { Text(item.glyph, fontSize = 17.sp) },
+                                    label = { Text(item.label, fontSize = 11.sp, maxLines = 1) },
                                 )
                             }
                         }
@@ -110,12 +124,33 @@ fun WaveApp(version: String) {
                     }
                     when (state.destination) {
                         Destination.Home -> HomeScreen(state, addMusic, open)
+                        Destination.Search -> SearchScreen(state, open)
                         Destination.Library -> LibraryScreen(state, addMusic, open)
+                        Destination.Listening -> ListeningScreen(state, open)
                         Destination.Settings -> SettingsScreen(state, version, addMusic)
                     }
                 }
             }
         }
+        AddMusicSheet(
+            open = state.addOpen,
+            busy = state.busy,
+            onDismiss = { state.addOpen = false },
+            onFiles = {
+                state.addOpen = false
+                picker.launch(arrayOf("audio/*"))
+            },
+            onDevice = {
+                state.addOpen = false
+                state.importFromDevice()
+            },
+            onFolder = {
+                state.addOpen = false
+                folder.launch(null)
+            },
+        )
+        SongOptionsSheet(state, onQueue = { state.queueOpen = true })
+        AddToPlaylistSheet(state)
         state.editing?.let { song ->
             EditSongDialog(
                 song = song,
@@ -126,5 +161,29 @@ fun WaveApp(version: String) {
                 },
             )
         }
+        state.playlistEditor?.let { playlist ->
+            PlaylistEditorDialog(
+                playlist = playlist,
+                onDismiss = { state.playlistEditor = null },
+                onRename = { name ->
+                    state.renamePlaylist(playlist, name)
+                    state.playlistEditor = null
+                },
+                onDelete = {
+                    state.deletePlaylist(playlist)
+                    state.playlistEditor = null
+                },
+            )
+        }
+        if (state.newPlaylistOpen) {
+            NewPlaylistDialog(
+                onDismiss = { state.newPlaylistOpen = false },
+                onCreate = { name ->
+                    state.createPlaylist(name)
+                    state.newPlaylistOpen = false
+                },
+            )
+        }
+        if (state.queueOpen) QueueSheet(state, onDismiss = { state.queueOpen = false })
     }
 }

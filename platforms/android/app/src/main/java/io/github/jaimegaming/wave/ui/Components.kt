@@ -121,6 +121,7 @@ fun SongRow(
     onFavorite: () -> Unit,
     onMore: () -> Unit,
     modifier: Modifier = Modifier,
+    trailing: String? = null,
 ) {
     Row(
         modifier = modifier
@@ -154,6 +155,14 @@ fun SongRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+            )
+        }
+        if (trailing != null) {
+            Text(
+                text = trailing,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(end = 4.dp),
             )
         }
         IconButton(onClick = onFavorite) {
