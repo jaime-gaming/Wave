@@ -1,6 +1,6 @@
 import { useEffect, useRef, type ReactNode, type CSSProperties, type RefObject } from 'react';
 import { X } from 'lucide-react';
-import { motion, useIsPresent } from 'motion/react';
+import { motion, useIsPresent, type TargetAndTransition, type Transition } from 'motion/react';
 import { useWaveMotion } from '../ui/motion';
 
 function outsideDialog(dialog: HTMLDialogElement, x: number, y: number) {
@@ -20,11 +20,16 @@ export function Modal({
   closeDisabled = false,
   fullScreen = false,
   immediate = false,
+  exitMotion,
+  exitTransition,
 }: {
   immediate?: boolean;
   title: string;
   fullScreen?: boolean;
   closeDisabled?: boolean;
+  /** How the dialog leaves, when closing is worth showing rather than skipping. */
+  exitMotion?: TargetAndTransition;
+  exitTransition?: Transition;
   onClose: () => void;
   children: ReactNode;
   className?: string;
@@ -61,16 +66,27 @@ export function Modal({
     <motion.dialog
       initial={{
         opacity: animation.enabled && !immediate ? 0 : 1,
-        y: animation.enabled && !immediate ? (fullScreen ? 64 : 24) : 0,
-        scale: animation.enabled && !fullScreen ? 0.96 : 1,
+        y: animation.enabled && !immediate ? (fullScreen ? 48 : 24) : 0,
+        // The player grows out of the bar at the bottom of the screen; a small
+        // dialog grows out of the point it was opened from.
+        scale: animation.enabled && !immediate ? (fullScreen ? 0.975 : 0.96) : 1,
       }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{
-        opacity: 0,
-        y: animation.enabled ? 16 : 0,
-        scale: animation.enabled && !fullScreen ? 0.97 : 1,
-      }}
-      transition={{ ...animation.spatial, opacity: animation.effects }}
+      exit={
+        animation.enabled
+          ? (exitMotion ?? {
+              opacity: 0,
+              y: 16,
+              scale: fullScreen ? 1 : 0.97,
+            })
+          : { opacity: 0 }
+      }
+      transition={
+        exitTransition ?? {
+          ...animation.spatial,
+          opacity: animation.effects,
+        }
+      }
       aria-hidden={!present}
       inert={!present}
       ref={ref}

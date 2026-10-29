@@ -33,8 +33,11 @@ export function Navigation({
   return (
     <aside className="navigation-shell">
       <a className="brand" href="#main" aria-label="Wave home" onClick={() => onPage('home')}>
-        {/* The whole word, in the mark's own line: the logo is the lettering. */}
-        <WaveWordmark />
+        {/* The whole word when the rail is wide enough for it, the first letter
+            when it is not: the same curves at both sizes, so the name never has
+            to be squeezed into unreadable type to stay a word. */}
+        <WaveWordmark variant="full" className="wave-wordmark wave-wordmark-full" />
+        <WaveWordmark variant="mark" className="wave-wordmark wave-wordmark-mark" />
         <span className="sr-only">Wave</span>
       </a>
       <nav className="app-navigation" aria-label="Main navigation">

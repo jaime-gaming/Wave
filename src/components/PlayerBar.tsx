@@ -385,6 +385,10 @@ export function PlayerBar(props: PlayerProps) {
     player.blend,
   );
   const animation = useWaveMotion();
+  // While the player is leaving, the silent YouTube host must not mount yet: two
+  // embeds of the same song would both be playing through the collapse. Closing
+  // turns it off; the end of the collapse turns it back on.
+  const [stageGone, setStageGone] = useState(true);
   useEffect(() => {
     if (!expanded) return;
     const timer = setTimeout(() => setLyricsOpen(true), 0);
@@ -564,174 +568,188 @@ export function PlayerBar(props: PlayerProps) {
         </div>
       </footer>
 
-      {showing && (
-        <Modal
-          title="Now playing"
-          fullScreen
-          immediate={idle.immersive}
-          headerActions={
-            <>
-              <button
-                className={`icon-button ${props.queueOpen ? 'active' : ''}`}
-                aria-label="Show queue"
-                aria-expanded={props.queueOpen}
-                onClick={onQueue}
-              >
-                <ListMusic size={23} />
-              </button>
-            </>
-          }
-          closeIcon={<ChevronDown size={24} />}
-          returnFocusRef={expanded ? returnFocusRef : undefined}
-          className={`player-modal ${idle.immersive ? 'is-immersive' : ''}`}
-          style={colors}
-          onClose={() => {
-            idle.wake();
-            onExpanded(false);
-          }}
-        >
-          {player.stageYouTube ? (
-            // A YouTube song plays through the embed: the video is the source, not
-            // a backdrop, so it stays visible whether or not the clip toggle is on.
-            <YouTubeStage
-              key={player.stageYouTube.track.videoId}
-              track={player.stageYouTube.track}
-              playing={player.state.playing}
-              volume={player.volume}
-              gain={player.stageYouTube.gain}
-              startGain={player.stageYouTube.startGain}
-              fadeSeconds={player.stageYouTube.fadeSeconds}
-              seek={player.youTube?.seek ?? { seconds: 0, nonce: 0 }}
-              startAt={time}
-              onTime={player.youTube?.onTime ?? (() => {})}
-              onDuration={player.youTube?.onDuration ?? (() => {})}
-              onEnded={player.youTube?.onEnded ?? (() => {})}
-              onError={player.youTube?.onError ?? (() => {})}
-            />
-          ) : (
-            videoClip &&
-            player.current && (
-              <VideoBackdrop
-                track={player.current}
-                time={time}
-                duration={player.duration}
-                playing={player.state.playing}
-              />
-            )
-          )}
-          <MusicLighting className="stage-aura" />
-          <div
-            data-track-id={player.current?.id}
-            className="player-normal-view"
-            inert={idle.immersive}
-            aria-hidden={idle.immersive}
-          >
-            <PlayerDetails
-              {...props}
-              time={time}
-              cue={pending}
-              readerActive={!idle.immersive}
-              lyricsOpen={lyricsOpen}
-              onDisclosure={setLyricsOpen}
-            />
-          </div>
-          {idle.immersive && player.current && (
-            <motion.div
-              initial={animation.enabled ? { opacity: 0, scale: 0.985 } : { opacity: 1 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: animation.enabled ? 0.55 : 0, ease: [0.2, 0, 0, 1] }}
-              className={`immersive-stage ${player.current.lyrics?.lines.length ? 'has-lyrics' : 'without-lyrics'}`}
-              aria-label="Immersive listening"
-            >
-              <div className="immersive-art">
-                <div className="immersive-title" aria-hidden="true">
-                  {player.current.title}
-                </div>
-                <motion.div
-                  key={player.current.id}
-                  className="immersive-record-art"
-                  initial={animation.enabled ? { opacity: 0, y: 16 } : { opacity: 1 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={animation.expressive}
+      {/* The expanded player leaves as an object rather than vanishing: it
+          scales back down towards the bar it came from and fades with it. */}
+      <AnimatePresence initial={false} onExitComplete={() => setStageGone(true)}>
+        {showing && (
+          <Modal
+            title="Now playing"
+            fullScreen
+            immediate={idle.immersive}
+            exitMotion={animation.enabled ? { opacity: 0, scale: 0.94, y: 26 } : undefined}
+            exitTransition={
+              animation.enabled
+                ? { duration: 0.34, ease: [0.4, 0, 0.2, 1], opacity: { duration: 0.22 } }
+                : { duration: 0 }
+            }
+            headerActions={
+              <>
+                <button
+                  className={`icon-button ${props.queueOpen ? 'active' : ''}`}
+                  aria-label="Show queue"
+                  aria-expanded={props.queueOpen}
+                  onClick={onQueue}
                 >
-                  <Artwork track={player.current} className="immersive-cover" />
-                </motion.div>
-                <div className="immersive-credit">
-                  <h2>{player.current.title}</h2>
-                  <p>{player.current.artist}</p>
-                  <p>{player.current.album}</p>
-                </div>
-              </div>
-              {!!player.current.lyrics?.lines.length && (
-                <LyricsPanel
-                  stage
-                  cinematic
-                  karaoke={karaoke}
-                  key={player.current.id}
+                  <ListMusic size={23} />
+                </button>
+              </>
+            }
+            closeIcon={<ChevronDown size={24} />}
+            returnFocusRef={expanded ? returnFocusRef : undefined}
+            className={`player-modal ${idle.immersive ? 'is-immersive' : ''}`}
+            style={colors}
+            onClose={() => {
+              idle.wake();
+              setStageGone(false);
+              onExpanded(false);
+            }}
+          >
+            {player.stageYouTube ? (
+              // A YouTube song plays through the embed: the video is the source, not
+              // a backdrop, so it stays visible whether or not the clip toggle is on.
+              <YouTubeStage
+                key={player.stageYouTube.track.videoId}
+                track={player.stageYouTube.track}
+                playing={player.state.playing}
+                volume={player.volume}
+                gain={player.stageYouTube.gain}
+                startGain={player.stageYouTube.startGain}
+                fadeSeconds={player.stageYouTube.fadeSeconds}
+                seek={player.youTube?.seek ?? { seconds: 0, nonce: 0 }}
+                startAt={time}
+                onTime={player.youTube?.onTime ?? (() => {})}
+                onDuration={player.youTube?.onDuration ?? (() => {})}
+                onEnded={player.youTube?.onEnded ?? (() => {})}
+                onError={player.youTube?.onError ?? (() => {})}
+              />
+            ) : (
+              videoClip &&
+              player.current && (
+                <VideoBackdrop
                   track={player.current}
                   time={time}
-                  readTime={player.readTime}
-                  playing={player.state.playing}
                   duration={player.duration}
-                  onSeek={player.seek}
-                  onEdit={() => {}}
+                  playing={player.state.playing}
                 />
-              )}
-              {/*
+              )
+            )}
+            <MusicLighting className="stage-aura" />
+            <div
+              data-track-id={player.current?.id}
+              className="player-normal-view"
+              inert={idle.immersive}
+              aria-hidden={idle.immersive}
+            >
+              <PlayerDetails
+                {...props}
+                time={time}
+                cue={pending}
+                readerActive={!idle.immersive}
+                lyricsOpen={lyricsOpen}
+                onDisclosure={setLyricsOpen}
+              />
+            </div>
+            {idle.immersive && player.current && (
+              <motion.div
+                initial={animation.enabled ? { opacity: 0, scale: 0.985 } : { opacity: 1 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: animation.enabled ? 0.55 : 0, ease: [0.2, 0, 0, 1] }}
+                className={`immersive-stage ${player.current.lyrics?.lines.length ? 'has-lyrics' : 'without-lyrics'}`}
+                aria-label="Immersive listening"
+              >
+                <div className="immersive-art">
+                  <div className="immersive-title" aria-hidden="true">
+                    {player.current.title}
+                  </div>
+                  <motion.div
+                    key={player.current.id}
+                    className="immersive-record-art"
+                    initial={animation.enabled ? { opacity: 0, y: 16 } : { opacity: 1 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={animation.expressive}
+                  >
+                    <Artwork track={player.current} className="immersive-cover" />
+                  </motion.div>
+                  <div className="immersive-credit">
+                    <h2>{player.current.title}</h2>
+                    <p>{player.current.artist}</p>
+                    <p>{player.current.album}</p>
+                  </div>
+                </div>
+                {!!player.current.lyrics?.lines.length && (
+                  <LyricsPanel
+                    stage
+                    cinematic
+                    karaoke={karaoke}
+                    key={player.current.id}
+                    track={player.current}
+                    time={time}
+                    readTime={player.readTime}
+                    playing={player.state.playing}
+                    duration={player.duration}
+                    onSeek={player.seek}
+                    onEdit={() => {}}
+                  />
+                )}
+                {/*
                 The listening screen is still a player: the bar never goes away,
                 it just gets quiet. Movement makes it readable instead of
                 invisible, and the keyboard reaches every control.
               */}
-              {/*
+                {/*
                 The bar, not a hint of one. The listening screen used to fade its
                 controls to a third of their ink, so a still room looked like a
                 player that had gone away; it is the same player at the bottom of
                 the screen and it stays at full strength until you leave.
               */}
-              <div className="immersive-bar">
-                <Artwork track={player.current} className="immersive-bar-art" />
-                <div className="immersive-bar-track">
-                  <strong>{player.current.title}</strong>
-                  <span>{player.current.artist}</span>
-                </div>
-                <div className="immersive-bar-transport">
-                  <button aria-label="Previous track" onClick={player.previous}>
-                    <SkipBack size={21} />
-                  </button>
-                  <button
-                    className="immersive-play"
-                    aria-label={player.state.playing ? 'Pause' : 'Play'}
-                    onClick={() => player.dispatch({ type: 'toggle' })}
-                  >
-                    {player.state.playing ? <Pause size={24} /> : <Play size={24} />}
-                  </button>
-                  <button aria-label="Next track" onClick={() => player.dispatch({ type: 'next' })}>
-                    <SkipForward size={21} />
-                  </button>
-                </div>
-                <div className="immersive-seek">
-                  <WaveSeek
-                    time={time}
-                    duration={player.duration}
-                    playing={player.state.playing && !player.buffering}
-                    onSeek={player.seek}
-                  />
-                  <div className="immersive-times">
-                    <span>{formatTime(time)}</span>
-                    <span>{formatTime(player.duration || player.current.duration || 0)}</span>
+                <div className="immersive-bar">
+                  <Artwork track={player.current} className="immersive-bar-art" />
+                  <div className="immersive-bar-track">
+                    <strong>{player.current.title}</strong>
+                    <span>{player.current.artist}</span>
+                  </div>
+                  <div className="immersive-bar-transport">
+                    <button aria-label="Previous track" onClick={player.previous}>
+                      <SkipBack size={21} />
+                    </button>
+                    <button
+                      className="immersive-play"
+                      aria-label={player.state.playing ? 'Pause' : 'Play'}
+                      onClick={() => player.dispatch({ type: 'toggle' })}
+                    >
+                      {player.state.playing ? <Pause size={24} /> : <Play size={24} />}
+                    </button>
+                    <button
+                      aria-label="Next track"
+                      onClick={() => player.dispatch({ type: 'next' })}
+                    >
+                      <SkipForward size={21} />
+                    </button>
+                  </div>
+                  <div className="immersive-seek">
+                    <WaveSeek
+                      time={time}
+                      duration={player.duration}
+                      playing={player.state.playing && !player.buffering}
+                      onSeek={player.seek}
+                    />
+                    <div className="immersive-times">
+                      <span>{formatTime(time)}</span>
+                      <span>{formatTime(player.duration || player.current.duration || 0)}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </motion.div>
-          )}
-        </Modal>
-      )}
+              </motion.div>
+            )}
+          </Modal>
+        )}
+      </AnimatePresence>
       {/*
         A YouTube song keeps playing while Now Playing is collapsed, so the embed
         stays mounted in a one-pixel host. Expanding mounts the visible player from
         the same position; the song never restarts because of a layout change.
       */}
-      {!showing && player.stageYouTube && (
+      {!showing && stageGone && player.stageYouTube && (
         <YouTubeStage
           key={`silent-${player.stageYouTube.track.videoId}`}
           track={player.stageYouTube.track}

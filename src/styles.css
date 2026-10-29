@@ -731,6 +731,11 @@ h1 {
 .modal::backdrop {
   background: #090c14b0;
 }
+/* A dialog that is on its way out is already gone as far as the pointer is
+   concerned: the page behind it can be clicked while it finishes leaving. */
+.modal[inert] {
+  pointer-events: none;
+}
 .modal-heading {
   display: flex;
   align-items: center;
@@ -3011,9 +3016,6 @@ kbd {
     font-size: 22px;
     letter-spacing: -0.6px;
   }
-  .wave-wordmark {
-    width: 84px;
-  }
   .app-navigation {
     margin-top: 30px;
     gap: 6px;
@@ -3263,13 +3265,25 @@ kbd {
  * The wordmark is a path, not a font: the word is drawn with the same pen as the
  * mark, so "Wave" looks like Wave wherever it appears and in whatever colour the
  * song has given the interface.
+ *
+ * Only one of the two drawings is ever on screen. A narrow rail gets the W; a
+ * rail with room for a word gets the word, at a size where it still reads as
+ * lettering rather than as a smudge. The swap is at the same breakpoint that
+ * widens the rail, so the word always has somewhere to live.
  */
 .wave-wordmark {
-  width: 62px;
-  height: auto;
   display: block;
+  height: auto;
   color: var(--primary);
   transition: color 0.5s var(--ease-out);
+}
+.wave-wordmark-full {
+  display: none;
+  width: 84px;
+}
+/* The W alone: the same crests, cropped to the first letter. */
+.wave-wordmark-mark {
+  width: 36px;
 }
 .brand {
   padding: 4px 2px;
@@ -3277,6 +3291,14 @@ kbd {
 }
 .brand:hover .wave-wordmark {
   transform: translateY(-1px);
+}
+@media (min-width: 1100px) {
+  .wave-wordmark-full {
+    display: block;
+  }
+  .wave-wordmark-mark {
+    display: none;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .wave-wordmark {
@@ -5836,15 +5858,54 @@ a {
   }
 }
 
+/*
+ * The two utilities sit in the corner of the page, level with the title, rather
+ * than in a row of their own above it. The header keeps one axis: the title
+ * starts at the top of the page and the buttons are anchored to its corner, so
+ * the eye does not have to step down through a stack of bars to reach the
+ * content. The title keeps clear of them at every width.
+ */
+.library-header {
+  position: relative;
+}
+.header-top {
+  position: absolute;
+  top: 24px;
+  right: 32px;
+  margin: 0;
+}
+/* Wide enough that the title and the buttons share a line: the title keeps the
+   corner clear. Below this the narrower header rules already inset it. */
+@media (min-width: 1051px) {
+  .title-row > div:first-child {
+    padding-right: 120px;
+  }
+}
+/* The narrower header keeps its own inset, so the corner follows the padding. */
+@media (max-width: 1360px) {
+  .header-top {
+    right: 26px;
+  }
+}
+@media (max-width: 1050px) {
+  .header-top {
+    top: 32px;
+    right: 20px;
+  }
+}
+@media (max-width: 700px) {
+  .header-top {
+    top: 18px;
+    right: 16px;
+  }
+}
+
 /* The page title is a heading, not a poster: it keeps the header short so the
    first song is visible without scrolling. */
 h1 {
   font-size: clamp(26px, 2.6vw, 38px);
   letter-spacing: -0.8px;
   line-height: 1.1;
-}
-.header-top {
-  margin-bottom: 8px;
 }
 .title-row {
   margin-bottom: 12px;
