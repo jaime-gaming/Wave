@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -859,24 +858,19 @@ private fun WeekBars(days: List<DaySlice>) {
                     animationSpec = spring(dampingRatio = 0.72f, stiffness = Spring.StiffnessMediumLow),
                     label = "week bar",
                 )
-                // A spring that overshoots would ask for a negative padding, so the
-                // share is held between nothing and the whole column.
+                // The bar is as tall as its share of the week and sits on the
+                // baseline of the row, so the week grows upwards as it did on
+                // paper. A spring that overshoots is held at the row's height.
                 Box(
                     Modifier
                         .weight(1f)
-                        .fillMaxHeight()
-                        .padding(bottom = 96.dp * (1f - height.coerceIn(0f, 1f))),
-                ) {
-                    Box(
-                        Modifier
-                            .fillMaxSize()
-                            .clip(RoundedCornerShape(topStart = 9.dp, topEnd = 9.dp))
-                            .background(
-                                if (index == days.lastIndex) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
-                            ),
-                    )
-                }
+                        .height(96.dp * height.coerceIn(0f, 1f))
+                        .clip(RoundedCornerShape(topStart = 9.dp, topEnd = 9.dp))
+                        .background(
+                            if (index == days.lastIndex) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
+                        ),
+                )
             }
         }
         Row(
@@ -942,19 +936,13 @@ private fun HourStrip(hours: List<Int>) {
                 Box(
                     Modifier
                         .weight(1f)
-                        .fillMaxHeight()
-                        .padding(bottom = 44.dp * (1f - height.coerceIn(0f, 1f))),
-                ) {
-                    Box(
-                        Modifier
-                            .fillMaxSize()
-                            .clip(RoundedCornerShape(3.dp))
-                            .background(
-                                if (hour == peakHour) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.primary.copy(alpha = 0.34f),
-                            ),
-                    )
-                }
+                        .height(44.dp * height.coerceIn(0f, 1f))
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(
+                            if (hour == peakHour) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.primary.copy(alpha = 0.34f),
+                        ),
+                )
             }
         }
     }
