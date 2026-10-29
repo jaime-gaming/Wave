@@ -30,10 +30,15 @@ Release 0.1.1 · 28 October 2026. Historical run dates are retained below.
 - Windows compiles, the contract runner passes (three new checks), and the smoke run photographed
   Home, a daily mix, a playlist, Remix, Settings and the narrow light Library, publishing
   `docs/media/windows-*.png`.
-- Two faults were found by that run and fixed in the commits after it: the bar springs overshoot on
-  purpose, so a share above one asked Compose for a negative padding and threw; and WPF had frozen
-  the palette brushes by the time the window applied its theme, so recolouring a frozen brush threw
-  instead of repainting. Both are now avoided by construction rather than by tuning a constant.
+- Two faults were found by the first run and fixed in the commits after it: the bar springs
+  overshoot on purpose, so a share above one asked Compose for a negative padding and threw; and WPF
+  had frozen the palette brushes by the time the window applied its theme, so recolouring a frozen
+  brush threw instead of repainting. Both are now avoided by construction rather than by tuning a
+  constant.
+- A third was found by looking at the published capture: shrinking the bar column from the bottom
+  left every quiet day hanging at the ceiling of the chart. The bar is now simply as tall as its
+  share, in a bottom-aligned row. `Native builds` → run 40964089358 is green on both jobs after the
+  fix, and the phone's recap carries the same three facts the web page opens with.
 - What the screenshots show: the same typeface as the web, the same colours, and the same week
   chart. What they also show, honestly: the phone keeps its bottom navigation and the desktop keeps
   its single scrolling collection panel, so the three builds share the design language and the
