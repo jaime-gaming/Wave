@@ -202,11 +202,6 @@ p {
   justify-content: space-between;
   margin-bottom: 21px;
 }
-.app-name {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--primary);
-}
 .header-actions {
   display: flex;
   gap: 12px;
@@ -1046,17 +1041,11 @@ kbd {
     right: 20px;
     margin: 0;
   }
-  .header-top .app-name {
-    display: none;
-  }
   .title-row > div:first-child {
     padding-right: 108px;
   }
   .workspace:not(.search-page) .search-box {
     display: none;
-  }
-  .app-name {
-    font-size: 15px;
   }
   .header-actions {
     gap: 10px;
@@ -2831,14 +2820,6 @@ kbd {
   background: var(--background);
   padding: 28px 8px 24px;
 }
-.brand-symbol {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 16px;
-  background: var(--primary-container);
-}
 .app-navigation {
   gap: 10px;
   margin-top: 40px;
@@ -3030,10 +3011,8 @@ kbd {
     font-size: 22px;
     letter-spacing: -0.6px;
   }
-  .brand-symbol {
-    width: 42px;
-    height: 42px;
-    border-radius: 15px;
+  .wave-wordmark {
+    width: 84px;
   }
   .app-navigation {
     margin-top: 30px;
@@ -3104,9 +3083,6 @@ kbd {
   }
   .rail-settings > span {
     display: block;
-  }
-  .home-page .header-top .app-name {
-    visibility: hidden;
   }
   .home-page .library-header {
     padding-bottom: 22px;
@@ -3283,30 +3259,29 @@ kbd {
     bottom: calc(164px + env(safe-area-inset-bottom));
   }
 }
-.wave-mark {
-  width: 38px;
-  height: 30px;
+/*
+ * The wordmark is a path, not a font: the word is drawn with the same pen as the
+ * mark, so "Wave" looks like Wave wherever it appears and in whatever colour the
+ * song has given the interface.
+ */
+.wave-wordmark {
+  width: 62px;
+  height: auto;
   display: block;
-}
-/* The mark is painted in the colour the music gives the interface. */
-.brand-symbol {
-  background: none;
-  border-radius: 0;
-  width: 40px;
-  height: 40px;
   color: var(--primary);
-}
-.brand-symbol .wave-mark {
-  transition: color 0.5s ease;
-}
-@media (prefers-reduced-motion: reduce) {
-  .brand-symbol .wave-mark {
-    transition: none;
-  }
+  transition: color 0.5s var(--ease-out);
 }
 .brand {
-  font-weight: 850;
-  letter-spacing: -0.9px;
+  padding: 4px 2px;
+  border-radius: 14px;
+}
+.brand:hover .wave-wordmark {
+  transform: translateY(-1px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .wave-wordmark {
+    transition: none;
+  }
 }
 section.settings-page {
   max-width: 1100px;
@@ -5545,6 +5520,16 @@ a {
   --elevation-2: 0 2px 6px rgba(4, 8, 18, 0.2), 0 22px 48px rgba(4, 8, 18, 0.28);
   --hairline: color-mix(in srgb, var(--text) 8%, transparent);
   --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  /*
+   * A touch of overshoot, and only a touch.
+   *
+   * Anything that is pressed, opened or dropped into place ends a hair past its
+   * target and settles back. It reads as weight rather than as decoration: the
+   * movement is 1-2 px and 120-260 ms, so it is felt more than seen, which is
+   * the point — the interface should feel like it is made of something.
+   */
+  --ease-wobble: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-wobble-soft: cubic-bezier(0.3, 1.25, 0.6, 1);
 }
 :root[data-theme='light'] {
   --elevation-1: 0 1px 2px rgba(28, 38, 68, 0.06), 0 8px 20px rgba(28, 38, 68, 0.08);
@@ -5586,8 +5571,8 @@ a {
 .daily-mix-card,
 .home-artist {
   transition:
-    transform 0.24s var(--ease-out),
-    box-shadow 0.24s var(--ease-out),
+    transform 0.28s var(--ease-wobble),
+    box-shadow 0.28s var(--ease-out),
     background-color 0.2s ease;
 }
 .group-card:hover,
@@ -5596,6 +5581,106 @@ a {
 .home-artist:hover {
   transform: translateY(-2px);
   box-shadow: var(--elevation-1);
+}
+/*
+ * The wobble layer.
+ *
+ * Every press sinks a measured amount and comes back through the overshoot
+ * curve; every surface that appears lands with a small settle. Nothing moves
+ * more than a couple of pixels, so it is invisible in a screenshot and only
+ * there if you are the kind of person who notices.
+ */
+.filled-button,
+.tonal-button,
+.icon-button,
+.text-button,
+.category-selection,
+.library-tabs button,
+.app-navigation button,
+.rail-collection button,
+.rail-settings {
+  transition:
+    transform 0.22s var(--ease-wobble),
+    background-color 0.16s ease,
+    color 0.16s ease,
+    box-shadow 0.22s var(--ease-out);
+}
+.filled-button:active:not(:disabled),
+.tonal-button:active:not(:disabled),
+.library-tabs button:active,
+.rail-collection button:active {
+  transform: scale(0.972);
+  transition-duration: 90ms;
+}
+.icon-button:active:not(:disabled),
+.rail-settings:active {
+  transform: scale(0.9);
+  transition-duration: 90ms;
+}
+.text-button:active:not(:disabled) {
+  transform: translateY(1px);
+  transition-duration: 90ms;
+}
+/* A list row lifts half a pixel on hover and settles under the pointer. */
+.song-row {
+  transition:
+    background-color 0.18s ease,
+    transform 0.26s var(--ease-wobble);
+}
+.song-row:hover {
+  transform: translateX(1.5px);
+}
+.song-row:active {
+  transform: translateX(1.5px) scale(0.997);
+  transition-duration: 90ms;
+}
+/* Notices arrive with a small spring instead of appearing. */
+.toast {
+  animation: wave-wobble-in 0.42s var(--ease-wobble) both;
+}
+@keyframes wave-wobble-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-1.5px) scale(1.004);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+/* A number that changes (a count, a total) ticks rather than swaps. */
+.remix-week-figure strong,
+.remix-rank,
+.category-count {
+  transition: transform 0.3s var(--ease-wobble);
+}
+@media (prefers-reduced-motion: reduce) {
+  .filled-button,
+  .tonal-button,
+  .icon-button,
+  .text-button,
+  .library-tabs button,
+  .app-navigation button,
+  .rail-collection button,
+  .rail-settings,
+  .song-row,
+  .toast {
+    animation: none;
+    transition: none;
+  }
+  .filled-button:active,
+  .tonal-button:active,
+  .song-row:hover,
+  .song-row:active {
+    transform: none;
+  }
+  .remix-aura span {
+    animation: none;
+  }
 }
 .text-button {
   border-radius: 999px;
@@ -5760,10 +5845,6 @@ h1 {
 }
 .header-top {
   margin-bottom: 8px;
-}
-.app-name {
-  font-size: 14px;
-  letter-spacing: 0.02em;
 }
 .title-row {
   margin-bottom: 12px;
@@ -6399,6 +6480,7 @@ h1 {
  * not a mood.
  */
 .remix-page {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 30px;
@@ -6410,13 +6492,6 @@ h1 {
   justify-content: space-between;
   gap: 18px;
   flex-wrap: wrap;
-}
-.remix-title {
-  font-size: 30px;
-  line-height: 1.1;
-}
-.remix-title:focus {
-  outline: none;
 }
 .remix-subtitle {
   margin: 0;
@@ -6436,6 +6511,7 @@ h1 {
   font-size: 13px;
 }
 .remix-week {
+  position: relative;
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
@@ -6445,6 +6521,55 @@ h1 {
   border-radius: 30px;
   background: var(--container);
   border: 1px solid var(--line);
+  overflow: hidden;
+}
+/*
+ * The week's colour, behind the week's card.
+ *
+ * Two soft discs of the artwork's palette, drifting on their own clocks. They
+ * are decorative and they never take a click: the card stays a card, it just
+ * carries the colour of what was played.
+ */
+.remix-aura {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+/* Everything the card says sits over its own glow, never under it. */
+.remix-week > *:not(.remix-aura) {
+  position: relative;
+  z-index: 1;
+}
+.remix-aura span {
+  position: absolute;
+  top: -110px;
+  width: 340px;
+  height: 340px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--primary) 0%, transparent 68%);
+  opacity: 0.16;
+  filter: blur(10px);
+  animation: remix-drift 18s var(--ease-out) infinite alternate;
+}
+.remix-aura span:first-child {
+  left: -60px;
+}
+.remix-aura span:last-child {
+  right: -40px;
+  width: 260px;
+  height: 260px;
+  opacity: 0.1;
+  animation-duration: 24s;
+  animation-direction: alternate-reverse;
+}
+@keyframes remix-drift {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(28px, 18px, 0) scale(1.12);
+  }
 }
 .remix-week-figure {
   display: flex;
@@ -6467,9 +6592,17 @@ h1 {
   font-size: 13.5px;
   color: var(--muted);
 }
+.remix-week-chips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
 .remix-delta {
-  align-self: flex-start;
-  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-size: 12.5px;
   padding: 5px 11px;
   border-radius: 999px;
@@ -6481,6 +6614,26 @@ h1 {
   border: 1px solid var(--line);
   color: var(--muted);
 }
+/* The most played artist, as a chip you can press, not a label. */
+.remix-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 240px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: none;
+  color: var(--muted);
+  font-size: 12.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.remix-chip:hover {
+  color: var(--ink);
+  border-color: var(--outline);
+}
 /* One sleeve, square, with the runner-up behind it and off the axis. */
 .remix-week-art {
   position: relative;
@@ -6488,6 +6641,12 @@ h1 {
   flex: none;
   width: clamp(104px, 14vw, 148px);
   height: clamp(104px, 14vw, 148px);
+}
+.remix-week-art-front,
+.remix-week-art-back {
+  position: absolute;
+  inset: 0;
+  display: block;
 }
 .remix-week-art .artwork {
   position: absolute;
@@ -6616,11 +6775,6 @@ h1 {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
-.remix-artists {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-}
 .remix-artist {
   display: flex;
   align-items: center;
@@ -6665,6 +6819,190 @@ h1 {
   font-size: 11.5px;
   color: var(--muted);
 }
+.remix-artists {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.remix-artists-title {
+  font-size: 17px;
+}
+.remix-artists-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+/* The share of the week, drawn under the name rather than next to it. */
+.remix-artist-bar {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--primary);
+  opacity: 0.5;
+  transform-origin: left center;
+}
+.remix-artist {
+  position: relative;
+  overflow: hidden;
+}
+
+/*
+ * The three facts.
+ *
+ * Deliberately not four, not six: who, when, what kind. Each is a card with a
+ * small label, one big answer and a line of arithmetic underneath.
+ */
+.remix-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+.remix-fact {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 18px 20px;
+  border-radius: 22px;
+  background: var(--container);
+  border: 1px solid var(--line);
+  min-width: 0;
+}
+.remix-fact > span {
+  font-size: 11.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.remix-fact strong {
+  font-size: clamp(19px, 2.4vw, 25px);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.remix-fact small {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.remix-fact-link {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: none;
+  color: var(--muted);
+}
+.remix-fact-link:hover {
+  color: var(--ink);
+  background: var(--container-high);
+}
+
+/*
+ * The week as bars.
+ *
+ * Seven columns, each one a day, height proportional to the day's minutes. The
+ * bars grow once, on arrival; hovering a day reports what it held in the
+ * heading instead of opening a tooltip.
+ */
+.remix-chart,
+.remix-hours {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.remix-chart-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.remix-chart-head h3 {
+  font-size: 17px;
+}
+.remix-chart-head span {
+  font-size: 12.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.remix-bars {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  align-items: end;
+  gap: 10px;
+  height: 132px;
+  padding: 0 2px;
+}
+.remix-bar {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+  padding: 0;
+  background: none;
+}
+.remix-bar-fill {
+  display: block;
+  width: 100%;
+  max-width: 58px;
+  min-height: 4px;
+  border-radius: 10px 10px 4px 4px;
+  background: color-mix(in srgb, var(--primary) 62%, transparent);
+}
+.remix-bar-fill[data-empty='true'] {
+  background: var(--line);
+}
+.remix-bar.today .remix-bar-fill {
+  background: var(--primary);
+}
+.remix-bar.hovered .remix-bar-fill {
+  background: var(--primary);
+}
+.remix-bar-day {
+  font-size: 11.5px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.remix-bar.today .remix-bar-day {
+  color: var(--ink);
+}
+/* When, in the day: a thin column per hour, the busiest one lit. */
+.remix-hours-scale {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 64px;
+}
+.remix-hours-scale span {
+  flex: 1;
+  min-height: 3px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--primary) 34%, transparent);
+  transform-origin: bottom center;
+}
+.remix-hours-scale span[data-peak='true'] {
+  background: var(--primary);
+}
+.remix-hours-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
 .remix-foot {
   display: flex;
   flex-direction: column;
@@ -6690,15 +7028,27 @@ h1 {
   .remix-page {
     gap: 24px;
   }
-  .remix-title {
-    font-size: 26px;
-  }
   .remix-week {
     padding: 20px;
     border-radius: 24px;
   }
   .remix-week-art {
     display: none;
+  }
+  .remix-facts {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .remix-fact {
+    padding: 15px 17px;
+  }
+  .remix-bars {
+    height: 108px;
+    gap: 7px;
+  }
+  .remix-hours-scale {
+    height: 54px;
+    gap: 3px;
   }
   .remix-list li {
     grid-template-columns: 22px 44px minmax(0, 1fr);

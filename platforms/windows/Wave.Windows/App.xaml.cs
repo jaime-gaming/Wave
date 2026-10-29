@@ -18,13 +18,15 @@ public partial class App : Application
 
     public static void ApplyBrushes(bool light)
     {
+        // The web palette, verbatim: src/styles.css is the only source of truth.
+        // Background is the page, Surface is a card, Tonal is a raised card.
         var colors = new Dictionary<string, string> {
-            ["BackgroundBrush"] = light ? "#F5F4FA" : "#10131B",
-            ["SurfaceBrush"] = light ? "#FFFBFF" : "#1B1F2A",
-            ["TonalBrush"] = light ? "#E5E5F2" : "#2B3042",
-            ["InkBrush"] = light ? "#202331" : "#E5E7F0",
-            ["MutedBrush"] = light ? "#535B70" : "#B3B9CC",
-            ["AccentBrush"] = light ? "#405C96" : "#B6C8FF",
+            ["BackgroundBrush"] = light ? "#ECEDF5" : "#10141F",
+            ["SurfaceBrush"] = light ? "#FAF9FF" : "#1D2230",
+            ["TonalBrush"] = light ? "#E1E2EF" : "#282E3E",
+            ["InkBrush"] = light ? "#1A1D2B" : "#E3E5F1",
+            ["MutedBrush"] = light ? "#555D70" : "#ACB2C4",
+            ["AccentBrush"] = light ? "#375D98" : "#B0C7FF",
         };
         var dictionary = new ResourceDictionary();
         foreach (var (key, value) in colors) {

@@ -30,7 +30,7 @@ export const LibraryContent = memo(function LibraryContent({
   group,
   onGroup,
   onClearSearch,
-  onImport,
+  onAdd,
   busy,
   currentId,
   playing,
@@ -52,7 +52,7 @@ export const LibraryContent = memo(function LibraryContent({
   group: string | null;
   onGroup: (group: string | null) => void;
   onClearSearch: () => void;
-  onImport: () => void;
+  onAdd: () => void;
   busy: boolean;
   currentId?: string;
   playing: boolean;
@@ -83,10 +83,10 @@ export const LibraryContent = memo(function LibraryContent({
       <EmptyState
         icon={<FolderOpen size={42} strokeWidth={1.4} />}
         title="No songs yet"
-        description="Add audio files from your device."
+        description="Import your own files, or add a song from YouTube by link."
         hint="MP3, WAV, M4A, OGG and FLAC"
         actions={
-          <button className="filled-button" disabled={busy} onClick={onImport}>
+          <button className="filled-button" disabled={busy} onClick={onAdd}>
             <Plus size={20} />
             Add music
           </button>

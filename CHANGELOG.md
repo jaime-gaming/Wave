@@ -13,13 +13,44 @@
 - **Remix** replaces the old Listening page. It shows one week: the time, the plays, the
   songs and the artists, how that compares with the week before, and **Your Remix** — the
   songs you played most, in order. Play Remix starts the list; Save as playlist keeps it as an
-  ordinary playlist. The per-day chart, the recent list and the artist tiles are gone on
-  purpose: a week is glanced at, not studied. Clearing the history is the only action near the
-  numbers.
+  ordinary playlist. The recent list and the artist tiles stay gone on purpose: a week is
+  glanced at, not studied. Clearing the history is the only action near the numbers.
+- Remix answers the week properly now, on all three platforms: the figure, three facts (top
+  artist, busiest day, most played genre), seven bars for the seven days, a strip for the hour
+  of the day you listen, then the list. The bars, the hour strip and the list rows settle into
+  place once instead of appearing, and the counts are the same plays counted four ways.
 - Home gains **Jump back in** on all three platforms: the songs that were actually played,
   newest first, rather than whatever was imported last.
 - A deleted song keeps its seconds in the total — the time was still spent — but leaves
   every list.
+
+### The look, tightened
+
+- The sidebar wordmark is the Wave mark drawn as a word — one SVG path per letter, the same
+  stroke as the old symbol — so the whole name uses Wave's own letterforms instead of a symbol
+  next to type. It takes the current theme's accent and follows the song's colour with
+  everything else.
+- Page chrome no longer repeats "Wave" above every screen: the name lives in the sidebar.
+- Every **Add music** button opens the same chooser, offering **Import local files** and **Add
+  from YouTube**. Local files stay the default; nothing in the app picks a source for you.
+- The song left playing while the app is idle keeps a real player bar — sleeve, title, transport
+  and seek — instead of a faded caption. The bar never goes away on its own.
+- Motion is springier and just as quiet: buttons press, rows lift, notices arrive with one small
+  overshoot. It is all off under `prefers-reduced-motion`.
+- Videoclips must come from the artist's own channel. A re-upload with the right title is no
+  longer eligible, so the clip behind a song is never a stranger's video.
+- No build label anywhere in the UI or the public pages; the privacy page states the version it
+  applies to and nothing about how it was built.
+
+### Android and Windows
+
+- Both native builds now set type in **Nunito Sans**, the same typeface the web loads, shipped
+  as four static instances under the SIL Open Font License.
+- Both palettes are the web tokens verbatim: `#10141f` page, `#1d2230` card, `#b0c7ff` accent in
+  the dark theme, and the light values beside them. A phone screenshot and a browser screenshot
+  of the same screen are the same design, not two designs that agree in spirit.
+- Remix on Android and Windows gains the same day bars and hour strip as the web page, drawn with
+  the platform's own layout rather than an image.
 
 ### Documentation
 

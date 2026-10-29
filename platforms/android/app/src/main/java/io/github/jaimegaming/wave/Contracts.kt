@@ -206,6 +206,12 @@ fun formatTime(seconds: Double): String {
  * "Remix" is the week's songs, most played first, topped up from the all-time
  * list when a week is thin, with no repeats.
  */
+/** One day of the week, so the recap can be drawn as bars rather than described. */
+data class DaySlice(val at: Long, val seconds: Int, val plays: Int)
+
+/** The week split by the genre tag on the files. */
+data class GenreSlice(val genre: String, val seconds: Int, val plays: Int)
+
 data class WeekRecap(
     val start: Long,
     val end: Long,
@@ -217,6 +223,12 @@ data class WeekRecap(
     val topSongs: List<Pair<Song, Int>>,
     val topArtists: List<Pair<String, Int>>,
     val songs: List<Song>,
+    /** Seven entries, oldest first, quiet days included. */
+    val days: List<DaySlice> = emptyList(),
+    /** Plays per hour of the local day, 0–23. */
+    val hours: List<Int> = emptyList(),
+    /** Biggest first; untagged songs are counted in the week but in no slice. */
+    val genres: List<GenreSlice> = emptyList(),
 )
 
 /** How long a Remix list is. */
@@ -242,11 +254,32 @@ fun weekRecap(plays: List<Play>, songs: List<Song>, now: Long): WeekRecap {
 
     val counts = mutableMapOf<String, Int>()
     val artists = mutableMapOf<String, Int>()
+    val daySeconds = IntArray(7)
+    val dayPlays = IntArray(7)
+    val hours = IntArray(24)
+    val genres = mutableMapOf<String, GenreSlice>()
+    val day = 24L * 60 * 60 * 1000
     for (play in week) {
+        // The shape of the week first: it counts every play, deleted songs too.
+        val dayIndex = (((startOfDay(play.at) - start) / day).toInt()).coerceIn(0, 6)
+        daySeconds[dayIndex] += play.seconds
+        dayPlays[dayIndex] += 1
+        val hour = java.util.Calendar.getInstance().apply { timeInMillis = play.at }
+            .get(java.util.Calendar.HOUR_OF_DAY)
+        hours[hour] += 1
         val song = byId[play.songId] ?: continue
         counts[song.id] = (counts[song.id] ?: 0) + 1
         val name = song.artist.ifBlank { "Unknown artist" }
         artists[name] = (artists[name] ?: 0) + 1
+        val genre = song.genre.trim()
+        if (genre.isNotEmpty()) {
+            val seen = genres[genre]
+            genres[genre] = GenreSlice(
+                genre = genre,
+                seconds = (seen?.seconds ?: 0) + play.seconds,
+                plays = (seen?.plays ?: 0) + 1,
+            )
+        }
     }
     val top = counts.entries
         .mapNotNull { entry -> byId[entry.key]?.let { it to entry.value } }
@@ -265,7 +298,9 @@ fun weekRecap(plays: List<Play>, songs: List<Song>, now: Long): WeekRecap {
     return WeekRecap(
         start = start,
         end = end,
-        seconds = week.sumOf { play -> byId[play.songId]?.let { play.seconds } ?: 0 },
+        // Every play this week, including songs that have since been deleted:
+        // they were listened to, and the bars have to add up to the headline.
+        seconds = week.sumOf { it.seconds },
         plays = week.size,
         tracks = counts.size,
         artists = artists.size,
@@ -276,6 +311,11 @@ fun weekRecap(plays: List<Play>, songs: List<Song>, now: Long): WeekRecap {
             .take(3)
             .map { it.key to it.value },
         songs = mix.take(REMIX_LENGTH),
+        days = (0 until 7).map { index ->
+            DaySlice(at = start + index * day, seconds = daySeconds[index], plays = dayPlays[index])
+        },
+        hours = hours.toList(),
+        genres = genres.values.sortedByDescending { it.seconds },
     )
 }
 

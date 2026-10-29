@@ -143,6 +143,43 @@ class LibraryContractsTest {
     }
 
     @Test
+    fun theWeekIsAlsoSevenBarsAnHourStripAndSomeGenres() {
+        val a = song("a", artist = "One", genre = "Ambient")
+        val b = song("b", artist = "Two", genre = "Jazz")
+        val c = song("c", artist = "Two")
+        val now = java.util.Calendar.getInstance().apply {
+            set(2026, java.util.Calendar.OCTOBER, 29, 20, 0, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }.timeInMillis
+        fun daysAgo(days: Int, hours: Int) = java.util.Calendar.getInstance().apply {
+            timeInMillis = now
+            add(java.util.Calendar.DAY_OF_YEAR, -days)
+            set(java.util.Calendar.HOUR_OF_DAY, hours)
+        }.timeInMillis
+        val recap = weekRecap(
+            listOf(
+                Play("a", daysAgo(1, 21), 100, true),
+                Play("b", daysAgo(2, 9), 60, true),
+                Play("c", daysAgo(0, 9), 200, true),
+            ),
+            listOf(a, b, c),
+            now,
+        )
+        // Seven days, always, so the chart never changes width, and the bars
+        // add up to the week's own number.
+        assertEquals(7, recap.days.size)
+        assertEquals(recap.seconds, recap.days.sumOf { it.seconds })
+        assertEquals(recap.plays, recap.days.sumOf { it.plays })
+        // The clock and the tags are the same plays counted two more ways.
+        assertEquals(24, recap.hours.size)
+        assertEquals(recap.plays, recap.hours.sumOf { it })
+        assertEquals("Ambient", recap.genres.first().genre)
+        assertEquals(100, recap.genres.first().seconds)
+        // The untagged song is counted in the week but in no slice.
+        assertEquals(160, recap.genres.sumOf { it.seconds })
+    }
+
+    @Test
     fun aThinWeekIsToppedUpWithoutRepeatingASong() {
         val library = (1..6).map { song("$it", title = "Song $it") }
         val now = 1_800_000_000_000L

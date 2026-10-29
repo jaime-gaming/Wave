@@ -4,7 +4,35 @@ Release 0.1.1 · 28 October 2026. Historical run dates are retained below.
 
 ## Web
 
-### Remix and the weekly recap (latest run)
+### The look this round: wordmark, Remix charts, native typeface (latest run)
+
+- `npx tsc -b`, `npx eslint .`, `npx prettier --check .` and `npm run build`: passed.
+- `npm test`: **535 tests across 85 files**, all passing. The new ones cover the recap's own
+  charts: `weeklyRecap` returns seven days that add up to the week's seconds and plays, twenty-four
+  hours that add up to its plays, and genre slices that ignore untagged files. The `RemixPage`
+  suite was updated where the page changed and still proves the week figure, the delta, the Remix
+  list, Play Remix and the empty state.
+- Not run here, so not claimed: `npm run test:e2e` (this environment has no browser binaries to
+  download) and `npm run capture:docs`. The Remix page has not been photographed at this
+  revision; `docs/media/remix-*.png` still show the previous layout, and the two selector fixes in
+  `listening-refinement.spec.ts` and `illumination-mix.spec.ts` have not been exercised by a run.
+  CI will do both; until then treat the visual claims above as reviewed code, not as a verified
+  screenshot.
+- The full Playwright suite was already red before this round for measurement reasons unrelated to
+  the pages touched here; that has not changed and is not claimed as green.
+
+### Native typeface and charts (not built here)
+
+- The Android and Windows changes in this round — Nunito Sans in `res/font` and `Assets`, the
+  web-token palettes, the recap day bars and hour strip — were written but **not compiled or run**
+  in this environment: no JDK, Gradle or .NET SDK is available in it. The Kotlin and C# contract
+  checks for the new recap fields were added so CI exercises them, and the Robolectric screenshot
+  capture will show the result. Do not read this record as a passed native build.
+- The font files are four static instances cut with `fontTools` from
+  `@fontsource-variable/nunito-sans` (weight axis 400/500/600/700), renamed to one family so
+  WPF resolves them as one face with four weights. The licence travels with them.
+
+### Remix and the weekly recap (previous run)
 
 - `npx tsc -b`, `npx eslint .`, `npx prettier --check .` and `npm run build`: passed.
 - `npm test`: **531 tests across 85 files**. The new `RemixPage` suite proves the week card, the

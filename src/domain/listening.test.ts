@@ -190,6 +190,44 @@ describe('the weekly recap', () => {
     expect(mixed.mix.length).toBe(4);
   });
 
+  it('draws the week as seven days, gaps and all', () => {
+    expect(recap.days).toHaveLength(7);
+    // Every day of the window is present, so the chart never changes width,
+    // and the seconds in the bars add up to the week's total.
+    expect(recap.days.reduce((total, day) => total + day.seconds, 0)).toBe(recap.seconds);
+    expect(recap.days.reduce((total, day) => total + day.plays, 0)).toBe(recap.plays);
+    expect(recap.days[6].seconds).toBeGreaterThan(0);
+  });
+
+  it('says when in the day, in the local clock', () => {
+    expect(recap.hours).toHaveLength(24);
+    expect(recap.hours[9]).toBeGreaterThan(0);
+    expect(recap.hours.reduce((total, plays) => total + plays, 0)).toBe(recap.plays);
+  });
+
+  it('splits the week by the tags on the files, ignoring untagged songs', () => {
+    const tagged = [
+      makeTrack({ id: 'a', genres: ['Ambient', 'Electronic'] }),
+      makeTrack({ id: 'b', genres: ['Ambient'] }),
+      makeTrack({ id: 'c' }),
+    ];
+    const week = weeklyRecap(
+      [
+        makePlay('a', at(1, 9), 100, true),
+        makePlay('b', at(2, 9), 60, true),
+        makePlay('c', at(3, 9), 200, true),
+      ],
+      tagged,
+      now,
+    );
+    expect(week.genres[0].genre).toBe('Ambient');
+    expect(week.genres[0].seconds).toBe(160);
+    expect(week.genres.find((slot) => slot.genre === 'Electronic')?.seconds).toBe(100);
+    // The untagged song is still counted in the week, just not in a slice.
+    expect(week.genres.reduce((total, slot) => total + slot.seconds, 0)).toBe(260);
+    expect(week.seconds).toBe(360);
+  });
+
   it('names the window in one line', () => {
     expect(weekRange(recap.start, recap.end)).toBe('23 – 29 Oct');
   });

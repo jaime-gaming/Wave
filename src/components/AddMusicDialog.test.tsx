@@ -24,8 +24,9 @@ const setup = (overrides: Partial<Parameters<typeof AddMusicDialog>[0]> = {}) =>
 describe('add music', () => {
   it('offers a local file or a YouTube song', async () => {
     const { onLocal, onClose } = setup();
-    expect(screen.getByRole('button', { name: /from this device/i })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: /from this device/i }));
+    expect(screen.getByRole('button', { name: /import local files/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /add from youtube/i })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /import local files/i }));
     expect(onClose).toHaveBeenCalled();
     expect(onLocal).toHaveBeenCalled();
   });

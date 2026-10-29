@@ -1,4 +1,4 @@
-import { WaveMark } from './WaveMark';
+import { WaveWordmark } from './WaveWordmark';
 import { motion } from 'motion/react';
 import { useWaveMotion } from '../ui/motion';
 import {
@@ -33,10 +33,9 @@ export function Navigation({
   return (
     <aside className="navigation-shell">
       <a className="brand" href="#main" aria-label="Wave home" onClick={() => onPage('home')}>
-        <span className="brand-symbol">
-          <WaveMark />
-        </span>
-        <span>Wave</span>
+        {/* The whole word, in the mark's own line: the logo is the lettering. */}
+        <WaveWordmark />
+        <span className="sr-only">Wave</span>
       </a>
       <nav className="app-navigation" aria-label="Main navigation">
         {(
@@ -49,8 +48,9 @@ export function Navigation({
         ).map(({ id, name, icon: Icon }) => (
           <motion.button
             key={id}
-            whileTap={animation.enabled ? { scale: 0.97 } : undefined}
-            transition={animation.fast}
+            whileTap={animation.enabled ? { scale: 0.94 } : undefined}
+            whileHover={animation.enabled ? { y: -1 } : undefined}
+            transition={animation.wobble}
             aria-current={page === id ? 'page' : undefined}
             className={page === id ? 'selected' : ''}
             onClick={() => onPage(id)}
@@ -59,7 +59,7 @@ export function Navigation({
               <motion.span
                 className="navigation-selection"
                 layoutId="navigation-selection"
-                transition={animation.fast}
+                transition={animation.wobble}
               />
             )}
             <span className="navigation-icon">

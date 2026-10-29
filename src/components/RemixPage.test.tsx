@@ -25,17 +25,18 @@ const props = {
   playing: false,
   onPlay: vi.fn(),
   onArtist: vi.fn(),
-  onImport: vi.fn(),
+  onAdd: vi.fn(),
   onSave: vi.fn().mockResolvedValue(true),
   onClear: vi.fn(),
 };
 
 describe('the Remix page', () => {
-  it('leads with the week in one number, not a dashboard', () => {
+  it('leads with the week in one number, not a dashboard', async () => {
     render(<RemixPage {...props} />);
     expect(screen.getByRole('heading', { name: 'Remix' })).toBeInTheDocument();
     // 450 seconds this week, rounded the way the rest of the app rounds.
-    expect(screen.getByText('8 min')).toBeInTheDocument();
+    // The figure climbs to its value rather than appearing at it.
+    expect(await screen.findByText('8 min')).toBeInTheDocument();
     expect(screen.getByText('3 plays · 2 songs · 1 artist')).toBeInTheDocument();
     // The old page's detail sections are gone on purpose.
     expect(screen.queryByRole('region', { name: /last two weeks/i })).not.toBeInTheDocument();

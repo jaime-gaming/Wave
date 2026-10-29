@@ -167,7 +167,7 @@ test('right-click offers track and general actions, bounded placement and keyboa
   await page.mouse.click(20, 20);
   await expect(dialog).toHaveCount(0);
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.locator('.app-name').click({ button: 'right' });
+  await page.locator('.workspace h1').first().click({ button: 'right' });
   await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Settings', exact: true })).toBeVisible();
   await page

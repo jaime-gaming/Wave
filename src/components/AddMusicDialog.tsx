@@ -55,8 +55,9 @@ export function AddMusicDialog({
       {mode === 'choose' ? (
         <>
           <p className="modal-description">
-            Songs from this device stay on this device. A YouTube song is a link: Wave plays it
-            through YouTube&apos;s own player and never downloads it.
+            Import files from this device, or add a song from YouTube by link. Local files never
+            leave the device; a YouTube song plays through YouTube&apos;s own player and is never
+            downloaded.
           </p>
           <div className="add-music-choices">
             <button
@@ -69,7 +70,7 @@ export function AddMusicDialog({
               disabled={busy}
             >
               <FolderOpen size={24} aria-hidden="true" />
-              <strong>From this device</strong>
+              <strong>Import local files</strong>
               <span>MP3, WAV, M4A, OGG or FLAC, up to 200 MB each. Original files, untouched.</span>
             </button>
             <button
@@ -77,10 +78,10 @@ export function AddMusicDialog({
               className="add-music-choice"
               onClick={() => setMode('youtube')}
               disabled={busy || !online}
-              aria-label={networkAriaLabel(online, 'From YouTube')}
+              aria-label={networkAriaLabel(online, 'Add from YouTube')}
             >
               <Video size={24} aria-hidden="true" />
-              <strong>{networkLabel(online, 'From YouTube')}</strong>
+              <strong>{networkLabel(online, 'Add from YouTube')}</strong>
               <span>
                 {online
                   ? 'Paste a video link. The song plays from YouTube with its video, and Wave keeps its own controls.'

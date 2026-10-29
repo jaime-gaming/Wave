@@ -379,9 +379,9 @@ test('the transport stays on screen while a song plays, in the cinema view too, 
   // After the long idle the cinema view opens, and the lyric keeps following.
   await page.clock.fastForward(26000);
   await expect(page.locator('.immersive-stage')).toBeVisible();
-  // The listening screen is still a player: it carries its own transport, and
-  // that transport is not on a timer either.
-  const stageTransport = page.locator('.immersive-transport');
+  // The listening screen is still a player: the bar stays at the bottom, with the
+  // sleeve and the title, and it is not on a timer either.
+  const stageTransport = page.locator('.immersive-bar');
   await expect(stageTransport).toBeVisible();
   await expect(stageTransport.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
   await expect(stageTransport.getByRole('slider', { name: 'Seek', exact: true })).toBeVisible();
