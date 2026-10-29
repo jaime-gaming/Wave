@@ -390,6 +390,23 @@ function WaveApp({
         })
       : undefined;
   const favoriteCount = library.tracks.filter((track) => track.favorite).length;
+  /**
+   * The line under the page title.
+   *
+   * It says what the page is looking at, in the library's own numbers, and it is
+   * the reason the header has a second line at all: a title alone leaves a band
+   * of empty page under it. Nothing here is a status or a build note.
+   */
+  const pageSummary =
+    page === 'search'
+      ? 'Songs, albums and artists on this device'
+      : page === 'settings'
+        ? 'Playback, appearance, lyrics and storage'
+        : page === 'remix'
+          ? 'The songs you played this week'
+          : page === 'library' && view !== 'songs'
+            ? `${library.tracks.length} ${library.tracks.length === 1 ? 'song' : 'songs'} in your library`
+            : `${library.tracks.length} ${library.tracks.length === 1 ? 'song' : 'songs'} · ${albums.length} ${albums.length === 1 ? 'album' : 'albums'}`;
   const busy = library.loading || !!library.progress;
   const chooseFiles = useCallback(() => input.current?.click(), []);
   const [addOpen, setAddOpen] = useState(false);
@@ -663,25 +680,9 @@ function WaveApp({
       />
       <main id="main" tabIndex={-1} className={`workspace ${page}-page`}>
         <header className="library-header">
-          <div className="header-top">
-            <div className="header-actions">
-              <button
-                className="icon-button import-header"
-                disabled={busy}
-                onClick={() => setAddOpen(true)}
-                aria-label="Add music"
-              >
-                <Plus size={25} />
-              </button>
-              <button
-                className="icon-button settings-button"
-                aria-label="Open settings"
-                onClick={openSettings}
-              >
-                <Settings size={25} />
-              </button>
-            </div>
-          </div>
+          {/* One banner: what this page is on the left, the two utilities on
+              the right, both on the same line. There is no separate row for the
+              buttons, so the header cannot leave an empty band behind. */}
           <div className="title-row">
             <div>
               <h1>
@@ -697,6 +698,24 @@ function WaveApp({
                         ? 'Remix'
                         : 'Library'}
               </h1>
+              <p className="library-summary">{pageSummary}</p>
+            </div>
+            <div className="header-actions">
+              <button
+                className="icon-button import-header"
+                disabled={busy}
+                onClick={() => setAddOpen(true)}
+                aria-label="Add music"
+              >
+                <Plus size={24} />
+              </button>
+              <button
+                className="icon-button settings-button"
+                aria-label="Open settings"
+                onClick={openSettings}
+              >
+                <Settings size={24} />
+              </button>
             </div>
           </div>
           {page === 'library' && (
