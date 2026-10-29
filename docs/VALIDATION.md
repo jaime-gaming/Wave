@@ -317,3 +317,26 @@ Checks below were executed on 16 October 2026 against the upcoming release; olde
 - A clean archived-source web build with `WAVE_BASE_PATH=./` passed production-browser smoke checks at both `/` and `/nested/wave/`: actual audio import, metadata-worker loading, native playback and reload persistence, with no page errors.
 - Direct attachment upload from this sandbox ended with a transport EOF and the draft retained no assets. The `Release assets` workflow therefore builds the actual published tag on GitHub, verifies version identity and main ancestry, and uploads the web ZIP, existing MP4 and SHA-256 manifest without relying on that upload connection. It can be retried explicitly with the same tag. No native test binaries, signing keys or library data are included.
 - Four isolated Python packaging contracts check archive contents/checksums, byte-identical repeated packaging, missing-build rejection and prevention of output inside the input tree. ZIP timestamps derive from the source commit rather than runner checkout time. Hashes identify files; they are not signatures or antivirus certification.
+
+## Listening history and the Android rebuild
+
+The web rules are tested: `src/data/listening.test.ts` covers the threshold, the accumulator
+that ignores a jump, and the prune to two thousand; `ListeningPage.test.tsx` covers the page
+reading a history and an empty one. The web gate at the listening commit was clean compile,
+lint and formatting, with 527 tests over 85 files.
+
+Android carries the same rules as unit tests — `LibraryContractsTest` covers search ranking,
+accent folding, the mix grouping and its daily rotation, the play threshold, the summary with a
+deleted song in it, listening time in words and position formatting — but **this workspace has
+no JDK, Gradle or Android SDK**, so none of it was compiled here. There was no emulator and no
+phone, so the service, the media session, the widget, the tile, the shortcuts, the folder walk
+and the import paths have not been exercised at all. Treat the Android build as unverified
+until the native workflow reports green and someone has listened to it on a device.
+
+Windows gained `Listening.cs` and its contract lines in `Wave.Contracts.Tests`, plus a Listening
+page in the sidebar and a Jump back in shelf on Home. There is no .NET SDK in this workspace
+either, so those are likewise unverified here; the contract runner and the WPF smoke mode in CI
+are the first real check.
+
+What remains unverifiable from here, on every platform: real audio through real headphones, a
+car, a call interrupting playback, and whether the blend sounds like a blend on a phone speaker.

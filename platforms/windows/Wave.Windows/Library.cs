@@ -3,7 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 namespace Wave.Windows;
-public record Song(string Id,string Title,string Artist,string Album,string FileName,string Path,double Duration=0,bool Favorite=false,string Lyrics="",long CheckedAt=0,string? Artwork=null,string? Genre=null) { public string Caption => $"{Artist} · {Album} · {FileName}"; }
+public record Song(string Id,string Title,string Artist,string Album,string FileName,string Path,double Duration=0,bool Favorite=false,string Lyrics="",long CheckedAt=0,string? Artwork=null,string? Genre=null,int PlayCount=0,long LastPlayed=0) { public string Caption => $"{Artist} · {Album} · {FileName}"; }
 public record Preferences(double Crossfade=0, bool OnlineLyrics=false, bool? Mix=null,
  bool Autoplay=true, double Volume=.8, string Theme="dark", bool LargerText=false,
  bool Editor=false, bool Animations=true);

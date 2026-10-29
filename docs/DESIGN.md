@@ -308,3 +308,34 @@ On phones, Home's collection shortcuts use a balanced three-plus-two grid; no ca
 The independent Windows UI follows the same hierarchy with native controls: rail, rounded main surface, collection cards, row metadata navigation, compact dock, artwork/lyrics stage and six Settings destinations. Its platform-specific dialogs and reduced feature set are documented rather than presented as pixel-perfect web parity. Dark/light ink, caret and selected-row colors are explicit.
 
 Provider coordination relies on the same origin and available browser capabilities. Without Web Locks, scheduling is tab-local. If storage is denied, the client retains its own spacing/cooldown in memory, but cannot promise a shared deadline across tabs. No cross-origin or other-application coordination is claimed. Existing cached lookup keys are preserved to avoid a full-library re-fetch after this change.
+
+## The listening page
+
+Listening is a page, not a panel bolted onto the player. It answers three questions in the
+order people ask them — how much, what most, and when last — and then stops. On the web it
+opens with a fortnight of bars and settles into lists; on a phone it is three numbers and the
+same lists; on Windows it is the same three numbers in the sidebar page.
+
+The counts read as words, not as clocks: "3 min", "1 h 30 min", "less than a minute". A
+listening total is a quantity, and a quantity formatted as `0:03:00` reads like a track length
+that has been left running. Only one action sits near the numbers — clear history — because
+everything else on that page would be a button looking for a reason.
+
+The only colour on the page is the row that is playing, in the same thin leading bar the rest
+of the interface uses. Nothing here is a badge, a ring or a graph for its own sake; the numbers
+are the interface.
+
+## Android: a phone app, not a port
+
+The phone build was rebuilt rather than transposed. Its shape comes from what a phone does
+well: five destinations across the bottom, a collection with shelves instead of one long list,
+sheets that rise from the thumb's edge instead of dialogs, and a player that is a media
+session first and a screen second.
+
+The mini player sits above the navigation, never over the content and never hiding. The full
+player is a page you open, with the cover, the position, the transport and the lyric; collapsing
+it returns to where you were, and back closes what is open before it leaves.
+
+Adding music is an explicit choice, made once per import: files, the device's own indexed
+music, or a folder. The sheet says what each one does in a line. Nothing is scanned on launch,
+nothing is downloaded, and nothing is read without one of those taps.

@@ -138,8 +138,8 @@ Separate native Android (Kotlin/Compose) and Windows (C#/WPF) source implementat
 - [x] Explicit SDK build workflows and reduced-functionality platform matrix.
 - [x] Run native build/unit/lint checks remotely.
 - [ ] Complete real Android/Windows target-device playback and accessibility checks.
-- [ ] Bring playlists, ordering, artwork/profile editing, queue operations and lyric glyph fill to native parity.
-- [ ] Add Android foreground service/audio focus/media session and rotation-safe playback lifecycle.
+- [ ] Bring artwork/profile editing and lyric glyph fill to native parity (playlists, ordering and queue operations are done on both).
+- [x] Add Android foreground service/audio focus/media session and rotation-safe playback lifecycle.
 - [x] Add Windows contract tests, playlists/queue/session persistence and WPF layout smoke tests.
 - [ ] Complete Windows system integration and trusted release signing/installer.
 - [ ] Complete runtime/dependency notices, controller identity/contact, provider terms/rights and distribution/signing review before production releases.
@@ -147,8 +147,17 @@ Separate native Android (Kotlin/Compose) and Windows (C#/WPF) source implementat
 ## Listening follow-up
 
 - [x] Web: bounded Now Playing, paused queue/progress restoration, enhanced LRC word stamps, metadata navigation and 30-second activity-controlled immersion.
-- [ ] Port and validate these listening/session features independently on Android and Windows.
+- [x] Port these listening/session features to Android and Windows (paused restoration, per-platform session persistence).
+- [ ] Validate them on real target devices: an Android phone with headphones and a car, and a Windows machine with a real codec matrix.
 - [ ] Evaluate synchronized lyric accuracy across real recording editions and providers; word timestamps cannot be inferred exactly from ordinary LRC.
+
+## Listening history and local statistics
+
+- [x] Web: a `plays` store as a version-4 upgrade, a play written at half the song or thirty
+  seconds, the newest two thousand kept, a Listening page and a Home shelf.
+- [x] Android and Windows: the same rule over `history.json`, the same page, the same shelf.
+- [ ] Statistics over longer windows (months, a year) once a real library has been listened to
+  for long enough for the numbers to mean something.
 
 ## Milestone 5 — Wave 1.1: sync, YouTube and playlist import
 

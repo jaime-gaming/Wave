@@ -317,3 +317,53 @@ The Windows client keeps WPF and OS decoders, not the React bundle. `MainWindow`
 Web daily mix views retain an explicit selection snapshot, resolve it against current tracks and persist saved copies through one IndexedDB transaction. The Home card is navigation, not an implicit play action. Promotional captures use an isolated demo browser context and original assets, never a real user library.
 
 Provider coordination relies on the same origin and available browser capabilities. Without Web Locks, scheduling is tab-local. If storage is denied, the client retains its own spacing/cooldown in memory, but cannot promise a shared deadline across tabs. No cross-origin or other-application coordination is claimed. Existing cached lookup keys are preserved to avoid a full-library re-fetch after this change.
+
+## Listening history
+
+One rule decides when a listen exists, and every platform implements it: a play is written
+when a song has been heard for half its length, capped at thirty seconds and never under
+five. `playThreshold` / `Listening.Threshold` compute that; `countsAsPlay` compares against
+it. A short song therefore needs five seconds, a four-minute song thirty, and a song skipped
+in its last ten seconds still counts, because it was heard.
+
+The seconds are sampled from the player's own clock, not from wall time. Between two samples
+the difference is added and anything larger than a couple of seconds is dropped, so a seek, a
+stall or a pause cannot inflate the total. Each platform keeps one accumulator per run and
+resets it when the song changes.
+
+The store differs per platform because the platform does:
+
+- Web: an IndexedDB `plays` store added as `LIBRARY_VERSION = 4`, with a `by-at` index for the
+  newest-first read. Nothing in the existing stores is rewritten by the upgrade. The list is
+  pruned to the newest two thousand plays, in one transaction, with a cursor.
+- Android: `history.json`, written through `AtomicFile` beside `library.json` and
+  `playlists.json`, so a phone that dies mid-write loses the last change, not the library.
+  The same two-thousand cap applies on write.
+- Windows: `history.json` in `%LOCALAPPDATA%/Wave`, written by the same atomic replace as the
+  rest of its state.
+
+Reading it back is `listeningSummary` on each platform: total seconds, seconds and plays in
+the last seven days, unique songs, the most played songs and artists, and the recent list.
+A play whose song has been deleted keeps its seconds in the total but is dropped from every
+list, so the page never links to something that is gone. The page is a snapshot recomputed
+when the history changes, never a subscription to a clock.
+
+## Android playback service
+
+`PlaybackService` is a foreground service of type `mediaPlayback` holding a
+`MediaSessionCompat`. The session carries the metadata and the playback state, which is what
+renders the lock screen, the shade, a watch face, a car display and the headset buttons; the
+service's own notification uses `MediaStyle` with that session token and three plain-broadcast
+actions, so a button still works while the process is being recreated.
+
+Audio focus is requested for `USAGE_MEDIA`/`CONTENT_TYPE_MUSIC`. Loss and transient loss pause
+the music and set a flag; gain resumes only if the pause was not the listener's. A duck
+reduces the volume instead of pausing. A becoming-noisy receiver stops playback when the
+headphones come out. `onChange` on the player is a list of observers rather than one slot: the
+service redraws the notification, the interface counts listening, and neither can silence the
+other.
+
+The player itself is two `MediaPlayer` instances. The spare is prepared with the next song at
+zero volume while the current one plays, and the handover is the same staged constant-power
+ramp as the web build, so the join has nothing in it that a phone would hear as a cut. Position
+is published ten times a second, and at 33 ms while a blend is running.

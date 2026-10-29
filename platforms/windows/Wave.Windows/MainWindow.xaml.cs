@@ -16,6 +16,10 @@ public partial class MainWindow : Window
     private readonly LyricsClient client = new();
     private List<Song> tracks = [], queue = [], visible = [];
     private List<NativePlaylist> playlists = [];
+    private List<Play> plays = [];
+    private double heard, heardMark;
+    private bool hearing;
+    private DateTime heardFrom = DateTime.UtcNow;
     private int index = -1;
     private string page = "Home", previousPage = "Home", repeat = "off";
     private string? collection;
@@ -41,6 +45,7 @@ public partial class MainWindow : Window
         try {
             tracks = repository.Load(); preferences = repository.LoadPreferences();
             playlists = NativeCollections.Load<List<NativePlaylist>>(repository.Folder, "playlists.json") ?? [];
+            plays = Listening.Load(repository.Folder);
         } catch (Exception error) { Notify("Could not open local storage: " + error.Message); }
         ApplyTheme(); volume = Math.Clamp(preferences.Volume, 0, 1); Volume.Value = volume;
         initialized = true; ShowPage("Home"); timer.Tick += Tick; timer.Start();
@@ -139,6 +144,7 @@ public partial class MainWindow : Window
     {
         if (!ready) return;
         double time = active.Position.TotalSeconds;
+        CountListening(time);
         if (!Seek.IsMouseCaptureWithin && !Seek.IsKeyboardFocusWithin) Seek.Value = time;
         Elapsed.Text = Clock(time); Duration.Text = Clock(Seek.Maximum);
         if (playing && outgoing != null) {
@@ -178,6 +184,38 @@ public partial class MainWindow : Window
         }
         if (DateTime.UtcNow - lastSave > TimeSpan.FromSeconds(5)) { SaveSession(); lastSave = DateTime.UtcNow; }
     }
+    /// <summary>
+    /// Counts what is heard from the player's own clock.
+    ///
+    /// The difference between two samples is added and a jump is ignored, so a
+    /// seek or a stall never inflates the numbers. A play is written as soon as
+    /// the song passes its threshold, not when it ends: a song skipped in its last
+    /// ten seconds was still heard.
+    /// </summary>
+    private void CountListening(double time)
+    {
+        if (Current is not { } song || !playing) { heard = 0; hearing = false; return; }
+        if (!hearing) { hearing = true; heard = 0; heardFrom = DateTime.UtcNow; heardMark = time; return; }
+        double step = time - heardMark;
+        if (step is > 0 and <= 2.5) heard += step;
+        heardMark = time;
+        if (heard < Listening.Threshold(Seek.Maximum)) return;
+        int seconds = (int)heard;
+        bool completed = ready && time >= Seek.Maximum - 1;
+        heard = 0;
+        heardFrom = DateTime.UtcNow;
+        RecordPlay(song, seconds, completed);
+    }
+    private void RecordPlay(Song song, int seconds, bool completed)
+    {
+        Safe(() => {
+            plays = Listening.Add(repository.Folder, plays, new Play(song.Id,
+                new DateTimeOffset(heardFrom).ToUnixTimeMilliseconds(), seconds, completed));
+            Update(song with { PlayCount = song.PlayCount + 1, LastPlayed = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() });
+            if (page == "Listening" || page == "Home") Refresh();
+        });
+    }
+    private ListeningSummary Summary() => Listening.Summarise(plays, tracks, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
     /// <summary>
     /// One idea of a lyric line: the sung one is hard to miss, the rest stay quiet.
     /// No blur, no shadow — the text does the work.
