@@ -347,3 +347,25 @@ and the listening clock is driven from the same timer as the position, which no 
 
 What remains unverifiable from this workspace, on every platform: real audio through real
 headphones, a car, a call interrupting playback, and whether the blend sounds like a blend.
+
+## The browser suite is red, and was red before this round
+
+`npm run test:e2e` has failed on every commit since `8f5d52d`; the last green browser run is
+older than the Devices settings page. It was run here for the first time in this workspace, with
+a headless Chromium built from `@sparticuz/chromium` and NSS stubs: **77 passed, 28 failed** in
+14.7 minutes. The failures are not all one thing.
+
+- Stale counts: `mobile-library.spec.ts` expects six Settings menu items and the app has seven,
+  because **Devices** was added in `79d243c` without changing the test. This is the test being
+  out of date, not the app being wrong.
+- Mix and playback timing (`wave.spec.ts` "Mix keeps full-size covers", `listening-refinement`
+  "a mix is announced before it happens", several lyric-follow tests) wait on real playback
+  position in a headless browser on two shared cores; they time out rather than assert a wrong
+  value. Whether they fail on a normal machine is unknown from here.
+- Lyric lookups (`wave.spec.ts` "downloads matching lyrics", "reports lookup errors") expect a
+  provider response; this sandbox cannot reach the lyric service, so those are environment
+  failures and prove nothing either way.
+
+Nobody should read this round as having fixed or caused the browser gate. It needs its own
+pass: re-baseline the counts against the current interface, run the timing tests on a machine
+with a real audio clock, and keep the network-dependent ones behind an intercept.
