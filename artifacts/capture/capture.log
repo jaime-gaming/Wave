@@ -8,20 +8,44 @@ docs/media/daily-mix-desktop.png
 docs/media/now-playing-desktop.png
 docs/media/home-mobile.png
 docs/media/remix-mobile.png
+[review] home-mobile: viewport 390px, scrollWidth 390px
+  overflowing: i.music-lighting__bass [-227..244]
+               i.music-lighting__body [146..617]
+               i.music-lighting__air [20..543]
+               span [-42..307]
+               span [166..458]
+[review] library-mobile: viewport 390px, scrollWidth 390px
+  overflowing: i.music-lighting__bass [-227..244]
+               i.music-lighting__body [146..617]
+               i.music-lighting__air [20..543]
 docs/media/review-mobile-library.png
-node:internal/modules/run_main:123
-    triggerUncaughtException(
-    ^
-
-locator.click: Timeout 30000ms exceeded.
-Call log:
-  - waiting for getByRole('button', { name: /Play .*Electronic/ }).first()
-
-    at /home/runner/work/Wave/Wave/scripts/capture-docs.ts:237:6 {
-  log: [
-    "  - waiting for getByRole('button', { name: /Play .*Electronic/ }).first()"
-  ],
-  name: 'TimeoutError'
-}
-
-Node.js v22.23.4
+docs/media/review-mobile-playing.png
+[review] playing-mobile: viewport 390px, scrollWidth 390px
+  overflowing: i.music-lighting__bass [-213..259]
+               i.music-lighting__body [204..725]
+               i.music-lighting__air [-17..507]
+               g [-25..375]
+               path [-25..375]
+docs/media/review-mobile-player.png
+[review] player-mobile: viewport 390px, scrollWidth 390px
+  overflowing: i.music-lighting__bass [-212..260]
+               i.music-lighting__body [150..671]
+               i.music-lighting__air [-16..507]
+               g [-31..369]
+               path [-31..369]
+               i.music-lighting__bass [-211..261]
+               i.music-lighting__body [149..670]
+               i.music-lighting__air [-15..508]
+               g [-5..395]
+               path [-5..395]
+[review] home-1024: viewport 1024px, scrollWidth 1024px
+  overflowing: i.music-lighting__bass [-384..493]
+               i.music-lighting__body [465..1433]
+               i.music-lighting__air [-15..958]
+docs/media/review-1024.png
+[review] home-820: viewport 820px, scrollWidth 820px
+  overflowing: i.music-lighting__bass [-337..433]
+               i.music-lighting__body [261..1112]
+               i.music-lighting__air [-18..838]
+docs/media/review-820.png
+Documentation images written to docs/media/.
