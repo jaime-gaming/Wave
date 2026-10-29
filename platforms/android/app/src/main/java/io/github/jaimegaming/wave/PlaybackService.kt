@@ -13,15 +13,12 @@ import android.content.pm.ServiceInfo
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
+import android.media.MediaMetadata
+import android.media.session.MediaSession
+import android.media.session.PlaybackState
 import android.os.Build
 import android.os.IBinder
-import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
-import androidx.media.app.NotificationCompat.MediaStyle
-import androidx.media.session.MediaButtonReceiver
-import androidx.media.MediaMetadataCompat
-import androidx.media.session.MediaSessionCompat
-import androidx.media.session.PlaybackStateCompat
 
 /**
  * Music that keeps playing when the screen goes off.
@@ -33,16 +30,19 @@ import androidx.media.session.PlaybackStateCompat
  *
  * The session is also the audio focus holder. A call, a video or a navigation
  * prompt takes the focus away, the music pauses, and it comes back when the
- * interruption ends unless the listener paused it themselves — which is the
- * behaviour people expect and the one Android's own players have.
+ * interruption ends unless the listener paused it themselves — which is what
+ * people expect, and what Android's own players do.
+ *
+ * Everything here is the platform API: no media library is needed to appear on a
+ * lock screen, and one fewer dependency is one fewer thing to keep in step.
  */
 class PlaybackService : Service() {
-    private lateinit var session: MediaSessionCompat
+    private lateinit var session: MediaSession
     private lateinit var manager: NotificationManager
     private lateinit var audio: AudioManager
     private var focus: AudioFocusRequest? = null
     private var player: Player? = null
-    private var noisy = false
+    private var registered = false
     /** True while the pause was caused by something other than the listener. */
     private var ducked = false
 
@@ -56,11 +56,7 @@ class PlaybackService : Service() {
     private val focusListener = AudioManager.OnAudioFocusChangeListener { change ->
         val player = player ?: return@OnAudioFocusChangeListener
         when (change) {
-            AudioManager.AUDIOFOCUS_LOSS -> {
-                ducked = true
-                player.pause()
-            }
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+            AudioManager.AUDIOFOCUS_LOSS, AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
                 ducked = true
                 player.pause()
             }
@@ -72,30 +68,10 @@ class PlaybackService : Service() {
                 if (ducked) {
                     ducked = false
                     player.volume = 1f
-                    player.toggle()
+                    player.resume()
                 }
             }
         }
-    }
-
-    override fun onCreate() {
-        super.onCreate()
-        player = (application as WaveApplication).player
-        manager = getSystemService(NotificationManager::class.java)
-        audio = getSystemService(AudioManager::class.java)
-        createChannel()
-        session = MediaSessionCompat(this, "Wave").apply {
-            setCallback(callback)
-            isActive = true
-            setFlags(
-                MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or
-                    MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS,
-            )
-        }
-        registerReceiver(becomingNoisy, IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY))
-        noisy = true
-        player?.observe(publisher)
-        publish()
     }
 
     /** Every change the player makes redraws the notification and saves the volume. */
@@ -105,12 +81,47 @@ class PlaybackService : Service() {
         app.preferences().edit().putInt("volume", (app.player.volume * 100).toInt()).apply()
     }
 
-    private val callback = object : MediaSessionCompat.Callback() {
-        override fun onPlay() = player?.let { if (!it.playing) it.toggle() } ?: Unit
-        override fun onPause() = player?.let { if (it.playing) it.toggle() } ?: Unit
-        override fun onSkipToNext() { player?.next() }
-        override fun onSkipToPrevious() { player?.previous() }
-        override fun onSeekTo(pos: Long) { player?.seek(pos / 1000.0) }
+    override fun onCreate() {
+        super.onCreate()
+        player = (application as WaveApplication).player
+        manager = getSystemService(NotificationManager::class.java)
+        audio = getSystemService(AudioManager::class.java)
+        createChannel()
+        session = MediaSession(this, "Wave").apply {
+            setCallback(callback)
+            isActive = true
+            setFlags(
+                MediaSession.FLAG_HANDLES_MEDIA_BUTTONS or
+                    MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS,
+            )
+        }
+        registerReceiver(becomingNoisy, IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY))
+        registered = true
+        player?.observe(publisher)
+        publish()
+    }
+
+    private val callback = object : MediaSession.Callback() {
+        override fun onPlay() {
+            player?.resume()
+        }
+
+        override fun onPause() {
+            player?.pause()
+        }
+
+        override fun onSkipToNext() {
+            player?.next()
+        }
+
+        override fun onSkipToPrevious() {
+            player?.previous()
+        }
+
+        override fun onSeekTo(pos: Long) {
+            player?.seek(pos / 1000.0)
+        }
+
         override fun onStop() {
             player?.pause()
             stopSelf()
@@ -122,18 +133,21 @@ class PlaybackService : Service() {
             ACTION_TOGGLE -> player?.toggle()
             ACTION_NEXT -> player?.next()
             ACTION_PREVIOUS -> player?.previous()
-            else -> MediaButtonReceiver.handleIntent(session, intent)
         }
-        if (player?.current != null) startForegroundNow()
+        if (player?.current != null) {
+            startForegroundNow()
+            publish()
+        } else {
+            stopSelf()
+        }
         return START_STICKY
     }
 
     private fun startForegroundNow() {
-        val notification = build()
         ServiceCompat.startForeground(
             this,
             NOTIFICATION_ID,
-            notification,
+            build(),
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
             } else {
@@ -151,23 +165,23 @@ class PlaybackService : Service() {
             return
         }
         session.setMetadata(
-            MediaMetadataCompat.Builder()
-                .putString(MediaMetadataCompat.METADATA_KEY_TITLE, song.title)
-                .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, song.artist)
-                .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, song.album)
-                .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, (player.duration * 1000).toLong())
+            MediaMetadata.Builder()
+                .putString(MediaMetadata.METADATA_KEY_TITLE, song.title)
+                .putString(MediaMetadata.METADATA_KEY_ARTIST, song.artist)
+                .putString(MediaMetadata.METADATA_KEY_ALBUM, song.album)
+                .putLong(MediaMetadata.METADATA_KEY_DURATION, (player.duration * 1000).toLong())
                 .build(),
         )
         session.setPlaybackState(
-            PlaybackStateCompat.Builder()
+            PlaybackState.Builder()
                 .setActions(
-                    PlaybackStateCompat.ACTION_PLAY or PlaybackStateCompat.ACTION_PAUSE or
-                        PlaybackStateCompat.ACTION_PLAY_PAUSE or PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
-                        PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or PlaybackStateCompat.ACTION_SEEK_TO or
-                        PlaybackStateCompat.ACTION_STOP,
+                    PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE or
+                        PlaybackState.ACTION_PLAY_PAUSE or PlaybackState.ACTION_SKIP_TO_NEXT or
+                        PlaybackState.ACTION_SKIP_TO_PREVIOUS or PlaybackState.ACTION_SEEK_TO or
+                        PlaybackState.ACTION_STOP,
                 )
                 .setState(
-                    if (player.playing) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED,
+                    if (player.playing) PlaybackState.STATE_PLAYING else PlaybackState.STATE_PAUSED,
                     (player.time * 1000).toLong(),
                     if (player.playing) 1f else 0f,
                 )
@@ -192,20 +206,21 @@ class PlaybackService : Service() {
                 .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
-        // The three buttons are ordinary broadcasts: they work even if Android
-        // has just recreated the process to deliver one.
+        // The three buttons are ordinary broadcasts: they work even if Android has
+        // just recreated the process to deliver one.
         fun action(code: Int, name: String): PendingIntent = PendingIntent.getBroadcast(
             this,
             code,
             Intent(this, PlaybackActionReceiver::class.java).setAction(name),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
-        val toggle = action(1, ACTION_TOGGLE)
-        val next = action(2, ACTION_NEXT)
-        val previous = action(3, ACTION_PREVIOUS)
-        val body = listOfNotNull(song?.artist?.takeIf { it.isNotBlank() }, song?.album?.takeIf { it.isNotBlank() })
-            .joinToString(" · ")
-        return NotificationCompat.Builder(this, CHANNEL)
+        fun toggle(code: Int, title: String, intent: PendingIntent): Notification.Action =
+            Notification.Action.Builder(R.drawable.wave_mark, title, intent).build()
+        val body = listOfNotNull(
+            song?.artist?.takeIf { it.isNotBlank() },
+            song?.album?.takeIf { it.isNotBlank() },
+        ).joinToString(" · ")
+        return Notification.Builder(this, CHANNEL)
             .setSmallIcon(R.drawable.wave_mark)
             .setContentTitle(song?.title ?: "Wave")
             .setContentText(body)
@@ -213,20 +228,12 @@ class PlaybackService : Service() {
             .setOngoing(player?.playing == true)
             .setOnlyAlertOnce(true)
             .setShowWhen(false)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .addAction(
-                R.drawable.wave_mark,
-                "Previous",
-                previous,
-            )
-            .addAction(
-                R.drawable.wave_mark,
-                if (player?.playing == true) "Pause" else "Play",
-                toggle,
-            )
-            .addAction(R.drawable.wave_mark, "Next", next)
+            .setVisibility(Notification.VISIBILITY_PUBLIC)
+            .addAction(toggle(1, "Previous", action(1, ACTION_PREVIOUS)))
+            .addAction(toggle(2, if (player?.playing == true) "Pause" else "Play", action(2, ACTION_TOGGLE)))
+            .addAction(toggle(3, "Next", action(3, ACTION_NEXT)))
             .setStyle(
-                MediaStyle()
+                Notification.MediaStyle()
                     .setMediaSession(session.sessionToken)
                     .setShowActionsInCompactView(0, 1, 2),
             )
@@ -258,8 +265,8 @@ class PlaybackService : Service() {
     }
 
     override fun onDestroy() {
-        if (noisy) runCatching { unregisterReceiver(becomingNoisy) }
-        noisy = false
+        if (registered) runCatching { unregisterReceiver(becomingNoisy) }
+        registered = false
         focus?.let { audio.abandonAudioFocusRequest(it) }
         session.isActive = false
         session.release()
