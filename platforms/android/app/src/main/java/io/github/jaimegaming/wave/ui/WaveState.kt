@@ -279,8 +279,9 @@ class WaveState(
      * library.
      */
     fun play(song: Song) {
-        val context = openSongs().ifEmpty { if (query.isBlank()) songs else visible() }
-        player.play(if (context.any { it.id == song.id }) context else songs, song)
+        // "Next" means the next thing on the screen the song was tapped on.
+        val around = openSongs().ifEmpty { if (query.isBlank()) songs else visible() }
+        player.play(if (around.any { it.id == song.id }) around else songs, song)
     }
 
     fun playAll(list: List<Song>) {

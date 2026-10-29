@@ -45,7 +45,8 @@ fun WaveMark(size: Int = 28) {
             cubicTo(23f, 7f, 23f, 23f, 28f, 23f)
             cubicTo(33f, 23f, 33f, 7f, 36f, 7f)
         }
-        scale(size.width / 40f, size.height / 32f, pivot = Offset.Zero) {
+        // `this.size` is the canvas; the outer `size` is the mark's size in dp.
+        scale(this.size.width / 40f, this.size.height / 32f, pivot = Offset.Zero) {
             drawPath(path, color, style = Stroke(4.5f, cap = StrokeCap.Round))
         }
     }
