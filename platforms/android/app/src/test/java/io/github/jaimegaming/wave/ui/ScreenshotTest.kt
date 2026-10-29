@@ -60,19 +60,20 @@ class ScreenshotTest {
     /** A small library and a week of plays, written through the app's own files. */
     private fun seed(app: WaveApplication, output: File) {
         val library = Library(app)
+        // The same demo library the web captures use: three artists, an album each.
         val songs = listOf(
-            "Northbound" to "Night signals",
-            "Sunday Club" to "Soft light",
-            "The Coastline" to "In the distance",
-            "Northbound" to "Long way home",
-            "Sunday Club" to "Late set",
-            "The Coastline" to "Salt air",
-        ).mapIndexed { index, (title, artist) ->
+            Triple("Night signals", "Northbound", "Northbound"),
+            Triple("Soft light", "Sunday Club", "Sunday Club"),
+            Triple("In the distance", "The Coastline", "The Coastline"),
+            Triple("Long way home", "Northbound", "Northbound"),
+            Triple("Late set", "Sunday Club", "Sunday Club"),
+            Triple("Salt air", "The Coastline", "The Coastline"),
+        ).mapIndexed { index, (title, artist, album) ->
             Song(
                 id = "demo-$index",
                 title = title,
                 artist = artist,
-                album = "Demo",
+                album = album,
                 filename = "$title.wav",
                 path = File(output, "demo-$index.wav").absolutePath,
                 duration = 180.0,

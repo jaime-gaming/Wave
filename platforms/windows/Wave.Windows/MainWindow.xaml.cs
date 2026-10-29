@@ -69,7 +69,7 @@ public partial class MainWindow : Window
         SidebarWidth.Width = new GridLength(expanded ? 0 : 216);
         NavigationPanel.Visibility = PageHeader.Visibility = expanded ? Visibility.Collapsed : Visibility.Visible;
         Heading.Text = collection ?? page;
-        Summary.Text = $"{tracks.Count} songs · {tracks.Select(s => s.Album).Distinct().Count()} albums";
+        Summary.Text = $"{NativeCollections.Count(tracks.Count, "song")} · {NativeCollections.Count(tracks.Select(s => s.Album).Distinct().Count(), "album")}";
         LibraryView.Visibility = page is "Now playing" or "Settings" ? Visibility.Collapsed : Visibility.Visible;
         NowView.Visibility = expanded ? Visibility.Visible : Visibility.Collapsed;
         SettingsView.Visibility = page == "Settings" ? Visibility.Visible : Visibility.Collapsed;
