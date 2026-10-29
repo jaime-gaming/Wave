@@ -73,9 +73,9 @@ public partial class MainWindow
         var shortcuts = new UniformGrid { Columns = 5, Margin = new Thickness(0, 0, 0, 4) };
         var collection = new[] {
             ("Library", "Songs", tracks.Count, "library"),
-            ("Albums", "Albums", tracks.Select(AlbumKey).Distinct().Count(), "queue"),
-            ("Artists", "Artists", tracks.Select(s => s.Artist).Distinct().Count(), "remix"),
-            ("Playlists", "Playlists", playlists.Count, "lyrics"),
+            ("Albums", "Albums", tracks.Select(AlbumKey).Distinct().Count(), "disc"),
+            ("Artists", "Artists", tracks.Select(s => s.Artist).Distinct().Count(), "artist"),
+            ("Playlists", "Playlists", playlists.Count, "queue"),
             ("Favorites", "Favorites", tracks.Count(s => s.Favorite), "heart"),
         };
         for (int i = 0; i < collection.Length; i++) {
@@ -146,14 +146,15 @@ public partial class MainWindow
     private Button Shortcut(string icon, int count, string label, string destination, bool first)
     {
         var body = new Grid();
+        body.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        body.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         body.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        body.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         body.Children.Add(Iconography.Draw(icon, 18, 1.7, (Brush)Application.Current.Resources["AccentBrush"]));
-        var number = new TextBlock { Text = count.ToString(), FontSize = 24, FontWeight = FontWeights.Bold, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, -5, 0, 0) };
-        Grid.SetColumn(number, 2); body.Children.Add(number);
-        var name = new TextBlock { Text = label, FontSize = 13, Foreground = (Brush)Application.Current.Resources["MutedBrush"], VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(0, 16, 0, 0) };
-        Grid.SetColumn(name, 0); Grid.SetColumnSpan(name, 3); body.Children.Add(name);
+        var number = new TextBlock { Text = count.ToString(), FontSize = 24, FontWeight = FontWeights.Bold, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, -6, 0, 0) };
+        Grid.SetColumn(number, 1); body.Children.Add(number);
+        var name = new TextBlock { Text = label, FontSize = 13, Foreground = (Brush)Application.Current.Resources["MutedBrush"], Margin = new Thickness(-6, 14, 0, 0) };
+        Grid.SetRow(name, 1); Grid.SetColumn(name, 0); Grid.SetColumnSpan(name, 2); body.Children.Add(name);
         var button = new Button {
             Content = body,
             Padding = new Thickness(14, 12, 14, 12),

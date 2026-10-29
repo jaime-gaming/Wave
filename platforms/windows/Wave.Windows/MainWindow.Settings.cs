@@ -22,7 +22,6 @@ public partial class MainWindow
             back.Content = Iconography.With("chevron-left", "Back", 16, 6);
             back.Click += (_, _) => Safe(() => ShowPage(previousPage));
             SettingsBody.Children.Add(back);
-            SettingsBody.Children.Add(Label("Settings", 30));
             foreach (var item in new[] { ("Appearance", "Theme, larger text and motion"), ("Playback", "Mix and local Autoplay"), ("Lyrics", "Optional automatic lyric search"), ("Library", "Song information and cover editing"), ("Storage", "Your original local files"), ("About", "Version, source and privacy") }) {
                 var row = new Grid { Margin = new Thickness(0) };
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -34,7 +33,7 @@ public partial class MainWindow
                 detail.Margin = new Thickness(2, 0, 2, 0);
                 words.Children.Add(detail);
                 row.Children.Add(words);
-                var chevron = Iconography.Draw("arrow-up-right", 17, 1.7, (Brush)Application.Current.Resources["MutedBrush"]);
+                var chevron = Iconography.Draw("chevron-right", 17, 1.7, (Brush)Application.Current.Resources["MutedBrush"]);
                 Grid.SetColumn(chevron, 1);
                 row.Children.Add(chevron);
                 var button = new Button { Content = row, HorizontalContentAlignment = HorizontalAlignment.Stretch, Padding = new Thickness(18, 12, 16, 12), Margin = new Thickness(0, 3, 0, 3), ToolTip = item.Item1 };
