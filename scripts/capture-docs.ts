@@ -231,7 +231,10 @@ if (process.env.WAVE_REVIEW) {
   await shot(mobile, 'review-mobile-library.png');
   await mobile.getByRole('button', { name: 'Home', exact: true }).click();
   await mobile.waitForTimeout(500);
-  await mobile.getByRole('button', { name: /Play .*Electronic/ }).first().click();
+  await mobile
+    .getByRole('button', { name: /Play .*Electronic/ })
+    .first()
+    .click();
   await mobile.waitForTimeout(900);
   await shot(mobile, 'review-mobile-playing.png');
   await mobile.getByRole('button', { name: 'Open now playing', exact: true }).click();
