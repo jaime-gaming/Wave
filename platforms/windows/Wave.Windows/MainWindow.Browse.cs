@@ -147,7 +147,7 @@ public partial class MainWindow
     /// </summary>
     private void RenderRemix()
     {
-        var recap = Listening.Week(plays, tracks, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+        var recap = Listening.Recap(plays, tracks, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
         CollectionHeader.Children.Add(Label(Listening.WeekRange(recap.Start, recap.End), 13));
         if (plays.Count == 0) {
             CollectionHeader.Children.Add(Label("No week to look back on yet. Play a song and this page fills in: your week in one number, and a list of what you actually played.", 19));

@@ -33,7 +33,8 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          gradle -p platforms/android testDebugUnitTest lintDebug assembleDebug --console=plain --stacktrace 2>&1 | tee android-build.log
+          # -Dwave.screenshots also renders the documentation screenshots, from the app itself.
+          gradle -p platforms/android testDebugUnitTest lintDebug assembleDebug -Dwave.screenshots=app/build/wave-screenshots --console=plain --stacktrace 2>&1 | tee android-build.log
       - name: Report Android diagnostics
         if: failure()
         shell: bash
@@ -53,6 +54,12 @@ jobs:
           path: |
             android-build.log
             platforms/android/app/build/reports/
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: wave-android-screenshots
+          path: platforms/android/app/build/wave-screenshots/*.png
           if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         with:

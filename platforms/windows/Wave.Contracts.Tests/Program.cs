@@ -58,10 +58,10 @@ var weekPlays = new List<Play> {
     new("a", DaysAgo(1), 200, true), new("a", DaysAgo(2), 200, true),
     new("b", DaysAgo(0), 120, true), new("b", DaysAgo(9), 300, true),
 };
-var week = Listening.Week(weekPlays, new List<Song> { a, b }, weekNow);
+var week = Listening.Recap(weekPlays, new List<Song> { a, b }, weekNow);
 Check(week.Seconds == 520 && week.Plays == 3 && week.Tracks == 2, "the recap counts only the last seven days");
 Check(week.PreviousSeconds == 300, "the seven days before are the comparison, not the week");
 Check(week.Songs.First().Id == "a" && week.TopSongs.First().Count == 2, "the week's most played song leads the Remix");
 Check(Listening.WeekRange(week.Start, week.End).Contains("\u2013"), "the recap names its window in one line");
-var thinWeek = Listening.Week(new List<Play> { new("a", DaysAgo(0), 120, true) }, new List<Song> { a, b }, weekNow);
+var thinWeek = Listening.Recap(new List<Play> { new("a", DaysAgo(0), 120, true) }, new List<Song> { a, b }, weekNow);
 Check(thinWeek.Songs.Select(s => s.Id).Distinct().Count() == thinWeek.Songs.Count, "a topped-up Remix never repeats a song");
