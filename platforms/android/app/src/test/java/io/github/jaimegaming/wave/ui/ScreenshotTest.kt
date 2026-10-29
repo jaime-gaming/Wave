@@ -40,18 +40,21 @@ class ScreenshotTest {
     @get:Rule
     val rule = createAndroidComposeRule<ComponentActivity>()
 
+    // One test per screen: an activity may only be given content once, and JUnit
+    // builds a fresh one for each test.
     @Test
-    fun capturesTheShellAndTheRemixPage() {
+    fun home() = capture("android-home", Opening.Default)
+
+    @Test
+    fun remix() = capture("android-remix", Opening.Where(Destination.Remix))
+
+    @Test
+    fun library() = capture("android-library", Opening.Where(Destination.Library))
+
+    private fun output(): File? {
         val flag = System.getProperty("wave.screenshots").orEmpty()
         assumeTrue("Pass -Dwave.screenshots=<directory> to capture.", flag.isNotEmpty())
-
-        val app = ApplicationProvider.getApplicationContext<WaveApplication>()
-        val output = File(flag.ifEmpty { "build/wave-screenshots" }).apply { mkdirs() }
-        seed(app, output)
-
-        capture(output, "android-home", Opening.Default)
-        capture(output, "android-remix", Opening.Where(Destination.Remix))
-        capture(output, "android-library", Opening.Where(Destination.Library))
+        return File(flag).apply { mkdirs() }
     }
 
     /** A small library and a week of plays, written through the app's own files. */
@@ -87,7 +90,9 @@ class ScreenshotTest {
         library.addPlay(Play(songs[0].id, now - 8L * 86_400_000L, 200, true))
     }
 
-    private fun capture(output: File, name: String, opening: Opening) {
+    private fun capture(name: String, opening: Opening) {
+        val output = output() ?: return
+        seed(ApplicationProvider.getApplicationContext<WaveApplication>(), output)
         rule.setContent { WaveTheme { WaveApp(version = "0.1.1", opening = opening) } }
         rule.waitForIdle()
         val view = rule.activity.window.decorView

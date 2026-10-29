@@ -11,7 +11,7 @@ public partial class MainWindow
 {
     private void ApplyTheme()
     {
-        ApplyBrushes(preferences.Theme == "light");
+        App.ApplyBrushes(preferences.Theme == "light");
         FontSize = preferences.LargerText ? 18 : 15;
     }
     private void RenderSettings(string? section = null)
