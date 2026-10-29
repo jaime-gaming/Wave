@@ -40,9 +40,11 @@ jobs:
         run: |
           if [[ -f android-build.log ]]; then
             tail -n 100 android-build.log >> "$GITHUB_STEP_SUMMARY"
+            # Compiler errors, lint errors and failing assertions are surfaced as
+            # annotations so a reader can see them without downloading the log.
             while IFS= read -r line; do
               echo "::error::$line"
-            done < <(grep '^e: ' android-build.log || true)
+            done < <(grep -E '^e: |^Error: |^/.*: Error: |[Ff][Aa][Ii][Ll][Ee][Dd]|expected:' android-build.log || true)
           fi
       - uses: actions/upload-artifact@v4
         if: failure()
@@ -63,7 +65,17 @@ jobs:
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
-      - run: dotnet run --project platforms/windows/Wave.Contracts.Tests -c Release
+      - name: Run the Windows contract runner
+        shell: pwsh
+        run: |
+          dotnet run --project platforms/windows/Wave.Contracts.Tests -c Release 2>&1 | Tee-Object -FilePath contracts.log
+          if ($LASTEXITCODE -ne 0) {
+            # The runner's own failures are one line of text; surface them as an
+            # annotation instead of leaving them in a log nobody can open.
+            Get-Content contracts.log | Select-String -Pattern 'Unhandled exception|^PASS ' -Context 0,2 |
+              ForEach-Object { Write-Host "::error::$($_.Line)" }
+            exit 1
+          }
       - run: dotnet build platforms/windows/Wave.Windows/Wave.Windows.csproj -c Release
       - name: Exercise native Windows interface
         shell: pwsh

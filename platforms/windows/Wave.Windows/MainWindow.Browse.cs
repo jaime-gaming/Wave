@@ -154,33 +154,35 @@ public partial class MainWindow
             (summary.WeekPlays.ToString(), "plays this week"),
             (summary.UniqueSongs.ToString(), "songs heard") }) {
             var block = new StackPanel { Margin = new Thickness(0, 6, 32, 14), MinWidth = 120 };
-            block.Children.Add(Label(value, 26)); block.Children.Add(Label(label, 13));
+            block.Children.Add(Label(value, 26));
+            block.Children.Add(Label(label, 13));
             numbers.Children.Add(block);
         }
         CollectionHeader.Children.Add(numbers);
         if (summary.TopSongs.Count > 0) {
             CollectionHeader.Children.Add(Label("Most played", 22));
-            foreach (var (song, count) in summary.TopSongs) {
-                var row = new DockPanel { Margin = new Thickness(0, 4, 0, 4) };
-                var countLabel = Label($"{count} plays", 13); DockPanel.SetDock(countLabel, Dock.Right); row.Children.Add(countLabel);
-                row.Children.Add(new Button { Content = $"{song.Title} — {song.Artist}", Tag = song, Click = SongPlayClick, Style = (Style)FindResource("TextButton") });
-                CollectionHeader.Children.Add(row);
-            }
+            foreach (var (song, count) in summary.TopSongs) CollectionHeader.Children.Add(CountRow($"{song.Title} \u2014 {song.Artist}", count, () => PlayCollection(new[] { song }, song.Id)));
         }
         if (summary.TopArtists.Count > 0) {
             CollectionHeader.Children.Add(Label("Most played artists", 22));
-            foreach (var (artist, count) in summary.TopArtists) {
-                var row = new DockPanel { Margin = new Thickness(0, 4, 0, 4) };
-                var countLabel = Label($"{count} plays", 13); DockPanel.SetDock(countLabel, Dock.Right); row.Children.Add(countLabel);
-                row.Children.Add(new Button { Content = artist, Style = (Style)FindResource("TextButton"), Tag = artist, Click = (_, _) => ShowPage("Artists", artist) });
-                CollectionHeader.Children.Add(row);
-            }
+            foreach (var (artist, count) in summary.TopArtists) CollectionHeader.Children.Add(CountRow(artist, count, () => ShowPage("Artists", artist)));
         }
         CollectionHeader.Children.Add(Label("Recently played", 22));
         CollectionHeader.Children.Add(ActionButton("Clear history", () => {
             if (MessageBox.Show(this, "Clear the listening history? The songs stay in your library.", "Wave", MessageBoxButton.YesNo) != MessageBoxResult.Yes) return;
-            Listening.Clear(repository.Folder); plays = []; Refresh();
+            Listening.Clear(repository.Folder);
+            plays = [];
+            Refresh();
         }));
+    }
+    private UIElement CountRow(string title, int count, Action action)
+    {
+        var row = new DockPanel { Margin = new Thickness(0, 4, 0, 4) };
+        var number = Label($"{count} plays", 13);
+        DockPanel.SetDock(number, Dock.Right);
+        row.Children.Add(number);
+        row.Children.Add(ActionButton(title, action));
+        return row;
     }
     private List<NativeMix> DailyGroups() => NativeCollections.DailyMixes(tracks, DateOnly.FromDateTime(DateTime.Today));
     private void SavePlaylists(List<NativePlaylist> updated) { NativeCollections.Save(repository.Folder, "playlists.json", updated); playlists = updated; }

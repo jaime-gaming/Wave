@@ -1,5 +1,8 @@
 package io.github.jaimegaming.wave.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -22,6 +25,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import androidx.compose.ui.unit.sp
 import io.github.jaimegaming.wave.Song
 
@@ -44,6 +48,24 @@ fun WaveApp(version: String, opening: Opening = Opening.Default) {
         tree?.let { state.importFolder(it) }
     }
     val addMusic: () -> Unit = { state.addOpen = true }
+    // Reading the music the system already indexes needs the audio permission; a
+    // refusal is answered in words rather than by an empty list.
+    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { grants ->
+        if (grants.values.any { it }) state.importFromDevice()
+        else state.notice = "Wave needs permission to read the music on this device."
+    }
+    val importDevice: () -> Unit = {
+        val audio = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            Manifest.permission.READ_MEDIA_AUDIO
+        } else {
+            Manifest.permission.READ_EXTERNAL_STORAGE
+        }
+        if (ContextCompat.checkSelfPermission(context, audio) == PackageManager.PERMISSION_GRANTED) {
+            state.importFromDevice()
+        } else {
+            permission.launch(arrayOf(audio))
+        }
+    }
 
     LaunchedEffect(opening) {
         when (opening) {
@@ -142,7 +164,7 @@ fun WaveApp(version: String, opening: Opening = Opening.Default) {
             },
             onDevice = {
                 state.addOpen = false
-                state.importFromDevice()
+                importDevice()
             },
             onFolder = {
                 state.addOpen = false
