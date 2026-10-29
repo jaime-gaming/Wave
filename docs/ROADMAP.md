@@ -154,10 +154,10 @@ Separate native Android (Kotlin/Compose) and Windows (C#/WPF) source implementat
 ## Listening history and local statistics
 
 - [x] Web: a `plays` store as a version-4 upgrade, a play written at half the song or thirty
-  seconds, the newest two thousand kept, a Listening page and a Home shelf.
+      seconds, the newest two thousand kept, a Listening page and a Home shelf.
 - [x] Android and Windows: the same rule over `history.json`, the same page, the same shelf.
 - [ ] Statistics over longer windows (months, a year) once a real library has been listened to
-  for long enough for the numbers to mean something.
+      for long enough for the numbers to mean something.
 
 ## Milestone 5 — Wave 1.1: sync, YouTube and playlist import
 
