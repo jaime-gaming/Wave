@@ -46,7 +46,7 @@ jobs:
       # a design change can be looked at in a browser even when the person making
       # it has none.
       - name: Photograph the built site
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && always()
         run: |
           set -euo pipefail
           npm run build
