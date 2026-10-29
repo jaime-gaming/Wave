@@ -1,5 +1,6 @@
 package io.github.jaimegaming.wave
 
+import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -9,6 +10,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
@@ -19,6 +21,7 @@ import android.media.session.PlaybackState
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.ServiceCompat
+import androidx.core.content.ContextCompat
 
 /**
  * Music that keeps playing when the screen goes off.
@@ -95,7 +98,12 @@ class PlaybackService : Service() {
                     MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS,
             )
         }
-        registerReceiver(becomingNoisy, IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY))
+        ContextCompat.registerReceiver(
+            this,
+            becomingNoisy,
+            IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY),
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
         registered = true
         player?.observe(publisher)
         publish()
@@ -191,7 +199,7 @@ class PlaybackService : Service() {
             requestFocus()
             startForegroundNow()
         } else {
-            manager.notify(NOTIFICATION_ID, build())
+            if (allowedToNotify()) manager.notify(NOTIFICATION_ID, build())
         }
     }
 
@@ -254,6 +262,15 @@ class PlaybackService : Service() {
         focus = request
         audio.requestAudioFocus(request)
     }
+
+    /**
+     * On Android 13 and later a notification needs the listener's permission. The
+     * music still plays without it, so this is a check rather than a requirement.
+     */
+    private fun allowedToNotify(): Boolean =
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
 
     private fun createChannel() {
         val channel = NotificationChannel(CHANNEL, "Playback", NotificationManager.IMPORTANCE_LOW).apply {

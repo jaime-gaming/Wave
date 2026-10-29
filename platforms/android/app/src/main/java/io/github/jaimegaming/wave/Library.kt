@@ -1,5 +1,6 @@
 package io.github.jaimegaming.wave
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.media.MediaMetadataRetriever
 import android.net.Uri
@@ -258,6 +259,9 @@ class Library(private val context: Context) {
      * costs nothing and stays in step with the rest of the phone. Entries the
      * library already has are skipped by id.
      */
+    // The interface asks for the audio permission before it calls this, and says
+    // so plainly when it is refused; the query itself cannot check that here.
+    @SuppressLint("MissingPermission")
     @Synchronized
     fun importFromMediaStore(): Int {
         val songs = load().toMutableList()
