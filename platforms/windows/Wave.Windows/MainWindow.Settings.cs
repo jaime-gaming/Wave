@@ -17,17 +17,37 @@ public partial class MainWindow
     private void RenderSettings(string? section = null)
     {
         SettingsBody.Children.Clear();
-        SettingsBody.Children.Add(ActionButton(section == null ? "← Back" : "← Back to settings", () => { if (section == null) ShowPage(previousPage); else RenderSettings(); }));
         if (section == null) {
+            var back = new Button { Style = (Style)FindResource("TextButton"), Foreground = (Brush)Application.Current.Resources["MutedBrush"], Margin = new Thickness(2, 4, 2, 14) };
+            back.Content = Iconography.With("chevron-left", "Back", 16, 6);
+            back.Click += (_, _) => Safe(() => ShowPage(previousPage));
+            SettingsBody.Children.Add(back);
+            SettingsBody.Children.Add(Label("Settings", 30));
             foreach (var item in new[] { ("Appearance", "Theme, larger text and motion"), ("Playback", "Mix and local Autoplay"), ("Lyrics", "Optional automatic lyric search"), ("Library", "Song information and cover editing"), ("Storage", "Your original local files"), ("About", "Version, source and privacy") }) {
-                var button = ActionButton(item.Item1, () => RenderSettings(item.Item1));
-                button.HorizontalContentAlignment = HorizontalAlignment.Left; button.Padding = new Thickness(22, 18, 22, 18);
-                var content = new StackPanel(); content.Children.Add(Label(item.Item1, 21)); content.Children.Add(Label(item.Item2, 14)); button.Content = content;
+                var row = new Grid { Margin = new Thickness(0) };
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                var words = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+                words.Children.Add(Label(item.Item1, 17));
+                var detail = Label(item.Item2, 13);
+                detail.SetResourceReference(TextBlock.ForegroundProperty, "MutedBrush");
+                detail.Margin = new Thickness(2, 0, 2, 0);
+                words.Children.Add(detail);
+                row.Children.Add(words);
+                var chevron = Iconography.Draw("arrow-up-right", 17, 1.7, (Brush)Application.Current.Resources["MutedBrush"]);
+                Grid.SetColumn(chevron, 1);
+                row.Children.Add(chevron);
+                var button = new Button { Content = row, HorizontalContentAlignment = HorizontalAlignment.Stretch, Padding = new Thickness(18, 12, 16, 12), Margin = new Thickness(0, 3, 0, 3), ToolTip = item.Item1 };
+                button.Click += (_, _) => Safe(() => RenderSettings(item.Item1));
                 SettingsBody.Children.Add(button);
             }
             return;
         }
-        SettingsBody.Children.Add(Label(section, 30));
+        var backToAll = new Button { Style = (Style)FindResource("TextButton"), Foreground = (Brush)Application.Current.Resources["MutedBrush"], Margin = new Thickness(2, 4, 2, 10) };
+        backToAll.Content = Iconography.With("chevron-left", "Back to settings", 16, 6);
+        backToAll.Click += (_, _) => Safe(RenderSettings);
+        SettingsBody.Children.Add(backToAll);
+        SettingsBody.Children.Add(Label(section, 26));
         void Toggle(string text, bool value, Action<bool> changed) {
             var check = new CheckBox { Content = text, IsChecked = value };
             check.Checked += (_, _) => { changed(true); preferencesDirty = true; SaveSession(); };

@@ -7,7 +7,7 @@ namespace Wave.Windows;
 public partial class MainWindow
 {
     private static string AlbumKey(Song song) => song.Artist + "\u001f" + song.Album;
-    private static TextBlock Label(string text, double size = 15) => new() { Text = text, FontSize = size, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(4, 6, 4, 6) };
+    private static TextBlock Label(string text, double size = 15) => new() { Text = text, FontSize = size, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(2, 6, 2, 6) };
     private Button ActionButton(string text, Action action)
     {
         var button = new Button { Content = text };
@@ -53,7 +53,7 @@ public partial class MainWindow
     private void UpdateSongs()
     {
         visible = SelectedSongs(); Songs.ItemsSource = visible;
-        Songs.Visibility = visible.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        Songs.Visibility = !WholePage && visible.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         var old = CollectionHeader.Children.OfType<TextBlock>().FirstOrDefault(t => Equals(t.Tag, "empty"));
         if (old != null) CollectionHeader.Children.Remove(old);
         if (visible.Count == 0 && !(page is "Albums" or "Artists" or "Playlists" && collection == null)) {
@@ -61,45 +61,175 @@ public partial class MainWindow
             empty.Tag = "empty"; CollectionHeader.Children.Add(empty);
         }
     }
+    /// <summary>
+    /// Home, laid out the way the browser lays it out: one band of numbers, then
+    /// the songs and mixes the week has to offer, then what came in last. The page
+    /// scrolls as one thing, so there is never a second scrollbar beside the first.
+    /// </summary>
     private void RenderHome()
     {
-        CollectionHeader.Children.Add(Label("Your collection", 24));
-        var shortcuts = new WrapPanel();
-        foreach (var item in new[] { ("Library", "Songs", tracks.Count), ("Albums", "Albums", tracks.Select(AlbumKey).Distinct().Count()), ("Artists", "Artists", tracks.Select(s => s.Artist).Distinct().Count()), ("Playlists", "Playlists", playlists.Count), ("Favorites", "Favorites", tracks.Count(s => s.Favorite)) }) {
-            var content = new StackPanel(); content.Children.Add(Label(item.Item3.ToString(), 26)); content.Children.Add(Label(item.Item2, 14));
-            var button = ActionButton(item.Item2, () => ShowPage(item.Item1)); button.Content = content; button.Width = 128; button.HorizontalContentAlignment = HorizontalAlignment.Left;
-            shortcuts.Children.Add(button);
+        CollectionHeader.Children.Add(SectionHeading("Your collection", AddMusicButton()));
+
+        var shortcuts = new UniformGrid { Columns = 5, Margin = new Thickness(0, 0, 0, 4) };
+        var collection = new[] {
+            ("Library", "Songs", tracks.Count, "library"),
+            ("Albums", "Albums", tracks.Select(AlbumKey).Distinct().Count(), "queue"),
+            ("Artists", "Artists", tracks.Select(s => s.Artist).Distinct().Count(), "remix"),
+            ("Playlists", "Playlists", playlists.Count, "lyrics"),
+            ("Favorites", "Favorites", tracks.Count(s => s.Favorite), "heart"),
+        };
+        for (int i = 0; i < collection.Length; i++) {
+            var (destination, label, count, icon) = collection[i];
+            shortcuts.Children.Add(Shortcut(icon, count, label, destination, i == 0));
         }
         CollectionHeader.Children.Add(shortcuts);
-        var daily = DailyGroups();
-        if (daily.Count > 0) {
-            CollectionHeader.Children.Add(Label("Daily mixes", 22)); var mixes = new WrapPanel();
-            for (int i = 0; i < daily.Count; i++) { var mix = daily[i]; mixes.Children.Add(Card($"Daily mix {i + 1}", mix.Label, mix.Songs.FirstOrDefault()?.Artwork, () => ShowPage("Daily mix", mix.Id))); }
-            CollectionHeader.Children.Add(mixes);
-        }
+
         var summary = ListeningNow();
         if (summary.Recent.Count > 0) {
-            CollectionHeader.Children.Add(Label("Jump back in", 22)); var back = new WrapPanel();
+            var week = summary.WeekSeconds > 0 ? Listening.Time(summary.WeekSeconds) + " this week" : "Remix";
+            CollectionHeader.Children.Add(SectionHeading("Jump back in", TextAction(week, "arrow-up-right", () => ShowPage("Remix"))));
+            var back = new WrapPanel();
             foreach (var song in summary.Recent.Take(6)) back.Children.Add(Card(song.Title, song.Artist, song.Artwork, () => PlayCollection(summary.Recent, song.Id)));
             CollectionHeader.Children.Add(back);
         }
-        CollectionHeader.Children.Add(Label("Recently added albums", 22));
+
+        var daily = DailyGroups();
+        if (daily.Count > 0) {
+            CollectionHeader.Children.Add(SectionHeading("Daily mixes"));
+            for (int i = 0; i < daily.Count; i++) {
+                var mix = daily[i];
+                CollectionHeader.Children.Add(MixRow($"Daily mix {i + 1}", mix.Label, mix.Songs.FirstOrDefault()?.Artwork, () => ShowPage("Daily mix", mix.Id)));
+            }
+        }
+
+        CollectionHeader.Children.Add(SectionHeading("Recently added albums"));
         var shelf = new StackPanel { Orientation = Orientation.Horizontal };
         foreach (var album in tracks.GroupBy(AlbumKey).Reverse().Take(6)) {
             var song = album.First(); shelf.Children.Add(Card(song.Album, song.Artist, song.Artwork, () => ShowPage("Albums", album.Key)));
         }
-        CollectionHeader.Children.Add(new ScrollViewer { Content = shelf, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalScrollBarVisibility = ScrollBarVisibility.Disabled });
-        CollectionHeader.Children.Add(Label("Recently added songs", 22));
+        CollectionHeader.Children.Add(new ScrollViewer { Content = shelf, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalScrollBarVisibility = ScrollBarVisibility.Disabled, Margin = new Thickness(0, 0, 0, 2) });
+
+        var recent = tracks.OrderByDescending(s => s.AddedAt).Take(6).ToList();
+        if (recent.Count > 0) {
+            CollectionHeader.Children.Add(SectionHeading("Recently added songs"));
+            foreach (var song in recent) CollectionHeader.Children.Add(SongRow(song, () => PlayCollection(recent, song.Id)));
+        }
     }
+    /// <summary>A section heading with, optionally, the one action that belongs to it.</summary>
+    private FrameworkElement SectionHeading(string text, UIElement? trailing = null)
+    {
+        var row = new DockPanel { Margin = new Thickness(2, 18, 2, 10) };
+        if (trailing != null) { DockPanel.SetDock(trailing, Dock.Right); row.Children.Add(trailing); }
+        row.Children.Add(new TextBlock { Text = text, FontSize = 19, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center });
+        return row;
+    }
+    private Button AddMusicButton()
+    {
+        var button = new Button { Style = (Style)FindResource("AccentButton"), Padding = new Thickness(16, 9, 18, 9), ToolTip = "Add music" };
+        button.Content = Iconography.With("plus", "Add music", 17, 8);
+        button.Click += ImportClick;
+        return button;
+    }
+    private Button TextAction(string text, string icon, Action action)
+    {
+        var button = new Button { Style = (Style)FindResource("TextButton"), Foreground = (Brush)Application.Current.Resources["AccentBrush"], FontWeight = FontWeights.SemiBold, FontSize = 13, VerticalAlignment = VerticalAlignment.Center, Padding = new Thickness(6, 4, 2, 4) };
+        var row = new StackPanel { Orientation = Orientation.Horizontal };
+        row.Children.Add(new TextBlock { Text = text, VerticalAlignment = VerticalAlignment.Center });
+        var glyph = Iconography.Draw(icon, 15);
+        glyph.Margin = new Thickness(5, 0, 0, 0);
+        row.Children.Add(glyph);
+        button.Content = row;
+        button.Click += (_, _) => Safe(action);
+        return button;
+    }
+    /// <summary>One collection number: a small icon, the count, and what it counts.</summary>
+    private Button Shortcut(string icon, int count, string label, string destination, bool first)
+    {
+        var body = new Grid();
+        body.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        body.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        body.Children.Add(Iconography.Draw(icon, 18, 1.7, (Brush)Application.Current.Resources["AccentBrush"]));
+        var number = new TextBlock { Text = count.ToString(), FontSize = 24, FontWeight = FontWeights.Bold, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, -5, 0, 0) };
+        Grid.SetColumn(number, 2); body.Children.Add(number);
+        var name = new TextBlock { Text = label, FontSize = 13, Foreground = (Brush)Application.Current.Resources["MutedBrush"], VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(0, 16, 0, 0) };
+        Grid.SetColumn(name, 0); Grid.SetColumnSpan(name, 3); body.Children.Add(name);
+        var button = new Button {
+            Content = body,
+            Padding = new Thickness(14, 12, 14, 12),
+            Margin = new Thickness(4),
+            MinHeight = 92,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            Background = (Brush)Application.Current.Resources[first ? "AccentTonalBrush" : "TonalBrush"],
+        };
+        button.Click += (_, _) => Safe(() => ShowPage(destination));
+        return button;
+    }
+    /// <summary>A daily mix as a row: what it is, what it sounds like, and a way in.</summary>
+    private Button MixRow(string title, string genre, string? artwork, Action action)
+    {
+        var row = new Grid { Margin = new Thickness(4, 2, 4, 2) };
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var art = new Border { Width = 48, Height = 48, CornerRadius = new CornerRadius(14), Background = ArtworkBrush(artwork) };
+        if (artwork == null) art.Child = new TextBlock { Text = "♪", FontSize = 20, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Foreground = (Brush)Application.Current.Resources["AccentBrush"] };
+        row.Children.Add(art);
+        var words = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(14, 0, 0, 0) };
+        words.Children.Add(new TextBlock { Text = title, FontWeight = FontWeights.SemiBold, FontSize = 15 });
+        words.Children.Add(new TextBlock { Text = genre, FontSize = 13, Foreground = (Brush)Application.Current.Resources["MutedBrush"] });
+        Grid.SetColumn(words, 1); row.Children.Add(words);
+        var arrow = Iconography.Draw("arrow-up-right", 18, 1.7, (Brush)Application.Current.Resources["MutedBrush"]);
+        Grid.SetColumn(arrow, 2); row.Children.Add(arrow);
+        var button = new Button {
+            Content = row,
+            Background = (Brush)Application.Current.Resources["TonalBrush"],
+            Padding = new Thickness(10),
+            Margin = new Thickness(4, 2, 4, 2),
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            ToolTip = title,
+        };
+        button.Click += (_, _) => Safe(action);
+        return button;
+    }
+    /// <summary>A song as a row you can play, in the same shape as the list rows.</summary>
+    private Button SongRow(Song song, Action action)
+    {
+        var row = new Grid();
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var art = new Border { Width = 44, Height = 44, CornerRadius = new CornerRadius(12), Background = ArtworkBrush(song.Artwork) };
+        if (song.Artwork == null) art.Child = new TextBlock { Text = "♪", FontSize = 19, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Foreground = (Brush)Application.Current.Resources["AccentBrush"] };
+        row.Children.Add(art);
+        var words = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 12, 0) };
+        words.Children.Add(new TextBlock { Text = song.Title, FontWeight = FontWeights.SemiBold, FontSize = 15, TextTrimming = TextTrimming.CharacterEllipsis });
+        words.Children.Add(new TextBlock { Text = song.Artist, FontSize = 13, Foreground = (Brush)Application.Current.Resources["MutedBrush"], TextTrimming = TextTrimming.CharacterEllipsis });
+        Grid.SetColumn(words, 1); row.Children.Add(words);
+        var album = new TextBlock { Text = song.Album, FontSize = 12.5, Foreground = (Brush)Application.Current.Resources["MutedBrush"], VerticalAlignment = VerticalAlignment.Center, MaxWidth = 200, TextTrimming = TextTrimming.CharacterEllipsis };
+        Grid.SetColumn(album, 2); row.Children.Add(album);
+        var button = new Button {
+            Content = row,
+            Background = Brushes.Transparent,
+            Padding = new Thickness(8, 6, 8, 6),
+            Margin = new Thickness(2, 1, 2, 1),
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            ToolTip = song.Title,
+        };
+        button.Click += (_, _) => Safe(action);
+        return button;
+    }
+    /// <summary>A shelf card: square artwork, its name, whose it is.</summary>
     private Button Card(string title, string subtitle, string? artwork, Action action)
     {
         var body = new StackPanel { Width = 140 };
-        var art = new Border { Width = 140, Height = 116, CornerRadius = new CornerRadius(20), Background = ArtworkBrush(artwork) };
-        if (artwork == null) art.Child = new TextBlock { Text = "♪", FontSize = 42, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        var art = new Border { Width = 140, Height = 140, CornerRadius = new CornerRadius(18), Background = ArtworkBrush(artwork) };
+        if (artwork == null) art.Child = new TextBlock { Text = "♪", FontSize = 40, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Foreground = (Brush)Application.Current.Resources["AccentBrush"] };
         body.Children.Add(art);
-        body.Children.Add(new TextBlock { Text = title, FontSize = 16, FontWeight = FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 10, 0, 4), ToolTip = title });
-        body.Children.Add(new TextBlock { Text = subtitle, FontSize = 13, TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = subtitle });
-        var card = ActionButton(title, action); card.Content = body; card.Padding = new Thickness(10); card.Background = Brushes.Transparent; return card;
+        body.Children.Add(new TextBlock { Text = title, FontSize = 15, FontWeight = FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(1, 9, 1, 2), ToolTip = title });
+        body.Children.Add(new TextBlock { Text = subtitle, FontSize = 12.5, Foreground = (Brush)Application.Current.Resources["MutedBrush"], TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(1, 0, 1, 0), ToolTip = subtitle });
+        var card = ActionButton(title, action); card.Content = body; card.Padding = new Thickness(4); card.Margin = new Thickness(6, 4, 6, 8);
+        card.Background = Brushes.Transparent; card.HorizontalContentAlignment = HorizontalAlignment.Left; return card;
     }
     private void RenderGroups(string kind)
     {

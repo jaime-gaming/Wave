@@ -6,25 +6,340 @@
          Assets folder. If the family cannot be resolved WPF falls back to its own
          default face rather than failing to draw. -->
     <FontFamily x:Key="WaveFont">pack://application:,,,/Assets/#Nunito Sans</FontFamily>
+
+    <!-- The icons, as line drawings on the browser's 24-unit grid. They are here so
+         the XAML below and the lists the window builds in code draw the same shapes,
+         and so nothing depends on an icon font being installed. -->
+    <PathGeometry x:Key="IconHome" Figures="M4 10.6 12 4l8 6.6V19a1.4 1.4 0 0 1-1.4 1.4H5.4A1.4 1.4 0 0 1 4 19z M9.6 20.4v-6h4.8v6"/>
+    <PathGeometry x:Key="IconSearch" Figures="M11 4.4a6.6 6.6 0 1 0 0 13.2 6.6 6.6 0 0 0 0-13.2 M15.9 15.9 20.4 20.4"/>
+    <PathGeometry x:Key="IconLibrary" Figures="M5 4.6v14.8 M9.8 4.6v14.8 M14.6 6.2l5.6 13"/>
+    <PathGeometry x:Key="IconRemix" Figures="M4 10v4 M8 6.6v10.8 M12 4v16 M16 7.4v9.2 M20 10.6v2.8"/>
+    <PathGeometry x:Key="IconPlus" Figures="M12 5.4v13.2 M5.4 12h13.2"/>
+    <PathGeometry x:Key="IconSettings" Figures="M4.6 8h14.8 M4.6 16h14.8 M9.4 5.4v5.2 M15.4 13.4v5.2"/>
+    <PathGeometry x:Key="IconChevronDown" Figures="M6 9.6 12 15.4 18 9.6"/>
+    <PathGeometry x:Key="IconChevronLeft" Figures="M14.4 6 8.6 12 14.4 18"/>
+    <PathGeometry x:Key="IconPlay" Figures="M8.4 5.6 18.4 12 8.4 18.4z"/>
+    <PathGeometry x:Key="IconPause" Figures="M9.4 5.6v12.8 M14.6 5.6v12.8"/>
+    <PathGeometry x:Key="IconPrevious" Figures="M6.4 5.8v12.4 M18 6.6 9.6 12 18 17.4z"/>
+    <PathGeometry x:Key="IconNext" Figures="M17.6 5.8v12.4 M6 6.6 14.4 12 6 17.4z"/>
+    <PathGeometry x:Key="IconShuffle" Figures="M4 6.6h3.4l9.2 10.8H20 M4 17.4h3.4l3-3.5 M14.6 6.6H20 M17.2 4.2 20 6.6l-2.8 2.4 M17.2 14.6 20 17.4l-2.8 2.4"/>
+    <PathGeometry x:Key="IconRepeat" Figures="M5.4 10.4A6.6 6.6 0 0 1 18 8.6 M18.6 13.6A6.6 6.6 0 0 1 6 15.4 M15.6 5.6l2.6 3-3.2 1.4 M8.4 18.4l-2.6-3 3.2-1.4"/>
+    <PathGeometry x:Key="IconHeart" Figures="M12 19.4 5.6 13a4.1 4.1 0 0 1 5.8-5.8l.6.6.6-.6A4.1 4.1 0 0 1 18.4 13z"/>
+    <PathGeometry x:Key="IconLyrics" Figures="M4.6 6.6h14.8 M4.6 11h11 M4.6 15.4h7.4"/>
+    <PathGeometry x:Key="IconEdit" Figures="M15.4 4.6 19.4 8.6 9 19H5v-4z"/>
+    <PathGeometry x:Key="IconQueue" Figures="M4.6 7h9.8 M4.6 11.4h9.8 M4.6 15.8h6 M18 8.4v8.2 M15.4 14.2 18 16.8l2.6-2.6"/>
+    <PathGeometry x:Key="IconArrowUpRight" Figures="M7.4 16.6 16.6 7.4 M9 7.4h7.6V15"/>
+
+    <!-- The icon inside a button: stroked, round-capped, tinted by the button. -->
+    <Style x:Key="IconPath" TargetType="Path">
+      <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Control}}"/>
+      <Setter Property="StrokeThickness" Value="1.7"/>
+      <Setter Property="StrokeStartLineCap" Value="Round"/>
+      <Setter Property="StrokeEndLineCap" Value="Round"/>
+      <Setter Property="StrokeLineJoin" Value="Round"/>
+      <Setter Property="Stretch" Value="Uniform"/>
+      <Setter Property="Width" Value="20"/>
+      <Setter Property="Height" Value="20"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
     <Style TargetType="Button">
-      <Setter Property="Background" Value="{DynamicResource TonalBrush}"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/>
-      <Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="16,12"/><Setter Property="Margin" Value="4"/>
-      <Setter Property="MinHeight" Value="44"/><Setter Property="MinWidth" Value="44"/><Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="Background" Value="{DynamicResource TonalBrush}"/>
+      <Setter Property="Foreground" Value="{DynamicResource InkBrush}"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Padding" Value="16,10"/>
+      <Setter Property="Margin" Value="3"/>
+      <Setter Property="MinHeight" Value="42"/>
+      <Setter Property="MinWidth" Value="42"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
       <Setter Property="Cursor" Value="Hand"/>
-      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
-        <Border Background="{TemplateBinding Background}" CornerRadius="22" Padding="{TemplateBinding Padding}"><ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center" RecognizesAccessKey="True"/></Border>
-        <ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="Opacity" Value="0.82"/></Trigger><Trigger Property="IsPressed" Value="True"><Setter Property="Opacity" Value="0.65"/></Trigger><Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45"/></Trigger></ControlTemplate.Triggers>
-      </ControlTemplate></Setter.Value></Setter>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border Background="{TemplateBinding Background}" CornerRadius="21" Padding="{TemplateBinding Padding}">
+              <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center" RecognizesAccessKey="True"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True"><Setter Property="Opacity" Value="0.84"/></Trigger>
+              <Trigger Property="IsPressed" Value="True"><Setter Property="Opacity" Value="0.66"/></Trigger>
+              <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.4"/></Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
     </Style>
-    <Style x:Key="TextButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-      <Setter Property="Background" Value="Transparent"/><Setter Property="Padding" Value="2,3"/><Setter Property="Margin" Value="0"/><Setter Property="MinHeight" Value="24"/><Setter Property="MinWidth" Value="0"/>
+
+    <!-- The accented call to action: adding music, playing a collection. -->
+    <Style x:Key="AccentButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+      <Setter Property="Background" Value="{DynamicResource AccentTonalBrush}"/>
+      <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+    </Style>
+
+    <!-- Transport and utility buttons: a shape, no words. -->
+    <Style x:Key="IconButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+      <Setter Property="Width" Value="42"/>
+      <Setter Property="Height" Value="42"/>
+      <Setter Property="MinHeight" Value="42"/>
+      <Setter Property="MinWidth" Value="42"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="Margin" Value="2"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="{DynamicResource InkBrush}"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border Background="{TemplateBinding Background}" CornerRadius="21">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="{DynamicResource TonalBrush}"/></Trigger>
+              <Trigger Property="IsPressed" Value="True"><Setter Property="Opacity" Value="0.66"/></Trigger>
+              <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.35"/></Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <!-- The two buttons beside a page title, matching the browser's circles. -->
+    <Style x:Key="HeaderIconButton" TargetType="Button" BasedOn="{StaticResource IconButton}">
+      <Setter Property="Width" Value="44"/>
+      <Setter Property="Height" Value="44"/>
+      <Setter Property="MinHeight" Value="44"/>
+      <Setter Property="MinWidth" Value="44"/>
+      <Setter Property="Margin" Value="0,0,0,0"/>
+      <Setter Property="Background" Value="{DynamicResource AccentTonalBrush}"/>
+      <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+    </Style>
+
+    <!-- The one filled circle: the button that starts or stops the music. -->
+    <Style x:Key="PlayButton" TargetType="Button" BasedOn="{StaticResource IconButton}">
+      <Setter Property="Width" Value="56"/>
+      <Setter Property="Height" Value="56"/>
+      <Setter Property="MinHeight" Value="56"/>
+      <Setter Property="MinWidth" Value="56"/>
+      <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+      <Setter Property="Foreground" Value="{DynamicResource OnAccentBrush}"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border Background="{TemplateBinding Background}" CornerRadius="28">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True"><Setter Property="Opacity" Value="0.88"/></Trigger>
+              <Trigger Property="IsPressed" Value="True"><Setter Property="Opacity" Value="0.7"/></Trigger>
+              <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.4"/></Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <!-- Navigation: a label that lights up, not a box that is always full. -->
+    <Style x:Key="NavButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="FontSize" Value="15"/>
+      <Setter Property="Height" Value="44"/>
+      <Setter Property="MinHeight" Value="44"/>
+      <Setter Property="Padding" Value="12,0"/>
+      <Setter Property="Margin" Value="0,2"/>
       <Setter Property="HorizontalContentAlignment" Value="Left"/>
-      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}"><TextBlock Text="{TemplateBinding Content}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/></Border><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border Background="{TemplateBinding Background}" CornerRadius="14" Padding="{TemplateBinding Padding}">
+              <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{DynamicResource TonalBrush}"/>
+                <Setter Property="Foreground" Value="{DynamicResource InkBrush}"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True"><Setter Property="Opacity" Value="0.7"/></Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
     </Style>
-    <Style TargetType="TextBox"><Setter Property="Background" Value="{DynamicResource BackgroundBrush}"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/><Setter Property="CaretBrush" Value="{DynamicResource InkBrush}"/><Setter Property="SelectionBrush" Value="#516D9E"/><Setter Property="BorderBrush" Value="{DynamicResource MutedBrush}"/><Setter Property="Padding" Value="12"/></Style>
-    <Style TargetType="TextBlock"><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/><Setter Property="FontFamily" Value="{DynamicResource WaveFont}"/></Style>
-    <Style TargetType="CheckBox"><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/><Setter Property="FontSize" Value="16"/><Setter Property="Margin" Value="4,14"/></Style>
-    <Style TargetType="ListBox"><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/><Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/></Style>
-    <Style TargetType="ContextMenu"><Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/></Style>
+
+    <Style x:Key="TextButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="{DynamicResource InkBrush}"/>
+      <Setter Property="Padding" Value="2,3"/>
+      <Setter Property="Margin" Value="0"/>
+      <Setter Property="MinHeight" Value="24"/>
+      <Setter Property="MinWidth" Value="0"/>
+      <Setter Property="FontWeight" Value="Normal"/>
+      <Setter Property="HorizontalContentAlignment" Value="Left"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}">
+              <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True"><Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/></Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <!-- Scrollbars are a hint, not furniture: no arrows, no groove, no grey box. -->
+    <Style x:Key="ThinScrollBar" TargetType="ScrollBar">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Width" Value="10"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ScrollBar">
+            <Grid Background="Transparent" Margin="1">
+              <Track x:Name="PART_Track" IsDirectionReversed="True">
+                <Track.DecreaseRepeatButton><RepeatButton Command="{x:Static ScrollBar.PageUpCommand}" Opacity="0" Focusable="False"/></Track.DecreaseRepeatButton>
+                <Track.IncreaseRepeatButton><RepeatButton Command="{x:Static ScrollBar.PageDownCommand}" Opacity="0" Focusable="False"/></Track.IncreaseRepeatButton>
+                <Track.Thumb>
+                  <Thumb>
+                    <Thumb.Template>
+                      <ControlTemplate TargetType="Thumb">
+                        <Border Background="{DynamicResource MutedBrush}" Opacity="0.4" CornerRadius="4" Margin="1"/>
+                      </ControlTemplate>
+                    </Thumb.Template>
+                  </Thumb>
+                </Track.Thumb>
+              </Track>
+            </Grid>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+      <Style.Triggers>
+        <Trigger Property="Orientation" Value="Horizontal">
+          <Setter Property="Width" Value="Auto"/>
+          <Setter Property="Height" Value="10"/>
+          <Setter Property="Template">
+            <Setter.Value>
+              <ControlTemplate TargetType="ScrollBar">
+                <Grid Background="Transparent" Margin="1">
+                  <Track x:Name="PART_Track">
+                    <Track.DecreaseRepeatButton><RepeatButton Command="{x:Static ScrollBar.PageLeftCommand}" Opacity="0" Focusable="False"/></Track.DecreaseRepeatButton>
+                    <Track.IncreaseRepeatButton><RepeatButton Command="{x:Static ScrollBar.PageRightCommand}" Opacity="0" Focusable="False"/></Track.IncreaseRepeatButton>
+                    <Track.Thumb>
+                      <Thumb>
+                        <Thumb.Template>
+                          <ControlTemplate TargetType="Thumb">
+                            <Border Background="{DynamicResource MutedBrush}" Opacity="0.4" CornerRadius="4" Margin="1"/>
+                          </ControlTemplate>
+                        </Thumb.Template>
+                      </Thumb>
+                    </Track.Thumb>
+                  </Track>
+                </Grid>
+              </ControlTemplate>
+            </Setter.Value>
+          </Setter>
+        </Trigger>
+      </Style.Triggers>
+    </Style>
+
+    <!-- Seek and volume: a thin groove, the played part in the accent, a round grip. -->
+    <Style x:Key="WaveSlider" TargetType="Slider">
+      <Setter Property="Height" Value="24"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Slider">
+            <Grid VerticalAlignment="Center" Background="Transparent">
+              <Border Height="6" CornerRadius="3" Background="{DynamicResource TonalBrush}" VerticalAlignment="Center"/>
+              <Track x:Name="PART_Track">
+                <Track.DecreaseRepeatButton>
+                  <RepeatButton Command="{x:Static Slider.DecreaseLarge}" Focusable="False">
+                    <RepeatButton.Template>
+                      <ControlTemplate TargetType="RepeatButton">
+                        <Border Height="6" CornerRadius="3,0,0,3" Background="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
+                      </ControlTemplate>
+                    </RepeatButton.Template>
+                  </RepeatButton>
+                </Track.DecreaseRepeatButton>
+                <Track.IncreaseRepeatButton>
+                  <RepeatButton Command="{x:Static Slider.IncreaseLarge}" Focusable="False">
+                    <RepeatButton.Template>
+                      <ControlTemplate TargetType="RepeatButton">
+                        <Border Height="6" Background="Transparent" VerticalAlignment="Center"/>
+                      </ControlTemplate>
+                    </RepeatButton.Template>
+                  </RepeatButton>
+                </Track.IncreaseRepeatButton>
+                <Track.Thumb>
+                  <Thumb Width="14" Height="14">
+                    <Thumb.Template>
+                      <ControlTemplate TargetType="Thumb">
+                        <Border Background="{DynamicResource AccentBrush}" CornerRadius="7" BorderThickness="2" BorderBrush="{DynamicResource BackgroundBrush}"/>
+                      </ControlTemplate>
+                    </Thumb.Template>
+                  </Thumb>
+                </Track.Thumb>
+              </Track>
+            </Grid>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <Style TargetType="ScrollBar" BasedOn="{StaticResource ThinScrollBar}"/>
+    <Style TargetType="Slider" BasedOn="{StaticResource WaveSlider}"/>
+    <Style TargetType="TextBox">
+      <Setter Property="Background" Value="{DynamicResource BackgroundBrush}"/>
+      <Setter Property="Foreground" Value="{DynamicResource InkBrush}"/>
+      <Setter Property="CaretBrush" Value="{DynamicResource InkBrush}"/>
+      <Setter Property="SelectionBrush" Value="#516D9E"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource TonalBrush}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Padding" Value="12"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="TextBox">
+            <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="14" Padding="{TemplateBinding Padding}">
+              <ScrollViewer x:Name="PART_ContentHost"/>
+            </Border>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <!-- No colour here on purpose: text takes the colour of whatever it sits in,
+         so a quiet label inside an accented row stays quiet instead of turning. -->
+    <Style TargetType="TextBlock">
+      <Setter Property="FontFamily" Value="{DynamicResource WaveFont}"/>
+    </Style>
+    <Style TargetType="CheckBox">
+      <Setter Property="Foreground" Value="{DynamicResource InkBrush}"/>
+      <Setter Property="FontSize" Value="16"/>
+      <Setter Property="Margin" Value="4,14"/>
+    </Style>
+    <Style TargetType="ListBox">
+      <Setter Property="Foreground" Value="{DynamicResource InkBrush}"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+    </Style>
+    <Style TargetType="ContextMenu">
+      <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+      <Setter Property="Foreground" Value="{DynamicResource InkBrush}"/>
+    </Style>
+    <Style TargetType="ToolTip">
+      <Setter Property="Background" Value="{DynamicResource TonalBrush}"/>
+      <Setter Property="Foreground" Value="{DynamicResource InkBrush}"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Padding" Value="10,6"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ToolTip">
+            <Border Background="{TemplateBinding Background}" CornerRadius="10" Padding="{TemplateBinding Padding}">
+              <ContentPresenter/>
+            </Border>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
   </Application.Resources>
 </Application>

@@ -7133,3 +7133,108 @@ h1 {
     gap: 10px;
   }
 }
+
+/*
+ * The phone layout, as one piece.
+ *
+ * A tablet at 820 px is a narrow desktop and already reads well: the rail, the
+ * card and the player all keep their shape. A phone is not a narrow desktop, so
+ * below 700 px the shell changes character: the page becomes a card that floats
+ * over the backdrop instead of bleeding to the edges, the collection numbers
+ * become a short list instead of five empty boxes, and the bottom bar gets a
+ * scrim so scrolling content disappears behind it instead of being sliced by
+ * it.
+ */
+@media (max-width: 700px) {
+  .workspace {
+    margin: 0 10px 10px;
+    border-radius: 28px;
+    min-height: auto;
+  }
+  /* The dock floats; the strip behind it belongs to the bar, not to the list. */
+  .app-shell::after {
+    content: '';
+    position: fixed;
+    inset: auto 0 0;
+    height: 168px;
+    z-index: 2;
+    pointer-events: none;
+    background: linear-gradient(to top, var(--background) 46%, transparent);
+  }
+  .library-header {
+    padding: 20px 18px 14px;
+  }
+  .title-row {
+    align-items: center;
+    gap: 12px;
+  }
+  h1 {
+    font-size: clamp(36px, 10.5vw, 46px);
+    letter-spacing: -1.4px;
+  }
+  .library-summary {
+    margin-top: 4px;
+    font-size: 13px;
+  }
+  .header-actions .icon-button {
+    width: 42px;
+    height: 42px;
+  }
+
+  /* Collection: five rows that say the number, not five boxes with air in them. */
+  .home-overview .section-heading {
+    margin-bottom: 12px;
+  }
+  .home-shortcuts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .home-shortcut {
+    grid-template-columns: 22px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 13px;
+    min-height: 0;
+    border-radius: 16px;
+  }
+  .home-shortcut svg {
+    grid-area: 1 / 1;
+    width: 18px;
+    height: 18px;
+  }
+  .home-shortcut > span {
+    grid-area: 1 / 2;
+    font-size: 13px;
+    color: var(--text);
+  }
+  .home-shortcut strong {
+    grid-area: 1 / 3;
+    font-size: 19px;
+    letter-spacing: -0.4px;
+  }
+  .home-shortcut:first-child {
+    background: var(--primary-container);
+  }
+
+  /* Sections breathe less: the surface is a phone screen, not a poster. */
+  .library-surface {
+    padding: 18px 14px 26px;
+    border-radius: 26px 26px 0 0;
+  }
+  .section-heading {
+    margin-bottom: 12px;
+  }
+  .home-resume,
+  .home-albums .home-resume {
+    gap: 10px;
+  }
+
+  /* Lyrics keep their air at the top and bottom of the scroll, not inside it. */
+  .lyrics-scroll {
+    padding: 36px 6px;
+    scroll-padding: 28px;
+  }
+  .lyric-line {
+    font-size: clamp(21px, 6.4vw, 27px);
+  }
+}
