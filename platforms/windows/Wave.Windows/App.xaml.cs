@@ -7,25 +7,33 @@ public partial class App : Application
     /// <summary>
     /// The six colours everything else refers to.
     ///
-    /// They live in one dictionary that is replaced whole, because replacing
-    /// entries one by one leaves elements that already resolved them showing the
-    /// previous theme — a window would keep its old background while the buttons
-    /// inside it turned.
+    /// Each key resolves to one brush instance that is created once and then
+    /// recoloured. WPF does not re-resolve a DynamicResource when the dictionary
+    /// that holds it is replaced, so a swap left half the window on the old
+    /// theme; changing the colour of a brush it already points at repaints
+    /// everything that uses it.
     /// </summary>
+    private static readonly Dictionary<string, SolidColorBrush> palette = new();
+    private static bool registered;
+
     public static void ApplyBrushes(bool light)
     {
-        var brushes = new ResourceDictionary();
-        foreach (var (key, value) in new[] {
-            ("BackgroundBrush", light ? "#F5F4FA" : "#10131B"),
-            ("SurfaceBrush", light ? "#FFFBFF" : "#1B1F2A"),
-            ("TonalBrush", light ? "#E5E5F2" : "#2B3042"),
-            ("InkBrush", light ? "#202331" : "#E5E7F0"),
-            ("MutedBrush", light ? "#535B70" : "#B3B9CC"),
-            ("AccentBrush", light ? "#405C96" : "#B6C8FF"),
-        }) brushes[key] = new SolidColorBrush((Color)ColorConverter.ConvertFromString(value));
-        var dictionaries = Current.Resources.MergedDictionaries;
-        if (dictionaries.Count > 0) dictionaries[0] = brushes;
-        else dictionaries.Add(brushes);
+        var colors = new Dictionary<string, string> {
+            ["BackgroundBrush"] = light ? "#F5F4FA" : "#10131B",
+            ["SurfaceBrush"] = light ? "#FFFBFF" : "#1B1F2A",
+            ["TonalBrush"] = light ? "#E5E5F2" : "#2B3042",
+            ["InkBrush"] = light ? "#202331" : "#E5E7F0",
+            ["MutedBrush"] = light ? "#535B70" : "#B3B9CC",
+            ["AccentBrush"] = light ? "#405C96" : "#B6C8FF",
+        };
+        var dictionary = new ResourceDictionary();
+        foreach (var (key, value) in colors) {
+            if (!palette.TryGetValue(key, out var brush)) palette[key] = brush = new SolidColorBrush();
+            brush.Color = (Color)ColorConverter.ConvertFromString(value);
+            dictionary[key] = brush;
+        }
+        // Only the first call registers the keys; later calls just recolour them.
+        if (!registered) { Current.Resources.MergedDictionaries.Add(dictionary); registered = true; }
     }
 
     protected override async void OnStartup(StartupEventArgs e)
