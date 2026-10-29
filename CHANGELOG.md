@@ -21,6 +21,16 @@
 - A deleted song keeps its seconds in the total — the time was still spent — but leaves
   every list.
 
+### Documentation
+
+- The README is rewritten for someone deciding whether to install Wave: what it plays, how to
+  start it, and what it looks like, before any of the engineering.
+- **Why Wave**, a new page, compares it honestly with Spotify, Apple Music and YouTube Music —
+  including the four things those services do better.
+- Screenshots of all three platforms. The web ones come from `npm run capture:docs`; the Windows
+  and Android ones are drawn by the builds themselves and committed by the CI job that ran them,
+  so they cannot drift from the code.
+
 ### Android
 
 - The phone app was rebuilt around what Android already does well. Playback is a media
@@ -39,7 +49,9 @@
   hashed as they stream, so the same file cannot arrive twice, and the bytes are copied
   untouched.
 - The home-screen widget shows what is playing with one button; a quick-settings tile
-  plays or pauses; long-pressing the icon offers Search, Remix and Favourites.
+  plays or pauses; long-pressing the icon offers Search, Remix and Favourites. Every one of
+  them, and the playback service itself, is declared in the manifest — which had lost the lot
+  and has been put back.
 
 ## 0.1.1 — 27 October 2026
 

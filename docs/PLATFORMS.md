@@ -42,7 +42,7 @@ The native app uses WPF, Windows MediaPlayer and standard file pickers. Original
 
 Home has collection shortcuts, daily mixes, a **Jump back in** shelf built from what was actually played, and album cards. Search is its own destination; title/cover play, artist/album open their collections, and compact-player information opens Now Playing. Playlists can be created, renamed, populated, ordered and deleted without deleting audio. Queue edits preserve the active recording. Restored sessions remain paused. Settings separates Appearance, Playback, Lyrics, Library, Storage and About.
 
-CI runs a dependency-free contract runner, compiles/publishes the application and executes an isolated WPF smoke mode that exercises Home, Search, daily mixes, saved playlists, six Settings sections and narrow light-theme layout. It captures PNGs in `wave-windows-ui-smoke`; this is not a physical-device or codec/playback matrix. The fixture library is temporary and does not touch a real user library.
+CI runs a dependency-free contract runner, compiles/publishes the application and executes an isolated WPF smoke mode that exercises Home, Search, daily mixes, saved playlists, Remix, six Settings sections and narrow light-theme layout. It captures PNGs in `wave-windows-ui-smoke`, and a push publishes them as `docs/media/windows-*.png`; this is not a physical-device or codec/playback matrix. The fixture library is temporary and does not touch a real user library.
 
 Metadata reading remains limited to ID3/WAV. Automatic embedded artwork extraction, web-identical search grouping, artist photos, album ordering, word-stamped LRC, waveform analysis, immersive idle mode and system media integration are not complete. OS codecs govern playback. Do not call this complete web parity.
 
@@ -68,7 +68,9 @@ Two `MediaPlayer`s, never one: the spare is armed with the next song in silence 
 
 The library is `Library.kt` over three atomically written files: `library.json`, `playlists.json` and `history.json`. Import takes three explicit routes — the document picker, `MediaStore` for music the system already indexes (no copy is made), and a document tree walked at any depth. Files read through the picker are hashed as they stream, so the same file cannot arrive twice, and copied byte for byte into app-private storage; uninstall removes that copy, so retain originals. The tags are read once, when the file arrives, which is where the genre that a mix groups by comes from.
 
-System presence: a home-screen widget with the current song and one button, a quick-settings tile, app shortcuts for Search, Remix and Favourites, and a predictive-back callback that closes the open thing before it leaves.
+System presence: a home-screen widget with the current song and one button, a quick-settings tile, app shortcuts for Search, Remix and Favourites, and a predictive-back callback that closes the open thing before it leaves. All of it is declared in `AndroidManifest.xml`; the widget, the tile and the shortcut list are invisible to a build that forgets them, so check the manifest when a system surface "disappears".
+
+The phone screens in `docs/media/android-*.png` are rendered by `ScreenshotTest` from the real `WaveApp` on the Robolectric graphics stack, and published by the same CI job.
 
 ## Publication gates
 
