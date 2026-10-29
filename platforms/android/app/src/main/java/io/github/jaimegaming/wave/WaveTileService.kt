@@ -2,7 +2,6 @@ package io.github.jaimegaming.wave
 
 import android.annotation.SuppressLint
 import android.service.quicksettings.Tile
-import android.annotation.SuppressLint
 import android.service.quicksettings.TileService
 
 /**
