@@ -55,7 +55,14 @@ jobs:
             curl -fsS http://127.0.0.1:5173/ > /dev/null && break
             sleep 1
           done
-          WAVE_URL=http://127.0.0.1:5173 WAVE_REVIEW=1 npm run capture:docs
+          # The run's own log is not reliably readable afterwards, so the capture
+          # keeps a copy that the publish step can commit when it fails.
+          mkdir -p artifacts/capture
+          set +e
+          WAVE_URL=http://127.0.0.1:5173 WAVE_REVIEW=1 npm run capture:docs 2>&1 | tee artifacts/capture/capture.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [[ $status -ne 0 ]]; then exit $status; fi
       - name: Publish the web screenshots
         if: github.event_name == 'push' && always()
         shell: bash
@@ -70,6 +77,7 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add docs/media
+          if [[ -f artifacts/capture/capture.log ]]; then git add -f artifacts/capture/capture.log; fi
           if git diff --cached --quiet; then
             echo "Images unchanged."
             exit 0
