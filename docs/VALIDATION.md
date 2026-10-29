@@ -21,9 +21,14 @@ Release 0.1.1 · 28 October 2026. Historical run dates are retained below.
   of plays (1 h 9 min, 27 plays, 9 songs, 3 artists). Both were inspected: the sleeve pair reads
   as one card, nothing overlaps at 1440×900 or 390×844, and the empty delta is absent rather
   than shown as "+0 min".
-- Known limit: the rest of the browser suite was not re-run to completion in this workspace
-  after the rename. The listening specs do not touch this page, and `npm test` covers the
-  component, but the full Playwright suite is the CI job's job.
+- The full Playwright suite ran on CI at this revision and is **red**, as it was before this
+  change: 105 tests, and the failing ones are in `automatic-library`, `design`, `expressive`,
+  `illumination-mix`, `listening-refinement`, `mobile-library`, `player-stage` and `wave`. None
+  of the new `tests/remix.spec.ts` tests failed, and none of those specs touch the Remix page.
+  The suite asserts exact geometry and pixel-adjacent values under a headless renderer, so the
+  failures are concentrated in measurement assertions (`toBeCloseTo`, viewport fit, palette
+  values) rather than in behaviour. This record does not claim the suite passes; the CI
+  annotations name each failure, which is what a reader needs in order to judge it.
 
 ### Native screenshots (latest run)
 
