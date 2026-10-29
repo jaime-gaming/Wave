@@ -29,6 +29,9 @@ jobs:
           test -z "$(git ls-files --others --exclude-standard docs)"
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
+      - name: Report the failing browser tests
+        if: failure()
+        run: node scripts/e2e-failures.mjs
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
