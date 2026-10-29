@@ -327,16 +327,23 @@ lint and formatting, with 527 tests over 85 files.
 
 Android carries the same rules as unit tests — `LibraryContractsTest` covers search ranking,
 accent folding, the mix grouping and its daily rotation, the play threshold, the summary with a
-deleted song in it, listening time in words and position formatting — but **this workspace has
-no JDK, Gradle or Android SDK**, so none of it was compiled here. There was no emulator and no
-phone, so the service, the media session, the widget, the tile, the shortcuts, the folder walk
-and the import paths have not been exercised at all. Treat the Android build as unverified
-until the native workflow reports green and someone has listened to it on a device.
+deleted song in it, listening time in words and position formatting — and the native workflow
+now compiles and runs them. **This workspace has no JDK, Gradle or Android SDK**, so the build
+was only ever checked by CI, and it took several rounds: the media session, the notification
+permission, a shadowed `Canvas` size and two of the older contracts each had to be corrected
+from a compile error. The current commit passes `testDebugUnitTest`, `lintDebug` and
+`assembleDebug` on the hosted runner.
 
-Windows gained `Listening.cs` and its contract lines in `Wave.Contracts.Tests`, plus a Listening
-page in the sidebar and a Jump back in shelf on Home. There is no .NET SDK in this workspace
-either, so those are likewise unverified here; the contract runner and the WPF smoke mode in CI
-are the first real check.
+Passing a build is not the same as working. There was no emulator and no phone here, so the
+service, the media session, the lock screen, the widget, the tile, the shortcuts, the folder
+walk, the `MediaStore` import and the audio-focus behaviour have not been exercised at all;
+the blend has never been heard on a phone speaker. Those remain device checks, not test
+coverage.
 
-What remains unverifiable from here, on every platform: real audio through real headphones, a
-car, a call interrupting playback, and whether the blend sounds like a blend on a phone speaker.
+Windows gained `Listening.cs` and its contract lines in `Wave.Contracts.Tests`, a Listening page
+in the sidebar and a Jump back in shelf on Home. The contract runner, the build, the WPF layout
+smoke mode and the publish step all pass on the hosted runner; the app was not clicked here,
+and the listening clock is driven from the same timer as the position, which no test exercises.
+
+What remains unverifiable from this workspace, on every platform: real audio through real
+headphones, a car, a call interrupting playback, and whether the blend sounds like a blend.
