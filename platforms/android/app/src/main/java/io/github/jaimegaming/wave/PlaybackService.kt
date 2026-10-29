@@ -198,8 +198,15 @@ class PlaybackService : Service() {
         if (player.playing) {
             requestFocus()
             startForegroundNow()
-        } else {
-            if (allowedToNotify()) manager.notify(NOTIFICATION_ID, build())
+        } else if (
+            // On Android 13 and later a notification needs the listener's
+            // permission. The music plays without it, so this is a check, not a
+            // requirement.
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            manager.notify(NOTIFICATION_ID, build())
         }
     }
 
@@ -262,15 +269,6 @@ class PlaybackService : Service() {
         focus = request
         audio.requestAudioFocus(request)
     }
-
-    /**
-     * On Android 13 and later a notification needs the listener's permission. The
-     * music still plays without it, so this is a check rather than a requirement.
-     */
-    private fun allowedToNotify(): Boolean =
-        Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
-            PackageManager.PERMISSION_GRANTED
 
     private fun createChannel() {
         val channel = NotificationChannel(CHANNEL, "Playback", NotificationManager.IMPORTANCE_LOW).apply {
