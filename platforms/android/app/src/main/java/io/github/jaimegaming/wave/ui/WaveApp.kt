@@ -148,7 +148,7 @@ fun WaveApp(version: String, opening: Opening = Opening.Default) {
                         Destination.Home -> HomeScreen(state, addMusic, open)
                         Destination.Search -> SearchScreen(state, open)
                         Destination.Library -> LibraryScreen(state, addMusic, open)
-                        Destination.Listening -> ListeningScreen(state, open)
+                        Destination.Remix -> RemixScreen(state, open)
                         Destination.Settings -> SettingsScreen(state, version, addMusic)
                     }
                 }

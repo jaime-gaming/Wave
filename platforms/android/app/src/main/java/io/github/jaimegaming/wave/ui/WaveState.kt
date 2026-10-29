@@ -21,6 +21,7 @@ import io.github.jaimegaming.wave.dailyMixes
 import io.github.jaimegaming.wave.listeningSummary
 import io.github.jaimegaming.wave.playThreshold
 import io.github.jaimegaming.wave.rankSongs
+import io.github.jaimegaming.wave.weekRecap
 import io.github.jaimegaming.wave.wave
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -39,7 +40,7 @@ enum class Destination(val label: String, val glyph: String) {
     Home("Home", "⌂"),
     Search("Search", "⌕"),
     Library("Library", "♫"),
-    Listening("Listening", "≋"),
+    Remix("Remix", "≋"),
     Settings("Settings", "⚙"),
 }
 
@@ -89,6 +90,8 @@ class WaveState(
     var plays by mutableStateOf(repository.loadPlays())
         private set
     var summary by mutableStateOf(listeningSummary(plays, songs, System.currentTimeMillis()))
+        private set
+    var recap by mutableStateOf(weekRecap(plays, songs, System.currentTimeMillis()))
         private set
 
     var destination by mutableStateOf(Destination.Home)
@@ -191,6 +194,7 @@ class WaveState(
             plays = repository.loadPlays()
             songs = repository.load()
             summary = listeningSummary(plays, songs, System.currentTimeMillis())
+            recap = weekRecap(plays, songs, System.currentTimeMillis())
         }
     }
 
@@ -214,6 +218,7 @@ class WaveState(
             withContext(Dispatchers.IO) { repository.clearPlays() }
             plays = emptyList()
             summary = listeningSummary(plays, songs, System.currentTimeMillis())
+            recap = weekRecap(plays, songs, System.currentTimeMillis())
             notice = "Listening history cleared."
         }
     }
@@ -307,11 +312,29 @@ class WaveState(
             songs = repository.load()
             playlists = repository.loadPlaylists()
             summary = listeningSummary(plays, songs, System.currentTimeMillis())
+            recap = weekRecap(plays, songs, System.currentTimeMillis())
         }
         notice = "${song.title} removed from this device."
     }
 
     // --- playlists ---------------------------------------------------------
+
+    /**
+     * Saves the Remix as an ordinary playlist.
+     *
+     * Saving is explicit and changes nothing about the history: the list becomes
+     * a playlist like any other, which can then be renamed, reordered or deleted.
+     */
+    fun saveRemix() {
+        val songs = recap.songs
+        if (songs.isEmpty()) return
+        val name = "Remix · " + java.text.SimpleDateFormat("d MMM", java.util.Locale.getDefault())
+            .format(java.util.Date(recap.end))
+        val playlist = repository.createPlaylist(name)
+        repository.updatePlaylist(playlist.copy(trackIds = songs.map { it.id }))
+        playlists = repository.loadPlaylists()
+        notice = "Remix saved as a playlist."
+    }
 
     fun createPlaylist(name: String) {
         val playlist = repository.createPlaylist(name)
@@ -374,6 +397,7 @@ class WaveState(
                 songs = repository.load()
                 playlists = repository.loadPlaylists()
                 summary = listeningSummary(plays, songs, System.currentTimeMillis())
+            recap = weekRecap(plays, songs, System.currentTimeMillis())
                 notice = when (added) {
                     0 -> "Nothing new: those files are already here."
                     1 -> "One song added."

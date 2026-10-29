@@ -301,3 +301,120 @@ export function timeAgo(at: number, now = Date.now()): string {
   if (weeks < 5) return `${weeks} ${weeks === 1 ? 'week' : 'weeks'} ago`;
   return new Date(at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
+
+/**
+ * The week as one card, and the playlist it earns.
+ *
+ * A recap is only worth showing when it is about a real week, so the window is
+ * the last seven local days (today included) and the comparison is the seven
+ * days before that. "Your Remix" is the week's most played songs in the order
+ * they were played most, topped up from the all-time list when a week has fewer
+ * than eight, with no repeats: an ordinary list of songs you can play, save as a
+ * playlist and keep, not a recommendation.
+ */
+export interface WeekRecap {
+  /** First day of the window, local midnight. */
+  start: number;
+  /** Midnight today, the last day of the window. */
+  end: number;
+  seconds: number;
+  plays: number;
+  tracks: number;
+  artists: number;
+  /** The seven days before this one, for the comparison line. */
+  previousSeconds: number;
+  topTracks: TrackTotal[];
+  topArtists: ArtistTotal[];
+  mix: Track[];
+}
+
+/** How many songs "Your Remix" holds. */
+export const REMIX_LENGTH = 12;
+
+export function weeklyRecap(plays: PlayEvent[], tracks: Track[], now: number): WeekRecap {
+  const byId = new Map(tracks.map((track) => [track.id, track]));
+  const end = startOfDay(now);
+  const start = end - 6 * DAY_MS;
+  const previousStart = start - 7 * DAY_MS;
+  const inWeek = plays.filter((play) => play.at >= start);
+  const previous = plays.filter((play) => play.at >= previousStart && play.at < start);
+
+  const trackTotals = new Map<string, TrackTotal>();
+  const artistTotals = new Map<string, ArtistTotal>();
+  const heard = new Set<string>();
+  for (const play of inWeek) {
+    const track = byId.get(play.trackId);
+    if (!track) continue;
+    heard.add(track.id);
+    const current = trackTotals.get(track.id);
+    if (current) {
+      current.plays++;
+      current.seconds += play.seconds;
+      current.lastPlayed = Math.max(current.lastPlayed, play.at);
+    } else {
+      trackTotals.set(track.id, {
+        track,
+        plays: 1,
+        seconds: play.seconds,
+        lastPlayed: play.at,
+      });
+    }
+    const name = track.artist || 'Unknown artist';
+    const artist = artistTotals.get(name);
+    if (artist) {
+      artist.plays++;
+      artist.seconds += play.seconds;
+      if (!artist.artwork && track.artwork) artist.artwork = track.artwork;
+    } else {
+      artistTotals.set(name, {
+        artist: name,
+        plays: 1,
+        seconds: play.seconds,
+        artwork: track.artwork,
+      });
+    }
+  }
+
+  const ranked = [...trackTotals.values()].sort(
+    (a, b) => b.plays - a.plays || b.seconds - a.seconds || b.lastPlayed - a.lastPlayed,
+  );
+
+  // The week first, then whatever is still worth hearing from before it, until
+  // the list is long enough to be a playlist rather than a footnote.
+  const mix: Track[] = ranked.map((entry) => entry.track);
+  if (mix.length < REMIX_LENGTH) {
+    const seen = new Set(mix.map((track) => track.id));
+    const allTime = listeningSummary(plays, tracks, now).topTracks;
+    for (const entry of allTime) {
+      if (mix.length >= REMIX_LENGTH) break;
+      if (seen.has(entry.track.id)) continue;
+      seen.add(entry.track.id);
+      mix.push(entry.track);
+    }
+  }
+
+  return {
+    start,
+    end,
+    seconds: inWeek.reduce((total, play) => total + play.seconds, 0),
+    plays: inWeek.length,
+    tracks: heard.size,
+    artists: artistTotals.size,
+    previousSeconds: previous.reduce((total, play) => total + play.seconds, 0),
+    topTracks: ranked.slice(0, 8),
+    topArtists: [...artistTotals.values()]
+      .sort((a, b) => b.plays - a.plays || b.seconds - a.seconds)
+      .slice(0, 3),
+    mix: mix.slice(0, REMIX_LENGTH),
+  };
+}
+
+/** "26 Oct – 1 Nov", the window a recap covers. */
+export function weekRange(start: number, end: number): string {
+  const first = new Date(start);
+  const last = new Date(end);
+  const day = (date: Date) => date.getDate();
+  const month = (date: Date) => date.toLocaleDateString(undefined, { month: 'short' });
+  if (first.getMonth() === last.getMonth()) return `${day(first)} – ${day(last)} ${month(last)}`;
+  return `${day(first)} ${month(first)} – ${day(last)} ${month(last)}`;
+}

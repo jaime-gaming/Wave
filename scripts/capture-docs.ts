@@ -92,6 +92,35 @@ async function seedDemoLibrary(page: Page) {
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(tx.error);
       });
+      // The recap needs a week behind it, so the demo library gets a week of
+      // listening written straight into the plays store: the same rows the
+      // player writes, in the same shape, and nothing invented for the picture.
+      const tracksInLibrary = await new Promise<{ id: string }[]>((resolve) => {
+        const read = db.transaction('tracks').objectStore('tracks').getAll();
+        read.onsuccess = () => resolve(read.result as { id: string }[]);
+      });
+      const playsTx = db.transaction('plays', 'readwrite');
+      const day = 24 * 60 * 60 * 1000;
+      const now = Date.now();
+      tracksInLibrary.forEach((track, index) => {
+        // The first tracks in the library were "played" more often; every play
+        // sits inside the last week, spread over different evenings.
+        const times = 4 - Math.floor(index / 3);
+        for (let play = 0; play < times; play += 1) {
+          const at = now - ((index * 5 + play * 3) % 6) * day - play * 3600_000;
+          playsTx.objectStore('plays').put({
+            id: `${track.id}:${at}`,
+            trackId: track.id,
+            at,
+            seconds: 120 + index * 10,
+            completed: play % 2 === 0,
+          });
+        }
+      });
+      await new Promise<void>((resolve, reject) => {
+        playsTx.oncomplete = () => resolve();
+        playsTx.onerror = () => reject(playsTx.error);
+      });
       db.close();
 
       /** The three sleeve patterns, drawn once and shared by every song. */
@@ -169,6 +198,13 @@ await home.goto(origin);
 await home.waitForTimeout(1200);
 await shot(home, 'home-desktop.png');
 
+// Remix: the week and the list it earns, before anything is playing.
+await home.getByRole('button', { name: 'Remix', exact: true }).click();
+await home.waitForTimeout(900);
+await shot(home, 'remix-desktop.png');
+await home.getByRole('button', { name: 'Home', exact: true }).click();
+await home.waitForTimeout(600);
+
 await home.getByRole('button', { name: /Open Daily mix .*Electronic/ }).click();
 await home.waitForTimeout(650);
 await shot(home, 'daily-mix-desktop.png');
@@ -183,6 +219,9 @@ await mobile.setViewportSize({ width: 390, height: 844 });
 await mobile.goto(origin);
 await mobile.waitForTimeout(1200);
 await shot(mobile, 'home-mobile.png');
+await mobile.getByRole('button', { name: 'Remix', exact: true }).click();
+await mobile.waitForTimeout(900);
+await shot(mobile, 'remix-mobile.png');
 
 await context.close();
 await browser.close();

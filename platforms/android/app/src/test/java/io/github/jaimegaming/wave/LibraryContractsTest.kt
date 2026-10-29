@@ -110,4 +110,51 @@ class LibraryContractsTest {
         assertEquals("1:00:05", formatTime(3605.0))
         assertEquals("0:00", formatTime(Double.NaN))
     }
+
+    @Test
+    fun theWeekCountsSevenDaysAndComparesWithTheOneBefore() {
+        val a = song("a", artist = "One")
+        val b = song("b", artist = "Two")
+        val now = java.util.Calendar.getInstance().apply {
+            set(2026, java.util.Calendar.OCTOBER, 29, 20, 0, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }.timeInMillis
+        fun daysAgo(days: Int, hours: Int = 9) = java.util.Calendar.getInstance().apply {
+            timeInMillis = now
+            add(java.util.Calendar.DAY_OF_YEAR, -days)
+            set(java.util.Calendar.HOUR_OF_DAY, hours)
+        }.timeInMillis
+        val plays = listOf(
+            Play("a", daysAgo(1), 200, true),
+            Play("a", daysAgo(2), 200, true),
+            Play("b", daysAgo(0), 120, true),
+            Play("b", daysAgo(9), 300, true),
+        )
+        val recap = weekRecap(plays, listOf(a, b), now)
+        assertEquals(520, recap.seconds)
+        assertEquals(3, recap.plays)
+        assertEquals(2, recap.tracks)
+        assertEquals(2, recap.artists)
+        // The nine-day-old play is the comparison, not the week.
+        assertEquals(300, recap.previousSeconds)
+        assertEquals("a", recap.songs.first().id)
+        assertEquals(2, recap.topSongs.first().second)
+        assertEquals("23 – 29 Oct", weekRange(recap.start, recap.end))
+    }
+
+    @Test
+    fun aThinWeekIsToppedUpWithoutRepeatingASong() {
+        val library = (1..6).map { song("$it", title = "Song $it") }
+        val now = 1_800_000_000_000L
+        val plays = listOf(
+            Play("1", now - 60_000, 120, true),
+            Play("2", now - 20L * 24 * 60 * 60 * 1000, 120, true),
+            Play("3", now - 21L * 24 * 60 * 60 * 1000, 120, true),
+            Play("4", now - 22L * 24 * 60 * 60 * 1000, 120, true),
+        )
+        val recap = weekRecap(plays, library, now)
+        assertEquals("1", recap.songs.first().id)
+        assertEquals(recap.songs.size, recap.songs.map { it.id }.distinct().size)
+        assertTrue("the week's song still leads", recap.songs.size >= 4)
+    }
 }

@@ -7,7 +7,7 @@ import { useInteractionRipples } from './hooks/useInteractionRipples';
 import { StartupAnimation } from './components/StartupAnimation';
 import { useMusicEnergy } from './hooks/useMusicEnergy';
 import { SearchPage } from './components/SearchPage';
-import { ListeningPage } from './components/ListeningPage';
+import { RemixPage } from './components/RemixPage';
 import { useListeningHistory } from './hooks/useListeningHistory';
 import { LibraryMaintenance } from './components/LibraryMaintenance';
 import { useAutomaticLyrics } from './hooks/useAutomaticLyrics';
@@ -686,8 +686,8 @@ function WaveApp({
                     ? 'Search'
                     : page === 'settings'
                       ? 'Settings'
-                      : page === 'listening'
-                        ? 'Listening'
+                      : page === 'remix'
+                        ? 'Remix'
                         : 'Library'}
               </h1>
             </div>
@@ -989,16 +989,33 @@ function WaveApp({
                 onBrowse={browse}
                 onImport={chooseFiles}
               />
-            ) : page === 'listening' ? (
-              <ListeningPage
+            ) : page === 'remix' ? (
+              <RemixPage
                 summary={listening.summary}
+                recap={listening.recap}
                 loaded={listening.loaded}
                 currentId={player.current?.id}
                 playing={player.state.playing}
                 onPlay={player.play}
-                onFavorite={favoriteTrack}
                 onArtist={openArtist}
                 onImport={chooseFiles}
+                onSave={async (songs) => {
+                  // Saving is explicit: the list becomes an ordinary playlist and
+                  // nothing about the history changes.
+                  const saved = await collections.create(
+                    {
+                      name: `Remix · ${new Date().toLocaleDateString(undefined, {
+                        day: 'numeric',
+                        month: 'short',
+                      })}`.slice(0, 100),
+                      description: 'Saved from Remix, the songs you played most this week.',
+                    },
+                    songs.map((track) => track.id),
+                  );
+                  if (!saved) return false;
+                  openPlaylist(saved.id);
+                  return true;
+                }}
                 onClear={listening.forget}
               />
             ) : page === 'home' && dailySelection ? (
@@ -1052,7 +1069,7 @@ function WaveApp({
                 onMix={(mix, number) => setDailySelection({ mix, number })}
                 recentTracks={listening.summary.recentTracks}
                 weekSeconds={listening.summary.weekSeconds}
-                onListening={() => setPage('listening')}
+                onListening={() => setPage('remix')}
               />
             ) : view === 'artists' && !group ? (
               <Artists

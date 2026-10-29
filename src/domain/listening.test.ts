@@ -10,6 +10,9 @@ import {
   playsByDay,
   prunePlays,
   timeAgo,
+  weekRange,
+  weeklyRecap,
+  REMIX_LENGTH,
   type PlayEvent,
 } from './listening';
 import { makeTrack } from '../test/fixtures';
@@ -139,5 +142,55 @@ describe('recent times in words', () => {
     expect(timeAgo(base - 3 * 86_400_000, base)).toBe('3 days ago');
     expect(timeAgo(base - 14 * 86_400_000, base)).toBe('2 weeks ago');
     expect(timeAgo(base - 120 * 86_400_000, base)).toMatch(/\d/);
+  });
+});
+
+describe('the weekly recap', () => {
+  const plays = [
+    makePlay('signal', at(1, 9), 200, true),
+    makePlay('signal', at(2, 9), 200, true),
+    makePlay('next', at(0, 9), 120, true),
+    makePlay('next', at(9, 9), 300, true),
+  ];
+  const recap = weeklyRecap(plays, [track, next], now);
+
+  it('counts only the last seven days, and compares with the seven before', () => {
+    expect(recap.seconds).toBe(520);
+    expect(recap.plays).toBe(3);
+    expect(recap.tracks).toBe(2);
+    expect(recap.artists).toBe(2);
+    // The nine-day-old play falls in the seven days before this one, so it is
+    // the comparison, not the week.
+    expect(recap.previousSeconds).toBe(300);
+  });
+
+  it('builds Your Remix from the week, most played first, then tops it up', () => {
+    expect(recap.topTracks[0].track.id).toBe('signal');
+    expect(recap.mix[0].id).toBe('signal');
+    expect(recap.mix).toHaveLength(2);
+    expect(recap.mix.length).toBeLessThanOrEqual(REMIX_LENGTH);
+  });
+
+  it('pads a thin week from the all-time list without repeating a song', () => {
+    const library = Array.from({ length: 6 }, (_, index) =>
+      makeTrack({ id: `t${index}`, title: `Song ${index}` }),
+    );
+    const mixed = weeklyRecap(
+      [
+        makePlay('t0', at(0, 9), 120, true),
+        makePlay('t1', at(20, 9), 120, true),
+        makePlay('t2', at(21, 9), 120, true),
+        makePlay('t3', at(22, 9), 120, true),
+      ],
+      library,
+      now,
+    );
+    expect(mixed.mix[0].id).toBe('t0');
+    expect(new Set(mixed.mix.map((song) => song.id)).size).toBe(mixed.mix.length);
+    expect(mixed.mix.length).toBe(4);
+  });
+
+  it('names the window in one line', () => {
+    expect(weekRange(recap.start, recap.end)).toBe('23 – 29 Oct');
   });
 });

@@ -13,7 +13,7 @@ import {
   Users,
 } from 'lucide-react';
 import type { LibraryView } from '../domain/types';
-export type Page = 'home' | 'search' | 'library' | 'listening' | 'settings';
+export type Page = 'home' | 'search' | 'library' | 'remix' | 'settings';
 export function Navigation({
   page,
   onPage,
@@ -44,7 +44,7 @@ export function Navigation({
             { id: 'home', name: 'Home', icon: Home },
             { id: 'search', name: 'Search', icon: Search },
             { id: 'library', name: 'Library', icon: Library },
-            { id: 'listening', name: 'Listening', icon: AudioLines },
+            { id: 'remix', name: 'Remix', icon: AudioLines },
           ] as const
         ).map(({ id, name, icon: Icon }) => (
           <motion.button

@@ -342,11 +342,18 @@ The store differs per platform because the platform does:
 - Windows: `history.json` in `%LOCALAPPDATA%/Wave`, written by the same atomic replace as the
   rest of its state.
 
-Reading it back is `listeningSummary` on each platform: total seconds, seconds and plays in
-the last seven days, unique songs, the most played songs and artists, and the recent list.
-A play whose song has been deleted keeps its seconds in the total but is dropped from every
-list, so the page never links to something that is gone. The page is a snapshot recomputed
-when the history changes, never a subscription to a clock.
+Reading it back is two pure functions per platform. `listeningSummary` gives the lifetime
+numbers and the most played lists; `weeklyRecap` (`Listening.Week` on Windows) gives the last
+seven local days — seconds, plays, songs, artists, the same seconds for the seven days before,
+the top songs and artists, and `mix`, the list that becomes Your Remix.
+
+The Remix list is the week's own songs in play order, topped up from the all-time list only
+when the week is thin, deduplicated and capped at twelve; it is a playlist, not a
+recommendation. Saving it creates an ordinary playlist and changes no history. A play whose
+song has been deleted keeps its seconds in the total but is dropped from every list, so the
+page never links to something that is gone. The page is a snapshot recomputed when the history
+changes, never a subscription to a clock, which also keeps render purity: `RemixPage` never
+reads `Date.now()` itself.
 
 ## Android playback service
 
