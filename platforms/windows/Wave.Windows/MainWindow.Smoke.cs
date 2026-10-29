@@ -14,6 +14,10 @@ public partial class MainWindow
             UpdateLayout();
             var root = (FrameworkElement)Content;
             if (root.ActualWidth < 1 || root.ActualHeight < 1) throw new Exception("Native root did not lay out.");
+            // The window's own background is not part of its content, so a capture
+            // without it is a transparent PNG that most viewers show as white and
+            // that hides light text. Paint the theme colour behind the content.
+            if (root is Panel panel) panel.Background = Background;
             var bitmap = new RenderTargetBitmap((int)root.ActualWidth, (int)root.ActualHeight, 96, 96, PixelFormats.Pbgra32); bitmap.Render(root);
             var png = new PngBitmapEncoder(); png.Frames.Add(BitmapFrame.Create(bitmap)); using var stream = File.Create(Path.Combine(output, name + ".png")); png.Save(stream);
         }
