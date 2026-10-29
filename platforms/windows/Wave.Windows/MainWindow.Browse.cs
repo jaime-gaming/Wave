@@ -18,6 +18,7 @@ public partial class MainWindow
         CollectionHeader.Children.Clear();
         Summary.Text = $"{tracks.Count} songs · {tracks.Select(s => AlbumKey(s)).Distinct().Count()} albums";
         if (page == "Home") RenderHome();
+        else if (page == "Listening") RenderListening();
         else if (page == "Search") {
             searchBox = new TextBox { Text = searchQuery, Margin = new Thickness(0, 0, 0, 20), ToolTip = "Search songs, artists and albums", MinHeight = 48 };
             searchBox.TextChanged += (_, _) => { searchQuery = searchBox.Text; UpdateSongs(); };
@@ -41,6 +42,7 @@ public partial class MainWindow
         if (page == "Artists") return collection == null ? [] : tracks.Where(s => s.Artist == collection).ToList();
         if (page == "Playlists") return NativeCollections.Resolve(playlists.Find(p => p.Id == collection)?.TrackIds ?? [], tracks);
         if (page == "Daily mix") return DailyGroups().FirstOrDefault(g => g.Id == collection)?.Songs ?? [];
+        if (page == "Listening") return Summary().Recent;
         if (page == "Search") {
             var words = LyricsClient.Canonical(searchQuery).Split(' ', StringSplitOptions.RemoveEmptyEntries);
             return tracks.Where(s => words.All(word => LyricsClient.Canonical(s.Title + " " + s.Artist + " " + s.Album).Contains(word))).ToList();
@@ -73,6 +75,12 @@ public partial class MainWindow
             CollectionHeader.Children.Add(Label("Daily mixes", 22)); var mixes = new WrapPanel();
             for (int i = 0; i < daily.Count; i++) { var mix = daily[i]; mixes.Children.Add(Card($"Daily mix {i + 1}", mix.Label, mix.Songs.FirstOrDefault()?.Artwork, () => ShowPage("Daily mix", mix.Id))); }
             CollectionHeader.Children.Add(mixes);
+        }
+        var summary = Summary();
+        if (summary.Recent.Count > 0) {
+            CollectionHeader.Children.Add(Label("Jump back in", 22)); var back = new WrapPanel();
+            foreach (var song in summary.Recent.Take(6)) back.Children.Add(Card(song.Title, song.Artist, song.Artwork, () => PlayCollection(summary.Recent, song.Id)));
+            CollectionHeader.Children.Add(back);
         }
         CollectionHeader.Children.Add(Label("Recently added albums", 22));
         var shelf = new StackPanel { Orientation = Orientation.Horizontal };
@@ -127,6 +135,52 @@ public partial class MainWindow
             actions.Children.Add(ActionButton("Delete playlist", () => { if (MessageBox.Show(this, "Delete this playlist? Your songs will remain in your library.", "Wave", MessageBoxButton.YesNo) == MessageBoxResult.Yes) Safe(() => { SavePlaylists(playlists.Where(p => p.Id != playlist.Id).ToList()); ShowPage("Playlists"); }); }));
         }
         CollectionHeader.Children.Add(actions);
+    }
+    /// <summary>
+    /// What has been listened to, and nothing else: how much, what most, and when
+    /// last. The only action near the numbers is the one that clears them.
+    /// </summary>
+    private void RenderListening()
+    {
+        var summary = Summary();
+        CollectionHeader.Children.Add(Label("Listening", 30));
+        if (plays.Count == 0) {
+            CollectionHeader.Children.Add(Label("Nothing counted yet. A song counts once you have heard half of it, or thirty seconds of a long one.", 19));
+            return;
+        }
+        var numbers = new WrapPanel();
+        foreach (var (value, label) in new[] {
+            (Listening.Time(summary.TotalSeconds), "listened"),
+            (summary.WeekPlays.ToString(), "plays this week"),
+            (summary.UniqueSongs.ToString(), "songs heard") }) {
+            var block = new StackPanel { Margin = new Thickness(0, 6, 32, 14), MinWidth = 120 };
+            block.Children.Add(Label(value, 26)); block.Children.Add(Label(label, 13));
+            numbers.Children.Add(block);
+        }
+        CollectionHeader.Children.Add(numbers);
+        if (summary.TopSongs.Count > 0) {
+            CollectionHeader.Children.Add(Label("Most played", 22));
+            foreach (var (song, count) in summary.TopSongs) {
+                var row = new DockPanel { Margin = new Thickness(0, 4, 0, 4) };
+                var countLabel = Label($"{count} plays", 13); DockPanel.SetDock(countLabel, Dock.Right); row.Children.Add(countLabel);
+                row.Children.Add(new Button { Content = $"{song.Title} — {song.Artist}", Tag = song, Click = SongPlayClick, Style = (Style)FindResource("TextButton") });
+                CollectionHeader.Children.Add(row);
+            }
+        }
+        if (summary.TopArtists.Count > 0) {
+            CollectionHeader.Children.Add(Label("Most played artists", 22));
+            foreach (var (artist, count) in summary.TopArtists) {
+                var row = new DockPanel { Margin = new Thickness(0, 4, 0, 4) };
+                var countLabel = Label($"{count} plays", 13); DockPanel.SetDock(countLabel, Dock.Right); row.Children.Add(countLabel);
+                row.Children.Add(new Button { Content = artist, Style = (Style)FindResource("TextButton"), Tag = artist, Click = (_, _) => ShowPage("Artists", artist) });
+                CollectionHeader.Children.Add(row);
+            }
+        }
+        CollectionHeader.Children.Add(Label("Recently played", 22));
+        CollectionHeader.Children.Add(ActionButton("Clear history", () => {
+            if (MessageBox.Show(this, "Clear the listening history? The songs stay in your library.", "Wave", MessageBoxButton.YesNo) != MessageBoxResult.Yes) return;
+            Listening.Clear(repository.Folder); plays = []; Refresh();
+        }));
     }
     private List<NativeMix> DailyGroups() => NativeCollections.DailyMixes(tracks, DateOnly.FromDateTime(DateTime.Today));
     private void SavePlaylists(List<NativePlaylist> updated) { NativeCollections.Save(repository.Folder, "playlists.json", updated); playlists = updated; }

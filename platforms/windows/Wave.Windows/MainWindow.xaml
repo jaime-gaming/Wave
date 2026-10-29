@@ -11,6 +11,7 @@
         <Button Content="Home" Tag="Home" Click="NavigateClick"/>
         <Button Content="Search" Tag="Search" Click="NavigateClick"/>
         <Button Content="Library" Tag="Library" Click="NavigateClick"/>
+        <Button Content="Listening" Tag="Listening" Click="NavigateClick"/>
         <TextBlock Text="Your collection" Foreground="{DynamicResource MutedBrush}" Margin="18,28,0,8" FontSize="13"/>
         <Button Content="Albums" Tag="Albums" Click="NavigateClick"/>
         <Button Content="Artists" Tag="Artists" Click="NavigateClick"/>

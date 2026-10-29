@@ -28,3 +28,25 @@ Check(LyricsClient.RetryDeadline(retryNow, new System.Net.Http.Headers.RetryCond
 Check(LyricsClient.RetryDeadline(retryNow, new System.Net.Http.Headers.RetryConditionHeaderValue(new DateTimeOffset(retryNow.AddSeconds(5)))) == retryNow.AddSeconds(5), "HTTP-date lyric Retry-After is honored");
 Check(LyricsClient.RetryDeadline(retryNow, null) == retryNow.AddSeconds(60), "missing lyric Retry-After uses a conservative fallback");
 Check(LyricsClient.RetryDeadline(retryNow, new System.Net.Http.Headers.RetryConditionHeaderValue(TimeSpan.Zero)) == retryNow.AddSeconds(1), "expired/zero lyric Retry-After avoids an immediate retry loop");
+
+// Listening history: the same rules as the web and Android builds.
+Check(Listening.Threshold(240) == 30 && Listening.Threshold(40) == 20 && Listening.Threshold(3) == 5, "a play needs half the song, at most thirty seconds, at least five");
+Check(Listening.Counts(30, 240) && !Listening.Counts(29, 240) && !Listening.Counts(10, 40), "the play threshold matches the other builds");
+var heardAt = new DateTimeOffset(2026, 10, 29, 12, 0, 0, TimeSpan.Zero).ToUnixTimeMilliseconds();
+var played = new List<Play> {
+    new("a", heardAt - 2000, 40, true), new("a", heardAt - 1000, 50, true),
+    new("b", heardAt - 500, 60, true), new("gone", heardAt - 400, 90, false),
+    new("a", heardAt - 30L * 24 * 60 * 60 * 1000, 30, false),
+};
+var listened = Listening.Summarise(played, new List<Song> { a, b }, heardAt);
+Check(listened.TotalSeconds == 270 && listened.WeekPlays == 3 && listened.UniqueSongs == 2, "a deleted song keeps its seconds but leaves the lists");
+Check(listened.TopSongs[0].Song.Id == "a" && listened.TopSongs[0].Count == 2, "the most played song leads");
+Check(listened.Recent.Take(2).Select(s => s.Id).SequenceEqual(new[] { "b", "a" }), "recent listens are newest first");
+Check(Listening.Time(20) == "less than a minute" && Listening.Time(120) == "2 min" && Listening.Time(3600) == "1 h" && Listening.Time(5400) == "1 h 30 min", "listening time reads as words");
+var historyFolder = Path.Combine(Path.GetTempPath(), "wave-history-" + Guid.NewGuid());
+try {
+    var started = Listening.Add(historyFolder, new List<Play>(), played[0]);
+    Check(Listening.Add(historyFolder, started, played[1]).Count == 2 && Listening.Load(historyFolder).Count == 2, "history round trip keeps one row per listen");
+    Listening.Clear(historyFolder);
+    Check(Listening.Load(historyFolder).Count == 0, "clearing history forgets every listen");
+} finally { if (Directory.Exists(historyFolder)) Directory.Delete(historyFolder, true); }

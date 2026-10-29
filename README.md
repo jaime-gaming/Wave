@@ -45,6 +45,10 @@ Nothing else needs setting up.
 - **Link two devices.** Settings → Devices shows a QR code. Scan it with the other device and
   the two are linked, with no account and no server. You can then borrow songs by transfer, and
   nothing already saved is ever deleted.
+- **See what you have been listening to.** A Listening page shows how much you have played, the
+  songs and artists that come back most, and what you heard last. Home offers the same thing as
+  **Jump back in**. A song counts once you have heard half of it, the numbers never leave your
+  device, and clearing them is one tap.
 - **Make it comfortable.** Light and dark themes, colours taken from the artwork, larger text,
   reduced motion, and a layout built for a phone in one hand.
 

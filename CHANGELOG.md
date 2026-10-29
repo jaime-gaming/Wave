@@ -1,5 +1,42 @@
 # Changelog
 
+## Unreleased
+
+### Listening history
+
+- A play is written once a song has really been heard: half of it, or thirty seconds of
+  a long one, and never less than five. The player samples its own clock, so pausing,
+  seeking and a stall do not inflate the number, and a song skipped away leaves nothing.
+- Web keeps the history in its own IndexedDB store as a version-4 upgrade over an existing
+  library, with no row touched, pruned to the newest two thousand plays. Android and
+  Windows keep the same list in `history.json` next to the library.
+- A Listening page reads it back: how much time, the most played songs and artists, and
+  the last things heard. The only action near the numbers clears them.
+- Home gains **Jump back in** on all three platforms: the songs that were actually played,
+  newest first, rather than whatever was imported last.
+- A deleted song keeps its seconds in the total — the time was still spent — but leaves
+  every list.
+
+### Android
+
+- The phone app was rebuilt around what Android already does well. Playback is a media
+  playback foreground service with a media session, so the song appears on the lock screen,
+  in the shade, on a watch and in a car, a headset pauses it, and a call takes the audio
+  focus away and gives it back. Rotation no longer restarts playback.
+- Two players instead of one: the next song is armed in silence while the current one
+  plays, which is what makes the Mix blend possible on a phone.
+- Five destinations — Home, Search, Library, Listening, Settings — with the mini player
+  above the navigation and never hiding.
+- The library screen is one collection with shelves for songs, albums, artists, playlists
+  and favourites, and the same search across all of them. An album or a playlist opens on
+  its own page with Play and Shuffle.
+- Adding music asks where from: files from anywhere the phone can read, the music the
+  system already indexes (no copy is made), or a whole folder at any depth. Files are
+  hashed as they stream, so the same file cannot arrive twice, and the bytes are copied
+  untouched.
+- The home-screen widget shows what is playing with one button; a quick-settings tile
+  plays or pauses; long-pressing the icon offers Search, Listening and Favourites.
+
 ## 0.1.1 — 27 October 2026
 
 ### Mix
