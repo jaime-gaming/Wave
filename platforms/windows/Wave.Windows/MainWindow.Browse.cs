@@ -16,7 +16,7 @@ public partial class MainWindow
     {
         if (!initialized || page is "Now playing" or "Settings") return;
         CollectionHeader.Children.Clear();
-        Summary.Text = $"{tracks.Count} songs · {tracks.Select(s => AlbumKey(s)).Distinct().Count()} albums";
+        Summary.Text = $"{NativeCollections.Count(tracks.Count, "song")} · {NativeCollections.Count(tracks.Select(s => AlbumKey(s)).Distinct().Count(), "album")}";
         if (page == "Home") RenderHome();
         else if (page == "Remix") RenderRemix();
         else if (page == "Search") {
@@ -105,7 +105,7 @@ public partial class MainWindow
         var cards = new WrapPanel();
         foreach (var group in tracks.GroupBy(s => kind == "Albums" ? AlbumKey(s) : s.Artist)) {
             var first = group.First(); string key = group.Key;
-            cards.Children.Add(Card(kind == "Albums" ? first.Album : first.Artist, $"{group.Count()} songs", first.Artwork, () => ShowPage(kind, key)));
+            cards.Children.Add(Card(kind == "Albums" ? first.Album : first.Artist, NativeCollections.Count(group.Count(), "song"), first.Artwork, () => ShowPage(kind, key)));
         }
         CollectionHeader.Children.Add(cards);
     }
@@ -113,7 +113,7 @@ public partial class MainWindow
     {
         CollectionHeader.Children.Add(ActionButton("+ Create playlist", () => EditPlaylist(null)));
         var cards = new WrapPanel();
-        foreach (var playlist in playlists) cards.Children.Add(Card(playlist.Name, $"{playlist.TrackIds.Count} songs", NativeCollections.Resolve(playlist.TrackIds, tracks).FirstOrDefault()?.Artwork, () => ShowPage("Playlists", playlist.Id)));
+        foreach (var playlist in playlists) cards.Children.Add(Card(playlist.Name, NativeCollections.Count(playlist.TrackIds.Count, "song"), NativeCollections.Resolve(playlist.TrackIds, tracks).FirstOrDefault()?.Artwork, () => ShowPage("Playlists", playlist.Id)));
         CollectionHeader.Children.Add(cards);
     }
     private void RenderCollection()
@@ -123,7 +123,7 @@ public partial class MainWindow
         if (page == "Daily mix") title = DailyGroups().Find(g => g.Id == collection)?.Label ?? "Daily mix";
         Heading.Text = title;
         CollectionHeader.Children.Add(Label(title, 30));
-        CollectionHeader.Children.Add(Label($"{songs.Count} songs · {Clock(songs.Sum(s => s.Duration))}", 14));
+        CollectionHeader.Children.Add(Label($"{NativeCollections.Count(songs.Count, "song")} · {Clock(songs.Sum(s => s.Duration))}", 14));
         if (!string.IsNullOrWhiteSpace(playlist?.Description)) CollectionHeader.Children.Add(Label(playlist.Description));
         var actions = new WrapPanel();
         actions.Children.Add(ActionButton("▶ Play", () => { if (songs.Count > 0) PlayCollection(songs, songs[0].Id); }));
@@ -151,14 +151,14 @@ public partial class MainWindow
         }
         CollectionHeader.Children.Add(Label("This week", 12));
         CollectionHeader.Children.Add(Label(Listening.Time(recap.Seconds), 44));
-        CollectionHeader.Children.Add(Label($"{recap.Plays} {(recap.Plays == 1 ? "play" : "plays")} \u00b7 {recap.Tracks} songs \u00b7 {recap.Artists} artists", 13));
+        CollectionHeader.Children.Add(Label($"{NativeCollections.Count(recap.Plays, "play")} \u00b7 {NativeCollections.Count(recap.Tracks, "song")} \u00b7 {NativeCollections.Count(recap.Artists, "artist")}", 13));
         if (recap.PreviousSeconds > 0) {
             int delta = recap.Seconds - recap.PreviousSeconds;
             CollectionHeader.Children.Add(Label($"{(delta >= 0 ? "+" : "\u2212")}{Listening.Time(Math.Abs(delta))} vs last week", 12));
         }
         if (recap.Songs.Count > 0) {
             CollectionHeader.Children.Add(Label("Your Remix", 22));
-            CollectionHeader.Children.Add(Label($"{recap.Songs.Count} songs you played most, in order.", 13));
+            CollectionHeader.Children.Add(Label($"{NativeCollections.Count(recap.Songs.Count, "song")} you played most, in order.", 13));
             var actions = new WrapPanel();
             actions.Children.Add(ActionButton("\u25b6 Play Remix", () => PlayCollection(recap.Songs, recap.Songs[0].Id)));
             actions.Children.Add(ActionButton("Save as playlist", () => {

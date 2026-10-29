@@ -28,6 +28,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.jaimegaming.wave.DailyMix
+import io.github.jaimegaming.wave.count
 import io.github.jaimegaming.wave.Playlist
 import io.github.jaimegaming.wave.Song
 import io.github.jaimegaming.wave.listeningTime
@@ -60,7 +61,7 @@ fun HomeScreen(state: WaveState, onAddMusic: () -> Unit, onOpenSong: (Song) -> U
                 subtitle = when {
                     songs.isEmpty() -> "Nothing here yet"
                     state.summary.weekSeconds > 0 -> "You listened for ${listeningTime(state.summary.weekSeconds)} this week"
-                    else -> "${songs.size} songs on this phone"
+                    else -> count(songs.size, "song") + " on this phone"
                 },
             )
         }
@@ -193,7 +194,7 @@ private fun MixTile(mix: DailyMix, onOpen: () -> Unit) {
             )
         }
         Text(
-            text = "${mix.songs.size} songs",
+            text = count(mix.songs.size, "song"),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 8.dp),
@@ -249,7 +250,7 @@ fun SearchScreen(state: WaveState, onOpenSong: (Song) -> Unit) {
         item {
             ScreenTitle(
                 title = "Search",
-                subtitle = if (state.songs.isEmpty()) "Add music to search it" else "${state.songs.size} songs",
+                subtitle = if (state.songs.isEmpty()) "Add music to search it" else count(state.songs.size, "song"),
             )
             OutlinedTextField(
                 value = state.query,
@@ -308,7 +309,7 @@ fun SearchScreen(state: WaveState, onOpenSong: (Song) -> Unit) {
             }
             return@LazyColumn
         }
-        item { SectionTitle("${results.size} songs") }
+        item { SectionTitle(count(results.size, "song")) }
         items(results, key = { it.id }) { song ->
             SongRow(
                 song = song,
@@ -348,7 +349,8 @@ fun LibraryScreen(state: WaveState, onAddMusic: () -> Unit, onOpenSong: (Song) -
                 title = "Library",
                 subtitle = when {
                     state.songs.isEmpty() -> "Empty"
-                    state.query.isBlank() -> "${state.songs.size} songs · ${state.albums().size} albums"
+                    state.query.isBlank() ->
+                        "${count(state.songs.size, "song")} · ${count(state.albums().size, "album")}"
                     else -> "${state.visible().size} of ${state.songs.size} songs"
                 },
                 trailing = {
@@ -403,7 +405,7 @@ fun LibraryScreen(state: WaveState, onAddMusic: () -> Unit, onOpenSong: (Song) -
                 items(albums.entries.toList(), key = { "album-" + it.key }) { entry ->
                     CollectionRow(
                         title = entry.key,
-                        detail = "${entry.value.size} songs · ${entry.value.first().artist}",
+                        detail = "${count(entry.value.size, "song")} · ${entry.value.first().artist}",
                         song = entry.value.first(),
                         onOpen = { state.open = Open.Album(entry.key) },
                     )
@@ -414,7 +416,7 @@ fun LibraryScreen(state: WaveState, onAddMusic: () -> Unit, onOpenSong: (Song) -
                 items(artists.entries.toList(), key = { "artist-" + it.key }) { entry ->
                     CollectionRow(
                         title = entry.key,
-                        detail = "${entry.value.size} songs",
+                        detail = count(entry.value.size, "song"),
                         song = entry.value.first(),
                         onOpen = { state.open = Open.Artist(entry.key) },
                     )
@@ -548,7 +550,7 @@ private fun PlaylistRow(playlist: Playlist, songs: List<Song>, onOpen: () -> Uni
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = if (songs.isEmpty()) "Empty" else "${songs.size} songs",
+                text = if (songs.isEmpty()) "Empty" else count(songs.size, "song"),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -603,7 +605,7 @@ private fun CollectionScreen(state: WaveState, onOpenSong: (Song) -> Unit) {
             }
             ScreenTitle(
                 title = title,
-                subtitle = if (songs.isEmpty()) "Empty" else "${songs.size} songs",
+                subtitle = if (songs.isEmpty()) "Empty" else count(songs.size, "song"),
             )
             if (songs.isNotEmpty()) {
                 Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -698,9 +700,8 @@ fun RemixScreen(state: WaveState, onOpenSong: (Song) -> Unit) {
                     modifier = Modifier.padding(top = 4.dp),
                 )
                 Text(
-                    text = "${recap.plays} ${if (recap.plays == 1) "play" else "plays"} · " +
-                        "${recap.tracks} ${if (recap.tracks == 1) "song" else "songs"} · " +
-                        "${recap.artists} ${if (recap.artists == 1) "artist" else "artists"}",
+                    text = "${count(recap.plays, "play")} · " +
+                        "${count(recap.tracks, "song")} · ${count(recap.artists, "artist")}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp),
@@ -726,7 +727,7 @@ fun RemixScreen(state: WaveState, onOpenSong: (Song) -> Unit) {
                 SectionTitle("Your Remix")
                 Body(
                     if (songs.size == 1) "The one song you played most."
-                    else "${songs.size} songs you played most, in order.",
+                    else "${count(songs.size, "song")} you played most, in order.",
                 )
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -786,7 +787,7 @@ fun RemixScreen(state: WaveState, onOpenSong: (Song) -> Unit) {
                             modifier = Modifier.weight(1f),
                         )
                         Text(
-                            text = "$plays ${if (plays == 1) "play" else "plays"}",
+                            text = count(plays, "play"),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

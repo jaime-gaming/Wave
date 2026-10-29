@@ -7,6 +7,9 @@ public record ListeningSession(List<string> Queue, string? CurrentId, double Pos
 public record NativeMix(string Id, string Label, List<Song> Songs);
 public static class NativeCollections
 {
+    /// <summary>"1 song", "12 songs": a count and its word, singular when it should be.</summary>
+    public static string Count(int value, string singular) =>
+        $"{value} {(value == 1 ? singular : singular + "s")}";
     public static List<NativeMix> DailyMixes(IEnumerable<Song> songs, DateOnly day)
     {
         string? Tag(string? value) => !string.IsNullOrWhiteSpace(value) &&

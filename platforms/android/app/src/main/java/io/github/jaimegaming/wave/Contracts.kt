@@ -167,7 +167,17 @@ fun listeningSummary(plays: List<Play>, songs: List<Song>, now: Long): Listening
 }
 
 /** Time in words: "3 min" reads better than "0:03:00" on a listening page. */
-fun listeningTime(seconds: Int): String {
+/**
+ * "1 song", "12 songs": a count and its word, singular when it should be.
+ *
+ * A summary reading "1 albums" is the kind of small wrongness that makes an app
+ * look unfinished, and there are enough counts in the interface to be worth one
+ * helper for all of them.
+ */
+fun count(value: Int, singular: String, plural: String = singular + "s"): String =
+    "$value ${if (value == 1) singular else plural}"
+
+/** The listening page's headline number, in words. */
     if (seconds < 60) return "less than a minute"
     val minutes = seconds / 60
     if (minutes < 60) return "$minutes min"

@@ -66,7 +66,8 @@ export function DailyMixPage({
           </h2>
           <p className="daily-mix-label">{mix.label}</p>
           <p className="daily-mix-meta">
-            {songs.length} songs · {formatTime(songs.reduce((s, t) => s + t.duration, 0))}
+            {songs.length} {songs.length === 1 ? 'song' : 'songs'} ·{' '}
+            {formatTime(songs.reduce((s, t) => s + t.duration, 0))}
           </p>
         </div>
       </div>
