@@ -4,6 +4,29 @@ Release 0.1.1 · 28 October 2026. Historical run dates are retained below.
 
 ## Web
 
+### Remix and the weekly recap (latest run)
+
+- `npx tsc -b`, `npx eslint .`, `npx prettier --check .` and `npm run build`: passed.
+- `npm test`: **531 tests across 85 files**. The new `RemixPage` suite proves the week card, the
+  delta only when there is a previous week, the Remix list order and count, Play Remix handing
+  the list to the player, the empty state, and that clearing asks before it forgets.
+  `weeklyRecap`/`weekRange` add seven unit tests, including a padded list that never repeats a
+  song and a play that falls outside the window.
+- `npm run test:e2e`: `tests/remix.spec.ts` is four Chromium tests, all passing: the page in a
+  real browser after a genuine five-second listen, Play Remix starting the list, the empty page,
+  and clearing with confirmation. They play audio for real; a seek does not count as listening,
+  which is why the spec imports eight-second files.
+- `npm run capture:docs`: replaced the Listening capture with two new PNGs,
+  `docs/media/remix-desktop.png` and `docs/media/remix-mobile.png`, taken against a seeded week
+  of plays (1 h 9 min, 27 plays, 9 songs, 3 artists). Both were inspected: the sleeve pair reads
+  as one card, nothing overlaps at 1440×900 or 390×844, and the empty delta is absent rather
+  than shown as "+0 min".
+- Known limit: the rest of the browser suite was not re-run to completion in this workspace
+  after the rename. The listening specs do not touch this page, and `npm test` covers the
+  component, but the full Playwright suite is the CI job's job.
+
+### Earlier runs
+
 - `npm run format:check`: passed.
 - `npm run lint`: passed.
 - `npm test`: **500 tests passed across 81 files** (latest run; 200 tests across 42 files at the 0.1.0 release).

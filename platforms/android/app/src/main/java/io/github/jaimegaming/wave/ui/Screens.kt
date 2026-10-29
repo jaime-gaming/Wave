@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -30,6 +31,7 @@ import io.github.jaimegaming.wave.DailyMix
 import io.github.jaimegaming.wave.Playlist
 import io.github.jaimegaming.wave.Song
 import io.github.jaimegaming.wave.listeningTime
+import io.github.jaimegaming.wave.weekRange
 
 // --- Home ------------------------------------------------------------------
 
@@ -124,8 +126,8 @@ fun HomeScreen(state: WaveState, onAddMusic: () -> Unit, onOpenSong: (Song) -> U
             item {
                 SectionTitle(
                     text = "Jump back in",
-                    action = "Listening",
-                    onAction = { state.destination = Destination.Listening },
+                    action = "Remix",
+                    onAction = { state.destination = Destination.Remix },
                 )
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                     items(recent, key = { "recent-" + it.id }) { song -> CoverTile(song, onOpenSong) }
@@ -651,56 +653,121 @@ private fun CollectionScreen(state: WaveState, onOpenSong: (Song) -> Unit) {
     }
 }
 
-// --- Listening -------------------------------------------------------------
+// --- Remix ----------------------------------------------------------------
 
 /**
- * What has been listened to, and nothing else.
+ * The week you just had, and the list it earns.
  *
- * The page answers three questions — how much, what most, and when last — and
- * then gets out of the way. The only action near the numbers is the one that
- * clears them.
+ * One card, one number, one list. A recap is glanced at, so the page stays
+ * short: the week, Your Remix with Play and Save, and the artists behind it.
+ * Everything on it was counted on this phone; nothing is a recommendation.
  */
 @Composable
-fun ListeningScreen(state: WaveState, onOpenSong: (Song) -> Unit) {
-    val summary = state.summary
+fun RemixScreen(state: WaveState, onOpenSong: (Song) -> Unit) {
+    val recap = state.recap
+    val songs = recap.songs
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 20.dp),
         contentPadding = PaddingValues(bottom = 24.dp),
     ) {
-        item { ScreenTitle(title = "Listening") }
+        item { ScreenTitle(title = "Remix", subtitle = weekRange(recap.start, recap.end)) }
         if (state.plays.isEmpty()) {
             item {
                 EmptyState(
-                    title = "Nothing counted yet",
-                    body = "A song counts once you have heard half of it, or thirty seconds of a long one.",
+                    title = "No week to look back on yet",
+                    body = "Play a song and this page fills in: your week in one number, and a list of what you actually played.",
                 )
             }
             return@LazyColumn
         }
         item {
-            StatRow(
-                listeningTime(summary.totalSeconds) to "listened",
-                summary.weekPlays.toString() to "plays this week",
-                summary.uniqueSongs.toString() to "songs heard",
-            )
-            SectionTitle("Most played")
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                    .padding(20.dp),
+            ) {
+                Label("This week")
+                Text(
+                    text = listeningTime(recap.seconds),
+                    style = MaterialTheme.typography.displaySmall,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+                Text(
+                    text = "${recap.plays} ${if (recap.plays == 1) "play" else "plays"} · " +
+                        "${recap.tracks} ${if (recap.tracks == 1) "song" else "songs"} · " +
+                        "${recap.artists} ${if (recap.artists == 1) "artist" else "artists"}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+                val delta = recap.seconds - recap.previousSeconds
+                if (recap.previousSeconds > 0) {
+                    Text(
+                        text = (if (delta >= 0) "+" else "−") +
+                            listeningTime(kotlin.math.abs(delta)) + " vs last week",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .padding(top = 10.dp)
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(MaterialTheme.colorScheme.surfaceContainer)
+                            .padding(horizontal = 11.dp, vertical = 5.dp),
+                    )
+                }
+            }
         }
-        items(summary.topSongs, key = { "top-" + it.first.id }) { (song, count) ->
-            SongRow(
-                song = song,
-                playing = state.player.current?.id == song.id,
-                onPlay = { onOpenSong(song) },
-                onFavorite = { state.toggleFavorite(song) },
-                onMore = { state.options = song },
-                trailing = "$count plays",
-            )
-        }
-        if (summary.topArtists.isNotEmpty()) {
+        if (songs.isNotEmpty()) {
             item {
-                SectionTitle("Most played artists")
-                summary.topArtists.forEach { (artist, count) ->
+                SectionTitle("Your Remix")
+                Body(
+                    if (songs.size == 1) "The one song you played most."
+                    else "${songs.size} songs you played most, in order.",
+                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.padding(top = 12.dp),
+                ) {
+                    Text(
+                        text = "▶ Play Remix",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(MaterialTheme.colorScheme.primary)
+                            .clickable {
+                                state.playAll(songs)
+                                state.nowPlayingOpen = true
+                            }
+                            .padding(horizontal = 18.dp, vertical = 12.dp),
+                    )
+                    Text(
+                        text = "Save as playlist",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                            .clickable { state.saveRemix() }
+                            .padding(horizontal = 18.dp, vertical = 12.dp),
+                    )
+                }
+            }
+            itemsIndexed(songs, key = { _, song -> "remix-" + song.id }) { position, song ->
+                val plays = recap.topSongs.firstOrNull { it.first.id == song.id }?.second
+                RemixRow(song, position + 1, plays, state.player.current?.id == song.id) {
+                    state.play(song)
+                }
+            }
+        }
+        if (recap.topArtists.isNotEmpty()) {
+            item {
+                SectionTitle("Artists this week")
+                recap.topArtists.forEach { (artist, plays) ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -719,7 +786,7 @@ fun ListeningScreen(state: WaveState, onOpenSong: (Song) -> Unit) {
                             modifier = Modifier.weight(1f),
                         )
                         Text(
-                            text = "$count plays",
+                            text = "$plays ${if (plays == 1) "play" else "plays"}",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -728,29 +795,69 @@ fun ListeningScreen(state: WaveState, onOpenSong: (Song) -> Unit) {
             }
         }
         item {
-            SectionTitle("Recently played")
-        }
-        items(summary.recent.take(12), key = { "seen-" + it.id }) { song ->
-            SongRow(
-                song = song,
-                playing = state.player.current?.id == song.id,
-                onPlay = { onOpenSong(song) },
-                onFavorite = { state.toggleFavorite(song) },
-                onMore = { state.options = song },
+            Spacer(Modifier.height(12.dp))
+            Divider()
+            Body(
+                "${listeningTime(state.summary.totalSeconds)} listened all time. " +
+                    "Counted on this phone and never uploaded; a song counts once you have heard half of it.",
+                Modifier.padding(top = 12.dp),
             )
-        }
-        item {
-            SectionTitle("History")
-            Body("Wave counts what you hear on this phone. The numbers never leave it.")
             Text(
                 text = "Clear history",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
-                    .padding(top = 12.dp)
+                    .padding(top = 8.dp)
                     .clip(RoundedCornerShape(10.dp))
                     .clickable { state.clearHistory() }
                     .padding(horizontal = 10.dp, vertical = 8.dp),
+            )
+        }
+    }
+}
+
+/** One song of the Remix: its place, its count, and a way in. */
+@Composable
+private fun RemixRow(song: Song, position: Int, plays: Int?, playing: Boolean, onPlay: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(onClick = onPlay)
+            .padding(vertical = 6.dp, horizontal = 4.dp),
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "$position",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.width(20.dp),
+            textAlign = androidx.compose.ui.text.style.TextAlign.End,
+        )
+        Spacer(Modifier.width(12.dp))
+        Cover(song, size = 46.dp, radius = 11.dp)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = song.title,
+                style = MaterialTheme.typography.titleMedium,
+                color = if (playing) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = song.artist,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        if (plays != null) {
+            Text(
+                text = "${plays}×",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

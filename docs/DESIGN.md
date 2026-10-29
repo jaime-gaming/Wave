@@ -309,21 +309,26 @@ The independent Windows UI follows the same hierarchy with native controls: rail
 
 Provider coordination relies on the same origin and available browser capabilities. Without Web Locks, scheduling is tab-local. If storage is denied, the client retains its own spacing/cooldown in memory, but cannot promise a shared deadline across tabs. No cross-origin or other-application coordination is claimed. Existing cached lookup keys are preserved to avoid a full-library re-fetch after this change.
 
-## The listening page
+## The Remix page
 
-Listening is a page, not a panel bolted onto the player. It answers three questions in the
-order people ask them — how much, what most, and when last — and then stops. On the web it
-opens with a fortnight of bars and settles into lists; on a phone it is three numbers and the
-same lists; on Windows it is the same three numbers in the sidebar page.
+Remix is a page, not a panel bolted onto the player. It answers one question — what was this
+week — and stops there. The card at the top holds the time, the plays, the songs and the
+artists, plus one line comparing it with the week before. Under it, Your Remix: the songs
+played most, in the order they were played, with Play Remix and Save as playlist. Then the
+artists behind the week, and nothing else.
+
+The old page showed a fortnight of bars, a recent list and artist tiles. All three are gone.
+A recap that takes a paragraph to explain is a dashboard, and a week of listening is something
+people look at once and leave; fewer numbers, read faster, is the better page.
 
 The counts read as words, not as clocks: "3 min", "1 h 30 min", "less than a minute". A
 listening total is a quantity, and a quantity formatted as `0:03:00` reads like a track length
 that has been left running. Only one action sits near the numbers — clear history — because
-everything else on that page would be a button looking for a reason.
+everything else would be a button looking for a reason.
 
-The only colour on the page is the row that is playing, in the same thin leading bar the rest
-of the interface uses. Nothing here is a badge, a ring or a graph for its own sake; the numbers
-are the interface.
+The only colour on the page belongs to the week: the sleeve of the top song, with the runner-up
+turning slowly behind it, both drawn in the song's own accent. Nothing here is a badge, a ring
+or a graph for its own sake.
 
 ## Android: a phone app, not a port
 

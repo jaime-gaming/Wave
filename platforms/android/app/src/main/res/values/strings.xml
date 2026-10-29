@@ -3,8 +3,8 @@
   <string name="app_name">Wave</string>
   <string name="shortcut_search">Search</string>
   <string name="shortcut_search_long">Search your library</string>
-  <string name="shortcut_listening">Listening</string>
-  <string name="shortcut_listening_long">What you have been playing</string>
+  <string name="shortcut_remix">Remix</string>
+  <string name="shortcut_remix_long">Your week in music</string>
   <string name="shortcut_favorites">Favorites</string>
   <string name="shortcut_favorites_long">Your favorite songs</string>
   <string name="widget_description">What is playing, with a play button</string>

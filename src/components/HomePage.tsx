@@ -53,7 +53,7 @@ export const HomePage = memo(function HomePage({
   onMore: (track: Track) => void;
   /** Songs this device played most recently, newest first. */
   recentTracks?: Track[];
-  /** Seconds listened in the last seven days, for the Listening card. */
+  /** Seconds listened in the last seven days, for the Remix card. */
   weekSeconds?: number;
   onListening?: () => void;
 }) {
@@ -109,7 +109,7 @@ export const HomePage = memo(function HomePage({
             <h2>Jump back in</h2>
             {onListening && (
               <button className="text-button" onClick={onListening}>
-                {weekSeconds ? `${listeningTime(weekSeconds)} this week` : 'Listening'}
+                {weekSeconds ? `${listeningTime(weekSeconds)} this week` : 'Remix'}
                 <ArrowUpRight size={18} />
               </button>
             )}

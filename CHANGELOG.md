@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-### Listening history
+### Remix, and the history behind it
 
 - A play is written once a song has really been heard: half of it, or thirty seconds of
   a long one, and never less than five. The player samples its own clock, so pausing,
@@ -10,8 +10,12 @@
 - Web keeps the history in its own IndexedDB store as a version-4 upgrade over an existing
   library, with no row touched, pruned to the newest two thousand plays. Android and
   Windows keep the same list in `history.json` next to the library.
-- A Listening page reads it back: how much time, the most played songs and artists, and
-  the last things heard. The only action near the numbers clears them.
+- **Remix** replaces the old Listening page. It shows one week: the time, the plays, the
+  songs and the artists, how that compares with the week before, and **Your Remix** — the
+  songs you played most, in order. Play Remix starts the list; Save as playlist keeps it as an
+  ordinary playlist. The per-day chart, the recent list and the artist tiles are gone on
+  purpose: a week is glanced at, not studied. Clearing the history is the only action near the
+  numbers.
 - Home gains **Jump back in** on all three platforms: the songs that were actually played,
   newest first, rather than whatever was imported last.
 - A deleted song keeps its seconds in the total — the time was still spent — but leaves
@@ -25,7 +29,7 @@
   focus away and gives it back. Rotation no longer restarts playback.
 - Two players instead of one: the next song is armed in silence while the current one
   plays, which is what makes the Mix blend possible on a phone.
-- Five destinations — Home, Search, Library, Listening, Settings — with the mini player
+- Five destinations — Home, Search, Library, Remix, Settings — with the mini player
   above the navigation and never hiding.
 - The library screen is one collection with shelves for songs, albums, artists, playlists
   and favourites, and the same search across all of them. An album or a playlist opens on
@@ -35,7 +39,7 @@
   hashed as they stream, so the same file cannot arrive twice, and the bytes are copied
   untouched.
 - The home-screen widget shows what is playing with one button; a quick-settings tile
-  plays or pauses; long-pressing the icon offers Search, Listening and Favourites.
+  plays or pauses; long-pressing the icon offers Search, Remix and Favourites.
 
 ## 0.1.1 — 27 October 2026
 

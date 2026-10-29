@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { countsAsPlay, listeningSummary, makePlay, type PlayEvent } from '../domain/listening';
+import {
+  countsAsPlay,
+  listeningSummary,
+  makePlay,
+  weeklyRecap,
+  type PlayEvent,
+} from '../domain/listening';
 import type { Track } from '../domain/types';
 import { clearPlays, getPlays, savePlay } from '../data/listening';
 
@@ -139,5 +145,11 @@ export function useListeningHistory({
     () => listeningSummary(plays, tracks, Math.max(today, 0)),
     [plays, tracks, today],
   );
-  return { plays, summary, loaded, forget };
+  // The week and its Remix list are built here, where both the plays and the
+  // library are at hand, and dated like the summary.
+  const recap = useMemo(
+    () => weeklyRecap(plays, tracks, Math.max(today, 0)),
+    [plays, tracks, today],
+  );
+  return { plays, summary, recap, loaded, forget };
 }

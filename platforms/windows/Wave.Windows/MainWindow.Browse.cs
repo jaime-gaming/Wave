@@ -18,7 +18,7 @@ public partial class MainWindow
         CollectionHeader.Children.Clear();
         Summary.Text = $"{tracks.Count} songs · {tracks.Select(s => AlbumKey(s)).Distinct().Count()} albums";
         if (page == "Home") RenderHome();
-        else if (page == "Listening") RenderListening();
+        else if (page == "Remix") RenderRemix();
         else if (page == "Search") {
             searchBox = new TextBox { Text = searchQuery, Margin = new Thickness(0, 0, 0, 20), ToolTip = "Search songs, artists and albums", MinHeight = 48 };
             searchBox.TextChanged += (_, _) => { searchQuery = searchBox.Text; UpdateSongs(); };
@@ -42,7 +42,7 @@ public partial class MainWindow
         if (page == "Artists") return collection == null ? [] : tracks.Where(s => s.Artist == collection).ToList();
         if (page == "Playlists") return NativeCollections.Resolve(playlists.Find(p => p.Id == collection)?.TrackIds ?? [], tracks);
         if (page == "Daily mix") return DailyGroups().FirstOrDefault(g => g.Id == collection)?.Songs ?? [];
-        if (page == "Listening") return ListeningNow().Recent;
+        if (page == "Remix") return ListeningNow().Recent;
         if (page == "Search") {
             var words = LyricsClient.Canonical(searchQuery).Split(' ', StringSplitOptions.RemoveEmptyEntries);
             return tracks.Where(s => words.All(word => LyricsClient.Canonical(s.Title + " " + s.Artist + " " + s.Album).Contains(word))).ToList();
@@ -140,34 +140,51 @@ public partial class MainWindow
     /// What has been listened to, and nothing else: how much, what most, and when
     /// last. The only action near the numbers is the one that clears them.
     /// </summary>
-    private void RenderListening()
+    /// <summary>
+    /// The week as one card, then the list it earns: Play Remix, or save it as an
+    /// ordinary playlist. The detail of the old page — a fortnight of bars, a
+    /// recent list — is deliberately gone; a recap is glanced at.
+    /// </summary>
+    private void RenderRemix()
     {
-        var summary = ListeningNow();
-        CollectionHeader.Children.Add(Label("Listening", 30));
+        var recap = Listening.Week(plays, tracks, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+        CollectionHeader.Children.Add(Label(Listening.WeekRange(recap.Start, recap.End), 13));
         if (plays.Count == 0) {
-            CollectionHeader.Children.Add(Label("Nothing counted yet. A song counts once you have heard half of it, or thirty seconds of a long one.", 19));
+            CollectionHeader.Children.Add(Label("No week to look back on yet. Play a song and this page fills in: your week in one number, and a list of what you actually played.", 19));
             return;
         }
-        var numbers = new WrapPanel();
-        foreach (var (value, label) in new[] {
-            (Listening.Time(summary.TotalSeconds), "listened"),
-            (summary.WeekPlays.ToString(), "plays this week"),
-            (summary.UniqueSongs.ToString(), "songs heard") }) {
-            var block = new StackPanel { Margin = new Thickness(0, 6, 32, 14), MinWidth = 120 };
-            block.Children.Add(Label(value, 26));
-            block.Children.Add(Label(label, 13));
-            numbers.Children.Add(block);
+        var week = new StackPanel { Margin = new Thickness(0, 8, 0, 14) };
+        week.Children.Add(Label("This week", 12));
+        week.Children.Add(Label(Listening.Time(recap.Seconds), 44));
+        week.Children.Add(Label($"{recap.Plays} {(recap.Plays == 1 ? "play" : "plays")} \u00b7 {recap.Tracks} songs \u00b7 {recap.Artists} artists", 13));
+        if (recap.PreviousSeconds > 0) {
+            int delta = recap.Seconds - recap.PreviousSeconds;
+            week.Children.Add(Label($"{(delta >= 0 ? "+" : "\u2212")}{Listening.Time(Math.Abs(delta))} vs last week", 12));
         }
-        CollectionHeader.Children.Add(numbers);
-        if (summary.TopSongs.Count > 0) {
-            CollectionHeader.Children.Add(Label("Most played", 22));
-            foreach (var (song, count) in summary.TopSongs) CollectionHeader.Children.Add(CountRow($"{song.Title} \u2014 {song.Artist}", count, () => PlayCollection(new[] { song }, song.Id)));
+        CollectionHeader.Children.Add(week);
+        if (recap.Songs.Count > 0) {
+            CollectionHeader.Children.Add(Label("Your Remix", 22));
+            CollectionHeader.Children.Add(Label($"{recap.Songs.Count} songs you played most, in order.", 13));
+            var actions = new WrapPanel();
+            actions.Children.Add(ActionButton("\u25b6 Play Remix", () => PlayCollection(recap.Songs, recap.Songs[0].Id)));
+            actions.Children.Add(ActionButton("Save as playlist", () => {
+                var saved = new NativePlaylist(Guid.NewGuid().ToString(),
+                    $"Remix \u00b7 {DateTimeOffset.FromUnixTimeMilliseconds(recap.End).LocalDateTime:d MMM}",
+                    "Saved from Remix, the songs you played most this week.", recap.Songs.Select(s => s.Id).ToList());
+                SavePlaylists(playlists.Append(saved).ToList());
+                ShowPage("Playlists", saved.Id);
+            }));
+            CollectionHeader.Children.Add(actions);
+            foreach (var song in recap.Songs) {
+                var count = recap.TopSongs.FirstOrDefault(entry => entry.Song.Id == song.Id).Count;
+                CollectionHeader.Children.Add(CountRow(song.Title + " \u2014 " + song.Artist, count, () => PlayCollection(recap.Songs, song.Id)));
+            }
         }
-        if (summary.TopArtists.Count > 0) {
-            CollectionHeader.Children.Add(Label("Most played artists", 22));
-            foreach (var (artist, count) in summary.TopArtists) CollectionHeader.Children.Add(CountRow(artist, count, () => ShowPage("Artists", artist)));
+        if (recap.TopArtists.Count > 0) {
+            CollectionHeader.Children.Add(Label("Artists this week", 22));
+            foreach (var (artist, count) in recap.TopArtists)
+                CollectionHeader.Children.Add(CountRow(artist, count, () => ShowPage("Artists", artist)));
         }
-        CollectionHeader.Children.Add(Label("Recently played", 22));
         CollectionHeader.Children.Add(ActionButton("Clear history", () => {
             if (MessageBox.Show(this, "Clear the listening history? The songs stay in your library.", "Wave", MessageBoxButton.YesNo) != MessageBoxResult.Yes) return;
             Listening.Clear(repository.Folder);

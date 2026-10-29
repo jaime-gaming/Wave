@@ -55,7 +55,7 @@ class MainActivity : ComponentActivity() {
     /** Where a shortcut, the widget or the notification asked the app to open. */
     private fun opening(): Opening = when (intent?.getStringExtra(EXTRA_DESTINATION)) {
         "search" -> Opening.Where(Destination.Search)
-        "listening" -> Opening.Where(Destination.Listening)
+        "remix", "listening" -> Opening.Where(Destination.Remix)
         "favorites" -> Opening.Favorites
         else -> if (intent?.getBooleanExtra(EXTRA_OPEN_PLAYER, false) == true) Opening.Player else Opening.Default
     }

@@ -186,3 +186,99 @@ fun formatTime(seconds: Double): String {
     val tail = "$minutes:${rest.toString().padStart(2, '0')}"
     return if (hours > 0) "$hours:${minutes.toString().padStart(2, '0')}:${rest.toString().padStart(2, '0')}" else tail
 }
+
+/**
+ * The week as one card, and the list it earns.
+ *
+ * The window is the last seven local days, today included, and the comparison is
+ * the seven before it. A recap is only about a real week: nothing here is a taste
+ * profile or a guess at what to play next, it is what this device saw being heard.
+ * "Remix" is the week's songs, most played first, topped up from the all-time
+ * list when a week is thin, with no repeats.
+ */
+data class WeekRecap(
+    val start: Long,
+    val end: Long,
+    val seconds: Int,
+    val plays: Int,
+    val tracks: Int,
+    val artists: Int,
+    val previousSeconds: Int,
+    val topSongs: List<Pair<Song, Int>>,
+    val topArtists: List<Pair<String, Int>>,
+    val songs: List<Song>,
+)
+
+/** How long a Remix list is. */
+const val REMIX_LENGTH = 12
+
+private fun startOfDay(at: Long): Long {
+    val calendar = java.util.Calendar.getInstance()
+    calendar.timeInMillis = at
+    calendar.set(java.util.Calendar.HOUR_OF_DAY, 0)
+    calendar.set(java.util.Calendar.MINUTE, 0)
+    calendar.set(java.util.Calendar.SECOND, 0)
+    calendar.set(java.util.Calendar.MILLISECOND, 0)
+    return calendar.timeInMillis
+}
+
+fun weekRecap(plays: List<Play>, songs: List<Song>, now: Long): WeekRecap {
+    val byId = songs.associateBy { it.id }
+    val end = startOfDay(now)
+    val start = end - 6 * 24 * 60 * 60 * 1000L
+    val previousStart = start - 7 * 24 * 60 * 60 * 1000L
+    val week = plays.filter { it.at in start..Long.MAX_VALUE }
+    val previous = plays.filter { it.at in previousStart until start }
+
+    val counts = mutableMapOf<String, Int>()
+    val artists = mutableMapOf<String, Int>()
+    for (play in week) {
+        val song = byId[play.songId] ?: continue
+        counts[song.id] = (counts[song.id] ?: 0) + 1
+        val name = song.artist.ifBlank { "Unknown artist" }
+        artists[name] = (artists[name] ?: 0) + 1
+    }
+    val top = counts.entries
+        .mapNotNull { entry -> byId[entry.key]?.let { it to entry.value } }
+        .sortedWith(compareByDescending<Pair<Song, Int>> { it.second }.thenBy { canonical(it.first.title) })
+    val mix = top.map { it.first }.toMutableList()
+    if (mix.size < REMIX_LENGTH) {
+        val seen = mix.map { it.id }.toMutableSet()
+        val allTime = listeningSummary(plays, songs, now).topSongs
+        for ((song, _) in allTime) {
+            if (mix.size >= REMIX_LENGTH) break
+            if (song.id in seen) continue
+            seen.add(song.id)
+            mix.add(song)
+        }
+    }
+    return WeekRecap(
+        start = start,
+        end = end,
+        seconds = week.sumOf { play -> byId[play.songId]?.let { play.seconds } ?: 0 },
+        plays = week.size,
+        tracks = counts.size,
+        artists = artists.size,
+        previousSeconds = previous.sumOf { it.seconds },
+        topSongs = top.take(8),
+        topArtists = artists.entries
+            .sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key.lowercase() })
+            .take(3)
+            .map { it.key to it.value },
+        songs = mix.take(REMIX_LENGTH),
+    )
+}
+
+/** "23 – 29 Oct", or "28 Oct – 3 Nov" when the week crosses a month. */
+fun weekRange(start: Long, end: Long): String {
+    val locale = java.util.Locale.US
+    val first = java.util.Calendar.getInstance().apply { timeInMillis = start }
+    val last = java.util.Calendar.getInstance().apply { timeInMillis = end }
+    val month = java.text.SimpleDateFormat("MMM", locale)
+    return if (first.get(java.util.Calendar.MONTH) == last.get(java.util.Calendar.MONTH)) {
+        "${first.get(java.util.Calendar.DAY_OF_MONTH)} – ${last.get(java.util.Calendar.DAY_OF_MONTH)} ${month.format(last.time)}"
+    } else {
+        "${first.get(java.util.Calendar.DAY_OF_MONTH)} ${month.format(first.time)} – " +
+            "${last.get(java.util.Calendar.DAY_OF_MONTH)} ${month.format(last.time)}"
+    }
+}

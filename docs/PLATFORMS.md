@@ -38,7 +38,7 @@ dotnet run --project platforms/windows/Wave.Windows
 dotnet publish platforms/windows/Wave.Windows -c Release -r win-x64 --self-contained false -o artifacts/windows
 ```
 
-The native app uses WPF, Windows MediaPlayer and standard file pickers. Originals live in `%LOCALAPPDATA%/Wave/audio`; library, playlists, preferences, the last session and the listening history (`history.json`) use atomically replaced JSON files. The sidebar carries a Listening page that reads the history back as time listened, most played songs and artists, and recent plays, with one action to clear it. Covers are separate local overrides. Existing library/preferences remain readable; the old disabled overlap preference migrates without silently enabling Mix.
+The native app uses WPF, Windows MediaPlayer and standard file pickers. Originals live in `%LOCALAPPDATA%/Wave/audio`; library, playlists, preferences, the last session and the listening history (`history.json`) use atomically replaced JSON files. The sidebar carries a **Remix** page: this week's time, plays, songs and artists next to the week before, and Your Remix, the songs played most, which can be played or saved as an ordinary playlist. Clearing the history is the only action on it. Covers are separate local overrides. Existing library/preferences remain readable; the old disabled overlap preference migrates without silently enabling Mix.
 
 Home has collection shortcuts, daily mixes, a **Jump back in** shelf built from what was actually played, and album cards. Search is its own destination; title/cover play, artist/album open their collections, and compact-player information opens Now Playing. Playlists can be created, renamed, populated, ordered and deleted without deleting audio. Queue edits preserve the active recording. Restored sessions remain paused. Settings separates Appearance, Playback, Lyrics, Library, Storage and About.
 
@@ -68,7 +68,7 @@ Two `MediaPlayer`s, never one: the spare is armed with the next song in silence 
 
 The library is `Library.kt` over three atomically written files: `library.json`, `playlists.json` and `history.json`. Import takes three explicit routes — the document picker, `MediaStore` for music the system already indexes (no copy is made), and a document tree walked at any depth. Files read through the picker are hashed as they stream, so the same file cannot arrive twice, and copied byte for byte into app-private storage; uninstall removes that copy, so retain originals. The tags are read once, when the file arrives, which is where the genre that a mix groups by comes from.
 
-System presence: a home-screen widget with the current song and one button, a quick-settings tile, app shortcuts for Search, Listening and Favourites, and a predictive-back callback that closes the open thing before it leaves.
+System presence: a home-screen widget with the current song and one button, a quick-settings tile, app shortcuts for Search, Remix and Favourites, and a predictive-back callback that closes the open thing before it leaves.
 
 ## Publication gates
 

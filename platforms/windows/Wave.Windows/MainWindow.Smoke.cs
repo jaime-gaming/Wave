@@ -25,6 +25,11 @@ public partial class MainWindow
         ShowPage("Daily mix", DailyGroups()[0].Id); Check(visible.Count == 3, "Native daily mix is not browsable."); await Capture("daily-mix");
         var snapshot = new NativePlaylist("smoke", "Morning collection", "Saved local selection", visible.Select(s => s.Id).ToList());
         SavePlaylists(new() { snapshot }); ShowPage("Playlists", snapshot.Id); Check(visible.Count == 3, "Playlist snapshot lost songs."); await Capture("playlist");
+        // Remix with no history yet: the page has to invite a first song rather
+        // than show an empty card, and it has to lay out.
+        ShowPage("Remix");
+        Check(CollectionHeader.Children.OfType<TextBlock>().Any(text => text.Text.StartsWith("No week to look back on yet")), "Remix should invite a first song.");
+        await Capture("remix");
         ShowPage("Settings"); Check(SettingsBody.Children.OfType<Button>().Count() == 7, "Expected Back and six Settings sections."); await Capture("settings");
         preferences = preferences with { Theme = "light" }; ApplyTheme(); Width = 820; Height = 640; ShowPage("Library"); await Capture("library-light-narrow");
     }

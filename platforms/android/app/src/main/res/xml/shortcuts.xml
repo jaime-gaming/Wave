@@ -15,16 +15,16 @@
     </intent>
   </shortcut>
   <shortcut
-    android:shortcutId="listening"
+    android:shortcutId="remix"
     android:enabled="true"
     android:icon="@drawable/wave_mark"
-    android:shortcutShortLabel="@string/shortcut_listening"
-    android:shortcutLongLabel="@string/shortcut_listening_long">
+    android:shortcutShortLabel="@string/shortcut_remix"
+    android:shortcutLongLabel="@string/shortcut_remix_long">
     <intent
       android:action="android.intent.action.VIEW"
       android:targetPackage="io.github.jaimegaming.wave"
       android:targetClass="io.github.jaimegaming.wave.MainActivity">
-      <extra android:name="wave.destination" android:value="listening"/>
+      <extra android:name="wave.destination" android:value="remix"/>
     </intent>
   </shortcut>
   <shortcut
