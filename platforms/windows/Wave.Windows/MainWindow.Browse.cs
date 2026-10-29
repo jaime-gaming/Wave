@@ -42,7 +42,7 @@ public partial class MainWindow
         if (page == "Artists") return collection == null ? [] : tracks.Where(s => s.Artist == collection).ToList();
         if (page == "Playlists") return NativeCollections.Resolve(playlists.Find(p => p.Id == collection)?.TrackIds ?? [], tracks);
         if (page == "Daily mix") return DailyGroups().FirstOrDefault(g => g.Id == collection)?.Songs ?? [];
-        if (page == "Listening") return Summary().Recent;
+        if (page == "Listening") return ListeningNow().Recent;
         if (page == "Search") {
             var words = LyricsClient.Canonical(searchQuery).Split(' ', StringSplitOptions.RemoveEmptyEntries);
             return tracks.Where(s => words.All(word => LyricsClient.Canonical(s.Title + " " + s.Artist + " " + s.Album).Contains(word))).ToList();
@@ -76,7 +76,7 @@ public partial class MainWindow
             for (int i = 0; i < daily.Count; i++) { var mix = daily[i]; mixes.Children.Add(Card($"Daily mix {i + 1}", mix.Label, mix.Songs.FirstOrDefault()?.Artwork, () => ShowPage("Daily mix", mix.Id))); }
             CollectionHeader.Children.Add(mixes);
         }
-        var summary = Summary();
+        var summary = ListeningNow();
         if (summary.Recent.Count > 0) {
             CollectionHeader.Children.Add(Label("Jump back in", 22)); var back = new WrapPanel();
             foreach (var song in summary.Recent.Take(6)) back.Children.Add(Card(song.Title, song.Artist, song.Artwork, () => PlayCollection(summary.Recent, song.Id)));
@@ -142,7 +142,7 @@ public partial class MainWindow
     /// </summary>
     private void RenderListening()
     {
-        var summary = Summary();
+        var summary = ListeningNow();
         CollectionHeader.Children.Add(Label("Listening", 30));
         if (plays.Count == 0) {
             CollectionHeader.Children.Add(Label("Nothing counted yet. A song counts once you have heard half of it, or thirty seconds of a long one.", 19));

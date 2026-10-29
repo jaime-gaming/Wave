@@ -193,7 +193,7 @@ fun AddToPlaylistSheet(state: WaveState) {
         LazyColumn(Modifier.heightIn(max = 300.dp)) {
             itemsIndexed(state.playlists, key = { _, item -> item.id }) { _, playlist ->
                 SheetAction(playlist.name, "${playlist.trackIds.size} songs") {
-                    state.addToPlaylist(playlist, song)
+                    state.putInPlaylist(playlist, song)
                     state.addToPlaylist = null
                 }
             }

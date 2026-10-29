@@ -215,7 +215,7 @@ public partial class MainWindow : Window
             if (page == "Listening" || page == "Home") Refresh();
         });
     }
-    private ListeningSummary Summary() => Listening.Summarise(plays, tracks, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+    private ListeningSummary ListeningNow() => Listening.Summarise(plays, tracks, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
     /// <summary>
     /// One idea of a lyric line: the sung one is hard to miss, the rest stay quiet.
     /// No blur, no shadow — the text does the work.

@@ -808,7 +808,7 @@ fun SettingsScreen(state: WaveState, version: String, onAddMusic: () -> Unit) {
                 title = "Look up lyrics online",
                 detail = "Off by default. When on, Wave asks a lyric service for the song that is playing.",
                 checked = state.onlineLyrics,
-                onChange = { state.setOnlineLyrics(it) },
+                onChange = { state.setLyricsOnline(it) },
             )
             Divider()
         }
