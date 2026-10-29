@@ -1,6 +1,5 @@
 package io.github.jaimegaming.wave
 
-import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -10,7 +9,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
@@ -195,19 +193,11 @@ class PlaybackService : Service() {
                 )
                 .build(),
         )
-        if (player.playing) {
-            requestFocus()
-            startForegroundNow()
-        } else if (
-            // On Android 13 and later a notification needs the listener's
-            // permission. The music plays without it, so this is a check, not a
-            // requirement.
-            Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
-            PackageManager.PERMISSION_GRANTED
-        ) {
-            manager.notify(NOTIFICATION_ID, build())
-        }
+        if (player.playing) requestFocus()
+        // One way in and out: the same call that starts the service in the
+        // foreground updates its notification, so a paused song keeps the
+        // controls it needs instead of a second, differently-posted copy.
+        startForegroundNow()
     }
 
     private fun build(): Notification {
