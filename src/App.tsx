@@ -7,6 +7,8 @@ import { useInteractionRipples } from './hooks/useInteractionRipples';
 import { StartupAnimation } from './components/StartupAnimation';
 import { useMusicEnergy } from './hooks/useMusicEnergy';
 import { SearchPage } from './components/SearchPage';
+import { ListeningPage } from './components/ListeningPage';
+import { useListeningHistory } from './hooks/useListeningHistory';
 import { LibraryMaintenance } from './components/LibraryMaintenance';
 import { useAutomaticLyrics } from './hooks/useAutomaticLyrics';
 import { StorageSettings } from './components/StorageSettings';
@@ -213,6 +215,18 @@ function WaveApp({
     const timer = setTimeout(() => setAndroidSheet(true), 4_000);
     return () => clearTimeout(timer);
   }, []);
+  /**
+   * What was actually listened to, written as each play passes its threshold.
+   * The page and the Home row both read from one summary, so a song cannot be
+   * in one and missing from the other.
+   */
+  const listening = useListeningHistory({
+    track: player.current,
+    playing: player.state.playing && !player.buffering,
+    duration: player.duration,
+    readTime: player.readTime,
+    tracks: library.tracks,
+  });
   const [playerOpen, setPlayerOpen] = useState(false);
   const playerOpener = useRef<HTMLElement | null>(null);
   const settingsPrevious = useRef<Page>('home');
@@ -672,7 +686,9 @@ function WaveApp({
                     ? 'Search'
                     : page === 'settings'
                       ? 'Settings'
-                      : 'Library'}
+                      : page === 'listening'
+                        ? 'Listening'
+                        : 'Library'}
               </h1>
             </div>
           </div>
@@ -973,6 +989,18 @@ function WaveApp({
                 onBrowse={browse}
                 onImport={chooseFiles}
               />
+            ) : page === 'listening' ? (
+              <ListeningPage
+                summary={listening.summary}
+                loaded={listening.loaded}
+                currentId={player.current?.id}
+                playing={player.state.playing}
+                onPlay={player.play}
+                onFavorite={favoriteTrack}
+                onArtist={openArtist}
+                onImport={chooseFiles}
+                onClear={listening.forget}
+              />
             ) : page === 'home' && dailySelection ? (
               <Suspense fallback={<div className="empty-state" aria-busy="true" />}>
                 <DailyMixPage
@@ -1022,6 +1050,9 @@ function WaveApp({
                 onMore={setTrackOptions}
                 artistPhotos={artistPhotos}
                 onMix={(mix, number) => setDailySelection({ mix, number })}
+                recentTracks={listening.summary.recentTracks}
+                weekSeconds={listening.summary.weekSeconds}
+                onListening={() => setPage('listening')}
               />
             ) : view === 'artists' && !group ? (
               <Artists

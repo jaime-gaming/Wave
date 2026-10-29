@@ -32,7 +32,9 @@ describe('persistent playlists and edits', () => {
     await old.put('tracks', makeTrack({ favorite: true }));
     old.close();
     const db = await openLibrary();
-    expect(db.version).toBe(3);
+    // Version 4 adds listening history; the rows below predate it.
+    expect(db.version).toBe(4);
+    expect(db.objectStoreNames.contains('plays')).toBe(true);
     expect(db.objectStoreNames.contains('playlists')).toBe(true);
     db.close();
     expect(await getTracks()).toMatchObject([{ id: 'signal', favorite: true }]);

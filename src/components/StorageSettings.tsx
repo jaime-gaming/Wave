@@ -2,10 +2,12 @@ import { useEffect, useState, useMemo } from 'react';
 import { HardDrive, ShieldCheck, RefreshCw } from 'lucide-react';
 import type { Track } from '../domain/types';
 import { formatBytes, libraryFootprint, requestPersistentStorage } from '../data/storage';
+import { countPlays } from '../data/listening';
 export function StorageSettings({ tracks }: { tracks: Track[] }) {
   const footprint = useMemo(() => libraryFootprint(tracks), [tracks]);
   const [usage, setUsage] = useState<number | undefined>(),
     [quota, setQuota] = useState<number | undefined>(),
+    [plays, setPlays] = useState<number | undefined>(),
     [persisted, setPersisted] = useState(false),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState('');
@@ -21,6 +23,10 @@ export function StorageSettings({ tracks }: { tracks: Track[] }) {
   };
   useEffect(() => {
     const timer = setTimeout(() => void refresh(), 0);
+    // The history is a few small rows, but it is still part of what Wave keeps.
+    void countPlays()
+      .then(setPlays)
+      .catch(() => undefined);
     return () => clearTimeout(timer);
   }, []);
   return (
@@ -42,6 +48,14 @@ export function StorageSettings({ tracks }: { tracks: Track[] }) {
           <dt>Saved lyrics</dt>
           <dd>{formatBytes(footprint.lyrics)}</dd>
         </div>
+        {plays !== undefined && (
+          <div>
+            <dt>Listening history</dt>
+            <dd>
+              {plays} {plays === 1 ? 'play' : 'plays'}
+            </dd>
+          </div>
+        )}
         {usage !== undefined && (
           <div>
             <dt>Origin usage estimate</dt>
