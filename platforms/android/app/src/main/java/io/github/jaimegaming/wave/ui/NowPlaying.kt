@@ -53,7 +53,9 @@ fun NowPlayingScreen(
     val listState = rememberLazyListState()
     val lines = remember(song.lyrics) { parseLrc(song.lyrics) }
     val active = lines.indexOfLast { it.time <= player.time }
-    val coverSize = (LocalConfiguration.current.screenWidthDp * 0.44f).coerceIn(110f, 172f).dp
+    val configuration = LocalConfiguration.current
+    val coverSize = minOf(configuration.screenWidthDp * 0.44f, configuration.screenHeightDp * 0.21f)
+        .coerceIn(72f, 172f).dp
 
     LaunchedEffect(active, song.id) {
         if (active >= 0) listState.animateScrollToItem(active)

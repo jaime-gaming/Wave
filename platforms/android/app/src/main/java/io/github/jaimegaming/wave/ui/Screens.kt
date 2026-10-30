@@ -1,5 +1,6 @@
 package io.github.jaimegaming.wave.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -31,6 +32,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -952,81 +954,106 @@ private fun RemixRow(song: Song, position: Int, plays: Int?, playing: Boolean, o
 // --- Settings --------------------------------------------------------------
 
 @Composable
-fun SettingsScreen(state: WaveState, version: String, onAddMusic: () -> Unit) {
-    val albums = state.albums().size
+fun SettingsScreen(state: WaveState, version: String, onAddMusic: () -> Unit, onBack: () -> Unit) {
+    var selected by rememberSaveable { mutableStateOf<String?>(null) }
+    val appearance = LocalAppearanceChoice.current
+    BackHandler(enabled = selected != null) { selected = null }
     LazyColumn(
         modifier = Modifier.wavePage(),
         contentPadding = PaddingValues(start = 14.dp, end = 14.dp, bottom = 24.dp),
     ) {
-        item { ScreenTitle(title = "Settings") }
         item {
-            SectionTitle("Playback")
-            SettingSwitch(
-                title = "Mix",
-                detail = "One song blends into the next instead of stopping between them.",
-                checked = state.mixEnabled,
-                onChange = { state.setMix(it) },
+            ScreenTitle("Settings", "Playback, appearance, lyrics and storage")
+            Row(
+                modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable {
+                    if (selected == null) onBack() else selected = null
+                }.padding(vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                WaveIcon("back", 18.dp, MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(8.dp))
+                Text(if (selected == null) "Back" else "All settings", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+            }
+        }
+        if (selected == null) {
+            val sections = listOf(
+                "Appearance" to "palette",
+                "Playback" to "sliders",
+                "Lyrics" to "lyrics",
+                "Library" to "library",
+                "Storage" to "storage",
+                "About" to "info",
             )
-            Divider()
-            SectionTitle("Sleep timer")
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(0, 15, 30, 60).forEach { minutes ->
-                    val selected = state.sleepMinutes == minutes
-                    val label = if (minutes == 0) "Off" else "$minutes min"
-                    Text(
-                        text = label,
-                        style = MaterialTheme.typography.labelLarge,
-                        color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(
-                                if (selected) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.surfaceContainerHigh,
-                            )
-                            .clickable { state.setSleepTimer(minutes) }
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                    )
+            items(sections, key = { it.first }) { (title, icon) ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp).clip(RoundedCornerShape(18.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainer)
+                        .clickable { selected = title }.padding(horizontal = 14.dp, vertical = 15.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    WaveIcon(icon, 22.dp, MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.width(14.dp))
+                    Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, modifier = Modifier.weight(1f))
+                    WaveIcon("chevron", 20.dp, MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            if (state.sleepMinutes > 0) {
-                Body("Stopping in ${state.sleepMinutes} min.", Modifier.padding(top = 8.dp))
+        } else {
+            item {
+                SectionTitle(selected.orEmpty())
+                when (selected) {
+                    "Appearance" -> {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                            listOf("dark", "light", "system").forEach { mode ->
+                                val active = appearance?.mode == mode
+                                Text(
+                                    mode.replaceFirstChar { it.uppercase() },
+                                    color = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    modifier = Modifier.weight(1f).clip(RoundedCornerShape(14.dp))
+                                        .background(if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainer)
+                                        .clickable { appearance?.select?.invoke(mode) }.padding(vertical = 12.dp),
+                                )
+                            }
+                        }
+                    }
+                    "Playback" -> {
+                        SettingSwitch("Mix", "One song blends into the next instead of stopping between them.", state.mixEnabled) { state.setMix(it) }
+                        Divider()
+                        SectionTitle("Sleep timer")
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf(0, 15, 30, 60).forEach { minutes ->
+                                val active = state.sleepMinutes == minutes
+                                Text(
+                                    if (minutes == 0) "Off" else "$minutes min",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.clip(RoundedCornerShape(10.dp))
+                                        .background(if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh)
+                                        .clickable { state.setSleepTimer(minutes) }.padding(horizontal = 12.dp, vertical = 8.dp),
+                                )
+                            }
+                        }
+                    }
+                    "Lyrics" -> SettingSwitch(
+                        "Look up lyrics online",
+                        "Off by default. Wave asks a lyric service for the song that is playing.",
+                        state.onlineLyrics,
+                    ) { state.setLyricsOnline(it) }
+                    "Library" -> {
+                        StatRow(state.songs.size.toString() to "songs", state.albums().size.toString() to "albums", state.favorites().size.toString() to "favorites")
+                        Text("Add music", color = MaterialTheme.colorScheme.primary, modifier = Modifier.clickable(onClick = onAddMusic).padding(vertical = 14.dp))
+                    }
+                    "Storage" -> {
+                        Body("Your music and listening history stay on this device.")
+                        Text("Manage listening history", color = MaterialTheme.colorScheme.primary, modifier = Modifier.clickable { state.destination = Destination.Remix }.padding(vertical = 14.dp))
+                    }
+                    "About" -> {
+                        Body("Wave $version")
+                        Body("Your files stay on this phone. Mix changes only how playback is joined.")
+                    }
+                }
             }
-            Divider()
-        }
-        item {
-            SectionTitle("Lyrics")
-            SettingSwitch(
-                title = "Look up lyrics online",
-                detail = "Off by default. When on, Wave asks a lyric service for the song that is playing.",
-                checked = state.onlineLyrics,
-                onChange = { state.setLyricsOnline(it) },
-            )
-            Divider()
-        }
-        item {
-            SectionTitle("Library")
-            StatRow(
-                state.songs.size.toString() to "songs",
-                albums.toString() to "albums",
-                state.favorites().size.toString() to "favorites",
-            )
-            Text(
-                text = "Add music",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier
-                    .padding(top = 14.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .clickable(onClick = onAddMusic)
-                    .padding(horizontal = 10.dp, vertical = 8.dp),
-            )
-            Divider()
-        }
-        item {
-            SectionTitle("About")
-            Body("Wave $version")
-            Body("Your files stay on this phone. Nothing is uploaded, and Mix changes only how playback is joined.")
-            Spacer(Modifier.height(18.dp))
         }
     }
 }

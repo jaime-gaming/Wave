@@ -11,19 +11,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import io.github.jaimegaming.wave.Song
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -33,9 +29,8 @@ import kotlinx.coroutines.withContext
  *
  * The sleeve is inside the file, so it is read from the file and never copied,
  * re-encoded or uploaded. Decoding happens off the main thread and a small cache
- * keeps a scroll from decoding the same sleeve twice. A file without artwork —
- * which is most of a downloaded library — gets a tile drawn from its own palette
- * instead of a grey box.
+ * keeps a scroll from decoding the same sleeve twice. A file without artwork
+ * gets the same music-note placeholder as the mobile website.
  */
 private val artworkCache = object : LruCache<String, Bitmap>(24) {
     override fun sizeOf(key: String, value: Bitmap) = value.byteCount / 1024
@@ -85,7 +80,7 @@ fun Cover(song: Song, size: Dp, radius: Dp = 12.dp) {
         modifier = Modifier
             .size(size)
             .clip(RoundedCornerShape(radius))
-            .background(tileBrush(song.id)),
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh),
         contentAlignment = Alignment.Center,
     ) {
         if (bitmap != null) {
@@ -96,23 +91,7 @@ fun Cover(song: Song, size: Dp, radius: Dp = 12.dp) {
                 modifier = Modifier.fillMaxSize(),
             )
         } else {
-            Text(
-                text = song.title.take(1).uppercase(),
-                color = MaterialTheme.colorScheme.onSurface,
-                fontSize = (size.value / 3).sp,
-                fontWeight = FontWeight.SemiBold,
-            )
+            WaveIcon("song", size = size * 0.38f, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
-}
-
-/** Two linked tones from the song's own accent; stable, so rows never flicker. */
-fun tileBrush(id: String): Brush {
-    val accent = accentFor(id)
-    return Brush.linearGradient(
-        colors = listOf(
-            accent.copy(alpha = 0.55f),
-            accent.copy(alpha = 0.18f),
-        ),
-    )
 }

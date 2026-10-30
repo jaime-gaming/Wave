@@ -107,8 +107,16 @@ class Library(private val context: Context) {
     @Synchronized
     fun delete(songId: String) {
         val song = load().find { it.id == songId } ?: return
-        save(load().filterNot { it.id == songId })
-        if (!song.path.startsWith("content://")) File(song.path).delete()
+        val remaining = load().filterNot { it.id == songId }
+        save(remaining)
+        // Only copies inside Wave's own audio directory are ours to remove.
+        // A legacy absolute path, URI, or symlink must never delete an original.
+        val owned = runCatching { File(song.path).canonicalFile }.getOrNull()
+        val audioDirectory = runCatching { audio.canonicalFile }.getOrNull()
+        val stillReferenced = owned != null && remaining.any { entry ->
+            runCatching { File(entry.path).canonicalFile == owned }.getOrDefault(false)
+        }
+        if (owned != null && audioDirectory != null && owned.parentFile == audioDirectory && !stillReferenced) owned.delete()
         loadPlaylists().forEach { playlist ->
             if (songId in playlist.trackIds) updatePlaylist(playlist.copy(trackIds = playlist.trackIds - songId))
         }

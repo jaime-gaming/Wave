@@ -6,6 +6,11 @@ import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
@@ -144,12 +149,18 @@ fun WaveApp(version: String, opening: Opening = Opening.Default) {
                     Notice(state.notice) { state.clearMessage() }
                     val playSong: (Song) -> Unit = { song -> state.play(song) }
                     CompositionLocalProvider(LocalChromeActions provides ChromeActions(addMusic, openSettings)) {
-                        when (state.destination) {
-                            Destination.Home -> HomeScreen(state, addMusic, playSong)
-                            Destination.Search -> SearchScreen(state, playSong)
-                            Destination.Library -> LibraryScreen(state, addMusic, playSong)
-                            Destination.Remix -> RemixScreen(state)
-                            Destination.Settings -> SettingsScreen(state, version, addMusic)
+                        AnimatedContent(
+                            targetState = state.destination,
+                            transitionSpec = { fadeIn(tween(180)) togetherWith fadeOut(tween(140)) },
+                            label = "page",
+                        ) { destination ->
+                            when (destination) {
+                                Destination.Home -> HomeScreen(state, addMusic, playSong)
+                                Destination.Search -> SearchScreen(state, playSong)
+                                Destination.Library -> LibraryScreen(state, addMusic, playSong)
+                                Destination.Remix -> RemixScreen(state)
+                                Destination.Settings -> SettingsScreen(state, version, addMusic) { state.destination = settingsReturn }
+                            }
                         }
                     }
                 }

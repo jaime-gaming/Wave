@@ -136,6 +136,18 @@ fun AddMusicSheet(
 @Composable
 fun SongOptionsSheet(state: WaveState, onQueue: () -> Unit) {
     val song = state.options ?: return
+    var confirmRemoval by remember(song.id) { mutableStateOf(false) }
+    if (confirmRemoval) {
+        AlertDialog(
+            onDismissRequest = { confirmRemoval = false },
+            title = { Text("Remove ${song.title}?") },
+            text = { Text("This removes the song from Wave and its playlists. The original file outside Wave is not deleted.") },
+            confirmButton = {
+                TextButton(onClick = { confirmRemoval = false; state.delete(song); state.options = null }) { Text("Remove") }
+            },
+            dismissButton = { TextButton(onClick = { confirmRemoval = false }) { Text("Keep it") } },
+        )
+    }
     Sheet(song.title, { state.options = null }) {
         Text(
             text = listOf(song.artist, song.album).filter { it.isNotBlank() }.joinToString(" · "),
@@ -170,9 +182,8 @@ fun SongOptionsSheet(state: WaveState, onQueue: () -> Unit) {
                 state.options = null
             }
         }
-        SheetAction("Remove from this phone", "Deletes Wave's copy of the file.", dim = true) {
-            state.delete(song)
-            state.options = null
+        SheetAction("Remove from this phone", "Removes the song from Wave after confirmation.", dim = true) {
+            confirmRemoval = true
         }
     }
 }
