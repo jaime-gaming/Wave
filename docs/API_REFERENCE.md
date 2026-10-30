@@ -402,7 +402,7 @@ Separate native Android (Kotlin/Compose) and Windows (C#/WPF) source implementat
 
 ### Listening activity
 
-`useIdleListening(playing)` returns the current immersive state and a wake action. Entry requires 30 seconds of inactivity, a visible page and no non-player dialog; `PlayerBar` also requires a non-buffering selected track. Pointer, touch, keyboard, wheel or visibility changes clear immersion. The hook never starts, pauses, seeks or changes audio.
+`useIdleListening` was removed in 0.1.1. It used to open a full-screen listening scene after thirty seconds without activity; the player now opens only when it is asked to, so nothing in the app observes idle time and no root attribute is written.
 
 ### Visual identity
 

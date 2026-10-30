@@ -226,9 +226,9 @@ Separate native Android (Kotlin/Compose) and Windows (C#/WPF) source implementat
 
 The decoder reports duration with its source track ID, so late metadata cannot overwrite another song. Significant corrections update metadata and invalidate only stale online-lyric caches, never local lyrics or the stored audio bytes. Exact lookup uses cleaned/inferred title and artist; recording editions, duration and the resulting timeline constrain synchronization.
 
-`PlayerBar` owns the open lyric disclosure and `useIdleListening` owns the 30-second activity timer. The bounded listening grid is separate from the read-only cinematic stage. Activity clears immersion without changing the player reducer or engine source. No second audio element/clock is introduced by cinema.
+`PlayerBar` owns the open lyric disclosure and nothing owns an idle timer: the thirty-second scene that used to take the screen over was removed in 0.1.1, and Now Playing opens only from an explicit action. The bounded listening grid is still separate from the cinematic lyric stage, which is a reading mode inside the open player. No second audio element/clock is introduced by it.
 
-Lyric rows use size-container typography and whole-line clamping instead of clipping half-glyphs. The missing-lyrics state removes redundant controls/hints on short screens so import/retry remain reachable. Focused text editors outside dialogs also block immersive entry.
+Lyric rows use size-container typography and whole-line clamping instead of clipping half-glyphs. The missing-lyrics state removes redundant controls/hints on short screens so import/retry remain reachable. Focused text editors outside dialogs do not stop the lyrics from following, because nothing opens on its own any more.
 
 ## Global tones and playlist identity
 
@@ -256,7 +256,7 @@ The lyric hook now uses request generations and abort checks so a canceled reque
 
 `useMusicEnergy` samples live RMS every 40 ms, compresses dynamic range for quiet passages and smooths attack/release. Capture initialization has bounded retries; unavailable/suspended analysis can use the existing envelope fallback (24 MiB / 20-minute advertised-duration bound). Capture tracks, source/analyser connections and context are disposed on pause, source replacement, unmount or motion opt-out. Blur/visibility suspends visual analysis. Root variables drive a tonal modal light layer above its background paint and below interactive content; silence/mute/pause make it transparent. This is source-amplitude visualization, not device-output measurement or BPM detection.
 
-Lyric text stays primary. Synchronized precision is available through accessible descriptions/tooltips, plain text is labeled **Text lyrics**, and LRCLIB attribution remains linked. Editing/follow/paging use compact controls. Native details reveal timing adjustments deliberately and block idle immersion while open.
+Lyric text stays primary. Synchronized precision is available through accessible descriptions/tooltips, plain text is labeled **Text lyrics**, and LRCLIB attribution remains linked. Editing/follow/paging use compact controls. Native details reveal timing adjustments deliberately.
 
 ## Spectral listening, album verification and asynchronous ownership
 
@@ -282,7 +282,7 @@ The queue reducer validates permutations, preserves selected ID and play intent,
 
 App-level context delegation resolves `data-track-id` on song rows, Queue and player surfaces. `ContextMenu` uses a native modal dialog for top-layer placement and focus containment, viewport-clamped pointer/keyboard placement, enabled-item keyboard navigation and focus return. Selected text, edit fields, links, Shift-right-click and other editing dialogs retain native behavior. Library deletion is available only through the existing options/confirmation flow.
 
-`useAppPalette` consumes actual blend progress, caches the displayed outgoing origin until artwork is decoded and interpolates the shortest hue arc plus saturation without per-frame snapshots or storage writes. It persists the final palette and cancels stale reveals. Reduced motion applies the target directly. Root `data-immersive` hides workspace, navigation, compact player and toast while the normal-stage subtree is explicitly hidden; audio ownership and clock are unaffected.
+`useAppPalette` consumes actual blend progress, caches the displayed outgoing origin until artwork is decoded and interpolates the shortest hue arc plus saturation without per-frame snapshots or storage writes. It persists the final palette and cancels stale reveals. Reduced motion applies the target directly.
 
 ## Import verification, continuous listening and rendering budget
 
