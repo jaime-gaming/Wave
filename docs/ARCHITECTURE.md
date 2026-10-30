@@ -355,6 +355,13 @@ page never links to something that is gone. The page is a snapshot recomputed wh
 changes, never a subscription to a clock, which also keeps render purity: `RemixPage` never
 reads `Date.now()` itself.
 
+The page itself is one column read top to bottom: the week's range and a quiet way to clear it,
+the figure with the sleeve of the song that earned it, the seven day bars and the line naming
+the busiest of them, then the genre, the hour and the leading artist as one sentence of type,
+the numbered list, the artist chips and the all-time footnote. The hour and the genre used to
+be their own chart and card; they are a sentence now, because a recap is glanced at. Android
+and Windows draw the same order with their own widgets.
+
 ## Android playback service
 
 `PlaybackService` is a foreground service of type `mediaPlayback` holding a

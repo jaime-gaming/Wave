@@ -17,12 +17,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.OutlinedTextField
@@ -47,6 +47,7 @@ import io.github.jaimegaming.wave.DaySlice
 import io.github.jaimegaming.wave.count
 import io.github.jaimegaming.wave.Playlist
 import io.github.jaimegaming.wave.Song
+import io.github.jaimegaming.wave.WeekRecap
 import io.github.jaimegaming.wave.listeningTime
 import io.github.jaimegaming.wave.weekRange
 
@@ -105,26 +106,21 @@ fun HomeScreen(state: WaveState, onAddMusic: () -> Unit, onOpenSong: (Song) -> U
                     Text("Add music", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
                 }
             }
-            shortcuts.forEachIndexed { index, (shelf, icon, amount) ->
+            // The five places the collection can be seen, as tiles rather than a
+            // list: three across, then two, the way the phone site wraps them.
+            shortcuts.chunked(3).forEach { row ->
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 6.dp)
-                        .height(46.dp)
-                        .clip(RoundedCornerShape(17.dp))
-                        .background(if (index == 0) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer)
-                        .clickable {
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    row.forEach { (shelf, icon, amount) ->
+                        ShortcutTile(shelf, icon, amount, Modifier.weight(1f)) {
                             state.shelf = shelf
                             state.destination = Destination.Library
                             state.open = null
                         }
-                        .padding(horizontal = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    WaveIcon(icon, 18.dp, MaterialTheme.colorScheme.primary)
-                    Spacer(Modifier.width(14.dp))
-                    Text(shelf.label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
-                    Text(amount.toString(), fontSize = 19.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                    }
+                    repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
                 }
             }
         }
@@ -185,6 +181,41 @@ fun HomeScreen(state: WaveState, onAddMusic: () -> Unit, onOpenSong: (Song) -> U
                 onMore = { state.options = song },
             )
         }
+    }
+}
+
+/**
+ * One collection shortcut. Icon on the left, the count on the right, the name
+ * under both — the same three pieces as `.home-shortcut` on the web, in a card
+ * the size of a thumb.
+ */
+@Composable
+private fun ShortcutTile(shelf: Shelf, icon: String, amount: Int, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(22.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 14.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            WaveIcon(icon, 19.dp, MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.weight(1f))
+            Text(
+                text = amount.toString(),
+                fontSize = 22.sp,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+        Text(
+            text = shelf.label,
+            fontSize = 13.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = 12.dp),
+        )
     }
 }
 
@@ -637,22 +668,12 @@ private fun CollectionScreen(state: WaveState, onOpenSong: (Song) -> Unit) {
 // --- Remix ----------------------------------------------------------------
 
 /** A seven-day recap and a playable selection, matching the mobile website. */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun RemixScreen(state: WaveState) {
     val recap = state.recap
     val songs = recap.songs
-    var confirmClear by remember { mutableStateOf(false) }
-    if (confirmClear) {
-        AlertDialog(
-            onDismissRequest = { confirmClear = false },
-            title = { Text("Clear listening history?") },
-            text = { Text("Your songs and playlists will stay. Listening history will be removed from this device.") },
-            confirmButton = {
-                TextButton(onClick = { confirmClear = false; state.clearHistory() }) { Text("Clear history") }
-            },
-            dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Keep it") } },
-        )
-    }
+    var confirming by remember { mutableStateOf(false) }
     LazyColumn(
         modifier = Modifier.wavePage(),
         contentPadding = PaddingValues(start = 14.dp, end = 14.dp, bottom = 24.dp),
@@ -669,43 +690,118 @@ fun RemixScreen(state: WaveState) {
         }
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(weekRange(recap.start, recap.end), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
                 Text(
-                    "Clear history",
-                    style = MaterialTheme.typography.labelLarge,
+                    weekRange(recap.start, recap.end),
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { confirmClear = true }.padding(8.dp),
+                    modifier = Modifier.weight(1f),
                 )
+                // Clearing is asked twice, in the page rather than in a dialog:
+                // the second thought belongs where the first one was.
+                if (confirming) {
+                    Text(
+                        "Yes, clear",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.clip(RoundedCornerShape(10.dp))
+                            .clickable { confirming = false; state.clearHistory() }
+                            .padding(horizontal = 8.dp, vertical = 8.dp),
+                    )
+                    Text(
+                        "Keep it",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.clip(RoundedCornerShape(10.dp))
+                            .clickable { confirming = false }
+                            .padding(horizontal = 8.dp, vertical = 8.dp),
+                    )
+                } else {
+                    Text(
+                        "Clear history",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.clip(RoundedCornerShape(10.dp))
+                            .clickable { confirming = true }
+                            .padding(8.dp),
+                    )
+                }
             }
-            Text(
-                text = listeningTime(recap.seconds),
-                fontSize = 52.sp,
-                lineHeight = 58.sp,
-                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                letterSpacing = (-2).sp,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(top = 14.dp),
-            )
-            Text(
-                text = "${count(recap.plays, "play")} · ${count(recap.tracks, "song")} · ${count(recap.artists, "artist")}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 4.dp),
-            )
-            val delta = recap.seconds - recap.previousSeconds
-            if (recap.previousSeconds > 0) {
-                Body((if (delta >= 0) "+" else "−") + listeningTime(kotlin.math.abs(delta)) + " vs last week", Modifier.padding(top = 4.dp))
+            // The week in one figure, with the sleeve of the song that earned it.
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                verticalAlignment = Alignment.Bottom,
+            ) {
+                Column(Modifier.weight(1f).padding(bottom = 4.dp)) {
+                    Text(
+                        text = listeningTime(recap.seconds),
+                        fontSize = 52.sp,
+                        lineHeight = 56.sp,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                        letterSpacing = (-2).sp,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Text(
+                        text = "${count(recap.plays, "play")} · ${count(recap.tracks, "song")} · ${count(recap.artists, "artist")}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                    val delta = recap.seconds - recap.previousSeconds
+                    if (recap.previousSeconds > 0) {
+                        Text(
+                            text = (if (delta >= 0) "+" else "−") + listeningTime(kotlin.math.abs(delta)) + " vs last week",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (delta >= 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 6.dp),
+                        )
+                    }
+                }
+                recap.topSongs.firstOrNull()?.let { (hero, _) ->
+                    Column(
+                        horizontalAlignment = Alignment.End,
+                        modifier = Modifier.padding(start = 16.dp),
+                    ) {
+                        Cover(hero, size = 112.dp, radius = 20.dp)
+                        Text(
+                            "Most played",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 6.dp),
+                        )
+                    }
+                }
             }
         }
         item { WeekBars(recap.days) }
+        item {
+            // Three things worth knowing, as one line of type rather than three
+            // cards: the genre, the hour, the artist that carried the week.
+            val peakHour = recap.hours.indices.maxByOrNull { recap.hours[it] }
+            NotesLine(recap, peakHour) { artist ->
+                state.destination = Destination.Library
+                state.shelf = Shelf.Artists
+                state.open = Open.Artist(artist)
+            }
+        }
         if (songs.isNotEmpty()) {
             item {
-                Divider()
-                SectionTitle("Your Remix")
-                Body("${count(songs.size, "song")} from your week and, when needed, earlier favorites.")
+                Column(Modifier.fillMaxWidth().padding(bottom = 2.dp)) {
+                    Text(
+                        "Your Remix",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontSize = 20.sp,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                    )
+                    Text(
+                        "${count(songs.size, "song")} from your week and, when needed, earlier favorites.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                }
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 8.dp),
                 ) {
                     Row(
                         modifier = Modifier
@@ -744,34 +840,90 @@ fun RemixScreen(state: WaveState) {
         }
         if (recap.topArtists.isNotEmpty()) {
             item {
-                Divider()
-                SectionTitle("Artists this week")
-                recap.topArtists.forEach { (artist, plays) ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable {
-                            state.destination = Destination.Library
-                            state.shelf = Shelf.Artists
-                            state.open = Open.Artist(artist)
-                        }.padding(vertical = 10.dp, horizontal = 4.dp),
-                    ) {
-                        Text(artist, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                        Text(count(plays, "play"), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                // Quiet chips rather than a leaderboard.
+                androidx.compose.foundation.layout.FlowRow(
+                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    recap.topArtists.forEach { (artist, plays) ->
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(MaterialTheme.colorScheme.surfaceContainer)
+                                .clickable {
+                                    state.destination = Destination.Library
+                                    state.shelf = Shelf.Artists
+                                    state.open = Open.Artist(artist)
+                                }
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                artist,
+                                style = MaterialTheme.typography.labelLarge,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.widthIn(max = 170.dp),
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                count(plays, "play"),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                 }
             }
         }
         item {
-            Divider()
-            SectionTitle("More about this week")
-            Body(recap.genres.firstOrNull()?.let { "Most played genre: ${it.genre} · ${listeningTime(it.seconds)}" } ?: "Most played genre: untagged")
+            Text(
+                text = "${listeningTime(state.summary.totalSeconds)} listened all time · " +
+                    "${count(state.plays.size, "play")} · counted on this device, never uploaded.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 12.dp, bottom = 4.dp),
+            )
         }
-        if (recap.hours.any { it > 0 }) item { HourStrip(recap.hours) }
-        item {
-            Divider()
-            Body(
-                "${listeningTime(state.summary.totalSeconds)} listened all time · ${count(state.plays.size, "play")}. " +
-                    "Counted on this device, never uploaded.",
-                Modifier.padding(top = 12.dp),
+    }
+}
+/**
+ * The genre, the hour and the artist that carried the week, as one wrapping line
+ * of type. The artist is the only part that goes anywhere, so it is the only
+ * part that is coloured like a link.
+ */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun NotesLine(recap: WeekRecap, peakHour: Int?, onArtist: (String) -> Unit) {
+    androidx.compose.foundation.layout.FlowRow(
+        modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        recap.genres.firstOrNull()?.let { genre ->
+            Text(
+                "Mostly ${genre.genre.lowercase()}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (peakHour != null && recap.hours.any { it > 0 }) {
+            Text(
+                "Usually around " + peakHour.toString().padStart(2, '0') + ":00",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        recap.topArtists.firstOrNull()?.let { (artist, _) ->
+            Text(
+                "$artist most of all",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { onArtist(artist) }
+                    .padding(vertical = 2.dp),
             )
         }
     }
@@ -791,10 +943,9 @@ private fun WeekBars(days: List<DaySlice>) {
     var grown by remember { mutableStateOf(false) }
     var selected by remember { mutableStateOf<Int?>(null) }
     LaunchedEffect(days) { grown = true }
-    Column(Modifier.padding(top = 24.dp, bottom = 20.dp)) {
-        Divider()
+    Column(Modifier.padding(top = 20.dp, bottom = 14.dp)) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 18.dp).height(64.dp),
+            modifier = Modifier.fillMaxWidth().height(64.dp),
             horizontalArrangement = Arrangement.spacedBy(7.dp),
             verticalAlignment = Alignment.Bottom,
         ) {
@@ -837,62 +988,6 @@ private fun WeekBars(days: List<DaySlice>) {
         if (day != null && day.seconds > 0) {
             val label = java.text.SimpleDateFormat("EEE", java.util.Locale.getDefault()).format(java.util.Date(day.at))
             Body(if (selected == null) "Most on $label, ${listeningTime(day.seconds)}" else "$label · ${listeningTime(day.seconds)} · ${count(day.plays, "play")}", Modifier.padding(top = 10.dp))
-        }
-    }
-}
-
-/**
- * When in the day: one thin column per hour, the busiest lit.
- *
- * A week of listening has a shape in the clock as well as in the calendar, and
- * this is that shape without a chart library or an axis.
- */
-@Composable
-private fun HourStrip(hours: List<Int>) {
-    val peakHour = hours.indices.maxByOrNull { hours[it] } ?: 0
-    val peak = hours.maxOrNull()?.coerceAtLeast(1) ?: 1
-    var grown by remember { mutableStateOf(false) }
-    LaunchedEffect(hours) { grown = true }
-    Column(Modifier.padding(top = 4.dp)) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = "When you listen",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.weight(1f),
-            )
-            Text(
-                text = "Around " + peakHour.toString().padStart(2, '0') + ":00",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-                .padding(top = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(3.dp),
-            verticalAlignment = Alignment.Bottom,
-        ) {
-            hours.forEachIndexed { hour, plays ->
-                val share = if (plays == 0) 0.06f else (plays.toFloat() / peak).coerceAtLeast(0.1f)
-                val height by animateFloatAsState(
-                    targetValue = if (grown) share else 0f,
-                    animationSpec = spring(dampingRatio = 0.72f, stiffness = Spring.StiffnessMediumLow),
-                    label = "hour column",
-                )
-                Box(
-                    Modifier
-                        .weight(1f)
-                        .height(44.dp * height.coerceIn(0f, 1f))
-                        .clip(RoundedCornerShape(3.dp))
-                        .background(
-                            if (hour == peakHour) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.primary.copy(alpha = 0.34f),
-                        ),
-                )
-            }
         }
     }
 }

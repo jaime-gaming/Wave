@@ -84,6 +84,22 @@ class ScreenshotTest {
         rule.onNodeWithText("Daily mix saved as a playlist.").assertExists()
     }
 
+    @Test
+    fun remixReadsAsOnePage() {
+        val output = output() ?: return
+        seed(ApplicationProvider.getApplicationContext<WaveApplication>(), output)
+        rule.setContent { WaveTheme { WaveApp(version = "0.1.1") } }
+        rule.onNodeWithText("Remix").performClick()
+        // The figure, the sleeve of the song that earned it, and a list.
+        rule.onNodeWithText("Most played").assertExists()
+        rule.onNodeWithText("Your Remix").assertExists()
+        rule.onNodeWithText("Play Remix").assertExists()
+        // The stat-card sections the page used to have are gone.
+        rule.onNodeWithText("More about this week").assertDoesNotExist()
+        rule.onNodeWithText("Artists this week").assertDoesNotExist()
+        rule.onNodeWithText("When you listen").assertDoesNotExist()
+    }
+
     private fun output(): File? {
         val flag = System.getProperty("wave.screenshots").orEmpty()
         assumeTrue("Pass -Dwave.screenshots=<directory> to capture.", flag.isNotEmpty())

@@ -10,11 +10,14 @@
       <StackPanel Margin="16,24,12,18">
         <!-- The wordmark, drawn with the same pen as the web build: one path, so the
              name is Wave's lettering rather than a font that happens to be nearby. -->
-        <Viewbox Width="92" Height="20" HorizontalAlignment="Left" Margin="12,6,0,28" Stretch="Uniform">
-          <Canvas Width="110" Height="21.5">
-            <Path Canvas.Left="-1" Canvas.Top="-4.8" Stroke="{DynamicResource AccentBrush}" StrokeThickness="4.2"
+        <Viewbox Width="88" Height="20.6" HorizontalAlignment="Left" Margin="12,6,0,28" Stretch="Uniform">
+          <!-- The same five strokes the browser draws: W, the bowl and the stem of
+               the a, a v that is a trough of the wave, and an e whose bar runs into
+               its bowl. -->
+          <Canvas Width="92" Height="21.4">
+            <Path Canvas.Left="-0.5" Canvas.Top="-4.4" Stroke="{DynamicResource AccentBrush}" StrokeThickness="3.8"
                   StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
-                  Data="M4 7C7 7 7 23 12 23C17 23 17 7 20 7C23 7 23 23 28 23C33 23 33 7 36 7 M60 10.2C60 16.4 60 21.4 61.6 22.4 M53 10a7 7 0 1 0 0 13a7 7 0 0 0 0-13 M68 10.4C68.8 10.4 71.6 23.4 75.3 23.4C79 23.4 81.8 10.4 82.6 10.4 M91 17.2H105 M105 17.2A7 7 0 1 0 103.2 20.4"/>
+                  Data="M4 7C7 7 7 23 12 23C17 23 17 7 20 7C23 7 23 23 28 23C33 23 33 7 36 7 M47.2 10.8a6.1 6.1 0 1 0 0 12.2a6.1 6.1 0 1 0 0-12.2 M53.3 11.4V22.2 M62 10.9C63.4 15.2 65.2 23.3 66.9 23.3C68.6 23.3 70.4 15.2 71.8 10.9 M89.2 16.4H76.6 M89.2 16.4A6.3 6.3 0 1 0 87.6 21.7"/>
           </Canvas>
         </Viewbox>
         <Button Style="{StaticResource NavButton}" Tag="Home" Click="NavigateClick">

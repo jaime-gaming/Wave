@@ -6,12 +6,18 @@
 
 - Home follows the desktop composition shown in the reference again, and no longer has a
   **Jump back in** shelf. Collection, daily mixes and recently added music remain.
-- Remix now presents the week as a quieter page rather than a stack of statistic cards.
-  The daily and hourly charts, artists, genre, playable list and explicit Save remain.
+- Remix is one page read top to bottom instead of a stack of statistic cards: the week in
+  one figure with the sleeve of the song that earned it, seven day bars that name their
+  busiest day, a line of type for the genre, the hour and the artist, then the playable
+  Remix list with numbered, counted rows, artist chips and the all-time footnote. The
+  hourly chart and the separate genre and artist sections are gone; both facts survive in
+  that one line. Saving the week as a playlist is still an explicit button.
 - The wordmark keeps the original wave-shaped W and redraws the rest of the letters with
   the same rounded stroke. The compact mark is the very same W.
 - Android's native shell now follows the mobile site's inset page, four-item dock, header
-  actions, collection shortcuts, daily-mix rows, Remix and player layout. Android playback,
+  actions, collection shortcuts as wrapped tiles, daily-mix rows, the same Remix page
+  (figure with its sleeve, day bars, the facts line, the numbered list, artist chips) and
+  the same player layout. Android playback,
   the system picker and media-session controls remain native; complete feature and visual
   parity still need device testing. Settings now has a section index and a persistent theme choice.
 - Android asks before removing a song, and deletes a copied file only inside Wave's own audio
@@ -55,8 +61,9 @@
 - Windows is redrawn against the browser instead of against WPF's defaults. The rail is a list of
   places with drawn icons and one filled, accented item; the page title carries the accent colour
   with its numbers beneath and the two utilities as circles on the same line; the surface holds one
-  scrollbar instead of two side by side; Home reads as one page (numbers, then Jump back in, then the
-  mixes as rows, then what came in last) rather than a shelf sitting on top of a list; and Settings
+  scrollbar instead of two side by side; Home reads as one page (the collection numbers, then the
+  mixes as rows, then what came in last) rather than a shelf sitting on top of a list; Remix is the
+  same page as the browser's, down to the numbered rows and the sleeve beside the figure; and Settings
   is a list of named sections with a chevron rather than a wall of grey buttons.
 - Every Windows icon is a drawing on the browser's 24-unit grid, kept in one dictionary. Nothing there
   depends on the platform icon font being installed, and a missing glyph cannot turn into an empty box.

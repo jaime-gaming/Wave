@@ -208,22 +208,40 @@ public partial class MainWindow
         button.Click += (_, _) => Safe(action);
         return button;
     }
-    /// <summary>A song as a row you can play, in the same shape as the list rows.</summary>
-    private Button SongRow(Song song, Action action)
+    /// <summary>
+    /// A song as a row you can play. The rank and the play count are optional: the
+    /// Remix list numbers its rows and says how often each was heard, the library
+    /// list leaves both out.
+    /// </summary>
+    private Button SongRow(Song song, Action action, int rank = 0, int plays = 0)
     {
         var row = new Grid();
+        if (rank > 0) row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        if (plays > 0) row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        int column = 0;
+        if (rank > 0) {
+            var number = new TextBlock { Text = rank.ToString(), FontSize = 12.5, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 0, 12, 0) };
+            number.SetResourceReference(TextBlock.ForegroundProperty, "MutedBrush");
+            row.Children.Add(number);
+            column = 1;
+        }
         var art = new Border { Width = 44, Height = 44, CornerRadius = new CornerRadius(12), Background = ArtworkBrush(song.Artwork) };
-        if (song.Artwork == null) art.Child = new TextBlock { Text = "♪", FontSize = 19, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Foreground = (Brush)Application.Current.Resources["AccentBrush"] };
-        row.Children.Add(art);
+        if (song.Artwork == null) art.Child = new TextBlock { Text = "\u266a", FontSize = 19, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Foreground = (Brush)Application.Current.Resources["AccentBrush"] };
+        Grid.SetColumn(art, column); row.Children.Add(art);
         var words = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 12, 0) };
         words.Children.Add(new TextBlock { Text = song.Title, FontWeight = FontWeights.SemiBold, FontSize = 15, TextTrimming = TextTrimming.CharacterEllipsis });
         words.Children.Add(new TextBlock { Text = song.Artist, FontSize = 13, Foreground = (Brush)Application.Current.Resources["MutedBrush"], TextTrimming = TextTrimming.CharacterEllipsis });
-        Grid.SetColumn(words, 1); row.Children.Add(words);
+        Grid.SetColumn(words, column + 1); row.Children.Add(words);
         var album = new TextBlock { Text = song.Album, FontSize = 12.5, Foreground = (Brush)Application.Current.Resources["MutedBrush"], VerticalAlignment = VerticalAlignment.Center, MaxWidth = 200, TextTrimming = TextTrimming.CharacterEllipsis };
-        Grid.SetColumn(album, 2); row.Children.Add(album);
+        Grid.SetColumn(album, column + 2); row.Children.Add(album);
+        if (plays > 0) {
+            var times = new TextBlock { Text = plays + "\u00d7", FontSize = 12.5, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(14, 0, 4, 0) };
+            times.SetResourceReference(TextBlock.ForegroundProperty, "MutedBrush");
+            Grid.SetColumn(times, column + 3); row.Children.Add(times);
+        }
         var button = new Button {
             Content = row,
             Background = Brushes.Transparent,
@@ -294,34 +312,100 @@ public partial class MainWindow
         CollectionHeader.Children.Add(actions);
     }
     /// <summary>
-    /// The week as one card, then the list it earns: Play Remix, or save it as an
-    /// ordinary playlist. The detail of the old page — a fortnight of bars, a
-    /// recent list — is deliberately gone; a recap is glanced at.
+    /// The week on one page, in the order the browser puts it: the figure with the
+    /// sleeve of the song that earned it, the week as seven bars, three facts as a
+    /// line of type, then the list it earns. No cards, nothing to read twice.
     /// </summary>
     private void RenderRemix()
     {
         var recap = Listening.Recap(plays, tracks, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
-        CollectionHeader.Children.Add(Label(Listening.WeekRange(recap.Start, recap.End), 13));
+        var head = new Grid { Margin = new Thickness(2, 4, 2, 10) };
+        head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        head.Children.Add(Label(Listening.WeekRange(recap.Start, recap.End), 13));
+        var clear = ActionButton("Clear history", () => {
+            if (MessageBox.Show(this, "Clear the listening history? The songs stay in your library.", "Wave", MessageBoxButton.YesNo) != MessageBoxResult.Yes) return;
+            Listening.Clear(repository.Folder);
+            plays = [];
+            Refresh();
+        });
+        clear.Style = (Style)FindResource("TextButton");
+        clear.Foreground = (Brush)Application.Current.Resources["MutedBrush"];
+        clear.HorizontalAlignment = HorizontalAlignment.Right;
+        clear.VerticalAlignment = VerticalAlignment.Center;
+        Grid.SetColumn(clear, 1);
+        head.Children.Add(clear);
+        CollectionHeader.Children.Add(head);
+
         if (plays.Count == 0) {
             CollectionHeader.Children.Add(Label("No week to look back on yet. Play a song and this page fills in: your week in one number, and a list of what you actually played.", 19));
             return;
         }
-        CollectionHeader.Children.Add(Label("This week", 12));
-        CollectionHeader.Children.Add(Label(Listening.Time(recap.Seconds), 44));
-        CollectionHeader.Children.Add(Label($"{NativeCollections.Count(recap.Plays, "play")} \u00b7 {NativeCollections.Count(recap.Tracks, "song")} \u00b7 {NativeCollections.Count(recap.Artists, "artist")}", 13));
+
+        // The figure and the sleeve, side by side, as on the web page.
+        var lede = new Grid { Margin = new Thickness(2, 2, 2, 6) };
+        lede.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        lede.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var copy = new StackPanel { VerticalAlignment = VerticalAlignment.Bottom };
+        var figure = Label(Listening.Time(recap.Seconds), 44);
+        figure.Foreground = (Brush)Application.Current.Resources["AccentBrush"];
+        figure.Margin = new Thickness(2, 0, 2, 2);
+        copy.Children.Add(figure);
+        copy.Children.Add(Label($"{NativeCollections.Count(recap.Plays, "play")} \u00b7 {NativeCollections.Count(recap.Tracks, "song")} \u00b7 {NativeCollections.Count(recap.Artists, "artist")}", 13));
         if (recap.PreviousSeconds > 0) {
             int delta = recap.Seconds - recap.PreviousSeconds;
-            CollectionHeader.Children.Add(Label($"{(delta >= 0 ? "+" : "\u2212")}{Listening.Time(Math.Abs(delta))} vs last week", 12));
+            var compare = Label($"{(delta >= 0 ? "+" : "\u2212")}{Listening.Time(Math.Abs(delta))} vs last week", 12);
+            if (delta >= 0) compare.Foreground = (Brush)Application.Current.Resources["AccentBrush"];
+            copy.Children.Add(compare);
         }
-        if (recap.Genres.Count > 0)
-            CollectionHeader.Children.Add(Label($"Mostly {recap.Genres[0].Genre}", 13));
+        lede.Children.Add(copy);
+        var top = recap.TopSongs.FirstOrDefault();
+        var sleeve = new StackPanel { VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(20, 0, 2, 2) };
+        var cover = new Border { Width = 116, Height = 116, CornerRadius = new CornerRadius(18), Background = ArtworkBrush(top.Song?.Artwork) };
+        if (top.Song?.Artwork == null) cover.Child = new TextBlock { Text = "\u266a", FontSize = 38, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Foreground = (Brush)Application.Current.Resources["AccentBrush"] };
+        sleeve.Children.Add(cover);
+        var caption = Label("Most played", 11);
+        caption.SetResourceReference(TextBlock.ForegroundProperty, "MutedBrush");
+        caption.HorizontalAlignment = HorizontalAlignment.Right;
+        caption.Margin = new Thickness(2, 7, 2, 0);
+        sleeve.Children.Add(caption);
+        Grid.SetColumn(sleeve, 1);
+        lede.Children.Add(sleeve);
+        CollectionHeader.Children.Add(lede);
+
         if (recap.Days.Count > 0) CollectionHeader.Children.Add(WeekChart(recap.Days));
-        if (recap.Hours.Any(hour => hour > 0)) CollectionHeader.Children.Add(HourChart(recap.Hours));
+
+        // Genre, the hour and the artist that carried the week: one line.
+        var note = new WrapPanel { Margin = new Thickness(2, 2, 2, 12) };
+        void Fact(string text) {
+            var block = Label(text, 13);
+            block.SetResourceReference(TextBlock.ForegroundProperty, "MutedBrush");
+            note.Children.Add(block);
+        }
+        if (recap.Genres.Count > 0) Fact($"Mostly {recap.Genres[0].Genre.ToLowerInvariant()}  \u00b7");
+        if (recap.Hours.Any(hour => hour > 0)) Fact($"Usually around {recap.Hours.IndexOf(recap.Hours.Max()):00}:00  \u00b7");
+        if (recap.TopArtists.Count > 0) {
+            var artist = ActionButton($"{recap.TopArtists[0].Artist} most of all", () => ShowPage("Artists", recap.TopArtists[0].Artist));
+            artist.Style = (Style)FindResource("TextButton");
+            note.Children.Add(artist);
+        }
+        CollectionHeader.Children.Add(note);
+
         if (recap.Songs.Count > 0) {
-            CollectionHeader.Children.Add(Label("Your Remix", 22));
-            CollectionHeader.Children.Add(Label($"{NativeCollections.Count(recap.Songs.Count, "song")} you played most, in order.", 13));
-            var actions = new WrapPanel();
-            actions.Children.Add(ActionButton("\u25b6 Play Remix", () => PlayCollection(recap.Songs, recap.Songs[0].Id)));
+            var mixHead = new Grid { Margin = new Thickness(2, 10, 2, 4) };
+            mixHead.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            mixHead.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var words = new StackPanel();
+            words.Children.Add(Label("Your Remix", 21));
+            var sub = Label($"{NativeCollections.Count(recap.Songs.Count, "song")} you played this week.", 13);
+            sub.SetResourceReference(TextBlock.ForegroundProperty, "MutedBrush");
+            words.Children.Add(sub);
+            mixHead.Children.Add(words);
+            var actions = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Bottom };
+            var play = new Button { Style = (Style)FindResource("AccentButton"), Padding = new Thickness(18, 9, 22, 9), ToolTip = "Play Remix" };
+            play.Content = Iconography.With("play", "Play Remix", 16, 8);
+            play.Click += (_, _) => Safe(() => PlayCollection(recap.Songs, recap.Songs[0].Id));
+            actions.Children.Add(play);
             actions.Children.Add(ActionButton("Save as playlist", () => {
                 var saved = new NativePlaylist(Guid.NewGuid().ToString(),
                     $"Remix \u00b7 {DateTimeOffset.FromUnixTimeMilliseconds(recap.End).LocalDateTime:d MMM}",
@@ -329,23 +413,43 @@ public partial class MainWindow
                 SavePlaylists(playlists.Append(saved).ToList());
                 ShowPage("Playlists", saved.Id);
             }));
-            CollectionHeader.Children.Add(actions);
+            Grid.SetColumn(actions, 1);
+            mixHead.Children.Add(actions);
+            CollectionHeader.Children.Add(mixHead);
+            int rank = 0;
             foreach (var song in recap.Songs) {
+                rank++;
                 var count = recap.TopSongs.FirstOrDefault(entry => entry.Song.Id == song.Id).Count;
-                CollectionHeader.Children.Add(CountRow(song.Title + " \u2014 " + song.Artist, count, () => PlayCollection(recap.Songs, song.Id)));
+                CollectionHeader.Children.Add(SongRow(song, () => PlayCollection(recap.Songs, song.Id), rank, count));
             }
         }
+
         if (recap.TopArtists.Count > 0) {
-            CollectionHeader.Children.Add(Label("Artists this week", 22));
-            foreach (var (artist, count) in recap.TopArtists)
-                CollectionHeader.Children.Add(CountRow(artist, count, () => ShowPage("Artists", artist)));
+            // Quiet chips rather than a leaderboard, as on the web page.
+            var people = new WrapPanel { Margin = new Thickness(2, 14, 2, 8) };
+            foreach (var (artist, count) in recap.TopArtists.Take(6)) {
+                var chip = new Button {
+                    Padding = new Thickness(14, 8, 14, 8),
+                    Margin = new Thickness(0, 0, 6, 6),
+                    MinHeight = 36,
+                    Background = (Brush)Application.Current.Resources["TonalBrush"],
+                    ToolTip = artist,
+                };
+                var label = new StackPanel { Orientation = Orientation.Horizontal };
+                label.Children.Add(new TextBlock { Text = artist, FontWeight = FontWeights.SemiBold, FontSize = 13.5 });
+                label.Children.Add(new TextBlock { Text = NativeCollections.Count(count, "play"), FontSize = 12, Margin = new Thickness(8, 0, 0, 0), Foreground = (Brush)Application.Current.Resources["MutedBrush"] });
+                chip.Content = label;
+                chip.Click += (_, _) => Safe(() => ShowPage("Artists", artist));
+                people.Children.Add(chip);
+            }
+            CollectionHeader.Children.Add(people);
         }
-        CollectionHeader.Children.Add(ActionButton("Clear history", () => {
-            if (MessageBox.Show(this, "Clear the listening history? The songs stay in your library.", "Wave", MessageBoxButton.YesNo) != MessageBoxResult.Yes) return;
-            Listening.Clear(repository.Folder);
-            plays = [];
-            Refresh();
-        }));
+
+        var all = Listening.Summarise(plays, tracks, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+        var foot = Label($"{Listening.Time(all.TotalSeconds)} listened all time \u00b7 {NativeCollections.Count(all.WeekPlays, "play")} this week \u00b7 counted on this device, never uploaded.", 12.5);
+        foot.SetResourceReference(TextBlock.ForegroundProperty, "MutedBrush");
+        foot.Margin = new Thickness(2, 8, 2, 4);
+        CollectionHeader.Children.Add(foot);
     }
     /// <summary>
     /// The week as seven bars, the same chart the web page draws: one column
@@ -379,49 +483,17 @@ public partial class MainWindow
                 HorizontalAlignment = HorizontalAlignment.Center,
             });
         }
-        return new StackPanel { Children = { Label("How the week went", 22), bars, labels } };
+        // The quiet line under the bars names the day that carried the week, the
+        // way the browser does, instead of titling a chart.
+        var busiest = days.OrderByDescending(day => day.Seconds).First();
+        var caption = Label(busiest.Seconds > 0
+            ? $"Most on {DateTimeOffset.FromUnixTimeMilliseconds(busiest.At).LocalDateTime:dddd}, {Listening.Time(busiest.Seconds)}"
+            : "Quiet week", 12.5);
+        caption.SetResourceReference(TextBlock.ForegroundProperty, "MutedBrush");
+        caption.Margin = new Thickness(4, 2, 4, 0);
+        return new StackPanel { Margin = new Thickness(0, 6, 0, 0), Children = { bars, labels, caption } };
     }
 
-    /// <summary>When in the day: one thin column per hour, the busiest lit.</summary>
-    private UIElement HourChart(List<int> hours)
-    {
-        int peak = Math.Max(1, hours.Max());
-        int peakHour = hours.IndexOf(peak);
-        var columns = new UniformGrid { Columns = hours.Count, Height = 56, Margin = new Thickness(4, 8, 4, 6) };
-        var accent = (Brush)Application.Current.Resources["AccentBrush"];
-        for (int hour = 0; hour < hours.Count; hour++)
-        {
-            double share = hours[hour] == 0 ? 0.06 : Math.Max(0.1, hours[hour] / (double)peak);
-            columns.Children.Add(new Border
-            {
-                Width = 10,
-                Height = 56 * share,
-                CornerRadius = new CornerRadius(3),
-                Background = accent,
-                Opacity = hour == peakHour ? 1 : 0.34,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Bottom,
-            });
-        }
-        return new StackPanel
-        {
-            Children =
-            {
-                Label($"When you listen \u00b7 around {peakHour:00}:00", 22),
-                columns,
-            },
-        };
-    }
-
-    private UIElement CountRow(string title, int count, Action action)
-    {
-        var row = new DockPanel { Margin = new Thickness(0, 4, 0, 4) };
-        var number = Label($"{count} plays", 13);
-        DockPanel.SetDock(number, Dock.Right);
-        row.Children.Add(number);
-        row.Children.Add(ActionButton(title, action));
-        return row;
-    }
     private List<NativeMix> DailyGroups() => NativeCollections.DailyMixes(tracks, DateOnly.FromDateTime(DateTime.Today));
     private void SavePlaylists(List<NativePlaylist> updated) { NativeCollections.Save(repository.Folder, "playlists.json", updated); playlists = updated; }
     private Window Dialog(string title, double height = 540) => new() { Owner = this, Title = title, Width = 520, Height = height, MinWidth = 400, MinHeight = 320, WindowStartupLocation = WindowStartupLocation.CenterOwner, Background = (Brush)Application.Current.Resources["SurfaceBrush"], Foreground = (Brush)Application.Current.Resources["InkBrush"], FontFamily = FontFamily, FontSize = FontSize };
