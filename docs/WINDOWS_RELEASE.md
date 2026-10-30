@@ -4,7 +4,7 @@ Release date: **17 October 2026**. This is a publication checklist, not a claim 
 
 ## What the build does
 
-- Builds a normal framework-dependent .NET/WPF application, without packers, obfuscation, self-extracting payloads, runtime downloads or code injection.
+- Builds a normal .NET/WPF application, without packers, obfuscation, self-extracting payloads, runtime downloads or code injection. The published archive is self-contained: it carries the .NET runtime inside it, so the download runs on a Windows machine that has never installed .NET.
 - Uses the existing `asInvoker` manifest: no administrator permission request, service installation, antivirus exclusions or protection changes.
 - Sets version, product, publisher and description metadata; enables deterministic compilation.
 - Leaves executable and DLL files separate. Does not trim or compress them into a single executable.
