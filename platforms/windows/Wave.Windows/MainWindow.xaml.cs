@@ -108,6 +108,14 @@ public partial class MainWindow : Window
             }
         }
         LayoutPage();
+        if (expanded && Current == null) {
+            // The player can be opened with nothing behind it; say so, and let the
+            // record have the whole width instead of half of it beside an empty
+            // column that only exists when there are lyrics to show.
+            NowTitle.Text = "Nothing playing";
+            NowArtist.Content = "";
+        }
+        if (expanded) SetLyricsVisibility();
         UpdateDock();
         if (page == "Settings") RenderSettings(); else if (!expanded) Refresh();
         if (preferences.Animations) LibraryView.BeginAnimation(OpacityProperty, new DoubleAnimation(.35, 1, TimeSpan.FromMilliseconds(180)));
