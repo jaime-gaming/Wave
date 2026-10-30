@@ -1,12 +1,12 @@
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="Wave.Windows.MainWindow" Title="Wave" Icon="/Wave.ico" Width="1280" Height="860" MinWidth="800" MinHeight="600" Background="{DynamicResource BackgroundBrush}" Foreground="{DynamicResource InkBrush}" FontFamily="{StaticResource WaveFont}" FontSize="15" Closing="ClosingWindow" PreviewKeyDown="WindowKey">
-  <Grid>
+  <Grid Background="{DynamicResource BackgroundBrush}">
     <Grid.ColumnDefinitions><ColumnDefinition x:Name="SidebarWidth" Width="236"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
     <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition x:Name="MiniHeight" Height="0"/></Grid.RowDefinitions>
 
     <!-- The rail: the wordmark, four destinations, the collection it holds. The
          selected item is the only one with a filled background, so the rail reads
          as a list of places rather than a column of buttons. -->
-    <ScrollViewer x:Name="NavigationPanel" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+    <ScrollViewer x:Name="NavigationPanel" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Background="Transparent">
       <StackPanel Margin="16,24,12,18">
         <!-- The wordmark, drawn with the same pen as the web build: one path, so the
              name is Wave's lettering rather than a font that happens to be nearby. -->
