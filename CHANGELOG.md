@@ -13,7 +13,9 @@
 - Android's native shell now follows the mobile site's inset page, four-item dock, header
   actions, collection shortcuts, daily-mix rows, Remix and player layout. Android playback,
   the system picker and media-session controls remain native; complete feature and visual
-  parity still need device testing.
+  parity still need device testing. Settings now has a section index and a persistent theme choice.
+- Android asks before removing a song, and deletes a copied file only inside Wave's own audio
+  directory and only when no other library entry still points to it. External originals are left alone.
 
 ### Remix, and the history behind it
 

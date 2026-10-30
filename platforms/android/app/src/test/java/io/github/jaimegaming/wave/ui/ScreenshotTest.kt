@@ -3,8 +3,6 @@ package io.github.jaimegaming.wave.ui
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import androidx.activity.ComponentActivity
-import androidx.compose.ui.test.assertExists
-import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -35,8 +33,8 @@ import java.io.FileOutputStream
  * fast, and it asserts nothing about pixels: a human looks at the PNGs.
  *
  * The artwork is drawn the way it is drawn on a phone with no embedded covers —
- * a coloured tile with the song's initial — because that is what these files
- * are. Nothing here is a mock-up and nothing is retouched.
+ * a music-note placeholder — because the fixture files contain no artwork.
+ * Nothing here is a mock-up and nothing is retouched.
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -57,6 +55,12 @@ class ScreenshotTest {
     fun library() = capture("android-library", Opening.Where(Destination.Library))
 
     @Test
+    fun settings() = capture("android-settings", Opening.Where(Destination.Settings))
+
+    @Test
+    fun player() = capture("android-now-playing", Opening.Player)
+
+    @Test
     fun homeUsesTheMobileWebNavigation() {
         val output = output() ?: return
         seed(ApplicationProvider.getApplicationContext<WaveApplication>(), output)
@@ -65,6 +69,10 @@ class ScreenshotTest {
         rule.onNodeWithText("Jump back in").assertDoesNotExist()
         rule.onNodeWithContentDescription("Open settings").performClick()
         rule.onNodeWithText("Settings").assertExists()
+        rule.onNodeWithText("Appearance").performClick()
+        rule.onNodeWithText("Dark").performClick()
+        val app = ApplicationProvider.getApplicationContext<WaveApplication>()
+        org.junit.Assert.assertEquals("dark", app.preferences().getString("appearance", null))
         rule.onNodeWithText("Home").performClick()
         rule.onNodeWithText("Your collection").assertExists()
         rule.onNodeWithText("Daily mix 1").performClick()
@@ -82,6 +90,7 @@ class ScreenshotTest {
     /** A small library and a week of plays, written through the app's own files. */
     private fun seed(app: WaveApplication, output: File) {
         val library = Library(app)
+        app.preferences().edit().remove("appearance").apply()
         // The same demo library the web captures use: three artists, an album each.
         val songs = listOf(
             Triple("After hours", "Northbound", "Night signals"),
@@ -102,6 +111,7 @@ class ScreenshotTest {
                 filename = "$title.wav",
                 path = File(output, "demo-$index.wav").absolutePath,
                 duration = 120.0,
+                lyrics = "[00:00.00]The city slows beneath the light\n[00:05.00]We take the long way home tonight",
                 genre = listOf("Electronic", "Jazz", "Rock")[index / 3],
                 addedAt = System.currentTimeMillis() - index * 86_400_000L,
             )
@@ -122,7 +132,13 @@ class ScreenshotTest {
 
     private fun capture(name: String, opening: Opening) {
         val output = output() ?: return
-        seed(ApplicationProvider.getApplicationContext<WaveApplication>(), output)
+        val app = ApplicationProvider.getApplicationContext<WaveApplication>()
+        seed(app, output)
+        if (opening == Opening.Player) {
+            // The screen is real; the files in this JVM fixture contain no audio.
+            val songs = Library(app).load()
+            app.player.play(songs, songs.first())
+        }
         rule.setContent { WaveTheme { WaveApp(version = "0.1.1", opening = opening) } }
         rule.waitForIdle()
         val view = rule.activity.window.decorView

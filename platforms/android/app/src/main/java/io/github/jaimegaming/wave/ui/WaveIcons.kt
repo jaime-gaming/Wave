@@ -41,6 +41,11 @@ private val iconPaths = mapOf(
     "lyrics" to listOf("M5 5h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-10a2 2 0 0 1 2 -2z", "M7 15h4M15 15h2M7 11h2M13 11h4"),
     "queue" to listOf("M16 5H3", "M11 12H3", "M11 19H3", "M21 16V5", "M15 16a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"),
     "back" to listOf("m12 19-7-7 7-7", "M19 12H5"),
+    "palette" to listOf("M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z", "M13 6.5a.5 .5 0 1 0 1 0a.5 .5 0 1 0 -1 0", "M17 10.5a.5 .5 0 1 0 1 0a.5 .5 0 1 0 -1 0", "M6 12.5a.5 .5 0 1 0 1 0a.5 .5 0 1 0 -1 0", "M8 7.5a.5 .5 0 1 0 1 0a.5 .5 0 1 0 -1 0"),
+    "sliders" to listOf("M10 5H3", "M12 19H3", "M14 3v4", "M16 17v4", "M21 12h-9", "M21 19h-5", "M21 5h-7", "M8 10v4", "M8 12H3"),
+    "storage" to listOf("M10 16h.01", "M2.212 11.577a2 2 0 0 0-.212.896V18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-5.527a2 2 0 0 0-.212-.896L18.55 5.11A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z", "M21.946 12.013H2.054", "M6 16h.01"),
+    "info" to listOf("M2 12a10 10 0 1 0 20 0a10 10 0 1 0 -20 0", "M12 16v-4", "M12 8h.01"),
+    "chevron" to listOf("m9 18 6-6-6-6"),
 )
 
 /** The same line icons as the mobile website, without depending on a font. */

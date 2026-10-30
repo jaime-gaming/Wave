@@ -7,7 +7,14 @@ import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -174,15 +181,30 @@ private val WaveShapes = Shapes(
     extraLarge = androidx.compose.foundation.shape.RoundedCornerShape(32.dp),
 )
 
+class AppearanceChoice(val mode: String, val select: (String) -> Unit)
+val LocalAppearanceChoice = staticCompositionLocalOf<AppearanceChoice?> { null }
+
 @Composable
 fun WaveTheme(
     dark: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit,
 ) {
-    MaterialTheme(
-        colorScheme = if (dark) Dark else Light,
-        typography = WaveTypography,
-        shapes = WaveShapes,
-        content = content,
-    )
+    val context = LocalContext.current
+    val preferences = remember(context) { context.getSharedPreferences("wave", android.content.Context.MODE_PRIVATE) }
+    var mode by remember(preferences) { mutableStateOf(preferences.getString("appearance", "system") ?: "system") }
+    val darkTheme = when (mode) { "dark" -> true; "light" -> false; else -> dark }
+    val choice = AppearanceChoice(mode) { next ->
+        if (next in setOf("system", "light", "dark")) {
+            mode = next
+            preferences.edit().putString("appearance", next).apply()
+        }
+    }
+    CompositionLocalProvider(LocalAppearanceChoice provides choice) {
+        MaterialTheme(
+            colorScheme = if (darkTheme) Dark else Light,
+            typography = WaveTypography,
+            shapes = WaveShapes,
+            content = content,
+        )
+    }
 }
