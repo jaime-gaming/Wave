@@ -166,17 +166,43 @@
   border-radius: inherit;
 }
 .mix-outgoing {
-  /* Sinks back and goes, rather than dissolving in place. */
+  /* Steps aside rather than dissolving: it drifts up and a little to the left as
+     it loses colour, the way a record is lifted off a deck. */
   opacity: calc(1 - var(--mix-leave, 0));
   transform: scale(calc(1 - var(--mix-leave, 0) * 0.05))
-    translateY(calc(var(--mix-leave, 0) * -1.5%));
+    translate(calc(var(--mix-leave, 0) * -1.2%), calc(var(--mix-leave, 0) * -1.6%))
+    rotate(calc(var(--mix-leave, 0) * 1.1deg));
   filter: saturate(calc(1 - var(--mix-leave, 0) * 0.45))
     brightness(calc(1 - var(--mix-leave, 0) * 0.22));
 }
 .mix-incoming {
-  /* Invisible until it is the new record arriving: no double exposure. */
+  /* Invisible until it is the new record arriving: no double exposure. It settles
+     in from slightly large, from slightly low, and from a degree off upright, so
+     it reads as being set down rather than faded in. */
   opacity: var(--mix-arrive, 0);
-  transform: scale(calc(1.06 - var(--mix-arrive, 0) * 0.06));
+  transform: scale(calc(1.055 - var(--mix-arrive, 0) * 0.055))
+    translateY(calc((1 - var(--mix-arrive, 0)) * 1.4%))
+    rotate(calc((1 - var(--mix-arrive, 0)) * -1.4deg));
+}
+/*
+ * The moment both records are at the same level — the middle of the overlap —
+ * the sleeve gathers a little warmth: a soft light behind it, brightest at the
+ * true halfway point and gone by either end. It is the only ornament, and it is
+ * driven by the same progress number as the sound.
+ */
+.mix-artwork::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(
+    58% 58% at 50% 46%,
+    color-mix(in srgb, var(--primary, #b0c7ff) 60%, transparent),
+    transparent 74%
+  );
+  mix-blend-mode: soft-light;
+  opacity: calc(var(--mix-peak, 0) * 0.85);
 }
 /* The soft focus is a stage gesture; at 48 px it would only look like mush. */
 .stage-cover .mix-incoming {

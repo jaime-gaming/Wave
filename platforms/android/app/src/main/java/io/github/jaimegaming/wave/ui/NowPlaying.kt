@@ -60,8 +60,10 @@ fun NowPlayingScreen(
     val lines = remember(song.lyrics) { parseLrc(song.lyrics) }
     val active = lines.indexOfLast { it.time <= player.time }
     val configuration = LocalConfiguration.current
-    val coverSize = minOf(configuration.screenWidthDp * 0.44f, configuration.screenHeightDp * 0.21f)
-        .coerceIn(72f, 172f).dp
+    // The sleeve is the hero of the screen, as it is on the web: as large as the
+    // width allows, capped so the lyrics below it always get their own room.
+    val coverSize = minOf(configuration.screenWidthDp * 0.56f, configuration.screenHeightDp * 0.3f)
+        .coerceIn(96f, 240f).dp
 
     LaunchedEffect(active, song.id) {
         if (active >= 0) listState.animateScrollToItem(active)
@@ -89,18 +91,48 @@ fun NowPlayingScreen(
             Spacer(Modifier.width(8.dp))
             ChromeButton("collapse", "Close now playing", onCollapse, background = MaterialTheme.colorScheme.surfaceContainerHigh, tint = MaterialTheme.colorScheme.onSurface)
         }
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        // Records are square and belong in the middle of the screen: a centred
+        // sleeve on its own line, with the words under it, reads as a record
+        // sleeve rather than as a list row with a picture in it.
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Cover(song, size = coverSize, radius = 20.dp)
-            Spacer(Modifier.width(16.dp))
-            Column(Modifier.weight(1f)) {
-                Text(song.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Text(song.artist, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp))
-                if (song.album.isNotBlank()) {
-                    Text(song.album, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp))
-                }
+            Box(
+                modifier = Modifier
+                    .size(coverSize)
+                    .clip(RoundedCornerShape(26.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                    .semantics { contentDescription = "${song.title} by ${song.artist}" },
+            ) {
+                Cover(song, size = coverSize, radius = 26.dp)
+            }
+            Text(
+                song.title,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 16.dp),
+            )
+            Text(
+                song.artist,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            if (song.album.isNotBlank()) {
+                Text(
+                    song.album,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
             }
         }
         Row(

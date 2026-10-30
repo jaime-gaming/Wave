@@ -12,11 +12,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,7 +35,13 @@ import io.github.jaimegaming.wave.Song
 @Composable
 fun MiniPlayer(player: Player, song: Song, onOpen: () -> Unit, onQueue: () -> Unit) {
     val duration = song.duration.coerceAtLeast(1.0)
-    val fraction = (player.time / duration).coerceIn(0.0, 1.0).toFloat()
+    // The line follows the song rather than stepping with the clock: the position
+    // arrives a few times a second, and a bar that jumps in steps looks broken.
+    val fraction by animateFloatAsState(
+        targetValue = (player.time / duration).coerceIn(0.0, 1.0).toFloat(),
+        animationSpec = tween(durationMillis = 260, easing = LinearEasing),
+        label = "progress",
+    )
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -66,8 +76,22 @@ fun MiniPlayer(player: Player, song: Song, onOpen: () -> Unit, onQueue: () -> Un
                 WaveIcon("queue", 20.dp, MaterialTheme.colorScheme.onSurface)
             }
         }
-        Box(Modifier.fillMaxWidth().padding(horizontal = 14.dp).padding(bottom = 6.dp).height(2.dp).background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.28f))) {
-            Box(Modifier.fillMaxWidth(fraction).height(2.dp).background(MaterialTheme.colorScheme.primary))
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp)
+                .padding(bottom = 8.dp)
+                .height(3.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.24f)),
+        ) {
+            Box(
+                Modifier
+                    .fillMaxWidth(fraction)
+                    .height(3.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(MaterialTheme.colorScheme.primary),
+            )
         }
     }
 }
