@@ -71,8 +71,12 @@ jobs:
             touch artifacts/capture/failed
             exit $status
           fi
+      # A picture that fails to land is worth less than the checks themselves, and
+      # the workflow can be run by hand when it matters; so this step reports and
+      # does not redden the branch.
       - name: Publish the web screenshots
         if: github.event_name == 'push' && always()
+        continue-on-error: true
         shell: bash
         run: |
           set -euo pipefail
@@ -96,7 +100,13 @@ jobs:
             # lose the race. Rebase onto whatever landed, and leave nothing
             # uncommitted behind that would refuse the rebase.
             git checkout -- . || true
-            if git pull --rebase --quiet origin "$GITHUB_REF_NAME" && git push --quiet; then exit 0; fi
+            if git pull --rebase --quiet origin "$GITHUB_REF_NAME" &&
+              git push --quiet origin "HEAD:$GITHUB_REF_NAME"; then
+              exit 0
+            fi
+            git status --short
             git rebase --abort || true
+            sleep 5
           done
-          echo "Could not publish the images." && exit 1
+          echo "Could not publish the images; the next run will photograph them again."
+          exit 0
