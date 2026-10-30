@@ -148,39 +148,6 @@ test('Now Playing fits without scrolling or clipping controls and follows authen
     );
   }
 });
-test('idle listening enters a control-free stage after 30 seconds and activity restores the UI', async ({
-  page,
-}) => {
-  await page.clock.install();
-  await page.getByRole('button', { name: 'Play Alpha by Wave Tests' }).click();
-  await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
-  await expect
-    .poll(() =>
-      page.evaluate(() =>
-        (window as unknown as { __audio: HTMLAudioElement[] }).__audio.some(
-          (a) => !a.paused && a.currentTime > 0.2,
-        ),
-      ),
-    )
-    .toBe(true);
-  await page.clock.runFor(500);
-  await page.clock.fastForward(30001);
-  await expect(page.locator('.immersive-stage')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Pause', exact: true })).toHaveCount(0);
-  await expect(page.locator('.immersive-title')).toHaveText('Alpha');
-  await expect(page.locator('.immersive-cover')).toBeVisible();
-  await page.mouse.move(70, 70);
-  await page.clock.runFor(600);
-  await expect(page.locator('.immersive-stage')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Open now playing', exact: true }).click();
-  await page.clock.fastForward(30001);
-  await expect(page.locator('.immersive-stage')).toBeVisible();
-  await page.keyboard.press('ArrowRight');
-  await page.clock.runFor(600);
-  await expect(page.locator('.immersive-stage')).toHaveCount(0);
-  await expect(page.getByRole('dialog', { name: 'Now playing' })).toBeVisible();
-});
 for (const kind of ['empty', 'plain', 'long'] as const)
   test(`${kind} lyrics and long metadata keep controls visible at every listening viewport`, async ({
     page,

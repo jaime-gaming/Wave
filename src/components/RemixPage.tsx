@@ -65,6 +65,7 @@ export function RemixPage({
   onSave,
   onClear,
   onAdd,
+  onManageHistory,
 }: {
   summary: ListeningSummary;
   /** The week and its Remix list, built where the plays and the library both are. */
@@ -77,6 +78,8 @@ export function RemixPage({
   onSave: (tracks: Track[]) => Promise<boolean> | boolean;
   onClear: () => Promise<void> | void;
   onAdd: () => void;
+  /** Opens Settings on the section that shows what Wave keeps on this device. */
+  onManageHistory: () => void;
 }) {
   const animation = useWaveMotion();
   const heading = useRef<HTMLHeadingElement>(null);
@@ -321,9 +324,9 @@ export function RemixPage({
         <p>
           {listeningTime(summary.totalSeconds)} listened all time · {summary.totalPlays}{' '}
           {summary.totalPlays === 1 ? 'play' : 'plays'} · counted on this device, never uploaded.{' '}
-          <a className="remix-link" href="#settings-storage">
+          <button className="remix-link" onClick={onManageHistory}>
             Manage history
-          </a>
+          </button>
         </p>
       </footer>
     </div>

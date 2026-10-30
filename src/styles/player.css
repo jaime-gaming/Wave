@@ -50,11 +50,6 @@
   min-height: 0;
   width: 100%;
 }
-.player-modal.is-immersive {
-  padding: 0;
-  cursor: none;
-}
-
 .player-modal {
   padding: 16px clamp(16px, 4vw, 64px);
   overflow: hidden;
@@ -1120,18 +1115,11 @@
 }
 .lyrics-cinematic .lyrics-scroll {
   gap: 0;
-  /* The cinema view is a lyric page too: it scrolls with the song instead of
-     stopping on the first verse. */
+  /* The lyrics page scrolls with the song instead of stopping on the first
+     verse. */
   flex: 1;
   min-height: 0;
   max-height: none;
-}
-.immersive-stage .lyrics-panel {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  min-width: 0;
-  overflow: hidden;
 }
 .lyrics-cinematic .lyric-line {
   font-size: clamp(30px, 4vw, 64px);

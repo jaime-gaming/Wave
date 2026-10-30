@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### The scene that opens itself, and a Windows download that just runs
+
+- The player no longer takes the screen over. After thirty seconds of listening without a click it
+  used to open an immersive stage that hid the rest of the interface; that behaviour, its hook and
+  its styles are gone. Now Playing opens when it is asked to, closes when it is asked to, and an
+  idle room stays exactly as you left it. Closing it folds back down towards the player bar it came
+  from rather than shrinking into the middle of the screen.
+- The Windows ZIP is self-contained. There is no .NET runtime to install before it runs, and no
+  command to type: unzip and open `Wave.Windows.exe`.
+- The screenshots the workflows commit now carry `[skip ci]`, so refreshing them no longer starts
+  another run that refreshes them again — that loop is where most of the **Refresh the web
+  screenshots** commits came from.
+- A YouTube jump no longer trusts the reports the embed sends for a moment afterwards: for under a
+  second after a seek, a position nowhere near where we asked is the old one, not the new one, and
+  ignoring it keeps the bar, the lyrics and the clip from drifting apart.
+- The README opens on the whole wordmark and closes with the mark alone, and both the README and
+  [Platforms](docs/PLATFORMS.md) say plainly that the iOS build is next.
+
+### Home, Remix and the phone
+
 ### Home, Remix and the phone
 
 - Home follows the desktop composition shown in the reference again, and no longer has a

@@ -1,5 +1,4 @@
-<p align="center"><img src="public/wave.svg" alt="Wave" width="100" height="80" /></p>
-<h1 align="center">Wave</h1>
+<p align="center"><img src="public/wave-wordmark.svg" alt="Wave" width="270" /></p>
 <p align="center"><strong>Your music files, played properly.</strong></p>
 <p align="center">Version <strong>0.1.1</strong> · <a href="#get-started">Get started</a> · <a href="docs/WHY_WAVE.md">Why Wave</a> · <a href="docs/media/wave-promo.mp4">Watch the demo</a> · <a href="docs/RELEASE_NOTES_0.1.1.md">What's new</a></p>
 
@@ -24,7 +23,9 @@ Open the address the terminal prints, press **Add music**, pick your files, and 
 Nothing else needs setting up.
 
 Windows and Android builds are on the [Releases](https://github.com/jaime-gaming/Wave/releases)
-page. Both are unsigned test builds, not store installers.
+page, and neither asks you to install anything else or type a command. The Windows zip carries its
+own runtime; the Android download is a normal APK you tap to install. Both are unsigned test
+builds, so Windows may show a SmartScreen warning and Android asks you to allow the install.
 
 ## What it does
 
@@ -115,15 +116,19 @@ including the parts where the big services are the better choice.
 | Lock screen, headset and car controls | —   | —       | Yes     |
 | Works offline as an installed app     | Yes | Yes     | Yes     |
 
+**iOS.** The iPhone and iPad app is in progress and arrives shortly after the Android one. Until
+then, Wave installs to the Home Screen from Safari and behaves like an app there.
+
 **Browser.** The instructions above are all you need. You can install Wave to a home screen and
 it opens without a connection once loaded. To host it yourself, see
 [GitHub Pages](docs/PLATFORMS.md#browser-and-github-pages).
 
-**Windows.** A native C#/WPF app. Unzip it, run `Wave.Windows.exe` after installing the .NET 10
-Desktop Runtime, and add your folders. Unsigned builds can trigger SmartScreen; see
+**Windows.** A native C#/WPF app. Unzip the download, run `Wave.Windows.exe`, and add your
+folders: there is no runtime to install first. Unsigned builds can trigger SmartScreen; see
 [Windows release preparation](docs/WINDOWS_RELEASE.md).
 
-**Android.** A native Kotlin/Compose app for API 26 and newer. Import files, a folder or the music
+**Android.** A native Kotlin/Compose app for API 26 and newer, installed from the APK in the
+download; no cable and no developer tools. Import files, a folder or the music
 your phone already indexes, and playback continues with the screen off, from the lock screen, the
 quick settings tile or your headphones. Its interface follows the mobile website; the remaining
 feature and device-testing gaps are listed in [Platforms](docs/PLATFORMS.md#android).
@@ -158,5 +163,7 @@ in [third-party notices](THIRD_PARTY_NOTICES.md).
 Wave is not affiliated with Spotify, Apple, Google or YouTube. The client is free and open source;
 that says nothing about the music, lyrics or covers you add to it, which remain subject to their
 own rights.
+
+<p align="center"><img src="public/wave.svg" alt="" width="30" /></p>
 
 Maintained by [Jaime Gaming](https://github.com/jaime-gaming).
