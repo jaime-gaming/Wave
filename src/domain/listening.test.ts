@@ -101,7 +101,7 @@ describe('the listening summary', () => {
     expect(summary.uniqueArtists).toBe(2);
   });
 
-  it('puts the newest play first and lists each song once in "jump back in"', () => {
+  it('puts the newest play first and lists each recently played song once', () => {
     expect(summary.recent[0]).toMatchObject({ trackId: 'next' });
     expect(summary.recent[1]).toMatchObject({ trackId: 'signal' });
     expect(summary.recentTracks.map((entry) => entry.id)).toEqual(['next', 'signal']);

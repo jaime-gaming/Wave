@@ -6,22 +6,26 @@ Release 0.1.1 · 28 October 2026. Historical run dates are retained below.
 
 ### Home, Remix and the mobile shell (current work)
 
-- `npm test`: 540 tests across 86 files passed before adding the new Home and history-confirmation
+- `npm test`: 545 tests across 87 files passed, including the new Home and history-confirmation
   checks; the focused Home, Remix and wordmark tests pass. `tests/remix.spec.ts`: four tests pass
   in Chromium, including play, save and confirmation before clearing history. The two new
   `tests/home-reference.spec.ts` browser checks cover the reference width, logo clipping and phone margins.
 - A repeat of the browser Remix tests exposed a short-listen race: the sampler used to discard
-  its first second. The hook now samples the initial position and checks the unrounded time before
-  saving; focused tests and two repeat runs of all four browser Remix scenarios pass.
+  its first second. The hook now samples the initial position, uses the outgoing song's duration
+  and checks the unrounded time before saving; focused tests and two repeat runs of all four
+  browser Remix scenarios pass.
 - `npm run capture:docs` ran locally against a headless Chromium and the generated demo library.
   Home, the daily mix and Remix were reviewed at desktop and phone widths; the desktop page retains
   the right-hand player column as in the reference and Home has no recent-listening shelf.
 - `Native builds` run 41059680381 passed both Android and Windows after fixing two invalid test
   imports from the preceding run. Its Android captures include Home, Library, Remix, Settings and
-  the player; the player fixture has no playable audio. Later palette and lyric changes need a fresh
-  build, and all native changes still need physical-device review. Full visual and feature parity
-  is not claimed.
-- The full Playwright suite was not run in this round. Earlier CI runs were red.
+  the player; the player fixture has no playable audio. A later run (41061947086) failed because
+  the custom Material slider needed an experimental-API opt-in; that opt-in has been added and
+  needs another hosted build. All native changes still need physical-device review. Full visual
+  and feature parity is not claimed.
+- The full Playwright suite was started locally but stopped after 36 of 111 cases, with at least
+  11 failures already reported, including outdated player selectors. Earlier CI runs were red too;
+  the suite is not claimed to pass.
 
 ### The phone layout, and Windows redrawn (latest run)
 

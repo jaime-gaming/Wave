@@ -215,11 +215,7 @@ function WaveApp({
     const timer = setTimeout(() => setAndroidSheet(true), 4_000);
     return () => clearTimeout(timer);
   }, []);
-  /**
-   * What was actually listened to, written as each play passes its threshold.
-   * The page and the Home row both read from one summary, so a song cannot be
-   * in one and missing from the other.
-   */
+  /** Listening history is counted from the playback clock and shown in Remix. */
   const listening = useListeningHistory({
     track: player.current,
     playing: player.state.playing && !player.buffering,
