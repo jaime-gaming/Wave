@@ -58,6 +58,25 @@ public partial class MainWindow : Window
             }
         } catch (Exception error) { Notify("Could not restore your listening session: " + error.Message); }
     }
+    /// <summary>
+    /// The line under the title says what the page is showing, not the size of the
+    /// whole library: a collection page counts that collection, Settings says what
+    /// is in Settings, and only the browsing pages count everything.
+    /// </summary>
+    private void UpdateSummary()
+    {
+        Summary.Text = page switch {
+            "Search" => "Songs, albums and artists on this device",
+            "Settings" => "Playback, appearance, lyrics and storage",
+            "Remix" => "The songs you played this week",
+            "Albums" when collection == null => NativeCollections.Count(tracks.Select(AlbumKey).Distinct().Count(), "album"),
+            "Artists" when collection == null => NativeCollections.Count(tracks.Select(s => s.Artist).Distinct().Count(), "artist"),
+            "Playlists" when collection == null => NativeCollections.Count(playlists.Count, "playlist"),
+            "Favorites" => NativeCollections.Count(tracks.Count(s => s.Favorite), "favorite"),
+            _ when collection != null => $"{NativeCollections.Count(SelectedSongs().Count, "song")} · {Clock(SelectedSongs().Sum(s => s.Duration))}",
+            _ => $"{NativeCollections.Count(tracks.Count, "song")} · {NativeCollections.Count(tracks.Select(AlbumKey).Distinct().Count(), "album")}",
+        };
+    }
     private void Notify(string text) { Message.Text = text; Message.Visibility = text.Length == 0 ? Visibility.Collapsed : Visibility.Visible; }
     private void Safe(Action action) { try { action(); } catch (Exception error) { Notify(error.Message); } }
     private void NavigateClick(object sender, RoutedEventArgs e) { if (sender is Button { Tag: string destination }) ShowPage(destination); }
@@ -69,7 +88,7 @@ public partial class MainWindow : Window
         SidebarWidth.Width = new GridLength(expanded ? 0 : 216);
         NavigationPanel.Visibility = PageHeader.Visibility = expanded ? Visibility.Collapsed : Visibility.Visible;
         Heading.Text = collection ?? page;
-        Summary.Text = $"{NativeCollections.Count(tracks.Count, "song")} · {NativeCollections.Count(tracks.Select(s => s.Album).Distinct().Count(), "album")}";
+        UpdateSummary();
         LibraryView.Visibility = page is "Now playing" or "Settings" ? Visibility.Collapsed : Visibility.Visible;
         NowView.Visibility = expanded ? Visibility.Visible : Visibility.Collapsed;
         SettingsView.Visibility = page == "Settings" ? Visibility.Visible : Visibility.Collapsed;
