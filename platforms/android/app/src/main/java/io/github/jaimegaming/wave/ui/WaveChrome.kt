@@ -62,17 +62,19 @@ fun ChromeButton(
     icon: String,
     label: String,
     onClick: () -> Unit,
-    size: Dp = 44.dp,
+    size: Dp = 48.dp,
     background: Color = MaterialTheme.colorScheme.primaryContainer,
     tint: Color = MaterialTheme.colorScheme.primary,
 ) {
+    val (interaction, pressed) = rememberPress()
     Box(
         modifier = Modifier
             .size(size)
+            .pressScale(pressed, amount = 0.9f)
             .clip(RoundedCornerShape(50))
             .background(background)
             .semantics { contentDescription = label }
-            .clickable(role = Role.Button, onClick = onClick),
+            .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         WaveIcon(icon, size = 22.dp, tint = tint)
@@ -114,14 +116,14 @@ fun WaveNavigation(destination: Destination, onDestination: (Destination) -> Uni
                         .width(66.dp)
                         .height(29.dp)
                         .clip(RoundedCornerShape(50))
-                        .background(if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent),
+                        .background(if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent),
                     contentAlignment = Alignment.Center,
                 ) {
-                    WaveIcon(icon, 22.dp, if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
+                    WaveIcon(icon, 22.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Text(
                     text = place.label,
-                    color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 11.sp,
                     fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                     maxLines = 1,
