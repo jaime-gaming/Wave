@@ -39,7 +39,13 @@ public partial class MainWindow
         Check(remixText.Contains("Your Remix"), "Remix should list the week's songs.");
         Check(remixText.Any(text => text.EndsWith("vs last week")), "Remix should compare with the week before.");
         await Capture("remix");
-        ShowPage("Settings"); Check(SettingsBody.Children.OfType<Button>().Count() == 7, "Expected Back and six Settings sections."); await Capture("settings");
+        ShowPage("Settings"); Check(SettingsBody.Children.OfType<Button>().Count() == 6, "Expected six Settings sections."); await Capture("settings");
+        // The player view has no song behind it here, which is exactly the empty
+        // case worth a look: the record, the lyrics area and the transport should
+        // still sit where they belong.
+        ShowPage("Now playing"); await Capture("now-playing");
+        Check(NowView.Visibility == Visibility.Visible, "The player view should be the one on screen.");
+        ShowPage("Library");
         preferences = preferences with { Theme = "light" }; ApplyTheme(); Width = 820; Height = 640; ShowPage("Library"); await Capture("library-light-narrow");
     }
 }
