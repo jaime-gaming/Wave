@@ -18,7 +18,8 @@
 - Android wears the site's clothes. Library categories are one scrolling row of rounded pills —
   the chosen one filled with the accent and underlined by a short bar — the search boxes are the
   site's filled pill with the magnifier inside it, and song rows lost their border for the wider
-  corners the site uses. Tapping a row or a button now presses it in slightly under the finger.
+  corners the site uses. The fields in the edit and playlist dialogs are filled the same way
+  rather than outlined. Tapping a row or a button now presses it in slightly under the finger.
   The bottom bar's selected place is the site's pill too: a soft tinted block behind the icon,
   both of them in the accent.
 
