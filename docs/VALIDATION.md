@@ -4,7 +4,33 @@ Release 0.1.1 · 28 October 2026. Historical run dates are retained below.
 
 ## Web
 
-### The wordmark, the corner and the closing player (latest run)
+### The phone layout, and Windows redrawn (latest run)
+
+- `npx tsc -b`, `npx eslint .`, `npx prettier --check .`, `npm run build` and `npm run build:pages`:
+  passed. `npm test`: **538 tests across 86 files**, all passing here.
+- The web screenshots are no longer hand-made. The `Checks` job now builds the site, serves it,
+  photographs it with the same script the docs use, and commits what it saw, so `docs/media/*.png`
+  are pictures of the commit that produced them. A review pass (`WAVE_REVIEW=1`, off by default now)
+  also photographs the phone, the open player and the 1024/820 widths.
+- **The phone layout was reviewed from those screenshots, not from code.** Two faults were found
+  that way and fixed: a leftover `:nth-last-child` span turned five single-column rows into a
+  six-column grid — three cramped cards, two wide ones, one of them with its label set vertically —
+  and the lyrics reader carried 80 px of padding at each end, which on a phone is most of the
+  screen between the heading and the first line. It is 36 px there now.
+- **Windows:** `Native builds` → run 40980538444, both jobs green. The published `windows-*.png`
+  show the redrawn rail, the banner header, one scrollbar, Home as a single page, and a light theme
+  that carries its rail. The light-theme capture is what found the last fault of the round: the
+  window read its background from the palette once and never again, so a theme change left a dark
+  band beside a light page. The window now reads the palette at the moment the theme changes, and
+  the root panel is painted from it — which is also why the screenshot is finally all light.
+- **Still red:** `Checks` fails at `npm test` on one run with
+  `expected "vi.fn()" to be called 1 times, but got 2 times`, a test that passes locally and passed
+  in the run before it. It is not claimed as fixed; it is the same kind of timing-shaped flake the
+  suite has shown before, and it is recorded here rather than papered over. The Playwright job is
+  still red with the same baseline failures as earlier rounds, and its report cannot be downloaded
+  from this environment.
+
+### The wordmark, the corner and the closing player (previous run)
 
 - `npx tsc -b`, `npx eslint .`, `npx prettier --check .` and `npm run build`: passed.
 - `npm test`: **538 tests across 86 files**, all passing. The new `WaveWordmark` suite proves the

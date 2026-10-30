@@ -24,6 +24,29 @@
 - A deleted song keeps its seconds in the total — the time was still spent — but leaves
   every list.
 
+### The phone, and Windows
+
+- The web layout below 700 px is now designed as a phone rather than as a narrow desktop. The page
+  is a card that floats over the backdrop instead of bleeding to the screen edges, the collection
+  numbers are five short rows instead of five nearly empty boxes, the page title stops shouting, and
+  sections sit closer together. The bottom bar gets a scrim, so a list scrolling behind it fades into
+  the bar instead of being sliced by it, and the lyrics keep their air above and below the scroll
+  rather than inside it. What a tablet at 820 px shows is unchanged: it was already a narrow desktop.
+- Windows is redrawn against the browser instead of against WPF's defaults. The rail is a list of
+  places with drawn icons and one filled, accented item; the page title carries the accent colour
+  with its numbers beneath and the two utilities as circles on the same line; the surface holds one
+  scrollbar instead of two side by side; Home reads as one page (numbers, then Jump back in, then the
+  mixes as rows, then what came in last) rather than a shelf sitting on top of a list; and Settings
+  is a list of named sections with a chevron rather than a wall of grey buttons.
+- Every Windows icon is a drawing on the browser's 24-unit grid, kept in one dictionary. Nothing there
+  depends on the platform icon font being installed, and a missing glyph cannot turn into an empty box.
+- Scrollbars are a thin rounded hint rather than a gutter with arrows, sliders are a thin groove with
+  a round grip, and the transport is shapes with tooltips instead of the words "Play", "Shuffle" and
+  "Repeat: off".
+- A light theme used to leave a dark band behind the rail: the window's own background had been read
+  from the old palette and never re-read after the dictionary was rebuilt. The window now takes its
+  colour from the palette directly when the theme changes.
+
 ### The look, tightened
 
 - The sidebar wordmark is the Wave mark drawn as a word — one SVG path per letter, the same
