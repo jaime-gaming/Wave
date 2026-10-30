@@ -374,3 +374,22 @@ The player itself is two `MediaPlayer` instances. The spare is prepared with the
 zero volume while the current one plays, and the handover is the same staged constant-power
 ramp as the web build, so the join has nothing in it that a phone would hear as a cut. Position
 is published ten times a second, and at 33 ms while a blend is running.
+
+## Two window sizes, one design
+
+The browser has two shells, not one shell that narrows. Above 700 px the page is a card inset
+from the rail, with the player bar along the bottom and the surface filling the rest; below it
+the rail becomes a floating dock, the page keeps a margin so it reads as a card rather than
+bleeding off the screen, and a scrim under the dock fades the list out instead of cutting it.
+The rules for the small shell live together at the end of `src/styles.css` rather than being
+sprinkled through the desktop ones, because the earlier layers are full of breakpoint-sized
+exceptions and a phone rule that lands between them loses to whichever came last.
+
+Windows is drawn from the same tokens and the same line art. Every icon in `App.xaml` is a
+`PathGeometry` on the browser's 24-unit grid, and `Iconography` reads those resources by name,
+so a list built in code and a button written in XAML draw the same shape and no icon font has to
+be installed. The palette is `App.ApplyBrushes`' single dictionary: the window, the root panel and
+every DynamicResource point into it, and a theme change re-reads it rather than waiting for a
+resource to notice. A page is either an opening that fills the card and scrolls as one thing
+(Home, Remix) or a short opening above a virtualised list (Library, Albums, Artists, Playlists,
+Search) — never two scrollbars side by side.
