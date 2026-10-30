@@ -5667,9 +5667,6 @@ a {
   .song-row:active {
     transform: none;
   }
-  .remix-aura span {
-    animation: none;
-  }
 }
 .text-button {
   border-radius: 999px;
@@ -6503,29 +6500,34 @@ h1 {
 /*
  * Remix.
  *
- * The week as one card, then the list it earns. It is short on purpose: a recap
- * is glanced at, so there is one big number, one shelf of art and one list. The
- * only colour beyond the theme is the delta against last week, which is a fact,
- * not a mood.
+ * The week read as a page rather than as a dashboard: one figure, one sentence
+ * about it, seven quiet columns, then the songs. There is no card around the
+ * number, no badge and no icon doing work a sentence can do — the type and the
+ * hairlines are the design. Everything is measured in the same rhythm: one gap
+ * between blocks, one rule between rows, nothing else.
  */
 .remix-page {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 30px;
-  padding-bottom: 12px;
+  gap: 34px;
+  padding-bottom: 8px;
+  max-width: 880px;
+  --remix-rule: color-mix(in srgb, var(--outline) 35%, transparent);
 }
 .remix-head {
   display: flex;
-  align-items: flex-start;
+  align-items: baseline;
   justify-content: space-between;
   gap: 18px;
   flex-wrap: wrap;
+  margin-bottom: -20px;
 }
 .remix-subtitle {
   margin: 0;
   color: var(--muted);
   font-size: 13.5px;
+  letter-spacing: 0.01em;
 }
 .remix-confirm {
   display: flex;
@@ -6539,162 +6541,127 @@ h1 {
   color: var(--muted);
   font-size: 13px;
 }
-.remix-week {
-  position: relative;
+
+/* The week in one figure, and the sentence you would say about it. */
+.remix-lede {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 5px 28px;
+}
+.remix-figure {
+  grid-column: 1;
+  margin: 0;
+  font-size: clamp(52px, 7.4vw, 84px);
+  font-weight: 780;
+  line-height: 0.94;
+  letter-spacing: -3px;
+  color: var(--primary);
+}
+.remix-line {
+  grid-column: 1;
+  margin: 0;
+  color: var(--muted);
+  font-size: 14.5px;
+}
+.remix-compare {
+  font-size: 13.5px;
+  margin-top: 2px;
+}
+.remix-compare[data-up='true'] {
+  color: var(--primary);
+}
+/* The week's own sleeves, small: evidence, not decoration. */
+.remix-art {
+  grid-column: 2;
+  grid-row: 1 / span 3;
   display: flex;
   align-items: flex-end;
-  justify-content: space-between;
-  gap: 24px;
-  flex-wrap: wrap;
-  padding: 26px 28px;
-  border-radius: 30px;
-  background: var(--container);
-  border: 1px solid var(--line);
-  overflow: hidden;
+  gap: 10px;
 }
-/*
- * The week's colour, behind the week's card.
- *
- * Two soft discs of the artwork's palette, drifting on their own clocks. They
- * are decorative and they never take a click: the card stays a card, it just
- * carries the colour of what was played.
- */
-.remix-aura {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
+.remix-art .artwork {
+  width: 74px;
+  height: 74px;
+  border-radius: 14px;
 }
-/* Everything the card says sits over its own glow, never under it. */
-.remix-week > *:not(.remix-aura) {
-  position: relative;
-  z-index: 1;
+.remix-art .artwork:nth-child(2) {
+  width: 56px;
+  height: 56px;
+  opacity: 0.72;
 }
-.remix-aura span {
-  position: absolute;
-  top: -110px;
-  width: 340px;
-  height: 340px;
-  border-radius: 50%;
-  background: radial-gradient(circle, var(--primary) 0%, transparent 68%);
-  opacity: 0.16;
-  filter: blur(10px);
-  animation: remix-drift 18s var(--ease-out) infinite alternate;
+.remix-art .artwork:nth-child(3) {
+  width: 44px;
+  height: 44px;
+  opacity: 0.5;
 }
-.remix-aura span:first-child {
-  left: -60px;
-}
-.remix-aura span:last-child {
-  right: -40px;
-  width: 260px;
-  height: 260px;
-  opacity: 0.1;
-  animation-duration: 24s;
-  animation-direction: alternate-reverse;
-}
-@keyframes remix-drift {
-  from {
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-  to {
-    transform: translate3d(28px, 18px, 0) scale(1.12);
-  }
-}
-.remix-week-figure {
+
+/* Seven columns, one per day, under the figure they add up to. */
+.remix-week {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  min-width: 0;
+  gap: 10px;
+  border-top: 1px solid var(--remix-rule);
+  padding-top: 20px;
 }
-.remix-week-label {
-  font-size: 12px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-.remix-week-figure strong {
-  font-size: clamp(38px, 6vw, 62px);
-  line-height: 1;
-  letter-spacing: -0.03em;
-}
-.remix-week-detail {
-  font-size: 13.5px;
-  color: var(--muted);
-}
-.remix-week-chips {
+.remix-bars {
   display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  height: 84px;
+}
+.remix-bar {
+  position: relative;
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 12px;
-}
-.remix-delta {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 12.5px;
-  padding: 5px 11px;
-  border-radius: 999px;
-  background: var(--secondary-container);
-  color: var(--on-secondary);
-}
-.remix-delta[data-up='false'] {
-  background: none;
-  border: 1px solid var(--line);
-  color: var(--muted);
-}
-/* The most played artist, as a chip you can press, not a label. */
-.remix-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  max-width: 240px;
-  padding: 5px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--line);
+  padding: 0;
   background: none;
   color: var(--muted);
-  font-size: 12.5px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  border-radius: 10px;
 }
-.remix-chip:hover {
-  color: var(--ink);
-  border-color: var(--outline);
-}
-/* One sleeve, square, with the runner-up behind it and off the axis. */
-.remix-week-art {
-  position: relative;
+.remix-bar-fill {
   display: block;
-  flex: none;
-  width: clamp(104px, 14vw, 148px);
-  height: clamp(104px, 14vw, 148px);
-}
-.remix-week-art-front,
-.remix-week-art-back {
-  position: absolute;
-  inset: 0;
-  display: block;
-}
-.remix-week-art .artwork {
-  position: absolute;
-  inset: 0;
+  flex-shrink: 0;
   width: 100%;
-  height: 100%;
-  aspect-ratio: 1;
-  border-radius: 22px;
-  box-shadow: 0 20px 44px -28px #000d;
+  max-width: 46px;
+  border-radius: 8px 8px 3px 3px;
+  background: var(--container-high);
+  transform-origin: bottom center;
 }
-.remix-week-art-back .artwork {
-  transform: translate(-18px, 14px) rotate(-7deg) scale(0.86);
-  opacity: 0.72;
-  border-radius: 18px;
+.remix-bar.today .remix-bar-fill {
+  background: var(--primary);
 }
+.remix-bar.hovered .remix-bar-fill,
+.remix-bar:focus-visible .remix-bar-fill {
+  background: var(--primary);
+  opacity: 0.85;
+}
+.remix-bar-fill[data-empty='true'] {
+  background: var(--remix-rule);
+}
+.remix-bar-day {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.remix-bar.today .remix-bar-day {
+  color: var(--text);
+}
+.remix-caption {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* Your Remix: a heading, two actions, and rows divided by a hairline. */
 .remix-mix {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
+  border-top: 1px solid var(--remix-rule);
+  padding-top: 22px;
 }
 .remix-mix-head {
   display: flex;
@@ -6702,18 +6669,18 @@ h1 {
   justify-content: space-between;
   gap: 18px;
   flex-wrap: wrap;
+  margin-bottom: 6px;
 }
 .remix-mix-head h3 {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  font-size: 19px;
+  margin: 0;
+  font-size: 21px;
+  font-weight: 750;
+  letter-spacing: -0.4px;
 }
 .remix-mix-head p {
-  margin-top: 5px;
-  font-size: 13px;
+  margin: 4px 0 0;
   color: var(--muted);
-  max-width: 46ch;
+  font-size: 13.5px;
 }
 .remix-mix-actions {
   display: flex;
@@ -6721,43 +6688,45 @@ h1 {
   flex-wrap: wrap;
 }
 .remix-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
   list-style: none;
-  margin: 0;
+  margin: 8px 0 0;
   padding: 0;
 }
 .remix-list li {
   display: grid;
-  grid-template-columns: 30px 48px minmax(0, 1fr) auto;
+  grid-template-columns: 26px 48px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 13px;
-  padding: 7px 8px;
-  border-radius: 14px;
+  gap: 14px;
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--remix-rule);
+  border-radius: 0;
+  background: none;
 }
-.remix-list li.current {
-  background: var(--container);
+.remix-list li:last-child {
+  border-bottom: 0;
+}
+.remix-list li.current .remix-name strong {
+  color: var(--primary);
 }
 .remix-rank {
   font-size: 12.5px;
-  color: var(--muted);
   font-variant-numeric: tabular-nums;
+  color: var(--muted);
   text-align: right;
 }
 .remix-cover {
   position: relative;
   width: 48px;
   height: 48px;
-  border-radius: 11px;
-  overflow: hidden;
   padding: 0;
+  border-radius: 10px;
+  overflow: hidden;
   background: none;
 }
 .remix-cover .artwork {
   width: 100%;
   height: 100%;
-  border-radius: 11px;
+  border-radius: 10px;
 }
 .remix-playing {
   position: absolute;
@@ -6766,22 +6735,35 @@ h1 {
   align-items: center;
   justify-content: center;
   gap: 3px;
-  background: #0b101bbb;
+  background: #0007;
 }
 .remix-playing span {
   width: 3px;
-  height: 13px;
+  height: 14px;
   border-radius: 2px;
-  background: var(--ink);
+  background: #fff;
+  animation: remix-play 0.9s ease-in-out infinite alternate;
+}
+.remix-playing span:last-child {
+  height: 9px;
+  animation-delay: 0.3s;
+}
+@keyframes remix-play {
+  from {
+    transform: scaleY(0.4);
+  }
+  to {
+    transform: scaleY(1);
+  }
 }
 .remix-name {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+  padding: 0;
   text-align: left;
   background: none;
-  padding: 0;
 }
 .remix-name strong,
 .remix-name span {
@@ -6791,260 +6773,116 @@ h1 {
 }
 .remix-name strong {
   font-size: 14.5px;
+  font-weight: 700;
 }
 .remix-name span {
   font-size: 12.5px;
   color: var(--muted);
 }
-.remix-list li.current .remix-name strong {
-  color: var(--primary);
-}
 .remix-count {
   font-size: 12.5px;
-  color: var(--muted);
   font-variant-numeric: tabular-nums;
-}
-.remix-artist {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 9px 16px 9px 9px;
-  border-radius: 999px;
-  background: var(--container);
-  border: 1px solid var(--line);
-  text-align: left;
-}
-.remix-artist-art {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  overflow: hidden;
-  background: var(--secondary-container);
-  color: var(--on-secondary);
-  font-weight: 700;
-}
-.remix-artist-art img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.remix-artist-name {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
-}
-.remix-artist-name strong {
-  font-size: 13.5px;
-  max-width: 190px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.remix-artist-name small {
-  font-size: 11.5px;
   color: var(--muted);
 }
+
+/* Artists this week: names and counts, nothing scored. */
 .remix-artists {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  border-top: 1px solid var(--remix-rule);
+  padding-top: 22px;
 }
-.remix-artists-title {
-  font-size: 17px;
-}
-.remix-artists-row {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-/* The share of the week, drawn under the name rather than next to it. */
-.remix-artist-bar {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  height: 2px;
-  border-radius: 2px;
-  background: var(--primary);
-  opacity: 0.5;
-  transform-origin: left center;
-}
-.remix-artist {
-  position: relative;
-  overflow: hidden;
-}
-
-/*
- * The three facts.
- *
- * Deliberately not four, not six: who, when, what kind. Each is a card with a
- * small label, one big answer and a line of arithmetic underneath.
- */
-.remix-facts {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-}
-.remix-fact {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  padding: 18px 20px;
-  border-radius: 22px;
-  background: var(--container);
-  border: 1px solid var(--line);
-  min-width: 0;
-}
-.remix-fact > span {
-  font-size: 11.5px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+.remix-artists h3 {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 700;
   color: var(--muted);
 }
-.remix-fact strong {
-  font-size: clamp(19px, 2.4vw, 25px);
-  line-height: 1.15;
-  letter-spacing: -0.02em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.remix-artists ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
-.remix-fact small {
-  font-size: 12.5px;
-  color: var(--muted);
-}
-.remix-fact-link {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: none;
-  color: var(--muted);
-}
-.remix-fact-link:hover {
-  color: var(--ink);
-  background: var(--container-high);
-}
-
-/*
- * The week as bars.
- *
- * Seven columns, each one a day, height proportional to the day's minutes. The
- * bars grow once, on arrival; hovering a day reports what it held in the
- * heading instead of opening a tooltip.
- */
-.remix-chart,
-.remix-hours {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-.remix-chart-head {
+.remix-artists li {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 14px;
-  flex-wrap: wrap;
+  gap: 16px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--remix-rule);
 }
-.remix-chart-head h3 {
-  font-size: 17px;
+.remix-artists li:last-child {
+  border-bottom: 0;
 }
-.remix-chart-head span {
+.remix-artists button {
+  padding: 0;
+  background: none;
+  font-size: 14.5px;
+  font-weight: 650;
+  text-align: left;
+  color: var(--text);
+}
+.remix-artists button:hover {
+  color: var(--primary);
+}
+.remix-artists span {
   font-size: 12.5px;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
-.remix-bars {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(0, 1fr);
-  align-items: end;
-  gap: 10px;
-  height: 132px;
-  padding: 0 2px;
-}
-.remix-bar {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 8px;
-  height: 100%;
-  padding: 0;
-  background: none;
-}
-.remix-bar-fill {
-  display: block;
-  width: 100%;
-  max-width: 58px;
-  min-height: 4px;
-  border-radius: 10px 10px 4px 4px;
-  background: color-mix(in srgb, var(--primary) 62%, transparent);
-}
-.remix-bar-fill[data-empty='true'] {
-  background: var(--line);
-}
-.remix-bar.today .remix-bar-fill {
-  background: var(--primary);
-}
-.remix-bar.hovered .remix-bar-fill {
-  background: var(--primary);
-}
-.remix-bar-day {
-  font-size: 11.5px;
+
+.remix-detail {
+  border-top: 1px solid var(--remix-rule);
+  padding-top: 22px;
   color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-size: 13px;
 }
-.remix-bar.today .remix-bar-day {
-  color: var(--ink);
+.remix-detail h3 {
+  margin: 0 0 8px;
+  color: var(--text);
+  font-size: 15px;
 }
-/* When, in the day: a thin column per hour, the busiest one lit. */
+.remix-hours {
+  margin-top: 18px;
+}
+.remix-hours-heading,
+.remix-hours-labels {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
 .remix-hours-scale {
   display: flex;
   align-items: flex-end;
   gap: 4px;
-  height: 64px;
+  height: 48px;
+  margin: 10px 0 6px;
 }
 .remix-hours-scale span {
   flex: 1;
-  min-height: 3px;
-  border-radius: 3px;
-  background: color-mix(in srgb, var(--primary) 34%, transparent);
-  transform-origin: bottom center;
+  min-width: 0;
+  border-radius: 3px 3px 0 0;
+  background: var(--container-high);
+  transform-origin: bottom;
 }
 .remix-hours-scale span[data-peak='true'] {
   background: var(--primary);
 }
 .remix-hours-labels {
-  display: flex;
-  justify-content: space-between;
   font-size: 11px;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
 }
 .remix-foot {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding-top: 6px;
-  border-top: 1px solid var(--line);
+  gap: 4px;
+  border-top: 1px solid var(--remix-rule);
+  padding-top: 16px;
   font-size: 12.5px;
   color: var(--muted);
 }
 .remix-foot p {
+  margin: 0;
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 .remix-link {
@@ -7055,82 +6893,30 @@ h1 {
 }
 @media (max-width: 640px) {
   .remix-page {
-    gap: 24px;
+    gap: 26px;
   }
-  .remix-week {
-    padding: 20px;
-    border-radius: 24px;
-  }
-  .remix-week-art {
+  .remix-art {
     display: none;
   }
-  .remix-facts {
-    grid-template-columns: 1fr;
-    gap: 10px;
-  }
-  .remix-fact {
-    padding: 15px 17px;
+  .remix-lede {
+    grid-template-columns: minmax(0, 1fr);
   }
   .remix-bars {
-    height: 108px;
-    gap: 7px;
-  }
-  .remix-hours-scale {
-    height: 54px;
-    gap: 3px;
+    height: 68px;
+    gap: 6px;
   }
   .remix-list li {
-    grid-template-columns: 22px 44px minmax(0, 1fr);
+    grid-template-columns: 20px 44px minmax(0, 1fr);
     gap: 11px;
   }
-  .remix-count {
-    display: none;
+  .remix-list li {
+    grid-template-columns: 20px 44px minmax(0, 1fr) auto;
   }
   .remix-mix-actions {
     width: 100%;
   }
   .remix-mix-actions button {
     flex: 1;
-  }
-}
-/* "Jump back in" on Home: the songs this device was playing most recently. */
-.home-resume {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
-  gap: 14px;
-}
-.home-resume-card {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-  min-width: 0;
-  text-align: left;
-  background: none;
-  padding: 0;
-}
-.home-resume-card .artwork {
-  width: 100%;
-  aspect-ratio: 1;
-  border-radius: 16px;
-  box-shadow: 0 10px 24px -16px #000a;
-}
-.home-resume-card strong,
-.home-resume-card span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.home-resume-card strong {
-  font-size: 14px;
-}
-.home-resume-card span {
-  font-size: 12.5px;
-  color: var(--muted);
-}
-@media (max-width: 640px) {
-  .home-resume {
-    grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
-    gap: 10px;
   }
 }
 
@@ -7231,10 +7017,6 @@ h1 {
   .section-heading {
     margin-bottom: 12px;
   }
-  .home-resume,
-  .home-albums .home-resume {
-    gap: 10px;
-  }
 
   /* Lyrics keep their air at the top and bottom of the scroll, not inside it. */
   .lyrics-scroll {
@@ -7246,19 +7028,10 @@ h1 {
   }
 }
 
-/*
- * With nothing playing there is no player bar, so the column reserved for it is
- * not reserved: the page widens into it, and gives it back when the bar arrives.
- *
- * The reserve is a custom property rather than a second margin rule, so the shell
- * decides it once and every width uses the same number — nothing here depends on
- * which selector happens to come last.
- */
+/* Keep the desktop page at the same width before and during playback. The
+   player occupies the right-hand column; the page does not jump when it opens. */
 .app-shell {
   --player-reserve: var(--player-width);
-}
-.app-shell.without-track {
-  --player-reserve: 0px;
 }
 .workspace {
   margin-right: calc(var(--player-reserve) + var(--space-5));
@@ -7267,6 +7040,11 @@ h1 {
 @media (max-width: 1100px) {
   .app-shell {
     --player-reserve: 0px;
+  }
+}
+@media (max-width: 700px) {
+  .workspace {
+    margin-right: 10px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

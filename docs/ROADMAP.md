@@ -242,3 +242,12 @@ downloads Spotify audio. YouTube audio is never extracted.
 - [x] Windows native navigation, collections, six Settings menus and expanded/compact player redesign.
 - [x] User-oriented README, actual screenshots and captioned MP4 promotion.
 - [x] Publish the merged revision as tag/Release v0.1.0; documentation/media alone do not publish it.
+
+## Mobile design parity
+
+- [x] Use the mobile web shell, four navigation destinations, collection shortcuts and Remix
+      layout as the direction for Android while keeping Android's system picker and playback service.
+- [ ] Compare every Android screen, both themes and large text against the corresponding mobile
+      web screen on real devices. Bring remaining functionality (including YouTube songs, clips,
+      device linking and word-level lyrics) across without losing local playback or stored data.
+- [ ] iOS is a future port, not part of this change.

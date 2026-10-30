@@ -125,7 +125,8 @@ Desktop Runtime, and add your folders. Unsigned builds can trigger SmartScreen; 
 
 **Android.** A native Kotlin/Compose app for API 26 and newer. Import files, a folder or the music
 your phone already indexes, and playback continues with the screen off, from the lock screen, the
-quick settings tile or your headphones.
+quick settings tile or your headphones. Its interface follows the mobile website; the remaining
+feature and device-testing gaps are listed in [Platforms](docs/PLATFORMS.md#android).
 
 ## Your files and your privacy
 

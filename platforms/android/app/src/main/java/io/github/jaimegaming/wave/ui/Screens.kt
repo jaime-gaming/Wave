@@ -21,7 +21,9 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,6 +35,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -41,132 +45,134 @@ import io.github.jaimegaming.wave.DaySlice
 import io.github.jaimegaming.wave.count
 import io.github.jaimegaming.wave.Playlist
 import io.github.jaimegaming.wave.Song
-import io.github.jaimegaming.wave.WeekRecap
 import io.github.jaimegaming.wave.listeningTime
 import io.github.jaimegaming.wave.weekRange
 
 // --- Home ------------------------------------------------------------------
 
-/**
- * The morning screen: what was heard last, today's mixes, and what arrived.
- *
- * Nothing here is generated. "Jump back in" is the library's own history, the
- * mixes are the listener's tags rotated by date, and the albums are the files.
- */
+/** The same Home composition as the mobile site, backed by the native library. */
 @Composable
 fun HomeScreen(state: WaveState, onAddMusic: () -> Unit, onOpenSong: (Song) -> Unit) {
+    if (state.open is Open.Mix) {
+        CollectionScreen(state, onOpenSong)
+        return
+    }
     val songs = state.songs
     val mixes = state.mixes()
-    val recent = state.summary.recent.take(6)
-    val added = songs.sortedByDescending { it.addedAt }.take(8)
-    val favorites = state.favorites()
+    val albums = state.albums().entries.sortedByDescending { entry ->
+        entry.value.maxOfOrNull { it.addedAt } ?: 0L
+    }
+    val added = songs.sortedByDescending { it.addedAt }.take(6)
+    val shortcuts = listOf(
+        Triple(Shelf.Songs, "song", songs.size),
+        Triple(Shelf.Albums, "album", albums.size),
+        Triple(Shelf.Artists, "artist", state.artists().size),
+        Triple(Shelf.Playlists, "playlist", state.playlists.size),
+        Triple(Shelf.Favorites, "favorite", state.favorites().size),
+    )
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 20.dp),
-        contentPadding = PaddingValues(bottom = 24.dp),
+        modifier = Modifier.wavePage(),
+        contentPadding = PaddingValues(start = 14.dp, end = 14.dp, bottom = 24.dp),
     ) {
         item {
             ScreenTitle(
                 title = "Home",
-                subtitle = when {
-                    songs.isEmpty() -> "Nothing here yet"
-                    state.summary.weekSeconds > 0 -> "You listened for ${listeningTime(state.summary.weekSeconds)} this week"
-                    else -> count(songs.size, "song") + " on this phone"
-                },
+                subtitle = "${count(songs.size, "song")} · ${count(albums.size, "album")}",
             )
-        }
-        if (songs.isEmpty()) {
-            item {
-                EmptyState(
-                    title = "Your library is empty",
-                    body = "Wave plays the files on this phone. Nothing is uploaded and nothing is streamed.",
-                    actionLabel = "Add music",
-                    onAction = onAddMusic,
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "Your collection",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                    fontSize = 18.sp,
+                    modifier = Modifier.weight(1f),
                 )
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(MaterialTheme.colorScheme.primaryContainer)
+                        .clickable(onClick = onAddMusic)
+                        .padding(horizontal = 14.dp, vertical = 11.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    WaveIcon("plus", 16.dp, MaterialTheme.colorScheme.onSurface)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Add music", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
+                }
             }
-            return@LazyColumn
-        }
-        val current = state.player.current?.let { playing -> songs.find { it.id == playing.id } }
-        if (current != null) {
-            item {
-                SectionTitle("Playing now", action = "Queue") { state.queueOpen = true }
+            shortcuts.forEachIndexed { index, (shelf, icon, amount) ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                        .clickable { state.nowPlayingOpen = true }
-                        .padding(12.dp),
+                        .padding(bottom = 6.dp)
+                        .height(46.dp)
+                        .clip(RoundedCornerShape(17.dp))
+                        .background(if (index == 0) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer)
+                        .clickable {
+                            state.shelf = shelf
+                            state.destination = Destination.Library
+                            state.open = null
+                        }
+                        .padding(horizontal = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Cover(current, size = 72.dp, radius = 16.dp)
+                    WaveIcon(icon, 18.dp, MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.width(14.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            text = current.title,
-                            style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.onBackground,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Text(
-                            text = current.artist,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Text(
-                            text = "${clockTime(state.player.time)} / ${clockTime(current.duration)}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 4.dp),
-                        )
-                    }
+                    Text(shelf.label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+                    Text(amount.toString(), fontSize = 19.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                 }
             }
         }
         if (mixes.isNotEmpty()) {
-            item {
-                SectionTitle("Made from your tags")
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    items(mixes, key = { "mix-" + it.label }) { mix -> MixTile(mix) { state.open = Open.Mix(mix.label) } }
-                }
+            item { SectionTitle("Daily mixes") }
+            itemsIndexed(mixes, key = { _, mix -> "mix-" + mix.label }) { index, mix ->
+                DailyMixRow(mix, index + 1) { state.open = Open.Mix(mix.label) }
             }
         }
-        if (recent.isNotEmpty()) {
+        if (albums.isNotEmpty()) {
             item {
-                SectionTitle(
-                    text = "Jump back in",
-                    action = "Remix",
-                    onAction = { state.destination = Destination.Remix },
-                )
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    items(recent, key = { "recent-" + it.id }) { song -> CoverTile(song, onOpenSong) }
+                SectionTitle("Recently added albums", action = "All albums") {
+                    state.shelf = Shelf.Albums
+                    state.destination = Destination.Library
                 }
-            }
-        }
-        if (favorites.isNotEmpty()) {
-            item {
-                SectionTitle(
-                    text = "Favorites",
-                    action = "All",
-                    onAction = {
-                        state.destination = Destination.Library
-                        state.shelf = Shelf.Favorites
-                    },
-                )
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    items(favorites.take(10), key = { "fav-" + it.id }) { song -> CoverTile(song, onOpenSong) }
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    items(albums.take(6), key = { "album-" + it.key }) { entry ->
+                        Column(
+                            modifier = Modifier
+                                .width(144.dp)
+                                .clip(RoundedCornerShape(18.dp))
+                                .background(MaterialTheme.colorScheme.surfaceContainer)
+                                .clickable {
+                                    state.destination = Destination.Library
+                                    state.shelf = Shelf.Albums
+                                    state.open = Open.Album(entry.key)
+                                }
+                                .padding(8.dp),
+                        ) {
+                            Cover(entry.value.first(), size = 128.dp, radius = 13.dp)
+                            Text(entry.key, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 8.dp))
+                            Text(entry.value.first().artist, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
                 }
             }
         }
         item {
-            SectionTitle(
-                text = "Recently added",
-                action = if (songs.size > 8) "All songs" else null,
-                onAction = if (songs.size > 8) ({ state.destination = Destination.Library }) else null,
-            )
+            SectionTitle(if (songs.isEmpty()) "Your music" else "Recently added songs", action = if (songs.isEmpty()) null else "All songs", onAction = {
+                state.shelf = Shelf.Songs
+                state.destination = Destination.Library
+            })
+            if (songs.isEmpty()) {
+                EmptyState(
+                    title = "Your library is empty",
+                    body = "Add music from this device to get started.",
+                    actionLabel = "Add music",
+                    onAction = onAddMusic,
+                )
+            }
         }
         items(added, key = { "added-" + it.id }) { song ->
             SongRow(
@@ -181,62 +187,24 @@ fun HomeScreen(state: WaveState, onAddMusic: () -> Unit, onOpenSong: (Song) -> U
 }
 
 @Composable
-private fun MixTile(mix: DailyMix, onOpen: () -> Unit) {
-    Column(
+private fun DailyMixRow(mix: DailyMix, number: Int, onOpen: () -> Unit) {
+    Row(
         modifier = Modifier
-            .width(148.dp)
-            .clip(RoundedCornerShape(18.dp))
-            .clickable(onClick = onOpen),
+            .fillMaxWidth()
+            .padding(bottom = 10.dp)
+            .clip(RoundedCornerShape(22.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .clickable(onClick = onOpen)
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        // The mix tile is the sleeve of its first song under a wash of the tag's
-        // own name; no separate artwork, so nothing is invented.
-        Box {
-            Cover(mix.songs.first(), size = 148.dp, radius = 18.dp)
-            Text(
-                text = mix.label,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onBackground,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .padding(12.dp)
-                    .background(MaterialTheme.colorScheme.background.copy(alpha = 0.62f), RoundedCornerShape(8.dp))
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-            )
+        Cover(mix.songs.first(), size = 64.dp, radius = 14.dp)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text("Daily mix $number", style = MaterialTheme.typography.titleMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+            Text(mix.label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        Text(
-            text = count(mix.songs.size, "song"),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 8.dp),
-        )
-    }
-}
-
-@Composable
-private fun CoverTile(song: Song, onOpen: (Song) -> Unit) {
-    Column(
-        modifier = Modifier
-            .width(124.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .clickable { onOpen(song) },
-    ) {
-        Cover(song, size = 124.dp, radius = 16.dp)
-        Text(
-            text = song.title,
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onBackground,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = 8.dp),
-        )
-        Text(
-            text = song.artist,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        WaveIcon("arrow", 20.dp, MaterialTheme.colorScheme.primary)
     }
 }
 
@@ -253,10 +221,8 @@ private fun CoverTile(song: Song, onOpen: (Song) -> Unit) {
 fun SearchScreen(state: WaveState, onOpenSong: (Song) -> Unit) {
     val results = state.visible()
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 20.dp),
-        contentPadding = PaddingValues(bottom = 24.dp),
+        modifier = Modifier.wavePage(),
+        contentPadding = PaddingValues(start = 14.dp, end = 14.dp, bottom = 24.dp),
     ) {
         item {
             ScreenTitle(
@@ -350,10 +316,8 @@ fun LibraryScreen(state: WaveState, onAddMusic: () -> Unit, onOpenSong: (Song) -
         return
     }
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 20.dp),
-        contentPadding = PaddingValues(bottom = 24.dp),
+        modifier = Modifier.wavePage(),
+        contentPadding = PaddingValues(start = 14.dp, end = 14.dp, bottom = 24.dp),
     ) {
         item {
             ScreenTitle(
@@ -364,48 +328,49 @@ fun LibraryScreen(state: WaveState, onAddMusic: () -> Unit, onOpenSong: (Song) -
                         "${count(state.songs.size, "song")} · ${count(state.albums().size, "album")}"
                     else -> "${state.visible().size} of ${state.songs.size} songs"
                 },
-                trailing = {
-                    Text(
-                        text = "+ Add",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(10.dp))
-                            .clickable(onClick = onAddMusic)
-                            .padding(horizontal = 10.dp, vertical = 8.dp),
-                    )
-                },
             )
+            val categories = Shelf.values().toList()
+            categories.chunked(3).forEach { row ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    row.forEach { shelf ->
+                        val selected = state.shelf == shelf
+                        val amount = when (shelf) {
+                            Shelf.Songs -> state.songs.size
+                            Shelf.Albums -> state.albums().size
+                            Shelf.Artists -> state.artists().size
+                            Shelf.Playlists -> state.playlists.size
+                            Shelf.Favorites -> state.favorites().size
+                        }
+                        Row(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(44.dp)
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainer)
+                                .clickable { state.shelf = shelf }
+                                .padding(horizontal = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            val tint = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                            Text(shelf.label, style = MaterialTheme.typography.labelLarge, color = tint, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                            Text(amount.toString(), style = MaterialTheme.typography.labelSmall, color = tint)
+                        }
+                    }
+                }
+            }
             OutlinedTextField(
                 value = state.query,
                 onValueChange = { state.query = it },
                 placeholder = { Text("Search this library") },
                 singleLine = true,
                 shape = RoundedCornerShape(16.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 10.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
             )
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.padding(top = 12.dp),
-            ) {
-                items(Shelf.values().toList(), key = { it.name }) { item ->
-                    val selected = state.shelf == item
-                    Text(
-                        text = item.label,
-                        style = MaterialTheme.typography.labelLarge,
-                        color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(
-                                if (selected) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.surfaceContainerHigh,
-                            )
-                            .clickable { state.shelf = item }
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                    )
-                }
+            if (state.shelf == Shelf.Songs || state.shelf == Shelf.Favorites) {
+                SectionTitle(if (state.shelf == Shelf.Favorites) "Favorites" else "All songs")
             }
         }
         when (state.shelf) {
@@ -583,69 +548,75 @@ private fun PlaylistRow(playlist: Playlist, songs: List<Song>, onOpen: () -> Uni
 private fun CollectionScreen(state: WaveState, onOpenSong: (Song) -> Unit) {
     val songs = state.openSongs()
     val title = state.openTitle()
+    val mix = state.open as? Open.Mix
+    val mixNumber = mix?.let { selected -> state.mixes().indexOfFirst { it.label == selected.label } + 1 } ?: 0
     val playlist = (state.open as? Open.Playlist)?.let { target -> state.playlists.find { it.id == target.id } }
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 20.dp),
-        contentPadding = PaddingValues(bottom = 24.dp),
+        modifier = Modifier.wavePage(),
+        contentPadding = PaddingValues(start = 14.dp, end = 14.dp, bottom = 24.dp),
     ) {
         item {
-            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                Text(
-                    text = "‹",
-                    fontSize = 26.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable { state.open = null }
-                        .padding(horizontal = 10.dp, vertical = 2.dp),
-                )
-                Spacer(Modifier.weight(1f))
-                if (playlist != null) {
-                    Text(
-                        text = "Rename or delete",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(10.dp))
-                            .clickable { state.playlistEditor = playlist }
-                            .padding(horizontal = 10.dp, vertical = 8.dp),
-                    )
-                }
-            }
             ScreenTitle(
-                title = title,
-                subtitle = if (songs.isEmpty()) "Empty" else count(songs.size, "song"),
+                title = if (mix != null) "Daily mixes" else title,
+                subtitle = "${count(state.songs.size, "song")} · ${count(state.albums().size, "album")}",
             )
+            Row(
+                modifier = Modifier.clip(RoundedCornerShape(12.dp)).clickable { state.open = null }.padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                WaveIcon("back", 18.dp, MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(8.dp))
+                Text(if (mix != null) "Back to Home" else "Back", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+            }
+            if (mix != null && songs.isNotEmpty()) {
+                Row(Modifier.fillMaxWidth().padding(vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Cover(songs.first(), size = 120.dp, radius = 18.dp)
+                    Spacer(Modifier.width(16.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("Daily mix $mixNumber", style = MaterialTheme.typography.headlineMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                        Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 4.dp))
+                        Body(count(songs.size, "song"))
+                    }
+                }
+            } else {
+                Body(if (songs.isEmpty()) "Empty" else count(songs.size, "song"), Modifier.padding(vertical = 10.dp))
+            }
+            if (playlist != null) {
+                Text(
+                    text = "Rename or delete",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { state.playlistEditor = playlist }.padding(vertical = 8.dp),
+                )
+            }
             if (songs.isNotEmpty()) {
-                Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
                     Text(
-                        text = "▶ Play",
+                        text = if (mix != null) "Play mix" else "Play",
                         style = MaterialTheme.typography.labelLarge,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                         color = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.primary)
-                            .clickable {
-                                state.playAll(songs)
-                                state.nowPlayingOpen = true
-                            }
-                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                        modifier = Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.primary)
+                            .clickable { state.playAll(songs) }.padding(horizontal = 8.dp, vertical = 12.dp),
                     )
                     Text(
                         text = "Shuffle",
                         style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                            .clickable {
-                                state.shuffleAll(songs)
-                                state.nowPlayingOpen = true
-                            }
-                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.primaryContainer)
+                            .clickable { state.shuffleAll(songs) }.padding(horizontal = 8.dp, vertical = 12.dp),
                     )
+                    if (mix != null) {
+                        Text(
+                            text = "Save as playlist",
+                            style = MaterialTheme.typography.labelLarge,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.weight(1.4f).clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.primaryContainer)
+                                .clickable { state.saveDailyMix(title, songs) }.padding(horizontal = 8.dp, vertical = 12.dp),
+                        )
+                    }
                 }
             }
         }
@@ -655,12 +626,7 @@ private fun CollectionScreen(state: WaveState, onOpenSong: (Song) -> Unit) {
                 playing = state.player.current?.id == song.id,
                 onPlay = { onOpenSong(song) },
                 onFavorite = { state.toggleFavorite(song) },
-                onMore = {
-                    state.options = song
-                    // The sheet can offer "Remove from this playlist"; the song
-                    // itself stays in the library.
-                    state.optionsPlaylist = playlist
-                },
+                onMore = { state.options = song; state.optionsPlaylist = playlist },
             )
         }
     }
@@ -668,237 +634,144 @@ private fun CollectionScreen(state: WaveState, onOpenSong: (Song) -> Unit) {
 
 // --- Remix ----------------------------------------------------------------
 
-/**
- * The week you just had, and the list it earns.
- *
- * One card, one number, one list. A recap is glanced at, so the page stays
- * short: the week, Your Remix with Play and Save, and the artists behind it.
- * Everything on it was counted on this phone; nothing is a recommendation.
- */
+/** A seven-day recap and a playable selection, matching the mobile website. */
 @Composable
-fun RemixScreen(state: WaveState, onOpenSong: (Song) -> Unit) {
+fun RemixScreen(state: WaveState) {
     val recap = state.recap
     val songs = recap.songs
+    var confirmClear by remember { mutableStateOf(false) }
+    if (confirmClear) {
+        AlertDialog(
+            onDismissRequest = { confirmClear = false },
+            title = { Text("Clear listening history?") },
+            text = { Text("Your songs and playlists will stay. Listening history will be removed from this device.") },
+            confirmButton = {
+                TextButton(onClick = { confirmClear = false; state.clearHistory() }) { Text("Clear history") }
+            },
+            dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Keep it") } },
+        )
+    }
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 20.dp),
-        contentPadding = PaddingValues(bottom = 24.dp),
+        modifier = Modifier.wavePage(),
+        contentPadding = PaddingValues(start = 14.dp, end = 14.dp, bottom = 24.dp),
     ) {
-        item { ScreenTitle(title = "Remix", subtitle = weekRange(recap.start, recap.end)) }
+        item { ScreenTitle(title = "Remix", subtitle = "The songs you played this week") }
         if (state.plays.isEmpty()) {
             item {
                 EmptyState(
                     title = "No week to look back on yet",
-                    body = "Play a song and this page fills in: your week in one number, and a list of what you actually played.",
+                    body = "Play a song and this page fills in with your week and a Remix of your music.",
                 )
             }
             return@LazyColumn
         }
         item {
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                    .padding(20.dp),
-            ) {
-                Label("This week")
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(weekRange(recap.start, recap.end), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
                 Text(
-                    text = listeningTime(recap.seconds),
-                    style = MaterialTheme.typography.displaySmall,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.padding(top = 4.dp),
-                )
-                Text(
-                    text = "${count(recap.plays, "play")} · " +
-                        "${count(recap.tracks, "song")} · ${count(recap.artists, "artist")}",
-                    style = MaterialTheme.typography.bodyMedium,
+                    "Clear history",
+                    style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp),
+                    modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { confirmClear = true }.padding(8.dp),
                 )
-                val delta = recap.seconds - recap.previousSeconds
-                if (recap.previousSeconds > 0) {
-                    Text(
-                        text = (if (delta >= 0) "+" else "−") +
-                            listeningTime(kotlin.math.abs(delta)) + " vs last week",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier
-                            .padding(top = 10.dp)
-                            .clip(RoundedCornerShape(999.dp))
-                            .background(MaterialTheme.colorScheme.surfaceContainer)
-                            .padding(horizontal = 11.dp, vertical = 5.dp),
-                    )
-                }
+            }
+            Text(
+                text = listeningTime(recap.seconds),
+                fontSize = 52.sp,
+                lineHeight = 58.sp,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                letterSpacing = (-2).sp,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(top = 14.dp),
+            )
+            Text(
+                text = "${count(recap.plays, "play")} · ${count(recap.tracks, "song")} · ${count(recap.artists, "artist")}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            val delta = recap.seconds - recap.previousSeconds
+            if (recap.previousSeconds > 0) {
+                Body((if (delta >= 0) "+" else "−") + listeningTime(kotlin.math.abs(delta)) + " vs last week", Modifier.padding(top = 4.dp))
             }
         }
-        item { WeekFacts(recap) }
         item { WeekBars(recap.days) }
-        if (recap.hours.any { it > 0 }) item { HourStrip(recap.hours) }
         if (songs.isNotEmpty()) {
             item {
+                Divider()
                 SectionTitle("Your Remix")
-                Body(
-                    if (songs.size == 1) "The one song you played most."
-                    else "${count(songs.size, "song")} you played most, in order.",
-                )
+                Body("${count(songs.size, "song")} from your week and, when needed, earlier favorites.")
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.padding(top = 12.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                 ) {
-                    Text(
-                        text = "▶ Play Remix",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onPrimary,
+                    Row(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(24.dp))
+                            .weight(1f)
+                            .clip(RoundedCornerShape(18.dp))
                             .background(MaterialTheme.colorScheme.primary)
-                            .clickable {
-                                state.playAll(songs)
-                                state.nowPlayingOpen = true
-                            }
-                            .padding(horizontal = 18.dp, vertical = 12.dp),
-                    )
+                            .clickable { state.playAll(songs) }
+                            .padding(horizontal = 12.dp, vertical = 13.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                    ) {
+                        WaveIcon("play", 17.dp, MaterialTheme.colorScheme.onPrimary)
+                        Spacer(Modifier.width(7.dp))
+                        Text("Play Remix", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onPrimary)
+                    }
                     Text(
                         text = "Save as playlist",
                         style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier
-                            .clip(RoundedCornerShape(24.dp))
-                            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                            .weight(1f)
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(MaterialTheme.colorScheme.primaryContainer)
                             .clickable { state.saveRemix() }
-                            .padding(horizontal = 18.dp, vertical = 12.dp),
+                            .padding(horizontal = 12.dp, vertical = 13.dp),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                     )
                 }
             }
             itemsIndexed(songs, key = { _, song -> "remix-" + song.id }) { position, song ->
                 val plays = recap.topSongs.firstOrNull { it.first.id == song.id }?.second
                 RemixRow(song, position + 1, plays, state.player.current?.id == song.id) {
-                    state.play(song)
+                    state.player.play(songs, song)
                 }
             }
         }
         if (recap.topArtists.isNotEmpty()) {
             item {
+                Divider()
                 SectionTitle("Artists this week")
                 recap.topArtists.forEach { (artist, plays) ->
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable {
-                                state.destination = Destination.Library
-                                state.shelf = Shelf.Artists
-                                state.open = Open.Artist(artist)
-                            }
-                            .padding(vertical = 10.dp, horizontal = 4.dp),
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable {
+                            state.destination = Destination.Library
+                            state.shelf = Shelf.Artists
+                            state.open = Open.Artist(artist)
+                        }.padding(vertical = 10.dp, horizontal = 4.dp),
                     ) {
-                        Text(
-                            text = artist,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onBackground,
-                            modifier = Modifier.weight(1f),
-                        )
-                        Text(
-                            text = count(plays, "play"),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                        Text(artist, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                        Text(count(plays, "play"), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
         }
         item {
-            Spacer(Modifier.height(12.dp))
+            Divider()
+            SectionTitle("More about this week")
+            Body(recap.genres.firstOrNull()?.let { "Most played genre: ${it.genre} · ${listeningTime(it.seconds)}" } ?: "Most played genre: untagged")
+        }
+        if (recap.hours.any { it > 0 }) item { HourStrip(recap.hours) }
+        item {
             Divider()
             Body(
-                "${listeningTime(state.summary.totalSeconds)} listened all time. " +
-                    "Counted on this phone and never uploaded; a song counts once you have heard half of it.",
+                "${listeningTime(state.summary.totalSeconds)} listened all time · ${count(state.plays.size, "play")}. " +
+                    "Counted on this device, never uploaded.",
                 Modifier.padding(top = 12.dp),
             )
-            Text(
-                text = "Clear history",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier
-                    .padding(top = 8.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .clickable { state.clearHistory() }
-                    .padding(horizontal = 10.dp, vertical = 8.dp),
-            )
         }
-    }
-}
-
-/**
- * Three facts, the way the web page opens its recap: who, when, what kind.
- *
- * The artists themselves are listed further down the page, where they can be
- * opened; these three are answers, not buttons.
- */
-@Composable
-private fun WeekFacts(recap: WeekRecap) {
-    val busiest = recap.days.maxByOrNull { it.seconds }
-    val artist = recap.topArtists.firstOrNull()
-    val genre = recap.genres.firstOrNull()
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Fact(
-            label = "Top artist",
-            value = artist?.first ?: "Nobody yet",
-            detail = artist?.let { count(it.second, "play") } ?: "Play something",
-            modifier = Modifier.weight(1f),
-        )
-        Fact(
-            label = "Busiest day",
-            value = if (busiest != null && busiest.seconds > 0) weekdayLetter(busiest.at) else "—",
-            detail = if (busiest != null && busiest.seconds > 0) listeningTime(busiest.seconds) else "Quiet week",
-            modifier = Modifier.weight(1f),
-        )
-        Fact(
-            label = "Genre",
-            value = genre?.genre ?: "Untagged",
-            detail = genre?.let { listeningTime(it.seconds) } ?: "No tags yet",
-            modifier = Modifier.weight(1f),
-        )
-    }
-}
-
-@Composable
-private fun Fact(label: String, value: String, detail: String, modifier: Modifier = Modifier) {
-    Column(
-        modifier
-            .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-    ) {
-        Text(
-            text = label.uppercase(java.util.Locale.getDefault()),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onBackground,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = 2.dp),
-        )
-        Text(
-            text = detail,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
     }
 }
 
@@ -914,53 +787,54 @@ private fun WeekBars(days: List<DaySlice>) {
     if (days.isEmpty()) return
     val peak = (days.maxOfOrNull { it.seconds } ?: 0).coerceAtLeast(1)
     var grown by remember { mutableStateOf(false) }
+    var selected by remember { mutableStateOf<Int?>(null) }
     LaunchedEffect(days) { grown = true }
-    Column(Modifier.padding(top = 4.dp)) {
-        SectionTitle("How the week went")
+    Column(Modifier.padding(top = 24.dp, bottom = 20.dp)) {
+        Divider()
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(96.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth().padding(top = 18.dp).height(64.dp),
+            horizontalArrangement = Arrangement.spacedBy(7.dp),
             verticalAlignment = Alignment.Bottom,
         ) {
             days.forEachIndexed { index, day ->
-                val share = if (day.seconds == 0) 0.05f else (day.seconds.toFloat() / peak).coerceAtLeast(0.09f)
+                val share = if (day.seconds == 0) 0.04f else (day.seconds.toFloat() / peak).coerceAtLeast(0.09f)
                 val height by animateFloatAsState(
                     targetValue = if (grown) share else 0f,
-                    animationSpec = spring(dampingRatio = 0.72f, stiffness = Spring.StiffnessMediumLow),
+                    animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow),
                     label = "week bar",
                 )
-                // The bar is as tall as its share of the week and sits on the
-                // baseline of the row, so the week grows upwards as it did on
-                // paper. A spring that overshoots is held at the row's height.
+                val dayName = java.text.SimpleDateFormat("EEE d", java.util.Locale.getDefault()).format(java.util.Date(day.at))
                 Box(
-                    Modifier
+                    modifier = Modifier
                         .weight(1f)
-                        .height(96.dp * height.coerceIn(0f, 1f))
-                        .clip(RoundedCornerShape(topStart = 9.dp, topEnd = 9.dp))
-                        .background(
-                            if (index == days.lastIndex) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
-                        ),
-                )
+                        .height(64.dp)
+                        .semantics { contentDescription = "$dayName: ${listeningTime(day.seconds)}" }
+                        .clickable { selected = index },
+                    contentAlignment = Alignment.BottomCenter,
+                ) {
+                    Box(
+                        Modifier.fillMaxWidth().height(64.dp * height.coerceIn(0f, 1f))
+                            .clip(RoundedCornerShape(topStart = 7.dp, topEnd = 7.dp))
+                            .background(if (index == days.lastIndex || selected == index) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh),
+                    )
+                }
             }
         }
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
+        Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
             days.forEach { day ->
                 Text(
-                    text = weekdayLetter(day.at),
+                    weekdayLetter(day.at),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                     modifier = Modifier.weight(1f),
                 )
             }
+        }
+        val day = selected?.let { days.getOrNull(it) } ?: days.maxByOrNull { it.seconds }
+        if (day != null && day.seconds > 0) {
+            val label = java.text.SimpleDateFormat("EEE", java.util.Locale.getDefault()).format(java.util.Date(day.at))
+            Body(if (selected == null) "Most on $label, ${listeningTime(day.seconds)}" else "$label · ${listeningTime(day.seconds)} · ${count(day.plays, "play")}", Modifier.padding(top = 10.dp))
         }
     }
 }
@@ -1081,10 +955,8 @@ private fun RemixRow(song: Song, position: Int, plays: Int?, playing: Boolean, o
 fun SettingsScreen(state: WaveState, version: String, onAddMusic: () -> Unit) {
     val albums = state.albums().size
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 20.dp),
-        contentPadding = PaddingValues(bottom = 24.dp),
+        modifier = Modifier.wavePage(),
+        contentPadding = PaddingValues(start = 14.dp, end = 14.dp, bottom = 24.dp),
     ) {
         item { ScreenTitle(title = "Settings") }
         item {

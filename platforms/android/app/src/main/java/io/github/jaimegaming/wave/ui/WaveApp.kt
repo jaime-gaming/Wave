@@ -16,17 +16,18 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
-import androidx.compose.ui.unit.sp
 import io.github.jaimegaming.wave.Song
 
 /**
@@ -48,6 +49,12 @@ fun WaveApp(version: String, opening: Opening = Opening.Default) {
         tree?.let { state.importFolder(it) }
     }
     val addMusic: () -> Unit = { state.addOpen = true }
+    var settingsReturn by remember { mutableStateOf(Destination.Home) }
+    val openSettings: () -> Unit = {
+        if (state.destination != Destination.Settings) settingsReturn = state.destination
+        state.destination = Destination.Settings
+        state.open = null
+    }
     // Reading the music the system already indexes needs the audio permission; a
     // refusal is answered in words rather than by an empty list.
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { grants ->
@@ -92,6 +99,9 @@ fun WaveApp(version: String, opening: Opening = Opening.Default) {
     BackHandler(enabled = !state.nowPlayingOpen && !state.queueOpen && state.open != null) {
         state.open = null
     }
+    BackHandler(enabled = !state.nowPlayingOpen && !state.queueOpen && state.open == null && state.destination == Destination.Settings) {
+        state.destination = settingsReturn
+    }
 
     Box(Modifier.fillMaxSize()) {
         if (state.nowPlayingOpen && currentSong != null) {
@@ -120,36 +130,27 @@ fun WaveApp(version: String, opening: Opening = Opening.Default) {
                                 player = player,
                                 song = currentSong,
                                 onOpen = { state.nowPlayingOpen = true },
+                                onQueue = { state.queueOpen = true },
                             )
                         }
-                        NavigationBar(containerColor = MaterialTheme.colorScheme.background) {
-                            Destination.values().forEach { item ->
-                                NavigationBarItem(
-                                    selected = state.destination == item,
-                                    onClick = {
-                                        state.destination = item
-                                        if (item != Destination.Library) state.open = null
-                                    },
-                                    icon = { Text(item.glyph, fontSize = 17.sp) },
-                                    label = { Text(item.label, fontSize = 11.sp, maxLines = 1) },
-                                )
-                            }
+                        WaveNavigation(state.destination) { item ->
+                            state.destination = item
+                            state.open = null
                         }
                     }
                 },
             ) { padding ->
                 Column(Modifier.padding(padding)) {
                     Notice(state.notice) { state.clearMessage() }
-                    val open: (Song) -> Unit = { song ->
-                        state.play(song)
-                        state.nowPlayingOpen = true
-                    }
-                    when (state.destination) {
-                        Destination.Home -> HomeScreen(state, addMusic, open)
-                        Destination.Search -> SearchScreen(state, open)
-                        Destination.Library -> LibraryScreen(state, addMusic, open)
-                        Destination.Remix -> RemixScreen(state, open)
-                        Destination.Settings -> SettingsScreen(state, version, addMusic)
+                    val playSong: (Song) -> Unit = { song -> state.play(song) }
+                    CompositionLocalProvider(LocalChromeActions provides ChromeActions(addMusic, openSettings)) {
+                        when (state.destination) {
+                            Destination.Home -> HomeScreen(state, addMusic, playSong)
+                            Destination.Search -> SearchScreen(state, playSong)
+                            Destination.Library -> LibraryScreen(state, addMusic, playSong)
+                            Destination.Remix -> RemixScreen(state)
+                            Destination.Settings -> SettingsScreen(state, version, addMusic)
+                        }
                     }
                 }
             }

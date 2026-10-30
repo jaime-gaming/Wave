@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -22,110 +21,80 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import io.github.jaimegaming.wave.Player
 import io.github.jaimegaming.wave.Song
 
-/**
- * The bar that is always there.
- *
- * It sits above the navigation, never over the content, and it never hides
- * itself: a player whose controls disappear is a player you cannot trust. The
- * thin line at its top is the position, so the bar answers "where are we" without
- * opening anything.
- */
+/** A compact bar that stays visible above the four navigation destinations. */
 @Composable
-fun MiniPlayer(player: Player, song: Song, onOpen: () -> Unit) {
+fun MiniPlayer(player: Player, song: Song, onOpen: () -> Unit, onQueue: () -> Unit) {
     val duration = song.duration.coerceAtLeast(1.0)
     val fraction = (player.time / duration).coerceIn(0.0, 1.0).toFloat()
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 6.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .padding(horizontal = 12.dp, vertical = 5.dp)
+            .clip(RoundedCornerShape(22.dp))
+            .background(MaterialTheme.colorScheme.primaryContainer)
+            .semantics { contentDescription = "Open now playing" }
             .clickable(onClick = onOpen),
     ) {
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .height(2.dp)
-                .background(MaterialTheme.colorScheme.surfaceContainerHigh),
-        ) {
-            Box(
-                Modifier
-                    .fillMaxWidth(fraction)
-                    .height(2.dp)
-                    .background(MaterialTheme.colorScheme.primary),
-            )
-        }
         Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
+            modifier = Modifier.padding(start = 8.dp, end = 5.dp, top = 6.dp, bottom = 3.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Cover(song, size = 42.dp, radius = 10.dp)
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(8.dp))
             Column(Modifier.weight(1f)) {
-                Text(
-                    text = song.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = song.artist,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                Text(song.title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(song.artist, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            IconButton(onClick = { player.previous() }) {
-                Text("⏮", fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            FilledIconButton(
+            ChromeButton(
+                icon = if (player.playing) "pause" else "play",
+                label = if (player.playing) "Pause" else "Play",
                 onClick = { player.toggle() },
-                modifier = Modifier.size(42.dp),
-            ) {
-                Text(
-                    text = if (player.playing) "❚❚" else "▶",
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onPrimary,
-                )
+                size = 42.dp,
+                background = MaterialTheme.colorScheme.primary,
+                tint = MaterialTheme.colorScheme.onPrimary,
+            )
+            IconButton(onClick = { player.next() }, modifier = Modifier.size(40.dp).semantics { contentDescription = "Next song" }) {
+                WaveIcon("next", 20.dp, MaterialTheme.colorScheme.onSurface)
             }
-            IconButton(onClick = { player.next() }) {
-                Text("⏭", fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            IconButton(onClick = onQueue, modifier = Modifier.size(40.dp).semantics { contentDescription = "Open queue" }) {
+                WaveIcon("queue", 20.dp, MaterialTheme.colorScheme.onSurface)
             }
+        }
+        Box(Modifier.fillMaxWidth().padding(horizontal = 14.dp).padding(bottom = 6.dp).height(2.dp).background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.28f))) {
+            Box(Modifier.fillMaxWidth(fraction).height(2.dp).background(MaterialTheme.colorScheme.primary))
         }
     }
 }
 
-/** Transport used by the now-playing screen: bigger, same order, same labels. */
+/** The same previous/play/next transport in the full player. */
 @Composable
 fun Transport(player: Player) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 12.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconButton(onClick = { player.previous() }, modifier = Modifier.size(56.dp)) {
-            Text("⏮", fontSize = 20.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        IconButton(onClick = { player.previous() }, modifier = Modifier.size(56.dp).semantics { contentDescription = "Previous song" }) {
+            WaveIcon("previous", 23.dp, MaterialTheme.colorScheme.onSurface)
         }
-        Spacer(Modifier.width(18.dp))
-        FilledIconButton(onClick = { player.toggle() }, modifier = Modifier.size(68.dp)) {
-            Text(
-                text = if (player.playing) "❚❚" else "▶",
-                fontSize = 20.sp,
-                color = MaterialTheme.colorScheme.onPrimary,
-            )
-        }
-        Spacer(Modifier.width(18.dp))
-        IconButton(onClick = { player.next() }, modifier = Modifier.size(56.dp)) {
-            Text("⏭", fontSize = 20.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.width(12.dp))
+        ChromeButton(
+            icon = if (player.playing) "pause" else "play",
+            label = if (player.playing) "Pause" else "Play",
+            onClick = { player.toggle() },
+            size = 64.dp,
+            background = MaterialTheme.colorScheme.primary,
+            tint = MaterialTheme.colorScheme.onPrimary,
+        )
+        Spacer(Modifier.width(12.dp))
+        IconButton(onClick = { player.next() }, modifier = Modifier.size(56.dp).semantics { contentDescription = "Next song" }) {
+            WaveIcon("next", 23.dp, MaterialTheme.colorScheme.onSurface)
         }
     }
 }
