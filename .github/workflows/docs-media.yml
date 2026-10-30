@@ -67,7 +67,11 @@ jobs:
           git commit -m 'Refresh the web screenshots from the built app'
           # The native jobs publish to the same branch and may land first.
           for attempt in 1 2 3 4; do
-            git pull --rebase --quiet origin "$GITHUB_REF_NAME" || true
-            if git push --quiet; then exit 0; fi
+            # The native jobs publish to this same branch, so the first push can
+            # lose the race. Rebase onto whatever landed, and leave nothing
+            # uncommitted behind that would refuse the rebase.
+            git checkout -- . || true
+            if git pull --rebase --quiet origin "$GITHUB_REF_NAME" && git push --quiet; then exit 0; fi
+            git rebase --abort || true
           done
           echo "Could not publish the images." && exit 1
