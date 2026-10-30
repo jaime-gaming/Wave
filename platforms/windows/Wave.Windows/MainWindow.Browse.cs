@@ -17,7 +17,7 @@ public partial class MainWindow
     {
         if (!initialized || page is "Now playing" or "Settings") return;
         CollectionHeader.Children.Clear();
-        Summary.Text = $"{NativeCollections.Count(tracks.Count, "song")} · {NativeCollections.Count(tracks.Select(s => AlbumKey(s)).Distinct().Count(), "album")}";
+        UpdateSummary();
         if (page == "Home") RenderHome();
         else if (page == "Remix") RenderRemix();
         else if (page == "Search") {
@@ -26,10 +26,11 @@ public partial class MainWindow
             CollectionHeader.Children.Add(searchBox);
             CollectionHeader.Children.Add(Label("Search your music", 22));
         } else {
-            var tabs = new WrapPanel();
-            foreach (string view in new[] { "Library", "Albums", "Artists", "Playlists", "Favorites" }) tabs.Children.Add(ActionButton(view == "Library" ? "Songs" : view, () => ShowPage(view)));
+            var tabs = new WrapPanel { Margin = new Thickness(0, 4, 0, 8) };
+            foreach (string view in new[] { "Library", "Albums", "Artists", "Playlists", "Favorites" })
+                tabs.Children.Add(Pill(view == "Library" ? "Songs" : view, page == view, () => ShowPage(view)));
             CollectionHeader.Children.Add(tabs);
-            if (collection != null) CollectionHeader.Children.Add(ActionButton("← Back", () => ShowPage(page == "Daily mix" ? "Home" : page)));
+            if (collection != null) CollectionHeader.Children.Add(BackLink(page == "Daily mix" ? "Home" : page));
             if (page is "Albums" or "Artists" && collection == null) RenderGroups(page);
             else if (page == "Playlists" && collection == null) RenderPlaylists();
             else if (collection != null) RenderCollection();
@@ -114,6 +115,29 @@ public partial class MainWindow
             CollectionHeader.Children.Add(SectionHeading("Recently added songs"));
             foreach (var song in recent) CollectionHeader.Children.Add(SongRow(song, () => PlayCollection(recent, song.Id)));
         }
+    }
+    /// <summary>A view tab: quiet until it is the view you are looking at.</summary>
+    private Button Pill(string text, bool active, Action action)
+    {
+        var button = new Button {
+            Content = text,
+            Padding = new Thickness(18, 8, 18, 8),
+            Margin = new Thickness(4),
+            MinHeight = 38,
+            Background = (Brush)Application.Current.Resources[active ? "AccentTonalBrush" : "TonalBrush"],
+            Foreground = (Brush)Application.Current.Resources[active ? "AccentBrush" : "InkBrush"],
+            FontWeight = active ? FontWeights.Bold : FontWeights.SemiBold,
+        };
+        button.Click += (_, _) => Safe(action);
+        return button;
+    }
+    /// <summary>A way back that reads as a line of text, not as a button in the row.</summary>
+    private Button BackLink(string destination)
+    {
+        var button = new Button { Style = (Style)FindResource("TextButton"), Foreground = (Brush)Application.Current.Resources["MutedBrush"], Margin = new Thickness(4, 2, 4, 10), Padding = new Thickness(2, 4, 6, 4) };
+        button.Content = Iconography.With("chevron-left", "Back", 15, 6);
+        button.Click += (_, _) => Safe(() => ShowPage(destination));
+        return button;
     }
     /// <summary>A section heading with, optionally, the one action that belongs to it.</summary>
     private FrameworkElement SectionHeading(string text, UIElement? trailing = null)
@@ -254,16 +278,26 @@ public partial class MainWindow
         string title = page == "Albums" ? songs.FirstOrDefault()?.Album ?? "Album" : playlist?.Name ?? collection ?? page;
         if (page == "Daily mix") title = DailyGroups().Find(g => g.Id == collection)?.Label ?? "Daily mix";
         Heading.Text = title;
-        CollectionHeader.Children.Add(Label(title, 30));
-        CollectionHeader.Children.Add(Label($"{NativeCollections.Count(songs.Count, "song")} · {Clock(songs.Sum(s => s.Duration))}", 14));
+        // The banner already says the name; repeating it here would be the same
+        // word twice in one screen, so the card starts with what the list is.
+        var counts = Label($"{NativeCollections.Count(songs.Count, "song")} · {Clock(songs.Sum(s => s.Duration))}", 14);
+        counts.SetResourceReference(TextBlock.ForegroundProperty, "MutedBrush");
+        CollectionHeader.Children.Add(counts);
         if (!string.IsNullOrWhiteSpace(playlist?.Description)) CollectionHeader.Children.Add(Label(playlist.Description));
-        var actions = new WrapPanel();
-        actions.Children.Add(ActionButton("▶ Play", () => { if (songs.Count > 0) PlayCollection(songs, songs[0].Id); }));
-        actions.Children.Add(ActionButton("Shuffle", () => { var shuffled = songs.OrderBy(_ => Random.Shared.Next()).ToList(); if (shuffled.Count > 0) PlayCollection(shuffled, shuffled[0].Id); }));
+        var actions = new WrapPanel { Margin = new Thickness(0, 2, 0, 10) };
+        var play = new Button { Style = (Style)FindResource("AccentButton"), Padding = new Thickness(18, 9, 22, 9), ToolTip = "Play" };
+        play.Content = Iconography.With("play", "Play", 16, 8);
+        play.Click += (_, _) => Safe(() => { if (songs.Count > 0) PlayCollection(songs, songs[0].Id); });
+        actions.Children.Add(play);
+        var shuffle = new Button { Padding = new Thickness(16, 9, 20, 9), ToolTip = "Shuffle" };
+        shuffle.Content = Iconography.With("shuffle", "Shuffle", 16, 8);
+        shuffle.Click += (_, _) => Safe(() => { var shuffled = songs.OrderBy(_ => Random.Shared.Next()).ToList(); if (shuffled.Count > 0) PlayCollection(shuffled, shuffled[0].Id); });
+        actions.Children.Add(shuffle);
         if (page == "Daily mix") actions.Children.Add(ActionButton("Save as playlist", () => { var saved = new NativePlaylist(Guid.NewGuid().ToString(), $"Daily mix · {title}", "Saved from your local daily selection.", songs.Select(s => s.Id).ToList()); SavePlaylists(playlists.Append(saved).ToList()); ShowPage("Playlists", saved.Id); }));
         if (playlist != null) {
             actions.Children.Add(ActionButton("Add songs", () => PickPlaylistSongs(playlist)));
             actions.Children.Add(ActionButton("Edit playlist", () => EditPlaylist(playlist)));
+            // (Delete stays at the end of the row, apart from the actions that build.)
             actions.Children.Add(ActionButton("Delete playlist", () => { if (MessageBox.Show(this, "Delete this playlist? Your songs will remain in your library.", "Wave", MessageBoxButton.YesNo) == MessageBoxResult.Yes) Safe(() => { SavePlaylists(playlists.Where(p => p.Id != playlist.Id).ToList()); ShowPage("Playlists"); }); }));
         }
         CollectionHeader.Children.Add(actions);
