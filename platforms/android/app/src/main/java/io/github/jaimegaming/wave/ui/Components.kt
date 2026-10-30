@@ -68,6 +68,43 @@ fun rememberPress(): Pair<MutableInteractionSource, Boolean> {
 }
 
 /**
+ * The site's other inputs: a filled block with its own rounded corners and no
+ * rule around it. Used where a field needs a label that stays put.
+ */
+@Composable
+fun WaveTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    label: String? = null,
+    placeholder: String? = null,
+    singleLine: Boolean = true,
+    minLines: Int = 1,
+    supportingText: (@Composable () -> Unit)? = null,
+) {
+    TextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = modifier,
+        label = label?.let { { Text(it, fontSize = 13.sp) } },
+        placeholder = placeholder?.let { { Text(it, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) } },
+        supportingText = supportingText,
+        singleLine = singleLine,
+        minLines = minLines,
+        textStyle = MaterialTheme.typography.bodyMedium,
+        shape = RoundedCornerShape(18.dp),
+        colors = TextFieldDefaults.colors(
+            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent,
+            disabledIndicatorColor = Color.Transparent,
+            cursorColor = MaterialTheme.colorScheme.primary,
+        ),
+    )
+}
+
+/**
  * The search field, as the site draws it: a filled pill with the magnifier on
  * its left and no rule under it. Material's outlined field reads as a form; this
  * reads as the same page, which is the point of the port.

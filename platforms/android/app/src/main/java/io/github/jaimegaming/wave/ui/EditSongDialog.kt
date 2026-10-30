@@ -2,14 +2,11 @@ package io.github.jaimegaming.wave.ui
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -39,49 +36,43 @@ fun EditSongDialog(song: Song, onDismiss: () -> Unit, onSave: (Song) -> Unit) {
         title = { Text("Edit song") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
-                OutlinedTextField(
+                WaveTextField(
                     value = title,
                     onValueChange = { title = it.take(200) },
-                    label = { Text("Title") },
-                    singleLine = true,
-                    shape = RoundedCornerShape(14.dp),
+                    label = "Title",
                     modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedTextField(
+                WaveTextField(
                     value = artist,
                     onValueChange = { artist = it.take(200) },
-                    label = { Text("Artist") },
-                    singleLine = true,
-                    shape = RoundedCornerShape(14.dp),
+                    label = "Artist",
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 10.dp),
                 )
-                OutlinedTextField(
+                WaveTextField(
                     value = album,
                     onValueChange = { album = it.take(200) },
-                    label = { Text("Album") },
-                    singleLine = true,
-                    shape = RoundedCornerShape(14.dp),
+                    label = "Album",
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 10.dp),
                 )
-                OutlinedTextField(
+                WaveTextField(
                     value = lyrics,
                     onValueChange = { lyrics = it.take(100_000) },
-                    label = { Text("Lyrics") },
+                    label = "Lyrics",
+                    singleLine = false,
+                    minLines = 6,
                     supportingText = {
                         Text(
                             text = "Timed lyrics (LRC) are read as they are; plain lines work too.",
                             style = MaterialTheme.typography.labelSmall,
                         )
                     },
-                    shape = RoundedCornerShape(14.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(180.dp)
-                        .padding(top = 10.dp),
+                        .padding(top = 10.dp, bottom = 10.dp),
                 )
             }
         },
