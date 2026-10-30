@@ -11,6 +11,11 @@ public partial class MainWindow
     {
         async Task Capture(string name) {
             await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
+            // Changing page fades the content in over 180 ms. Idle arrives on the
+            // first frame, so without this the picture is a page at a third of its
+            // opacity — which is how every Windows screenshot read as dim.
+            await Task.Delay(420);
+            await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
             UpdateLayout();
             var root = (FrameworkElement)Content;
             if (root.ActualWidth < 1 || root.ActualHeight < 1) throw new Exception("Native root did not lay out.");
@@ -37,7 +42,7 @@ public partial class MainWindow
         // The page is built from grids and panels now, so the words have to be read
         // out of the whole tree rather than off the top level.
         var remixText = TextsIn(CollectionHeader).Select(text => text.Text).ToList();
-        Check(remixText.Contains("Most played"), "Remix should show the sleeve of the week's song.");
+        Check(remixText.Contains("MOST PLAYED"), "Remix should show the sleeve of the week's song.");
         Check(remixText.Contains("Your Remix"), "Remix should list the week's songs.");
         Check(remixText.Any(text => text.EndsWith("vs last week")), "Remix should compare with the week before.");
         Check(!remixText.Contains("More about this week"), "Remix should not carry the old card stack.");
