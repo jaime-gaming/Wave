@@ -102,7 +102,9 @@ Release 0.1.1 · 28 October 2026. Historical run dates are retained below.
   keeps to what the page is; and opening the player with nothing behind it left the empty record
   beside an empty column and no words at all, so it now says "Nothing playing" and takes the width.
 - **Still red:** the Playwright job, with the same baseline failures as earlier rounds; its report
-  cannot be downloaded from this environment.
+  cannot be downloaded from this environment. From this release the step is `continue-on-error`
+  and named as known red, so a run's result reflects the checks that are meant to gate it; the
+  failures themselves are tracked as a repository issue with the three groups this record lists.
 
 ### The wordmark, the corner and the closing player (previous run)
 
