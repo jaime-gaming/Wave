@@ -63,9 +63,9 @@ describe('the Remix page', () => {
     const artists = screen.getByRole('region', { name: 'Artists this week' });
     expect(within(artists).getByText('Wave Tests')).toBeInTheDocument();
     expect(within(artists).getByText('3 plays')).toBeInTheDocument();
-    const details = screen.getByRole('region', { name: 'More about this week' });
-    expect(within(details).getByText(/Most played genre/)).toBeInTheDocument();
-    expect(within(details).getByRole('img', { name: /0:00:/ })).toBeInTheDocument();
+    // The genre and the hour are a line of type now, not a section with charts.
+    expect(screen.getByText(/Usually around|Mostly/)).toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: /0:00:/ })).not.toBeInTheDocument();
   });
 
   it('does not clear listening history without confirmation', async () => {

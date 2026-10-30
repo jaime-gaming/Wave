@@ -3262,7 +3262,7 @@ kbd {
 }
 .wave-wordmark-full {
   display: none;
-  width: 84px;
+  width: 88px;
 }
 /* The W alone: the same crests, cropped to the first letter. */
 .wave-wordmark-mark {
@@ -6542,15 +6542,20 @@ h1 {
   font-size: 13px;
 }
 
-/* The week in one figure, and the sentence you would say about it. */
+/* The week in one figure, and the sleeve of the song that earned it. */
 .remix-lede {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: end;
-  gap: 5px 28px;
+  gap: 4px 28px;
+}
+.remix-lede-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
 }
 .remix-figure {
-  grid-column: 1;
   margin: 0;
   font-size: clamp(52px, 7.4vw, 84px);
   font-weight: 780;
@@ -6559,7 +6564,6 @@ h1 {
   color: var(--primary);
 }
 .remix-line {
-  grid-column: 1;
   margin: 0;
   color: var(--muted);
   font-size: 14.5px;
@@ -6571,28 +6575,28 @@ h1 {
 .remix-compare[data-up='true'] {
   color: var(--primary);
 }
-/* The week's own sleeves, small: evidence, not decoration. */
-.remix-art {
-  grid-column: 2;
-  grid-row: 1 / span 3;
+/* One sleeve, lifted off the margin, with the reason it is there under it. */
+.remix-lede-art {
   display: flex;
+  flex-direction: column;
   align-items: flex-end;
-  gap: 10px;
+  gap: 7px;
+  padding: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
-.remix-art .artwork {
-  width: 74px;
-  height: 74px;
-  border-radius: 14px;
+.remix-lede-art .artwork {
+  width: 116px;
+  height: 116px;
+  border-radius: 18px;
+  box-shadow: 0 18px 40px -24px #000c;
+  transition: transform 0.3s var(--ease-wobble);
 }
-.remix-art .artwork:nth-child(2) {
-  width: 56px;
-  height: 56px;
-  opacity: 0.72;
-}
-.remix-art .artwork:nth-child(3) {
-  width: 44px;
-  height: 44px;
-  opacity: 0.5;
+.remix-lede-art:hover .artwork {
+  transform: translateY(-2px) rotate(-0.6deg);
 }
 
 /* Seven columns, one per day, under the figure they add up to. */
@@ -6785,98 +6789,79 @@ h1 {
   color: var(--muted);
 }
 
-/* Artists this week: names and counts, nothing scored. */
-.remix-artists {
-  border-top: 1px solid var(--remix-rule);
-  padding-top: 22px;
-}
-.remix-artists h3 {
-  margin: 0 0 6px;
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--muted);
-}
-.remix-artists ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-.remix-artists li {
+/* Three facts, one line of type: no card, no chart, no second page. */
+.remix-notes {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--remix-rule);
-}
-.remix-artists li:last-child {
-  border-bottom: 0;
-}
-.remix-artists button {
-  padding: 0;
-  background: none;
-  font-size: 14.5px;
-  font-weight: 650;
-  text-align: left;
-  color: var(--text);
-}
-.remix-artists button:hover {
-  color: var(--primary);
-}
-.remix-artists span {
-  font-size: 12.5px;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.remix-detail {
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin: -14px 0 0;
+  padding-top: 18px;
   border-top: 1px solid var(--remix-rule);
-  padding-top: 22px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 13.5px;
 }
-.remix-detail h3 {
-  margin: 0 0 8px;
-  color: var(--text);
-  font-size: 15px;
-}
-.remix-hours {
-  margin-top: 18px;
-}
-.remix-hours-heading,
-.remix-hours-labels {
-  display: flex;
-  justify-content: space-between;
+.remix-notes span,
+.remix-notes button {
+  display: inline-flex;
+  align-items: center;
   gap: 8px;
 }
-.remix-hours-scale {
-  display: flex;
-  align-items: flex-end;
-  gap: 4px;
-  height: 48px;
-  margin: 10px 0 6px;
+.remix-notes span + span::before,
+.remix-notes button::before,
+.remix-notes span + button::before {
+  content: '';
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.6;
 }
-.remix-hours-scale span {
-  flex: 1;
-  min-width: 0;
-  border-radius: 3px 3px 0 0;
+.remix-notes button {
+  padding: 0;
+  background: none;
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 650;
+}
+.remix-notes button:hover {
+  color: var(--primary);
+}
+
+/* Who the week belonged to: quiet chips, not a leaderboard. */
+.remix-people {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: -18px;
+}
+.remix-people button {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--container);
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 650;
+  transition: background 0.2s ease;
+}
+.remix-people button:hover {
   background: var(--container-high);
-  transform-origin: bottom;
 }
-.remix-hours-scale span[data-peak='true'] {
-  background: var(--primary);
+.remix-people button span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
 }
-.remix-hours-labels {
-  font-size: 11px;
-}
+
 .remix-foot {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
   border-top: 1px solid var(--remix-rule);
   padding-top: 16px;
   font-size: 12.5px;
   color: var(--muted);
+  line-height: 1.6;
 }
 .remix-foot p {
   margin: 0;
@@ -6895,11 +6880,17 @@ h1 {
   .remix-page {
     gap: 26px;
   }
-  .remix-art {
-    display: none;
-  }
   .remix-lede {
-    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+  .remix-lede-art .artwork {
+    width: 88px;
+    height: 88px;
+    border-radius: 16px;
+  }
+  .remix-notes,
+  .remix-people {
+    margin-top: 0;
   }
   .remix-bars {
     height: 68px;

@@ -4,7 +4,26 @@ Release 0.1.1 · 28 October 2026. Historical run dates are retained below.
 
 ## Web
 
-### Home, Remix and the mobile shell (current work)
+### Remix as one page, and a wordmark that reads (current work)
+
+- `npx tsc -b`, `npx eslint src --max-warnings=0` and `npx prettier --check .`: passed.
+  `npm test`: **545 tests across 87 files**, all passing, including the rewritten Remix
+  suite and the six-path wordmark suite.
+- Remix was rewritten from the markup up, so its test was rewritten with it rather than
+  loosened: the day bars still have to be seven named buttons, the artists region still has
+  to name its artist, and the test now asserts that the genre and the hour are a line of
+  type and that the hourly chart picture is _gone_.
+- The wordmark was redrawn a second time this round: the letters are now 91.5 units wide
+  against the W's 21.4 tall, so the word sits at the same cap height as the lone W in the
+  rail instead of being a size smaller than it. There is no browser in this sandbox, so the
+  paths were flattened with PIL and looked at at rail size (92 px) before they were written
+  into the component, the Windows canvas and nothing else: the favicon, `public/wave.svg`
+  and the startup animation draw the W alone and were left untouched.
+- **Not verified here:** no Android SDK, JDK or Gradle, and no .NET SDK. The Kotlin and C#
+  changes in this round are compile-checked only by `Native builds` after the push. The
+  phone and Windows screenshots in `docs/media` are from that run, not from this workspace.
+
+### Home, Remix and the mobile shell (previous run)
 
 - `npm test`: 545 tests across 87 files passed, including the new Home and history-confirmation
   checks; the focused Home, Remix and wordmark tests pass. `tests/remix.spec.ts`: four tests pass

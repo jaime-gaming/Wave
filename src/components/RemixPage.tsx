@@ -118,6 +118,9 @@ export function RemixPage({
     0,
   );
   const hasHours = recap.hours.some((plays) => plays > 0);
+  const mostPlayed = recap.topTracks[0];
+  const cover = mostPlayed?.track ?? hero[0];
+  const topArtist = recap.topArtists[0];
 
   return (
     <div className="remix-page">
@@ -150,34 +153,39 @@ export function RemixPage({
         )}
       </header>
 
-      {/* The week in one figure. No card, no badge, no icon: the number is the
-          thing, and the words under it are the sentence you would say out loud. */}
+      {/* The week in one figure, with the sleeve of the song that earned it: a
+          recap page, not a stack of stat cards. */}
       <section className="remix-lede" aria-label="This week">
-        <motion.p
-          className="remix-figure"
-          initial={animation.enabled ? { opacity: 0, y: 10 } : { opacity: 1 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={animation.wobble}
-        >
-          {seconds}
-        </motion.p>
-        <p className="remix-line">
-          {recap.plays} {recap.plays === 1 ? 'play' : 'plays'} · {recap.tracks}{' '}
-          {recap.tracks === 1 ? 'song' : 'songs'} · {recap.artists}{' '}
-          {recap.artists === 1 ? 'artist' : 'artists'}
-        </p>
-        {recap.previousSeconds > 0 && (
-          <p className="remix-line remix-compare" data-up={delta >= 0 ? 'true' : 'false'}>
-            {delta >= 0 ? '+' : '−'}
-            {listeningTime(Math.abs(delta))} vs last week
+        <div className="remix-lede-copy">
+          <motion.p
+            className="remix-figure"
+            initial={animation.enabled ? { opacity: 0, y: 10 } : { opacity: 1 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={animation.wobble}
+          >
+            {seconds}
+          </motion.p>
+          <p className="remix-line">
+            {recap.plays} {recap.plays === 1 ? 'play' : 'plays'} · {recap.tracks}{' '}
+            {recap.tracks === 1 ? 'song' : 'songs'} · {recap.artists}{' '}
+            {recap.artists === 1 ? 'artist' : 'artists'}
           </p>
-        )}
-        {hero[0] && (
-          <div className="remix-art" aria-hidden="true">
-            {hero.slice(0, 3).map((track) => (
-              <Artwork key={track.id} track={track} />
-            ))}
-          </div>
+          {recap.previousSeconds > 0 && (
+            <p className="remix-compare" data-up={delta >= 0 ? 'true' : 'false'}>
+              {delta >= 0 ? '+' : '−'}
+              {listeningTime(Math.abs(delta))} vs last week
+            </p>
+          )}
+        </div>
+        {cover && (
+          <button
+            className="remix-lede-art"
+            onClick={() => onPlay(hero, cover.id)}
+            aria-label={`Play ${cover.title}`}
+          >
+            <Artwork track={cover} />
+            <span>Most played</span>
+          </button>
         )}
       </section>
 
@@ -213,23 +221,27 @@ export function RemixPage({
         <p className="remix-caption">
           {hoveredDay === null
             ? busiestDay && busiestDay.seconds > 0
-              ? `Most on ${weekday(busiestDay.at)}, ${listeningTime(busiestDay.seconds)}${
-                  hasHours ? ` · usually around ${String(peakHour).padStart(2, '0')}:00` : ''
-                }`
+              ? `Most on ${weekday(busiestDay.at)}, ${listeningTime(busiestDay.seconds)}`
               : 'Quiet week'
             : `${listeningTime(recap.days[hoveredDay].seconds)} · ${recap.days[hoveredDay].plays} plays`}
         </p>
       </section>
+
+      {/* Three things worth knowing, as one line of type rather than three cards. */}
+      <p className="remix-notes">
+        {recap.genres[0] && <span>Mostly {recap.genres[0].genre.toLowerCase()}</span>}
+        {hasHours && <span>Usually around {String(peakHour).padStart(2, '0')}:00</span>}
+        {topArtist && (
+          <button onClick={() => onArtist(topArtist.artist)}>{topArtist.artist} most of all</button>
+        )}
+      </p>
 
       {hero.length > 0 && (
         <section className="remix-mix" aria-label="Your Remix">
           <div className="remix-mix-head">
             <div>
               <h3>Your Remix</h3>
-              <p>
-                {hero.length === 1 ? '1 song' : `${hero.length} songs`} from your week and, when
-                needed, earlier favorites.
-              </p>
+              <p>{hero.length === 1 ? '1 song' : `${hero.length} songs`} you played this week.</p>
             </div>
             <div className="remix-mix-actions">
               <button className="filled-button" onClick={() => onPlay(hero, hero[0].id)}>
@@ -293,70 +305,22 @@ export function RemixPage({
       )}
 
       {recap.topArtists.length > 0 && (
-        <section className="remix-artists" aria-label="Artists this week">
-          <h3>Artists this week</h3>
-          <ul>
-            {recap.topArtists.slice(0, 5).map((artist) => (
-              <li key={artist.artist}>
-                <button onClick={() => onArtist(artist.artist)}>{artist.artist}</button>
-                <span>
-                  {artist.plays} {artist.plays === 1 ? 'play' : 'plays'}
-                </span>
-              </li>
-            ))}
-          </ul>
+        <section className="remix-people" aria-label="Artists this week">
+          {recap.topArtists.slice(0, 6).map((artist) => (
+            <button key={artist.artist} onClick={() => onArtist(artist.artist)}>
+              {artist.artist}
+              <span>
+                {artist.plays} {artist.plays === 1 ? 'play' : 'plays'}
+              </span>
+            </button>
+          ))}
         </section>
       )}
-
-      <section className="remix-detail" aria-label="More about this week">
-        <h3>More about this week</h3>
-        <p>
-          Most played genre:{' '}
-          {recap.genres[0]
-            ? `${recap.genres[0].genre} · ${listeningTime(recap.genres[0].seconds)}`
-            : 'untagged'}
-        </p>
-        {hasHours && (
-          <div className="remix-hours" aria-label="When you listen">
-            <div className="remix-hours-heading">
-              <span>Plays by hour</span>
-              <span>Most around {String(peakHour).padStart(2, '0')}:00</span>
-            </div>
-            <div
-              className="remix-hours-scale"
-              role="img"
-              aria-label={recap.hours.map((plays, hour) => `${hour}:00: ${plays} plays`).join(', ')}
-            >
-              {recap.hours.map((plays, hour) => (
-                <motion.span
-                  key={hour}
-                  initial={{ scaleY: animation.enabled ? 0 : 1 }}
-                  animate={{ scaleY: 1 }}
-                  transition={{ ...animation.wobble, delay: animation.enabled ? hour * 0.01 : 0 }}
-                  style={{ height: `${Math.max(4, (plays / Math.max(1, ...recap.hours)) * 100)}%` }}
-                  data-peak={hour === peakHour ? 'true' : 'false'}
-                />
-              ))}
-            </div>
-            <div className="remix-hours-labels" aria-hidden="true">
-              <span>00</span>
-              <span>06</span>
-              <span>12</span>
-              <span>18</span>
-              <span>23</span>
-            </div>
-          </div>
-        )}
-      </section>
 
       <footer className="remix-foot">
         <p>
           {listeningTime(summary.totalSeconds)} listened all time · {summary.totalPlays}{' '}
-          {summary.totalPlays === 1 ? 'play' : 'plays'}
-        </p>
-        <p>
-          Counted on this device, never uploaded. A listen counts after half the song or 30 seconds,
-          whichever comes first (at least 5 seconds).{' '}
+          {summary.totalPlays === 1 ? 'play' : 'plays'} · counted on this device, never uploaded.{' '}
           <a className="remix-link" href="#settings-storage">
             Manage history
           </a>

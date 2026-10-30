@@ -20,25 +20,26 @@
 const W = 'M4 7C7 7 7 23 12 23C17 23 17 7 20 7C23 7 23 23 28 23C33 23 33 7 36 7';
 
 /**
- * The rest of the name, set in the same pen on the same baseline.
+ * The rest of the name, on the same baseline and in the same pen.
  *
- * Every letter is one monoline stroke with the same weight as the mark, so the
- * word reads as one hand rather than a logo followed by type: an `a` whose stem
- * settles into the baseline like a wave, a `v` that is a trough of the same wave
- * instead of two straight arms, and an `e` whose bar runs into a bowl that lifts
- * away at the end. Nothing here is a font glyph, so it looks identical in the
- * browser, on a phone and on Windows.
+ * Each letter is one monoline stroke at the mark's own weight, so the word reads
+ * as one hand rather than a logo followed by type: an `a` that is a bowl with a
+ * stem set against it, a `v` that is a trough of the same wave as the W instead
+ * of two straight arms, and an `e` whose bar runs into a bowl that lifts away at
+ * the end. Nothing here is a font glyph, so it looks identical in the browser, on
+ * a phone and on Windows.
  */
 const WORD = [
   W,
-  // a — bowl, then a stem that eases into the baseline.
-  'M60 10.2C60 16.4 60 21.4 61.6 22.4',
-  'M53 10a7 7 0 1 0 0 13a7 7 0 0 0 0-13',
-  // v — one trough, the same curve as the W's dips.
-  'M68 10.4C68.8 10.4 71.6 23.4 75.3 23.4C79 23.4 81.8 10.4 82.6 10.4',
-  // e — a bar, and a bowl that opens out to the lower right.
-  'M91 17.2H105',
-  'M105 17.2A7 7 0 1 0 103.2 20.4',
+  // a — one closed bowl, drawn in two half turns so the start and the end meet.
+  'M47.2 10.8a6.1 6.1 0 1 0 0 12.2a6.1 6.1 0 1 0 0-12.2',
+  // a — the stem, set against the bowl and stopping a little short of it.
+  'M53.3 11.4V22.2',
+  // v — one trough, the same curve as the dips in the W.
+  'M62 10.9C63.4 15.2 65.2 23.3 66.9 23.3C68.6 23.3 70.4 15.2 71.8 10.9',
+  // e — the bar, then a bowl that leaves the stroke open towards the bottom.
+  'M89.2 16.4H76.6',
+  'M89.2 16.4A6.3 6.3 0 1 0 87.6 21.7',
 ];
 
 function Pen({
@@ -57,7 +58,7 @@ function Pen({
       aria-hidden="true"
       fill="none"
       stroke="currentColor"
-      strokeWidth={4.2}
+      strokeWidth={3.8}
       strokeLinecap="round"
       strokeLinejoin="round"
     >
@@ -79,13 +80,13 @@ export function WaveWordmark({
   return variant === 'mark' ? (
     <Pen
       paths={[W]}
-      viewBox="1 4.8 38 21"
+      viewBox="1.5 4.6 37 21"
       className={className ?? 'wave-wordmark wave-wordmark-mark'}
     />
   ) : (
     <Pen
       paths={WORD}
-      viewBox="1 4.8 112 21"
+      viewBox="0.5 4.4 91.5 21.4"
       className={className ?? 'wave-wordmark wave-wordmark-full'}
     />
   );

@@ -7,7 +7,7 @@ describe('the Wave wordmark', () => {
     const { container } = render(<WaveWordmark variant="full" />);
     const svg = container.querySelector('svg')!;
     expect(svg).toHaveClass('wave-wordmark-full');
-    // W, the stem and bowl of the a, the v, and the two strokes of the e.
+    // W, the bowl and the stem of the a, the v, and the two strokes of the e.
     expect(svg.querySelectorAll('path')).toHaveLength(6);
     expect(svg.textContent).toBe('');
   });
