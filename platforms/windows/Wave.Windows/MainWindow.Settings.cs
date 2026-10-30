@@ -12,11 +12,11 @@ public partial class MainWindow
     private void ApplyTheme()
     {
         App.ApplyBrushes(preferences.Theme == "light");
-        // Rebuilding the brush dictionary does not always reach the window's own
-        // Background, which is what the rail sits on; point it at the key again so
-        // a light theme cannot leave a dark column beside the page.
-        SetResourceReference(BackgroundProperty, "BackgroundBrush");
-        SetResourceReference(ForegroundProperty, "InkBrush");
+        // A DynamicResource on the window is resolved once and does not follow a
+        // dictionary that had to be rebuilt, which left a light window with a dark
+        // band behind the rail. Reading the palette here is immediate and exact.
+        Background = (Brush)Application.Current.Resources["BackgroundBrush"];
+        Foreground = (Brush)Application.Current.Resources["InkBrush"];
         FontSize = preferences.LargerText ? 18 : 15;
     }
     private void RenderSettings(string? section = null)
