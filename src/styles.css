@@ -7248,23 +7248,25 @@ h1 {
 
 /*
  * With nothing playing there is no player bar, so the column reserved for it is
- * not reserved: the page widens into it. The bar arriving glides the page back
- * rather than snapping it, and the reserve returns with the bar.
+ * not reserved: the page widens into it, and gives it back when the bar arrives.
+ *
+ * The reserve is a custom property rather than a second margin rule, so the shell
+ * decides it once and every width uses the same number — nothing here depends on
+ * which selector happens to come last.
  */
+.app-shell {
+  --player-reserve: var(--player-width);
+}
+.app-shell.without-track {
+  --player-reserve: 0px;
+}
 .workspace {
+  margin-right: calc(var(--player-reserve) + var(--space-5));
   transition: margin-right 0.26s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.without-track .workspace {
-  margin-right: var(--space-4);
-}
 @media (max-width: 1100px) {
-  .without-track .workspace {
-    margin-right: var(--space-4);
-  }
-}
-@media (max-width: 700px) {
-  .without-track .workspace {
-    margin-right: 10px;
+  .app-shell {
+    --player-reserve: 0px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
