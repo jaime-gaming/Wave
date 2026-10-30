@@ -249,5 +249,6 @@ downloads Spotify audio. YouTube audio is never extracted.
       layout as the direction for Android while keeping Android's system picker and playback service.
 - [ ] Compare every Android screen, both themes and large text against the corresponding mobile
       web screen on real devices. Bring remaining functionality (including YouTube songs, clips,
-      device linking and word-level lyrics) across without losing local playback or stored data.
+      device linking and the web's interpolated lyric fill) across without losing local playback or
+      stored data.
 - [ ] iOS is a future port, not part of this change.

@@ -403,3 +403,8 @@ paths on the same 24-unit grid. Home and Remix read the existing library and his
 creating new stores. The desktop web page keeps its right-hand player column at a stable width
 before and during playback, matching the reference layout. These shared visual choices do not by
 themselves establish complete pixel or feature parity; see the device gates in `PLATFORMS.md`.
+
+Android derives its colours from a coarse in-memory sample of the current artwork using the web's
+chroma-weighted hue and HSL tokens, moving through the shorter hue arc between songs. Its enhanced
+LRC parser keeps supplied word timestamps and falls back to line timing when they are absent or
+invalid. None of this changes the audio or the on-disk lyric text.

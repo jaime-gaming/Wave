@@ -3,11 +3,52 @@ import kotlin.math.cos
 import kotlin.math.sin
 import java.text.Normalizer
 
-data class LyricLine(val time: Double, val text: String)
+data class LyricWord(val time: Double, val text: String, val end: Double? = null)
+data class LyricLine(val time: Double, val text: String, val words: List<LyricWord> = emptyList())
+
+/** Enhanced LRC keeps real word timestamps; ordinary LRC stays line-synchronised. */
 fun parseLrc(raw: String): List<LyricLine> {
-    val offset = Regex("\\[offset:([+-]?\\d+)\\]").find(raw)?.groupValues?.get(1)?.toDoubleOrNull()?.div(1000) ?: 0.0
-    val regex = Regex("\\[(\\d{1,4}):([0-5]\\d)(?:[.:](\\d{1,3}))?\\]")
-    return raw.take(100000).lineSequence().flatMap { row -> val text=regex.replace(row,"").trim(); regex.findAll(row).map { m -> LyricLine((m.groupValues[1].toDouble()*60+m.groupValues[2].toDouble()+("0."+m.groupValues[3].ifEmpty { "0" }).toDouble()-offset).coerceAtLeast(0.0),text) } }.take(2000).sortedBy { it.time }.toList()
+    val offset = Regex("\\[offset:\\s*([+-]?\\d+)\\s*\\]", RegexOption.IGNORE_CASE)
+        .find(raw)?.groupValues?.get(1)?.toDoubleOrNull()?.div(1000) ?: 0.0
+    val stamp = Regex("\\[(\\d{1,4}):([0-5]?\\d)(?:[.,:](\\d{1,3}))?\\]")
+    val wordStamp = Regex("<(\\d{1,4}):([0-5]?\\d)(?:[.,:](\\d{1,3}))?>")
+    fun time(match: MatchResult): Double = match.groupValues[1].toDouble() * 60 +
+        match.groupValues[2].toDouble() + ("0." + match.groupValues[3].ifEmpty { "0" }).toDouble()
+
+    return raw.take(100000).lineSequence().flatMap { row ->
+        val stamps = stamp.findAll(row).toList()
+        if (stamps.isEmpty()) return@flatMap emptySequence()
+        val content = stamp.replace(row, "")
+        val markers = wordStamp.findAll(content).toList()
+        val text = wordStamp.replace(content, "").trim()
+        val first = time(stamps.first())
+        val pieces = mutableListOf<LyricWord>()
+        if (markers.isNotEmpty()) {
+            val prefix = content.substring(0, markers.first().range.first).trimStart()
+            if (prefix.isNotEmpty()) pieces.add(LyricWord(first, prefix, time(markers.first())))
+            markers.forEachIndexed { index, marker ->
+                val next = markers.getOrNull(index + 1)
+                val part = content.substring(marker.range.last + 1, next?.range?.first ?: content.length)
+                if (part.isNotEmpty()) pieces.add(LyricWord(time(marker), part, next?.let(::time)))
+            }
+            if (pieces.isNotEmpty()) pieces[pieces.lastIndex] = pieces.last().copy(text = pieces.last().text.trimEnd())
+        }
+        val valid = pieces.isNotEmpty() && pieces.withIndex().all { (index, word) ->
+            word.time >= first && (index == 0 || word.time >= pieces[index - 1].time) &&
+                (word.end == null || word.end >= word.time)
+        }
+        stamps.asSequence().map { marker ->
+            val lineTime = time(marker)
+            val words = if (valid) pieces.map { word ->
+                LyricWord(
+                    (word.time + lineTime - first - offset).coerceAtLeast(0.0),
+                    word.text,
+                    word.end?.let { (it + lineTime - first - offset).coerceAtLeast(0.0) },
+                )
+            } else emptyList()
+            LyricLine((lineTime - offset).coerceAtLeast(0.0), text, words)
+        }
+    }.take(2000).sortedBy { it.time }.toList()
 }
 /** The bar shows tenths of a second, so a position is published when it moves one. */
 // A tenth of a second, minus a hair: 10.1 - 10.0 is 0.09999999999999964 in
@@ -113,6 +154,41 @@ fun playThreshold(duration: Double): Int =
     else maxOf(5, minOf(PLAY_THRESHOLD_SECONDS, (duration / 2).toInt()))
 
 fun countsAsPlay(seconds: Int, duration: Double): Boolean = seconds >= playThreshold(duration)
+
+/** One history event per playback, excluding pauses, stalls and seek jumps. */
+class ListeningCounter {
+    private var serial: Long? = null
+    private var songId: String? = null
+    private var startedAt = 0L
+    private var heard = 0.0
+    private var last: Double? = null
+    private var recorded = false
+
+    fun sample(serial: Long, songId: String?, playing: Boolean, position: Double, duration: Double, now: Long): Play? {
+        if (this.serial != serial || this.songId != songId) {
+            this.serial = serial
+            this.songId = songId
+            startedAt = now
+            heard = 0.0
+            last = null
+            recorded = false
+        }
+        if (!playing || songId == null) {
+            last = null
+            return null
+        }
+        if (recorded || !position.isFinite() || position < 0) return null
+        val previous = last
+        if (previous != null) {
+            val step = position - previous
+            if (step > 0 && step <= 2.5) heard += step
+        }
+        last = position
+        if (heard < playThreshold(duration)) return null
+        recorded = true
+        return Play(songId, startedAt, heard.toInt(), duration > 0 && position >= duration - 1)
+    }
+}
 
 /**
  * What the listening page shows.

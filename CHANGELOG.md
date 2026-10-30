@@ -16,6 +16,11 @@
   parity still need device testing. Settings now has a section index and a persistent theme choice.
 - Android asks before removing a song, and deletes a copied file only inside Wave's own audio
   directory and only when no other library entry still points to it. External originals are left alone.
+- Android reads embedded artwork from both imported files and MediaStore URIs. Enhanced LRC word
+  timestamps are highlighted against the playback clock; ordinary LRC remains line-synchronized.
+- Remix counts a short web listen from its first sampled second rather than losing that second.
+  Android's counter records at most one play per playback, including an automatic Mix handover,
+  and ignores paused time and seek jumps.
 
 ### Remix, and the history behind it
 

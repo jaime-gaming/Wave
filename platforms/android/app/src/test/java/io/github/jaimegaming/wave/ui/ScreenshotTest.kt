@@ -49,6 +49,9 @@ class ScreenshotTest {
     fun home() = capture("android-home", Opening.Default)
 
     @Test
+    fun homeLight() = capture("android-home-light", Opening.Default, dark = false)
+
+    @Test
     fun remix() = capture("android-remix", Opening.Where(Destination.Remix))
 
     @Test
@@ -111,7 +114,7 @@ class ScreenshotTest {
                 filename = "$title.wav",
                 path = File(output, "demo-$index.wav").absolutePath,
                 duration = 120.0,
-                lyrics = "[00:00.00]The city slows beneath the light\n[00:05.00]We take the long way home tonight",
+                lyrics = "[00:00.00]<00:00.00>The city <00:01.50>slows <00:03.00>beneath the light\n[00:05.00]We take the long way home tonight",
                 genre = listOf("Electronic", "Jazz", "Rock")[index / 3],
                 addedAt = System.currentTimeMillis() - index * 86_400_000L,
             )
@@ -130,7 +133,7 @@ class ScreenshotTest {
 
     }
 
-    private fun capture(name: String, opening: Opening) {
+    private fun capture(name: String, opening: Opening, dark: Boolean = true) {
         val output = output() ?: return
         val app = ApplicationProvider.getApplicationContext<WaveApplication>()
         seed(app, output)
@@ -139,7 +142,7 @@ class ScreenshotTest {
             val songs = Library(app).load()
             app.player.play(songs, songs.first())
         }
-        rule.setContent { WaveTheme { WaveApp(version = "0.1.1", opening = opening) } }
+        rule.setContent { WaveTheme(dark = dark) { WaveApp(version = "0.1.1", opening = opening) } }
         rule.waitForIdle()
         val view = rule.activity.window.decorView
         val width = if (view.width > 0) view.width else 822

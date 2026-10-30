@@ -1,5 +1,7 @@
 package io.github.jaimegaming.wave.ui
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
@@ -8,6 +10,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -23,6 +26,7 @@ import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.jaimegaming.wave.R
+import io.github.jaimegaming.wave.WaveApplication
 
 /**
  * The typeface, the same one the web build loads.
@@ -39,77 +43,77 @@ private val NunitoSans = FontFamily(
     Font(R.font.nunito_sans_bold, FontWeight.Bold),
 )
 
-/**
- * Wave's palette on Android.
- *
- * The web build tints everything from the current song's artwork. A phone does
- * not have that much room to be clever in, so the base is a calm ink-and-paper
- * pair and the song brings a single accent [accentFor] that is derived from the
- * sleeve — one hue, used for the playing row, the progress line and the mark.
- */
-
-/** The accent a song brings with it, stable for the same id. */
-fun accentFor(id: String): Color {
-    val hue = (id.take(6).fold(0) { acc, c -> (acc * 31 + c.code) and 0xFFFF } % 360).toFloat()
-    return Color.hsl(hue, 0.42f, 0.68f)
-}
-
-// The web palette, verbatim: the browser tokens in src/styles.css are the only
-// source of truth for colour, and these are the same values.
-private val Ink = Color(0xFF10141F) // --background
-private val InkRaised = Color(0xFF1D2230) // --container
-private val InkSoft = Color(0xFF282E3E) // --container-high
-private val Paper = Color(0xFFECEDF5) // --background, light
-private val PaperRaised = Color(0xFFFAF9FF) // --surface, light
-private val PaperSoft = Color(0xFFE1E2EF) // --container-high, light
-private val Aqua = Color(0xFFB0C7FF) // --primary
-private val AquaDeep = Color(0xFF375D98) // --primary, light
-private val Mist = Color(0xFFACB2C4) // --muted
-private val MistDeep = Color(0xFF555D70) // --muted, light
-
-private val Dark = darkColorScheme(
-    primary = Aqua,
-    onPrimary = Color(0xFF092E62),
-    primaryContainer = Color(0xFF324773),
-    onPrimaryContainer = Color(0xFFE3E5F1),
-    secondary = Color(0xFFE9DDFF),
-    onSecondary = Color(0xFF484168),
-    secondaryContainer = Color(0xFF484168),
-    onSecondaryContainer = Color(0xFFE9DDFF),
-    background = Ink,
-    onBackground = Color(0xFFE3E5F1),
-    surface = Ink,
-    onSurface = Color(0xFFE3E5F1),
-    surfaceVariant = InkSoft,
-    onSurfaceVariant = Mist,
-    surfaceContainer = InkRaised,
-    surfaceContainerHigh = InkSoft,
+/** Match the active HSL tokens in the mobile website, not the older fallback palette. */
+private fun darkPalette(hue: Float) = darkColorScheme(
+    primary = Color.hsl(hue, .58f, .80f),
+    onPrimary = Color.hsl(hue, .40f, .18f),
+    primaryContainer = Color.hsl(hue, .32f, .27f),
+    onPrimaryContainer = Color.hsl(hue, .25f, .94f),
+    secondary = Color.hsl(hue, .25f, .94f),
+    onSecondary = Color.hsl(hue, .24f, .25f),
+    secondaryContainer = Color.hsl(hue, .24f, .25f),
+    onSecondaryContainer = Color.hsl(hue, .25f, .94f),
+    background = Color.hsl(hue, .18f, .09f),
+    onBackground = Color.hsl(hue, .25f, .94f),
+    surface = Color.hsl(hue, .18f, .12f),
+    onSurface = Color.hsl(hue, .25f, .94f),
+    surfaceVariant = Color.hsl(hue, .20f, .21f),
+    onSurfaceVariant = Color.hsl(hue, .18f, .74f),
+    surfaceContainer = Color.hsl(hue, .19f, .16f),
+    surfaceContainerHigh = Color.hsl(hue, .20f, .21f),
     outline = Color(0xFF697185),
-    outlineVariant = Color(0xFF363D4E),
+    outlineVariant = Color.hsl(hue, .18f, .30f),
     error = Color(0xFFFFB4AB),
 )
 
-private val Light = lightColorScheme(
-    primary = AquaDeep,
-    onPrimary = Color(0xFFFFFFFF),
-    primaryContainer = Color(0xFFCCDDFF),
-    onPrimaryContainer = Color(0xFF1A1D2B),
-    secondary = Color(0xFF403657),
-    onSecondary = Color(0xFFE5DBFF),
-    secondaryContainer = Color(0xFFE5DBFF),
-    onSecondaryContainer = Color(0xFF403657),
-    background = Paper,
-    onBackground = Color(0xFF1A1D2B),
-    surface = PaperRaised,
-    onSurface = Color(0xFF1A1D2B),
-    surfaceVariant = PaperSoft,
-    onSurfaceVariant = MistDeep,
-    surfaceContainer = Color(0xFFEDECF5),
-    surfaceContainerHigh = PaperSoft,
-    outline = Color(0xFF7E8597),
-    outlineVariant = Color(0xFFD8D9E6),
+private fun lightPalette(hue: Float) = lightColorScheme(
+    primary = Color.hsl(hue, .48f, .35f),
+    onPrimary = Color.White,
+    primaryContainer = Color.hsl(hue, .40f, .86f),
+    onPrimaryContainer = Color.hsl(hue, .28f, .15f),
+    secondary = Color.hsl(hue, .28f, .15f),
+    onSecondary = Color.White,
+    secondaryContainer = Color.hsl(hue, .24f, .89f),
+    onSecondaryContainer = Color.hsl(hue, .28f, .15f),
+    background = Color.hsl(hue, .25f, .96f),
+    onBackground = Color.hsl(hue, .28f, .15f),
+    surface = Color.hsl(hue, .30f, .99f),
+    onSurface = Color.hsl(hue, .28f, .15f),
+    surfaceVariant = Color.hsl(hue, .27f, .87f),
+    onSurfaceVariant = Color.hsl(hue, .18f, .36f),
+    surfaceContainer = Color.hsl(hue, .28f, .92f),
+    surfaceContainerHigh = Color.hsl(hue, .27f, .87f),
+    outline = Color.hsl(hue, .18f, .53f),
+    outlineVariant = Color.hsl(hue, .18f, .78f),
     error = Color(0xFFB3261E),
 )
+
+/** Coarse artwork sample, using the same chroma weighting as the web. */
+internal fun artworkHue(bitmap: android.graphics.Bitmap?): Float {
+    if (bitmap == null || bitmap.width <= 0 || bitmap.height <= 0) return 226f
+    var red = 0.0
+    var green = 0.0
+    var blue = 0.0
+    var weight = 0.0
+    for (y in 0 until 12) for (x in 0 until 12) {
+        val pixel = bitmap.getPixel(x * (bitmap.width - 1) / 11, y * (bitmap.height - 1) / 11)
+        val r = android.graphics.Color.red(pixel) / 255.0
+        val g = android.graphics.Color.green(pixel) / 255.0
+        val b = android.graphics.Color.blue(pixel) / 255.0
+        val chroma = maxOf(r, g, b) - minOf(r, g, b)
+        val w = chroma + .05
+        red += r * w; green += g * w; blue += b * w; weight += w
+    }
+    val r = red / weight; val g = green / weight; val b = blue / weight
+    val max = maxOf(r, g, b); val min = minOf(r, g, b); val delta = max - min
+    if (delta <= .01) return 220f
+    val raw = when (max) {
+        r -> ((g - b) / delta) % 6
+        g -> (b - r) / delta + 2
+        else -> (r - g) / delta + 4
+    } * 60
+    return ((kotlin.math.round(raw).toFloat() % 360f) + 360f) % 360f
+}
 
 private val WaveTypography = Typography(
     displaySmall = TextStyle(
@@ -193,6 +197,20 @@ fun WaveTheme(
     val preferences = remember(context) { context.getSharedPreferences("wave", android.content.Context.MODE_PRIVATE) }
     var mode by remember(preferences) { mutableStateOf(preferences.getString("appearance", "system") ?: "system") }
     val darkTheme = when (mode) { "dark" -> true; "light" -> false; else -> dark }
+    val song = (context.applicationContext as? WaveApplication)?.player?.current
+    val artwork = song?.let { rememberArtwork(it) }
+    val sampledHue = remember(artwork) { artworkHue(artwork) }
+    var targetHue by remember { mutableStateOf(226f) }
+    LaunchedEffect(sampledHue, song?.id, artwork) {
+        // Give the new sleeve a moment to load rather than flashing the neutral
+        // palette between two songs. The delay is cancelled when artwork arrives.
+        if (song != null && artwork == null) kotlinx.coroutines.delay(180)
+        val current = ((targetHue % 360f) + 360f) % 360f
+        val distance = ((sampledHue - current + 540f) % 360f) - 180f
+        targetHue += distance
+    }
+    val animatedHue by animateFloatAsState(targetValue = targetHue, animationSpec = tween(500), label = "song colour")
+    val hue = ((animatedHue % 360f) + 360f) % 360f
     val choice = AppearanceChoice(mode) { next ->
         if (next in setOf("system", "light", "dark")) {
             mode = next
@@ -201,7 +219,7 @@ fun WaveTheme(
     }
     CompositionLocalProvider(LocalAppearanceChoice provides choice) {
         MaterialTheme(
-            colorScheme = if (darkTheme) Dark else Light,
+            colorScheme = if (darkTheme) darkPalette(hue) else lightPalette(hue),
             typography = WaveTypography,
             shapes = WaveShapes,
             content = content,

@@ -81,9 +81,13 @@ export function useListeningHistory({
   /** Writes the session if it deserves a row, and forgets it either way. */
   const settle = useCallback((current: Session | null) => {
     if (!current) return;
-    const seconds = Math.round(current.seconds);
-    if (!countsAsPlay(seconds, durationRef.current)) return;
-    const play = makePlay(current.trackId, current.startedAt, seconds, current.completed);
+    if (!countsAsPlay(current.seconds, durationRef.current)) return;
+    const play = makePlay(
+      current.trackId,
+      current.startedAt,
+      Math.round(current.seconds),
+      current.completed,
+    );
     setPlays((existing) =>
       existing.some((entry) => entry.id === play.id) ? existing : [...existing, play],
     );
@@ -99,11 +103,14 @@ export function useListeningHistory({
       return;
     }
     if (!previous || previous.trackId !== track.id) {
+      const initial = readTimeRef.current();
       session.current = {
         trackId: track.id,
         startedAt: Date.now(),
         seconds: 0,
-        last: null,
+        // Capture the starting position now, so the first second of real
+        // playback is counted. A seek is still rejected by the step bound.
+        last: Number.isFinite(initial) && initial >= 0 ? initial : null,
         completed: false,
       };
     }
