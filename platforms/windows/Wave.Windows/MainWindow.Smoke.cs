@@ -39,8 +39,5 @@ public partial class MainWindow
         await Capture("remix");
         ShowPage("Settings"); Check(SettingsBody.Children.OfType<Button>().Count() == 7, "Expected Back and six Settings sections."); await Capture("settings");
         preferences = preferences with { Theme = "light" }; ApplyTheme(); Width = 820; Height = 640; ShowPage("Library"); await Capture("library-light-narrow");
-        // A light theme has to carry the rail with it; the rail is the window, so
-        // this paints the corner the pages never cover.
-        NavigationPanel.Background = Brushes.LimeGreen; await Capture("diagnostic-rail"); NavigationPanel.Background = Brushes.Transparent;
     }
 }
