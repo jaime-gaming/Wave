@@ -24,9 +24,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -37,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -256,12 +256,10 @@ fun SearchScreen(state: WaveState, onOpenSong: (Song) -> Unit) {
                 title = "Search",
                 subtitle = if (state.songs.isEmpty()) "Add music to search it" else count(state.songs.size, "song"),
             )
-            OutlinedTextField(
+            WaveSearchField(
                 value = state.query,
                 onValueChange = { state.query = it },
-                placeholder = { Text("Songs, artists, albums") },
-                singleLine = true,
-                shape = RoundedCornerShape(16.dp),
+                placeholder = "Songs, artists, albums",
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 10.dp),
@@ -356,45 +354,65 @@ fun LibraryScreen(state: WaveState, onAddMusic: () -> Unit, onOpenSong: (Song) -
                     else -> "${state.visible().size} of ${state.songs.size} songs"
                 },
             )
-            val categories = Shelf.values().toList()
-            categories.chunked(3).forEach { row ->
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    row.forEach { shelf ->
-                        val selected = state.shelf == shelf
-                        val amount = when (shelf) {
-                            Shelf.Songs -> state.songs.size
-                            Shelf.Albums -> state.albums().size
-                            Shelf.Artists -> state.artists().size
-                            Shelf.Playlists -> state.playlists.size
-                            Shelf.Favorites -> state.favorites().size
-                        }
+            // One scrolling row of pills, as on the phone site: the chosen one is
+            // filled with the accent and carries a small bar under it, the rest
+            // stay on the page's own surface.
+            LazyRow(
+                modifier = Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                items(Shelf.values().toList()) { shelf ->
+                    val selected = state.shelf == shelf
+                    val amount = when (shelf) {
+                        Shelf.Songs -> state.songs.size
+                        Shelf.Albums -> state.albums().size
+                        Shelf.Artists -> state.artists().size
+                        Shelf.Playlists -> state.playlists.size
+                        Shelf.Favorites -> state.favorites().size
+                    }
+                    val (interaction, pressed) = rememberPress()
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Row(
                             modifier = Modifier
-                                .weight(1f)
-                                .height(44.dp)
-                                .clip(RoundedCornerShape(16.dp))
+                                .pressScale(pressed)
+                                .height(48.dp)
+                                .clip(RoundedCornerShape(32.dp))
                                 .background(if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainer)
-                                .clickable { state.shelf = shelf }
-                                .padding(horizontal = 12.dp),
+                                .clickable(interactionSource = interaction, indication = null) { state.shelf = shelf }
+                                .padding(horizontal = 20.dp),
                             verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            val tint = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
-                            Text(shelf.label, style = MaterialTheme.typography.labelLarge, color = tint, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                            Text(amount.toString(), style = MaterialTheme.typography.labelSmall, color = tint)
+                            Text(
+                                shelf.label,
+                                color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                                fontSize = 14.sp,
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                                maxLines = 1,
+                            )
+                            Text(
+                                amount.toString(),
+                                color = if (selected) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 12.sp,
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                            )
                         }
+                        Box(
+                            Modifier
+                                .padding(top = 6.dp)
+                                .width(22.dp)
+                                .height(4.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(if (selected) MaterialTheme.colorScheme.primary else Color.Transparent),
+                        )
                     }
                 }
             }
-            OutlinedTextField(
+            WaveSearchField(
                 value = state.query,
                 onValueChange = { state.query = it },
-                placeholder = { Text("Search this library") },
-                singleLine = true,
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                placeholder = "Search this library",
+                modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
             )
             if (state.shelf == Shelf.Songs || state.shelf == Shelf.Favorites) {
                 SectionTitle(if (state.shelf == Shelf.Favorites) "Favorites" else "All songs")

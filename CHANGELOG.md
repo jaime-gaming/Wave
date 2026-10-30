@@ -15,6 +15,12 @@
 - Windows is quieter and softer: navigation rows fade in and slide a hair under the pointer
   instead of switching colour on the spot, the scrollbar is thinner and lighter, and covers keep
   a hairline edge on both themes.
+- Android wears the site's clothes. Library categories are one scrolling row of rounded pills —
+  the chosen one filled with the accent and underlined by a short bar — the search boxes are the
+  site's filled pill with the magnifier inside it, and song rows lost their border for the wider
+  corners the site uses. Tapping a row or a button now presses it in slightly under the finger.
+  The bottom bar's selected place is the site's pill too: a soft tinted block behind the icon,
+  both of them in the accent.
 
 ### The scene that opens itself, and a Windows download that just runs
 

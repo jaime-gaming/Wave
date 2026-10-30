@@ -1,9 +1,12 @@
 package io.github.jaimegaming.wave.ui
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,10 +21,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -35,6 +43,61 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.jaimegaming.wave.Song
+
+/**
+ * The web's press: a card or a pill gives a little when it is pushed, and eases
+ * back when it is let go. 0.97 is the same number `src/styles.css` uses, so the
+ * phone feels like the site rather than merely similar to it.
+ */
+@Composable
+fun Modifier.pressScale(pressed: Boolean, amount: Float = 0.972f): Modifier {
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) amount else 1f,
+        animationSpec = spring(dampingRatio = 0.55f, stiffness = 900f),
+        label = "press",
+    )
+    return this.scale(scale)
+}
+
+/** The interaction source and its pressed flag, for a clickable that squashes. */
+@Composable
+fun rememberPress(): Pair<MutableInteractionSource, Boolean> {
+    val source = remember { MutableInteractionSource() }
+    val pressed by source.collectIsPressedAsState()
+    return source to pressed
+}
+
+/**
+ * The search field, as the site draws it: a filled pill with the magnifier on
+ * its left and no rule under it. Material's outlined field reads as a form; this
+ * reads as the same page, which is the point of the port.
+ */
+@Composable
+fun WaveSearchField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    modifier: Modifier = Modifier,
+) {
+    TextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = modifier,
+        placeholder = { Text(placeholder, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) },
+        leadingIcon = { WaveIcon("search", 18.dp, MaterialTheme.colorScheme.onSurfaceVariant) },
+        singleLine = true,
+        textStyle = MaterialTheme.typography.bodyMedium,
+        shape = RoundedCornerShape(26.dp),
+        colors = TextFieldDefaults.colors(
+            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent,
+            disabledIndicatorColor = Color.Transparent,
+            cursorColor = MaterialTheme.colorScheme.primary,
+        ),
+    )
+}
 
 /** The Wave mark: two crests, drawn rather than shipped as an asset. */
 @Composable
@@ -133,17 +196,20 @@ fun SongRow(
     modifier: Modifier = Modifier,
     trailing: String? = null,
 ) {
-    val shape = RoundedCornerShape(16.dp)
+    // The web row is a plain card on the page's own surface — no hairline, wider
+    // corners — and it gives a little when it is pushed.
+    val shape = RoundedCornerShape(22.dp)
+    val (interaction, pressed) = rememberPress()
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(bottom = 5.dp)
+            .padding(bottom = 6.dp)
+            .pressScale(pressed)
             .clip(shape)
             .background(if (playing) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer)
-            .border(1.dp, if (playing) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f), shape)
             .semantics { contentDescription = "Play ${song.title} by ${song.artist}" }
-            .clickable(onClick = onPlay)
-            .padding(start = 10.dp, end = 2.dp, top = 8.dp, bottom = 8.dp),
+            .clickable(interactionSource = interaction, indication = null, onClick = onPlay)
+            .padding(start = 12.dp, end = 6.dp, top = 9.dp, bottom = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Cover(song, size = 48.dp, radius = 10.dp)

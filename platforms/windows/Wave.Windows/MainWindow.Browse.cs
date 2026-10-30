@@ -18,6 +18,7 @@ public partial class MainWindow
         if (!initialized || page is "Now playing" or "Settings") return;
         CollectionHeader.Children.Clear();
         UpdateSummary();
+        UpdateRailCounts();
         if (page == "Home") RenderHome();
         else if (page == "Remix") RenderRemix();
         else if (page == "Search") {
