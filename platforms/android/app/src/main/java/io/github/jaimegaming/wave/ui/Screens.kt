@@ -106,21 +106,14 @@ fun HomeScreen(state: WaveState, onAddMusic: () -> Unit, onOpenSong: (Song) -> U
                     Text("Add music", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
                 }
             }
-            // The five places the collection can be seen, as tiles rather than a
-            // list: three across, then two, the way the phone site wraps them.
-            shortcuts.chunked(3).forEach { row ->
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    row.forEach { (shelf, icon, amount) ->
-                        ShortcutTile(shelf, icon, amount, Modifier.weight(1f)) {
-                            state.shelf = shelf
-                            state.destination = Destination.Library
-                            state.open = null
-                        }
-                    }
-                    repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
+            // The five places the collection can be seen. On a phone the site
+            // gives each one a row that says its number rather than a box with air
+            // in it, and the first is tinted; this is the same row.
+            shortcuts.forEachIndexed { index, (shelf, icon, amount) ->
+                ShortcutRow(shelf, icon, amount, first = index == 0) {
+                    state.shelf = shelf
+                    state.destination = Destination.Library
+                    state.open = null
                 }
             }
         }
@@ -185,36 +178,37 @@ fun HomeScreen(state: WaveState, onAddMusic: () -> Unit, onOpenSong: (Song) -> U
 }
 
 /**
- * One collection shortcut. Icon on the left, the count on the right, the name
- * under both — the same three pieces as `.home-shortcut` on the web, in a card
- * the size of a thumb.
+ * One collection shortcut. On a phone the site lays these out as a single column
+ * — drawn icon, name, count at the right — with the first one tinted, so this is
+ * the same row rather than five empty boxes.
  */
 @Composable
-private fun ShortcutTile(shelf: Shelf, icon: String, amount: Int, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(22.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainer)
+private fun ShortcutRow(shelf: Shelf, icon: String, amount: Int, first: Boolean, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 6.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(if (first) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer)
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 14.dp),
+            .padding(horizontal = 13.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            WaveIcon(icon, 19.dp, MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.weight(1f))
-            Text(
-                text = amount.toString(),
-                fontSize = 22.sp,
-                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-        }
+        WaveIcon(icon, 18.dp, MaterialTheme.colorScheme.primary)
+        Spacer(Modifier.width(10.dp))
         Text(
             text = shelf.label,
             fontSize = 13.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = 12.dp),
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            text = amount.toString(),
+            fontSize = 19.sp,
+            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
         )
     }
 }
@@ -761,7 +755,7 @@ fun RemixScreen(state: WaveState) {
                         horizontalAlignment = Alignment.End,
                         modifier = Modifier.padding(start = 16.dp),
                     ) {
-                        Cover(hero, size = 112.dp, radius = 20.dp)
+                        Cover(hero, size = 92.dp, radius = 18.dp)
                         Text(
                             "MOST PLAYED",
                             style = MaterialTheme.typography.labelSmall,
@@ -889,17 +883,15 @@ fun RemixScreen(state: WaveState) {
     }
 }
 /**
- * The genre, the hour and the artist that carried the week, as one wrapping line
- * of type. The artist is the only part that goes anywhere, so it is the only
- * part that is coloured like a link.
+ * The genre, the hour and the artist that carried the week. On a phone the site
+ * stacks them as three short lines, and the artist is the only part that goes
+ * anywhere, so it is the only part coloured like a link.
  */
-@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun NotesLine(recap: WeekRecap, peakHour: Int?, onArtist: (String) -> Unit) {
-    androidx.compose.foundation.layout.FlowRow(
+    Column(
         modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         recap.genres.firstOrNull()?.let { genre ->
             Text(

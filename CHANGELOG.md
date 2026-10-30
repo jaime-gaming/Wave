@@ -15,7 +15,7 @@
 - The wordmark keeps the original wave-shaped W and redraws the rest of the letters with
   the same rounded stroke. The compact mark is the very same W.
 - Android's native shell now follows the mobile site's inset page, four-item dock, header
-  actions, collection shortcuts as wrapped tiles, daily-mix rows, the same Remix page
+  actions, the phone site's collection rows, daily-mix rows, the same Remix page
   (figure with its sleeve, day bars, the facts line, the numbered list, artist chips) and
   the same player layout. Android playback,
   the system picker and media-session controls remain native; complete feature and visual
