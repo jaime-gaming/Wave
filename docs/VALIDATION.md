@@ -26,12 +26,15 @@ Release 0.1.1 · 28 October 2026. Historical run dates are retained below.
 - One more thing the screenshots showed: with nothing playing, the page still left the player's
   column empty on the right. The reserve now follows the bar — no bar, no reserved column — and the
   page glides back when playback starts. It is off under `prefers-reduced-motion`.
-- **Still red:** `Checks` fails at `npm test` on one run with
-  `expected "vi.fn()" to be called 1 times, but got 2 times`, a test that passes locally and passed
-  in the run before it. It is not claimed as fixed; it is the same kind of timing-shaped flake the
-  suite has shown before, and it is recorded here rather than papered over. The Playwright job is
-  still red with the same baseline failures as earlier rounds, and its report cannot be downloaded
-  from this environment.
+- A red `npm test` in CI — `expected "vi.fn()" to be called 1 times, but got 2 times` in
+  `src/services/videoMeta.test.ts` — was a real race, not a slow machine. After a provider timed
+  out, the chain asked the clock whether any budget was left; a timer that fires a millisecond early
+  made the answer "yes", so one more provider was asked, which is exactly what the budget exists to
+  stop. The timeout now reports that it expired and the chain ends on that, with no second reading
+  of the clock. A new test pins the other half of the behaviour: a provider that answers quickly
+  with nothing usable is a miss, not the end of the chain.
+- **Still red:** the Playwright job, with the same baseline failures as earlier rounds; its report
+  cannot be downloaded from this environment.
 
 ### The wordmark, the corner and the closing player (previous run)
 
