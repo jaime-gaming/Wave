@@ -23,6 +23,9 @@ Release 0.1.1 · 28 October 2026. Historical run dates are retained below.
   window read its background from the palette once and never again, so a theme change left a dark
   band beside a light page. The window now reads the palette at the moment the theme changes, and
   the root panel is painted from it — which is also why the screenshot is finally all light.
+- One more thing the screenshots showed: with nothing playing, the page still left the player's
+  column empty on the right. The reserve now follows the bar — no bar, no reserved column — and the
+  page glides back when playback starts. It is off under `prefers-reduced-motion`.
 - **Still red:** `Checks` fails at `npm test` on one run with
   `expected "vi.fn()" to be called 1 times, but got 2 times`, a test that passes locally and passed
   in the run before it. It is not claimed as fixed; it is the same kind of timing-shaped flake the
