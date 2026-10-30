@@ -32,12 +32,15 @@ public partial class MainWindow
         await Capture("daily-mix");
         var snapshot = new NativePlaylist("smoke", "Morning collection", "Saved local selection", visible.Select(s => s.Id).ToList());
         SavePlaylists(new() { snapshot }); ShowPage("Playlists", snapshot.Id); Check(visible.Count == 3, "Playlist snapshot lost songs."); await Capture("playlist");
-        // Remix over the seeded week: one card, then the list it earns.
+        // Remix over the seeded week: the figure and its sleeve, then the list it earns.
         ShowPage("Remix");
-        var remixText = CollectionHeader.Children.OfType<TextBlock>().Select(text => text.Text).ToList();
-        Check(remixText.Contains("This week"), "Remix should open with this week.");
+        // The page is built from grids and panels now, so the words have to be read
+        // out of the whole tree rather than off the top level.
+        var remixText = TextsIn(CollectionHeader).Select(text => text.Text).ToList();
+        Check(remixText.Contains("Most played"), "Remix should show the sleeve of the week's song.");
         Check(remixText.Contains("Your Remix"), "Remix should list the week's songs.");
         Check(remixText.Any(text => text.EndsWith("vs last week")), "Remix should compare with the week before.");
+        Check(!remixText.Contains("More about this week"), "Remix should not carry the old card stack.");
         await Capture("remix");
         ShowPage("Settings"); // Back is a button too, so seven: one way out and six sections.
         Check(SettingsBody.Children.OfType<Button>().Count() == 7, "Expected Back and six Settings sections."); await Capture("settings");
@@ -48,5 +51,16 @@ public partial class MainWindow
         Check(NowView.Visibility == Visibility.Visible, "The player view should be the one on screen.");
         ShowPage("Library");
         preferences = preferences with { Theme = "light" }; ApplyTheme(); Width = 820; Height = 640; ShowPage("Library"); await Capture("library-light-narrow");
+    }
+
+    /// <summary>Every TextBlock under an element, however deeply it is nested.</summary>
+    private static IEnumerable<TextBlock> TextsIn(DependencyObject root)
+    {
+        for (int index = 0; index < VisualTreeHelper.GetChildrenCount(root); index++)
+        {
+            var child = VisualTreeHelper.GetChild(root, index);
+            if (child is TextBlock block) yield return block;
+            foreach (var nested in TextsIn(child)) yield return nested;
+        }
     }
 }
