@@ -29,13 +29,13 @@ After any web source or public asset change, run `npm ci && npm run build:pages`
 
 ## Windows
 
-Requirements: Windows and the .NET 10 SDK for development. The framework-dependent test ZIP requires the **.NET 10 Windows Desktop Runtime** to run; it does not bundle that runtime or require elevation.
+For development you need Windows and the .NET 10 SDK. To _use_ it you need neither: the published ZIP is self-contained, so it carries its own runtime. Download it, unzip it, run `Wave.Windows.exe`. No installer, no command, no elevation.
 
 ```powershell
 dotnet run --project platforms/windows/Wave.Contracts.Tests -c Release
 dotnet build platforms/windows/Wave.Windows -c Release
 dotnet run --project platforms/windows/Wave.Windows
-dotnet publish platforms/windows/Wave.Windows -c Release -r win-x64 --self-contained false -o artifacts/windows
+dotnet publish platforms/windows/Wave.Windows -c Release -r win-x64 --self-contained true -o artifacts/windows
 ```
 
 The native app uses WPF, Windows MediaPlayer and standard file pickers. Originals live in `%LOCALAPPDATA%/Wave/audio`; library, playlists, preferences, the last session and the listening history (`history.json`) use atomically replaced JSON files. The sidebar carries a **Remix** page: this week's time, plays, songs and artists next to the week before, and Your Remix, the songs played most, which can be played or saved as an ordinary playlist. Clearing the history is the only action on it. Covers are separate local overrides. Existing library/preferences remain readable; the old disabled overlap preference migrates without silently enabling Mix.
@@ -44,9 +44,16 @@ Home has collection shortcuts, daily mixes and album cards; the listening recap 
 
 CI runs a dependency-free contract runner, compiles/publishes the application and executes an isolated WPF smoke mode that exercises Home, Search, daily mixes, saved playlists, Remix, six Settings sections and narrow light-theme layout. It captures PNGs in `wave-windows-ui-smoke`, and a push publishes them as `docs/media/windows-*.png`; this is not a physical-device or codec/playback matrix. The fixture library is temporary and does not touch a real user library.
 
-Metadata reading remains limited to ID3/WAV. Automatic embedded artwork extraction, web-identical search grouping, artist photos, album ordering, word-stamped LRC, waveform analysis, immersive idle mode and system media integration are not complete. OS codecs govern playback. Do not call this complete web parity.
+Metadata reading remains limited to ID3/WAV. Automatic embedded artwork extraction, web-identical search grouping, artist photos, album ordering, word-stamped LRC, waveform analysis and system media integration are not complete. OS codecs govern playback. Do not call this complete web parity.
 
 See [WINDOWS_RELEASE](WINDOWS_RELEASE.md) for checksums, signing and Defender limits. Test ZIPs are clearly labeled unsigned. Upstream .NET license/notices remain bundled; future self-contained packages must inventory their exact runtime pack.
+
+## iOS
+
+Not shipped yet, and deliberately not promised for a date: the iPhone and iPad app arrives shortly
+after the Android one. It will be the same interface as the mobile website, with the system pieces —
+media session, lock screen, share sheet — done natively, exactly as the Android build does. Until
+then, Safari's **Add to Home Screen** gives a full-screen Wave that behaves like an app.
 
 ## Android
 

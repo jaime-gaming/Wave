@@ -94,7 +94,7 @@ jobs:
             echo "Images unchanged."
             exit 0
           fi
-          git commit -m 'Refresh the web screenshots from the built app'
+          git commit -m 'Refresh the web screenshots from the built app [skip ci]'
           for attempt in 1 2 3 4; do
             # The native jobs publish to this same branch, so the first push can
             # lose the race. Rebase onto whatever landed, and leave nothing

@@ -22,6 +22,8 @@ const sections = [
   { id: 'about', title: 'About', icon: Info },
 ] as const;
 type Section = (typeof sections)[number]['id'];
+/** The id of a Settings section, for anything that opens Settings on one. */
+export type SettingsSection = Section;
 export function SettingsPage(
   props: Record<Section, ReactNode> & {
     onBack: () => void;

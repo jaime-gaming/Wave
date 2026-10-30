@@ -1,4 +1,5 @@
 import type { MixSelection } from './components/DailyMixPage';
+import type { SettingsSection } from './components/SettingsPage';
 import { LocalMetadataReview } from './components/LocalMetadataReview';
 import { ContextMenu, type ContextAction } from './components/ContextMenu';
 import { MusicLighting } from './components/MusicLighting';
@@ -226,14 +227,19 @@ function WaveApp({
   const [playerOpen, setPlayerOpen] = useState(false);
   const playerOpener = useRef<HTMLElement | null>(null);
   const settingsPrevious = useRef<Page>('home');
+  const [settingsSection, setSettingsSection] = useState<SettingsSection | null>(null);
   const settingsOpener = useRef<HTMLElement | null>(null);
-  const openSettings = () => {
+  const openSettings = (section: SettingsSection | null = null) => {
     if (page !== 'settings') settingsPrevious.current = page;
     settingsOpener.current = document.activeElement as HTMLElement;
+    setSettingsSection(section);
     setPage('settings');
   };
   const closeSettings = () => {
     setPage(settingsPrevious.current);
+    // The section is a way in, not a place to come back to: the next visit to
+    // Settings starts on the list of sections.
+    setSettingsSection(null);
     requestAnimationFrame(() => settingsOpener.current?.focus({ preventScroll: true }));
   };
   const [removeTarget, setRemoveTarget] = useState<Track | null>(null);
@@ -572,7 +578,7 @@ function WaveApp({
         },
         { label: 'Playback queue', icon: <ListMusic size={18} />, run: () => setQueueOpen(true) },
         { label: 'Import music', icon: <Plus size={18} />, disabled: busy, run: chooseFiles },
-        { label: 'Settings', icon: <Settings size={18} />, run: openSettings },
+        { label: 'Settings', icon: <Settings size={18} />, run: () => openSettings() },
       ];
 
   return (
@@ -708,7 +714,7 @@ function WaveApp({
               <button
                 className="icon-button settings-button"
                 aria-label="Open settings"
-                onClick={openSettings}
+                onClick={() => openSettings()}
               >
                 <Settings size={24} />
               </button>
@@ -762,7 +768,7 @@ function WaveApp({
             {page === 'settings' ? (
               <Suspense fallback={<div className="empty-state" aria-busy="true" />}>
                 <SettingsPage
-                  initialSection={pairLink ? 'devices' : null}
+                  initialSection={settingsSection ?? (pairLink ? 'devices' : null)}
                   onBack={closeSettings}
                   appearance={
                     <>
@@ -1021,6 +1027,7 @@ function WaveApp({
                 onPlay={player.play}
                 onArtist={openArtist}
                 onAdd={openAddMusic}
+                onManageHistory={() => openSettings('storage')}
                 onSave={async (songs) => {
                   // Saving is explicit: the list becomes an ordinary playlist and
                   // nothing about the history changes.
@@ -1283,7 +1290,6 @@ function WaveApp({
         onRetryLyrics={lookup.retryTrack}
         queueOpen={queueOpen}
         onQueue={() => setQueueOpen(!queueOpen)}
-        karaoke
         videoClip={videoClip}
         onToggleVideoClip={() => setVideoClip(!videoClip)}
       />

@@ -1,7 +1,6 @@
 import { MusicLighting } from './MusicLighting';
 import { VideoBackdrop } from './VideoBackdrop';
 import { YouTubeStage } from './YouTubeStage';
-import { useIdleListening } from '../hooks/useIdleListening';
 import { MixVisual } from './MixVisual';
 import { MixCueLabel, MixCueVisual } from './MixCueVisual';
 import { cueForTrack, useMixCue, type MixCue } from '../ui/mixCue';
@@ -44,7 +43,6 @@ type PlayerProps = {
   queueOpen: boolean;
   onQueue: () => void;
   /** Word-by-word lyric highlighting. */
-  karaoke?: boolean;
   /** Video clip backdrop, driven by the same transport. */
   videoClip?: boolean;
   onToggleVideoClip?: () => void;
@@ -367,7 +365,6 @@ export function PlayerBar(props: PlayerProps) {
     onOpen,
     returnFocusRef,
     onQueue,
-    karaoke = true,
     videoClip = false,
   } = props;
   // The cue belongs to the song that is playing; a stale one is never drawn.
@@ -376,8 +373,10 @@ export function PlayerBar(props: PlayerProps) {
   // while the outgoing song is still on, and by the time the two meet the
   // interface has already moved on to the incoming one.
   const pending = cueForTrack(cue, player.current?.id);
-  const idle = useIdleListening(player.state.playing && !player.buffering && !!player.current);
-  const showing = expanded || idle.immersive;
+  // The player opens when it is asked to. It used to take the screen over after
+  // thirty seconds of listening without a click; that scene is gone, so an idle
+  // room now stays exactly as the listener left it.
+  const showing = expanded;
   // Only this bar follows the position; the rest of the interface stays still.
   const time = usePlaybackTime(player.clock);
   const colors = usePlayerColors(
@@ -575,11 +574,21 @@ export function PlayerBar(props: PlayerProps) {
           <Modal
             title="Now playing"
             fullScreen
-            immediate={idle.immersive}
-            exitMotion={animation.enabled ? { opacity: 0, scale: 0.94, y: 26 } : undefined}
+            // Closing folds the player back down into the bar it came from: it
+            // slides towards the bottom, tightens a little, and is gone before the
+            // movement ends, so there is no ghost hanging in the middle.
+            exitMotion={
+              animation.enabled
+                ? { opacity: 0, scale: 0.9, y: 64, transitionEnd: { display: 'none' } }
+                : undefined
+            }
             exitTransition={
               animation.enabled
-                ? { duration: 0.34, ease: [0.4, 0, 0.2, 1], opacity: { duration: 0.22 } }
+                ? {
+                    duration: 0.3,
+                    ease: [0.32, 0, 0.24, 1],
+                    opacity: { duration: 0.18, ease: 'easeOut' },
+                  }
                 : { duration: 0 }
             }
             headerActions={
@@ -596,10 +605,9 @@ export function PlayerBar(props: PlayerProps) {
             }
             closeIcon={<ChevronDown size={24} />}
             returnFocusRef={expanded ? returnFocusRef : undefined}
-            className={`player-modal ${idle.immersive ? 'is-immersive' : ''}`}
-            style={colors}
+            className="player-modal"
+            style={{ ...colors, transformOrigin: 'bottom center' }}
             onClose={() => {
-              idle.wake();
               setStageGone(false);
               onExpanded(false);
             }}
@@ -634,113 +642,15 @@ export function PlayerBar(props: PlayerProps) {
               )
             )}
             <MusicLighting className="stage-aura" />
-            <div
-              data-track-id={player.current?.id}
-              className="player-normal-view"
-              inert={idle.immersive}
-              aria-hidden={idle.immersive}
-            >
+            <div data-track-id={player.current?.id} className="player-normal-view">
               <PlayerDetails
                 {...props}
                 time={time}
                 cue={pending}
-                readerActive={!idle.immersive}
                 lyricsOpen={lyricsOpen}
                 onDisclosure={setLyricsOpen}
               />
             </div>
-            {idle.immersive && player.current && (
-              <motion.div
-                initial={animation.enabled ? { opacity: 0, scale: 0.985 } : { opacity: 1 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: animation.enabled ? 0.55 : 0, ease: [0.2, 0, 0, 1] }}
-                className={`immersive-stage ${player.current.lyrics?.lines.length ? 'has-lyrics' : 'without-lyrics'}`}
-                aria-label="Immersive listening"
-              >
-                <div className="immersive-art">
-                  <div className="immersive-title" aria-hidden="true">
-                    {player.current.title}
-                  </div>
-                  <motion.div
-                    key={player.current.id}
-                    className="immersive-record-art"
-                    initial={animation.enabled ? { opacity: 0, y: 16 } : { opacity: 1 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={animation.expressive}
-                  >
-                    <Artwork track={player.current} className="immersive-cover" />
-                  </motion.div>
-                  <div className="immersive-credit">
-                    <h2>{player.current.title}</h2>
-                    <p>{player.current.artist}</p>
-                    <p>{player.current.album}</p>
-                  </div>
-                </div>
-                {!!player.current.lyrics?.lines.length && (
-                  <LyricsPanel
-                    stage
-                    cinematic
-                    karaoke={karaoke}
-                    key={player.current.id}
-                    track={player.current}
-                    time={time}
-                    readTime={player.readTime}
-                    playing={player.state.playing}
-                    duration={player.duration}
-                    onSeek={player.seek}
-                    onEdit={() => {}}
-                  />
-                )}
-                {/*
-                The listening screen is still a player: the bar never goes away,
-                it just gets quiet. Movement makes it readable instead of
-                invisible, and the keyboard reaches every control.
-              */}
-                {/*
-                The bar, not a hint of one. The listening screen used to fade its
-                controls to a third of their ink, so a still room looked like a
-                player that had gone away; it is the same player at the bottom of
-                the screen and it stays at full strength until you leave.
-              */}
-                <div className="immersive-bar">
-                  <Artwork track={player.current} className="immersive-bar-art" />
-                  <div className="immersive-bar-track">
-                    <strong>{player.current.title}</strong>
-                    <span>{player.current.artist}</span>
-                  </div>
-                  <div className="immersive-bar-transport">
-                    <button aria-label="Previous track" onClick={player.previous}>
-                      <SkipBack size={21} />
-                    </button>
-                    <button
-                      className="immersive-play"
-                      aria-label={player.state.playing ? 'Pause' : 'Play'}
-                      onClick={() => player.dispatch({ type: 'toggle' })}
-                    >
-                      {player.state.playing ? <Pause size={24} /> : <Play size={24} />}
-                    </button>
-                    <button
-                      aria-label="Next track"
-                      onClick={() => player.dispatch({ type: 'next' })}
-                    >
-                      <SkipForward size={21} />
-                    </button>
-                  </div>
-                  <div className="immersive-seek">
-                    <WaveSeek
-                      time={time}
-                      duration={player.duration}
-                      playing={player.state.playing && !player.buffering}
-                      onSeek={player.seek}
-                    />
-                    <div className="immersive-times">
-                      <span>{formatTime(time)}</span>
-                      <span>{formatTime(player.duration || player.current.duration || 0)}</span>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
           </Modal>
         )}
       </AnimatePresence>

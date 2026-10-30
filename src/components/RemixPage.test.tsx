@@ -28,6 +28,7 @@ const props = {
   onAdd: vi.fn(),
   onSave: vi.fn().mockResolvedValue(true),
   onClear: vi.fn(),
+  onManageHistory: vi.fn(),
 };
 
 describe('the Remix page', () => {
@@ -92,6 +93,15 @@ describe('the Remix page', () => {
     expect(screen.queryByText('Listened this week')).not.toBeInTheDocument();
     render(<RemixPage {...props} />);
     expect(screen.getByText(/listened all time/)).toBeInTheDocument();
+  });
+
+  it('sends Manage history somewhere that exists', async () => {
+    const user = userEvent.setup();
+    render(<RemixPage {...props} onManageHistory={props.onManageHistory} />);
+    // It used to be an anchor to #settings-storage, which no page ever had.
+    expect(screen.queryByRole('link', { name: 'Manage history' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Manage history' }));
+    expect(props.onManageHistory).toHaveBeenCalledOnce();
   });
 
   it('invites a first song instead of showing empty numbers', () => {

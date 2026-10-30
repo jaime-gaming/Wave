@@ -73,6 +73,16 @@ export function YouTubeStage({
   const [autoplay] = useState(playing);
   /** Position to resume from on the embed's first ready event, then cleared. */
   const pendingResume = useRef(Math.max(0, startAt));
+  /**
+   * The last jump Wave asked for, and when it asked.
+   *
+   * The embed keeps reporting for a moment after a `seekTo` and those reports
+   * still carry the old position. Taking them at face value put the bar, the
+   * lyrics and the clip out of step for a second or so after every jump, which
+   * is what "it sometimes drifts" looked like. For a short window after a jump,
+   * a report that is nowhere near where we asked is the past, not the present.
+   */
+  const jump = useRef({ at: 0, target: 0 });
 
   /** The level the embed should be at right now. */
   const target = useCallback(
@@ -92,6 +102,7 @@ export function YouTubeStage({
   useEffect(() => {
     if (!ready) return;
     if (pendingResume.current > 0.5) {
+      jump.current = { at: performance.now(), target: pendingResume.current };
       post('seekTo', [pendingResume.current, true]);
       clock.current = { ...clock.current, time: pendingResume.current, at: performance.now() };
       onTime(pendingResume.current);
@@ -113,6 +124,13 @@ export function YouTubeStage({
       }
       const info = readEmbedEvent(data, videoId);
       if (!info) return;
+      const settling = performance.now() - jump.current.at < 900;
+      if (settling && Math.abs(info.currentTime - jump.current.target) > 1.5) {
+        // Stale: keep the state and the duration, ignore the old position.
+        clock.current = { ...clock.current, playing: info.state === 'playing', duration: info.duration };
+        setReady(true);
+        return;
+      }
       clock.current = {
         time: info.currentTime,
         playing: info.state === 'playing',
@@ -168,6 +186,7 @@ export function YouTubeStage({
 
   useEffect(() => {
     if (!ready || seek.nonce === 0) return;
+    jump.current = { at: performance.now(), target: Math.max(0, seek.seconds) };
     post('seekTo', [Math.max(0, seek.seconds), true]);
     clock.current = { ...clock.current, time: Math.max(0, seek.seconds), at: performance.now() };
     onTime(Math.max(0, seek.seconds));
