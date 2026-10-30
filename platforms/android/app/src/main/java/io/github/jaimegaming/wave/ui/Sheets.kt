@@ -20,7 +20,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -287,12 +286,10 @@ fun NewPlaylistDialog(onDismiss: () -> Unit, onCreate: (String) -> Unit) {
         onDismissRequest = onDismiss,
         title = { Text("New playlist") },
         text = {
-            OutlinedTextField(
+            WaveTextField(
                 value = name,
                 onValueChange = { name = it.take(100) },
-                placeholder = { Text("Name") },
-                singleLine = true,
-                shape = RoundedCornerShape(14.dp),
+                placeholder = "Name",
                 modifier = Modifier.fillMaxWidth(),
             )
         },
@@ -319,11 +316,9 @@ fun PlaylistEditorDialog(playlist: Playlist, onDismiss: () -> Unit, onRename: (S
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 } else {
-                    OutlinedTextField(
+                    WaveTextField(
                         value = name,
                         onValueChange = { name = it.take(100) },
-                        singleLine = true,
-                        shape = RoundedCornerShape(14.dp),
                         modifier = Modifier.fillMaxWidth(),
                     )
                     Box(Modifier.height(10.dp))

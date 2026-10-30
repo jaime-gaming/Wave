@@ -63,41 +63,6 @@ public partial class MainWindow : Window
     /// say what is in them; the browsing pages count what is on this device, and a
     /// collection page leaves its own count to the card it shows.
     /// </summary>
-    /// <summary>
-    /// The counts beside the rail's collection rows, as the browser shows them.
-    ///
-    /// They are built once and then only their number changes, so the row the
-    /// pointer is on cannot be rebuilt underneath it while it is being clicked.
-    /// </summary>
-    private readonly Dictionary<string, TextBlock> railCounts = new();
-    private void UpdateRailCounts()
-    {
-        if (NavigationPanel.Content is not StackPanel navigation) return;
-        var numbers = new Dictionary<string, int> {
-            ["Albums"] = tracks.Select(AlbumKey).Distinct().Count(),
-            ["Artists"] = tracks.Select(track => track.Artist).Distinct().Count(),
-            ["Playlists"] = playlists.Count,
-            ["Favorites"] = tracks.Count(track => track.Favorite),
-        };
-        foreach (var button in navigation.Children.OfType<Button>()) {
-            if (button.Tag is not string tag || !numbers.TryGetValue(tag, out int count)) continue;
-            if (!railCounts.TryGetValue(tag, out var label)) {
-                // First pass wraps what the row already holds, so the icon and the
-                // name keep their own drawing and only a count appears beside them.
-                var existing = button.Content as UIElement;
-                var row = new DockPanel { LastChildFill = true };
-                label = new TextBlock { FontSize = 12, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 2, 0) };
-                label.SetResourceReference(TextBlock.ForegroundProperty, "MutedBrush");
-                DockPanel.SetDock(label, Dock.Right);
-                row.Children.Add(label);
-                if (existing != null) row.Children.Add(existing);
-                button.Content = row;
-                button.HorizontalContentAlignment = HorizontalAlignment.Stretch;
-                railCounts[tag] = label;
-            }
-            label.Text = count.ToString();
-        }
-    }
     private void UpdateSummary()
     {
         Summary.Text = page switch {
@@ -125,7 +90,6 @@ public partial class MainWindow : Window
         NavigationPanel.Visibility = PageHeader.Visibility = expanded ? Visibility.Collapsed : Visibility.Visible;
         Heading.Text = collection ?? page;
         UpdateSummary();
-        UpdateRailCounts();
         LibraryView.Visibility = page is "Now playing" or "Settings" ? Visibility.Collapsed : Visibility.Visible;
         NowView.Visibility = expanded ? Visibility.Visible : Visibility.Collapsed;
         SettingsView.Visibility = page == "Settings" ? Visibility.Visible : Visibility.Collapsed;
