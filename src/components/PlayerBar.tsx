@@ -388,6 +388,9 @@ export function PlayerBar(props: PlayerProps) {
   // embeds of the same song would both be playing through the collapse. Closing
   // turns it off; the end of the collapse turns it back on.
   const [stageGone, setStageGone] = useState(true);
+  // The picture, when there is one, is the stage. The sleeve steps back to a
+  // corner so the clip is not watched through a square of album art.
+  const [clipLive, setClipLive] = useState(false);
   useEffect(() => {
     if (!expanded) return;
     const timer = setTimeout(() => setLyricsOpen(true), 0);
@@ -638,11 +641,15 @@ export function PlayerBar(props: PlayerProps) {
                   time={time}
                   duration={player.duration}
                   playing={player.state.playing}
+                  onRevealed={setClipLive}
                 />
               )
             )}
             <MusicLighting className="stage-aura" />
-            <div data-track-id={player.current?.id} className="player-normal-view">
+            <div
+              data-track-id={player.current?.id}
+              className={`player-normal-view${clipLive && videoClip && expanded ? ' clip-live' : ''}`}
+            >
               <PlayerDetails
                 {...props}
                 time={time}

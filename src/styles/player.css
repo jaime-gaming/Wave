@@ -92,6 +92,36 @@
   background: var(--container);
   position: relative;
 }
+/*
+ * When a clip is playing, the picture is the stage. The sleeve steps back to a
+ * small reference in the corner instead of a square of album art in the middle
+ * of the video, and it comes back the moment the picture is paused or hidden.
+ * Sizes are capped so the layout never gains a scrollbar because of it.
+ */
+.player-normal-view.clip-live .stage-cover {
+  width: min(34%, 22dvh);
+  border-radius: 20px;
+  align-self: flex-start;
+  margin-top: 4px;
+  box-shadow: 0 18px 40px -22px #000c;
+  transition:
+    width 0.4s cubic-bezier(0.32, 0, 0.24, 1),
+    border-radius 0.4s ease;
+}
+.stage-cover {
+  transition:
+    width 0.4s cubic-bezier(0.32, 0, 0.24, 1),
+    border-radius 0.4s ease;
+}
+.player-normal-view.clip-live .stage-record {
+  gap: 12px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .stage-cover,
+  .player-normal-view.clip-live .stage-cover {
+    transition: none;
+  }
+}
 .stage-cover-transition,
 .stage-cover .mix-artwork {
   width: 100%;

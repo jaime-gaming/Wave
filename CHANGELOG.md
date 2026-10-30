@@ -17,8 +17,14 @@
 - A YouTube jump no longer trusts the reports the embed sends for a moment afterwards: for under a
   second after a seek, a position nowhere near where we asked is the old one, not the new one, and
   ignoring it keeps the bar, the lyrics and the clip from drifting apart.
+- A clip no longer has to be watched through a square of album art: while the picture is on
+  screen the sleeve steps back to a small reference in the corner, and it comes back the moment
+  the clip is paused or hidden. Nothing in the layout moves otherwise.
+- The player's lighting is drawn once instead of on every clock tick, which is one less thing
+  rebuilding itself ten times a second on a phone.
 - The README opens on the whole wordmark and closes with the mark alone, and both the README and
-  [Platforms](docs/PLATFORMS.md) say plainly that the iOS build is next.
+  [Platforms](docs/PLATFORMS.md) say plainly that the iOS build is next, with the native builds'
+  remaining gap — YouTube songs and clips — written down in the [roadmap](docs/ROADMAP.md).
 
 ### Home, Remix and the phone
 

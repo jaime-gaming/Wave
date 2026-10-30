@@ -82,7 +82,7 @@ export function YouTubeStage({
    * is what "it sometimes drifts" looked like. For a short window after a jump,
    * a report that is nowhere near where we asked is the past, not the present.
    */
-  const jump = useRef({ at: 0, target: 0 });
+  const jump = useRef({ at: Number.NEGATIVE_INFINITY, target: 0 });
 
   /** The level the embed should be at right now. */
   const target = useCallback(
@@ -127,7 +127,11 @@ export function YouTubeStage({
       const settling = performance.now() - jump.current.at < 900;
       if (settling && Math.abs(info.currentTime - jump.current.target) > 1.5) {
         // Stale: keep the state and the duration, ignore the old position.
-        clock.current = { ...clock.current, playing: info.state === 'playing', duration: info.duration };
+        clock.current = {
+          ...clock.current,
+          playing: info.state === 'playing',
+          duration: info.duration,
+        };
         setReady(true);
         return;
       }
