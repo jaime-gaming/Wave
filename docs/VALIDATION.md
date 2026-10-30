@@ -33,6 +33,10 @@ Release 0.1.1 · 28 October 2026. Historical run dates are retained below.
   stop. The timeout now reports that it expired and the chain ends on that, with no second reading
   of the clock. A new test pins the other half of the behaviour: a provider that answers quickly
   with nothing usable is a miss, not the end of the chain.
+- Two more things the native screenshots showed, both fixed: a collection page said its song count
+  in the banner _and_ repeated it in the card, so the card now starts with the count and the banner
+  keeps to what the page is; and opening the player with nothing behind it left the empty record
+  beside an empty column and no words at all, so it now says "Nothing playing" and takes the width.
 - **Still red:** the Playwright job, with the same baseline failures as earlier rounds; its report
   cannot be downloaded from this environment.
 
