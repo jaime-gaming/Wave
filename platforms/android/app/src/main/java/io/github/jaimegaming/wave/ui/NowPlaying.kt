@@ -3,6 +3,7 @@ package io.github.jaimegaming.wave.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -30,8 +31,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.jaimegaming.wave.Song
@@ -125,8 +129,19 @@ fun NowPlayingScreen(
                 LazyColumn(state = listState, modifier = Modifier.weight(1f), contentPadding = PaddingValues(vertical = 36.dp)) {
                     itemsIndexed(lines) { index, line ->
                         val current = index == active
+                        val sung = MaterialTheme.colorScheme.onSurface
+                        val upcoming = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.58f)
+                        val words = buildAnnotatedString {
+                            if (current && line.words.isNotEmpty()) {
+                                line.words.forEach { word ->
+                                    withStyle(SpanStyle(color = if (player.time >= word.time) sung else upcoming)) {
+                                        append(word.text)
+                                    }
+                                }
+                            } else append(line.text.ifBlank { "♪" })
+                        }
                         Text(
-                            text = line.text.ifBlank { "♪" },
+                            text = words,
                             style = LyricLineStyle,
                             fontWeight = if (current) FontWeight.Bold else FontWeight.SemiBold,
                             color = if (current) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.58f),
@@ -155,7 +170,15 @@ fun NowPlayingScreen(
                 value = player.time.coerceIn(0.0, duration).toFloat(),
                 onValueChange = { player.seek(it.toDouble()) },
                 valueRange = 0f..duration.toFloat(),
-                modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Song position" },
+                modifier = Modifier.fillMaxWidth().height(36.dp).semantics { contentDescription = "Song position" },
+                thumb = {
+                    Box(Modifier.size(width = 6.dp, height = 24.dp).clip(RoundedCornerShape(3.dp)).background(MaterialTheme.colorScheme.primary))
+                },
+                track = {
+                    Box(Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f))) {
+                        Box(Modifier.fillMaxWidth((player.time / duration).coerceIn(0.0, 1.0).toFloat()).height(4.dp).background(MaterialTheme.colorScheme.primary))
+                    }
+                },
             )
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(clockTime(player.time), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

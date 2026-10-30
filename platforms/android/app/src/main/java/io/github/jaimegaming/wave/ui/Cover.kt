@@ -1,8 +1,10 @@
 package io.github.jaimegaming.wave.ui
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
+import android.net.Uri
 import android.util.LruCache
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -18,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.jaimegaming.wave.Song
@@ -32,15 +35,17 @@ import kotlinx.coroutines.withContext
  * keeps a scroll from decoding the same sleeve twice. A file without artwork
  * gets the same music-note placeholder as the mobile website.
  */
-private val artworkCache = object : LruCache<String, Bitmap>(24) {
+private val artworkCache = object : LruCache<String, Bitmap>(24 * 1024) {
     override fun sizeOf(key: String, value: Bitmap) = value.byteCount / 1024
 }
 
-private fun embedded(path: String, maxSide: Int): Bitmap? {
-    artworkCache.get(path)?.let { return it }
+private fun embedded(context: Context, path: String, maxSide: Int): Bitmap? {
+    val cacheKey = "$path|$maxSide"
+    artworkCache.get(cacheKey)?.let { return it }
     val retriever = MediaMetadataRetriever()
     return try {
-        retriever.setDataSource(path)
+        if (path.startsWith("content://")) retriever.setDataSource(context, Uri.parse(path))
+        else retriever.setDataSource(path)
         val bytes = retriever.embeddedPicture ?: return null
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
@@ -52,7 +57,7 @@ private fun embedded(path: String, maxSide: Int): Bitmap? {
             bytes.size,
             BitmapFactory.Options().apply { inSampleSize = sample },
         ) ?: return null
-        artworkCache.put(path, bitmap)
+        artworkCache.put(cacheKey, bitmap)
         bitmap
     } catch (_: Exception) {
         null
@@ -67,10 +72,15 @@ private fun embedded(path: String, maxSide: Int): Bitmap? {
 
 @Composable
 fun rememberArtwork(song: Song, maxSide: Int = 512): Bitmap? {
-    val state = produceState<Bitmap?>(initialValue = null, song.path) {
-        value = withContext(Dispatchers.IO) { embedded(song.path, maxSide) }
+    val context = LocalContext.current.applicationContext
+    val requestKey = "${song.path}|$maxSide"
+    val state = produceState<Pair<String, Bitmap?>?>(initialValue = null, requestKey) {
+        val bitmap = withContext(Dispatchers.IO) { embedded(context, song.path, maxSide) }
+        value = requestKey to bitmap
     }
-    return state.value
+    // produceState retains its previous value while a new request starts. Never
+    // show the preceding song's sleeve for the new song during that interval.
+    return state.value?.takeIf { it.first == requestKey }?.second
 }
 
 @Composable

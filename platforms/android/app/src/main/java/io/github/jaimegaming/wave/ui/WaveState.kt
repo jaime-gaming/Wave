@@ -12,6 +12,7 @@ import io.github.jaimegaming.wave.BLEND_SECONDS
 import io.github.jaimegaming.wave.DailyMix
 import io.github.jaimegaming.wave.Library
 import io.github.jaimegaming.wave.ListeningSummary
+import io.github.jaimegaming.wave.ListeningCounter
 import io.github.jaimegaming.wave.LyricsClient
 import io.github.jaimegaming.wave.Play
 import io.github.jaimegaming.wave.Player
@@ -19,7 +20,6 @@ import io.github.jaimegaming.wave.Playlist
 import io.github.jaimegaming.wave.Song
 import io.github.jaimegaming.wave.dailyMixes
 import io.github.jaimegaming.wave.listeningSummary
-import io.github.jaimegaming.wave.playThreshold
 import io.github.jaimegaming.wave.rankSongs
 import io.github.jaimegaming.wave.weekRecap
 import io.github.jaimegaming.wave.wave
@@ -123,9 +123,7 @@ class WaveState(
     /** Library work and lookups run here, never on the frame that draws a row. */
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var sleepJob: Job? = null
-    private var heard = 0.0
-    private var heardFrom = 0L
-    private var lastSample = 0.0
+    private val listeningCounter = ListeningCounter()
 
     /**
      * One listener for the player's changes, plus a one-second beat.
@@ -161,24 +159,16 @@ class WaveState(
      * when it ends — a song skipped in its last ten seconds was still heard.
      */
     private fun sampleListening() {
-        val song = player.current ?: return
-        if (!player.playing) {
-            lastSample = 0.0
-            return
-        }
-        if (lastSample == 0.0) {
-            lastSample = player.time
-            heardFrom = System.currentTimeMillis()
-            return
-        }
-        val step = player.time - lastSample
-        if (step > 0 && step <= 2.5) heard += step
-        lastSample = player.time
-        val seconds = heard.toInt()
-        if (seconds < playThreshold(player.duration.takeIf { it > 0 } ?: song.duration)) return
-        val completed = player.duration > 0 && player.time >= player.duration - 1
-        heard = 0.0
-        record(song.id, heardFrom, seconds, completed)
+        val song = player.current
+        val play = listeningCounter.sample(
+            serial = player.playbackSerial,
+            songId = song?.id,
+            playing = player.playing,
+            position = player.time,
+            duration = player.duration.takeIf { it > 0 } ?: song?.duration ?: 0.0,
+            now = System.currentTimeMillis(),
+        )
+        if (play != null) record(play.songId, play.at, play.seconds, play.completed)
     }
 
     private fun record(songId: String, at: Long, seconds: Int, completed: Boolean) {

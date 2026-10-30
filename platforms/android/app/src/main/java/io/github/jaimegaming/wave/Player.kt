@@ -39,6 +39,9 @@ class Player(private val context: Context) {
         private set
     var index by mutableStateOf(0)
         private set
+    /** Changes for each new playback, including an automatic Mix handover. */
+    var playbackSerial: Long = 0
+        private set
 
     /**
      * Listeners for "what the outside world shows has changed".
@@ -128,6 +131,7 @@ class Player(private val context: Context) {
             spareReady = false
             index++
             current = queue.getOrNull(index)
+            playbackSerial++
             duration = next.duration / 1000.0
             next.setVolume(0f, 0f)
             next.start()
@@ -186,6 +190,7 @@ class Player(private val context: Context) {
         queue = songs
         index = songs.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
         current = songs[index]
+        playbackSerial++
         time = 0.0
         duration = songs[index].duration
         message = ""

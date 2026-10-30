@@ -16,7 +16,7 @@ afterEach(() => {
 });
 
 /** Advances the hook and a pretend player position together, one second a tick. */
-function setup(initial: { track?: typeof track; playing: boolean }) {
+function setup(initial: { track?: typeof track; playing: boolean; duration?: number }) {
   let position = 0;
   const readTime = () => position;
   const view = renderHook(
@@ -28,7 +28,7 @@ function setup(initial: { track?: typeof track; playing: boolean }) {
         readTime,
         tracks: [track, other],
       }),
-    { initialProps: { ...initial, duration: 200 } },
+    { initialProps: { ...initial, duration: initial.duration ?? 200 } },
   );
   const listen = async (seconds: number) => {
     for (let index = 0; index < seconds; index++) {
@@ -38,7 +38,7 @@ function setup(initial: { track?: typeof track; playing: boolean }) {
       });
     }
   };
-  return { ...view, listen };
+  return { ...view, listen, setPosition: (value: number) => (position = value) };
 }
 
 describe('recording what was listened to', () => {
@@ -56,6 +56,26 @@ describe('recording what was listened to', () => {
     const plays = await getPlays();
     // Still nothing: a session is written when it closes, not while it runs.
     expect(plays).toHaveLength(0);
+  });
+
+  it('counts the first second of a short song', async () => {
+    const short = makeTrack({ id: 'short', duration: 8 });
+    const { listen, rerender } = setup({ track: short, playing: true, duration: 8 });
+    await listen(5);
+    rerender({ track: short, playing: false, duration: 8 });
+    expect(await getPlays()).toMatchObject([{ trackId: 'short', seconds: 5 }]);
+  });
+
+  it('does not round up to the listening threshold', async () => {
+    const short = makeTrack({ id: 'short', duration: 8 });
+    const { listen, setPosition, rerender } = setup({ track: short, playing: true, duration: 8 });
+    await listen(4);
+    setPosition(4.7);
+    await act(async () => {
+      vi.advanceTimersByTime(1_000);
+    });
+    rerender({ track: short, playing: false, duration: 8 });
+    expect(await getPlays()).toHaveLength(0);
   });
 
   it('records the song when it is paused after enough listening', async () => {

@@ -214,8 +214,21 @@ await home.getByRole('button', { name: 'Open now playing', exact: true }).click(
 await home.waitForTimeout(1500);
 await shot(home, 'now-playing-desktop.png');
 
-const mobile = await context.newPage();
-await mobile.setViewportSize({ width: 390, height: 844 });
+// Use a second disposable library: the desktop player above must not restore a
+// playing session into the phone screenshot through shared browser storage.
+const mobileContext = await browser.newContext({
+  viewport: { width: 390, height: 844 },
+  colorScheme: 'dark',
+});
+await mobileContext.addInitScript(() => {
+  localStorage.setItem('wave-playback-session-v1', '');
+  localStorage.setItem('wave-autoplay', 'false');
+  localStorage.setItem('wave-animations-enabled', 'true');
+});
+const mobileSeed = await mobileContext.newPage();
+await seedDemoLibrary(mobileSeed);
+await mobileSeed.close();
+const mobile = await mobileContext.newPage();
 await mobile.goto(origin);
 await mobile.waitForTimeout(1200);
 await shot(mobile, 'home-mobile.png');
@@ -281,6 +294,7 @@ if (process.env.WAVE_REVIEW) {
   }
 }
 
+await mobileContext.close();
 await context.close();
 await browser.close();
 console.log('Documentation images written to docs/media/.');

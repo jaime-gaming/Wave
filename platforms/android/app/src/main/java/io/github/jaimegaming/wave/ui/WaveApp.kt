@@ -99,8 +99,8 @@ fun WaveApp(version: String, opening: Opening = Opening.Default) {
     }
 
     // Back closes what is open, in the order it was opened, before it leaves.
-    BackHandler(enabled = state.nowPlayingOpen) { state.nowPlayingOpen = false }
-    BackHandler(enabled = !state.nowPlayingOpen && state.queueOpen) { state.queueOpen = false }
+    BackHandler(enabled = state.nowPlayingOpen && !state.queueOpen) { state.nowPlayingOpen = false }
+    BackHandler(enabled = state.queueOpen) { state.queueOpen = false }
     BackHandler(enabled = !state.nowPlayingOpen && !state.queueOpen && state.open != null) {
         state.open = null
     }
