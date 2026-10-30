@@ -310,7 +310,9 @@ npm run dev
 npm run capture:docs
 ```
 
-`scripts/capture-docs.ts` builds a disposable library in its own browser context (generated WAV files, generated covers, demo lyrics, a week of plays), imports it, and screenshots Home, Remix, a daily mix, Now Playing, and Home and Remix at phone size — 1440×900 and 390×844. `WAVE_URL` points it at another origin and `CHROMIUM_EXECUTABLE_PATH` at another Chromium. Review the PNGs before committing them; the `Documentation images` workflow runs the same script against a production build and uploads the result, for anyone without a browser to hand.
+`scripts/capture-docs.ts` builds a disposable library in its own browser context (generated WAV files, generated covers, demo lyrics, a week of plays), imports it, and screenshots Home, Remix, a daily mix, Now Playing, and Home and Remix at phone size — 1440×900 and 390×844. `WAVE_URL` points it at another origin and `CHROMIUM_EXECUTABLE_PATH` at another Chromium. `WAVE_REVIEW=1` adds the layouts the docs do not show — the phone's Library, a phone mid-playback, the open player, and 1024 and 820 px — and prints anything wider than the viewport, which is how a phone layout is checked without a phone. Those review photographs are for looking at, not for publishing; they are not committed.
+
+The `Checks` job photographs the built site on every push and commits what it saw, so the pictures cannot describe a layout that no longer exists. The `Documentation images` workflow does the same on demand and can be given the same review pass.
 
 The native pictures are captured by the builds themselves, which is the only honest way to photograph a native app from a machine with no device:
 
