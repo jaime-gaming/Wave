@@ -108,14 +108,18 @@ async function ask(
   fetcher: typeof fetch,
   signal: AbortSignal | undefined,
   timeoutMs: number,
-): Promise<VideoMeta | null> {
+): Promise<{ meta: VideoMeta | null; expired: boolean }> {
   const controller = new AbortController();
   const onAbort = () => controller.abort();
   signal?.addEventListener('abort', onAbort);
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let expired = false;
   // A timeout that does not depend on the fetch implementation honouring abort.
   const deadline = new Promise<null>((resolve) => {
-    timer = setTimeout(() => resolve(null), timeoutMs);
+    timer = setTimeout(() => {
+      expired = true;
+      resolve(null);
+    }, timeoutMs);
   });
   try {
     const request = fetcher(provider.url(videoId), {
@@ -124,9 +128,9 @@ async function ask(
       referrerPolicy: 'no-referrer',
       headers: { Accept: 'application/json' },
     }).then(async (response) => (response.ok ? provider.parse(await response.json()) : null));
-    return await Promise.race([request.catch(() => null), deadline]);
+    return { meta: await Promise.race([request.catch(() => null), deadline]), expired };
   } catch {
-    return null;
+    return { meta: null, expired };
   } finally {
     clearTimeout(timer);
     signal?.removeEventListener('abort', onAbort);
@@ -153,8 +157,14 @@ export async function fetchVideoMeta(
     if (options.signal?.aborted) return null;
     const left = giveUpAt - Date.now();
     if (left <= 0) return null;
-    const meta = await ask(provider, videoId, fetcher, options.signal, Math.min(timeoutMs, left));
+    const waited = Math.min(timeoutMs, left);
+    const { meta, expired } = await ask(provider, videoId, fetcher, options.signal, waited);
     if (meta) return meta;
+    // A provider that used up the budget ends the chain. Asking the clock again
+    // here was a race: a timer may fire a millisecond early, so the remaining
+    // budget read as positive and one more provider was tried, which is exactly
+    // what the budget exists to prevent.
+    if (expired && waited < timeoutMs) return null;
   }
   return null;
 }

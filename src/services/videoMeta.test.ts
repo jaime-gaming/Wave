@@ -106,6 +106,18 @@ describe('video metadata', () => {
     expect(hanging).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps trying after a provider answers "not found"', async () => {
+    // The budget ends a chain only when a provider runs out of time on it. A
+    // provider that answers quickly with nothing usable is just a miss.
+    const fetcher = fetcherReplies({
+      'www.youtube.com': () => ({ error: 'not found' }),
+      'noembed.com': () => ({ title: 'Burial - Archangel' }),
+    });
+    const meta = await fetchVideoMeta(ID, { fetcher, budgetMs: 30, timeoutMs: 5_000 });
+    expect(meta).toMatchObject({ title: 'Archangel', artist: 'Burial' });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
   it('rejects anything that is not a video id', async () => {
     const fetcher = fetcherReplies({});
     await expect(fetchVideoMeta('https://youtu.be/short', { fetcher })).resolves.toBeNull();
