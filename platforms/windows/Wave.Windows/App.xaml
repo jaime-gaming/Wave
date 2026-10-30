@@ -154,15 +154,39 @@
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Button">
-            <Border Background="{TemplateBinding Background}" CornerRadius="14" Padding="{TemplateBinding Padding}">
-              <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center"/>
-            </Border>
+            <!-- The hover is a layer that fades in rather than a colour that swaps,
+                 and the row slides a touch as it lights up: the same small weight
+                 the web navigation has. Nothing here is a hard cut. -->
+            <Grid RenderTransformOrigin="0,0.5">
+              <Grid.RenderTransform><TranslateTransform x:Name="Slide" X="0"/></Grid.RenderTransform>
+              <Border x:Name="Hover" Background="{DynamicResource TonalBrush}" CornerRadius="14" Opacity="0"/>
+              <Border Background="{TemplateBinding Background}" CornerRadius="14" Padding="{TemplateBinding Padding}">
+                <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center"/>
+              </Border>
+            </Grid>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
-                <Setter Property="Background" Value="{DynamicResource TonalBrush}"/>
                 <Setter Property="Foreground" Value="{DynamicResource InkBrush}"/>
+                <Trigger.EnterActions>
+                  <BeginStoryboard>
+                    <Storyboard>
+                      <DoubleAnimation Storyboard.TargetName="Hover" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.14"/>
+                      <DoubleAnimation Storyboard.TargetName="Slide" Storyboard.TargetProperty="X" To="3" Duration="0:0:0.18">
+                        <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
+                      </DoubleAnimation>
+                    </Storyboard>
+                  </BeginStoryboard>
+                </Trigger.EnterActions>
+                <Trigger.ExitActions>
+                  <BeginStoryboard>
+                    <Storyboard>
+                      <DoubleAnimation Storyboard.TargetName="Hover" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.18"/>
+                      <DoubleAnimation Storyboard.TargetName="Slide" Storyboard.TargetProperty="X" To="0" Duration="0:0:0.2"/>
+                    </Storyboard>
+                  </BeginStoryboard>
+                </Trigger.ExitActions>
               </Trigger>
-              <Trigger Property="IsPressed" Value="True"><Setter Property="Opacity" Value="0.7"/></Trigger>
+              <Trigger Property="IsPressed" Value="True"><Setter Property="Opacity" Value="0.75"/></Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
         </Setter.Value>
@@ -207,7 +231,7 @@
                   <Thumb>
                     <Thumb.Template>
                       <ControlTemplate TargetType="Thumb">
-                        <Border Background="{DynamicResource MutedBrush}" Opacity="0.4" CornerRadius="4" Margin="1"/>
+                        <Border x:Name="Thumb" Background="{DynamicResource MutedBrush}" Opacity="0.26" CornerRadius="4" Margin="2,0"/>
                       </ControlTemplate>
                     </Thumb.Template>
                   </Thumb>
@@ -232,7 +256,7 @@
                       <Thumb>
                         <Thumb.Template>
                           <ControlTemplate TargetType="Thumb">
-                            <Border Background="{DynamicResource MutedBrush}" Opacity="0.4" CornerRadius="4" Margin="1"/>
+                            <Border x:Name="Thumb" Background="{DynamicResource MutedBrush}" Opacity="0.26" CornerRadius="4" Margin="2,0"/>
                           </ControlTemplate>
                         </Thumb.Template>
                       </Thumb>

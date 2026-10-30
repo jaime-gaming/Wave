@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### The mix, the sleeve, and the two native builds
+
+- A blend now reads as two records trading places: the incoming sleeve settles in from slightly
+  large, slightly low and a degree off upright, the outgoing one lifts away as it loses colour,
+  and exactly halfway through the overlap — where both songs are at the same level — the sleeve
+  gathers a little warmth. One progress number drives all of it, so the picture cannot drift from
+  the sound.
+- Android's Now Playing puts the sleeve in the middle at the size of a record, with the title,
+  artist and album under it, instead of a thumbnail beside a line of text. Its mini-player line
+  follows the song smoothly instead of stepping with the clock.
+- Windows is quieter and softer: navigation rows fade in and slide a hair under the pointer
+  instead of switching colour on the spot, the scrollbar is thinner and lighter, and covers keep
+  a hairline edge on both themes.
+
 ### The scene that opens itself, and a Windows download that just runs
 
 - The player no longer takes the screen over. After thirty seconds of listening without a click it

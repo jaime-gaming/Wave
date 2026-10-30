@@ -29,6 +29,14 @@ it('drives both covers from one progress value, arriving before it leaves', () =
   expect(Number(root.style.getPropertyValue('--mix-arrive'))).toBe(1);
   expect(Number(root.style.getPropertyValue('--mix-peak'))).toBe(0);
 });
+it('warms the sleeve exactly halfway through the overlap', () => {
+  const { container, rerender } = render(<MixVisual blend={{ ...blend, progress: 0.5 }} />);
+  const root = container.querySelector<HTMLElement>('.mix-artwork')!;
+  expect(Number(root.style.getPropertyValue('--mix-peak'))).toBe(1);
+  rerender(<MixVisual blend={{ ...blend, progress: 0.1 }} />);
+  expect(Number(root.style.getPropertyValue('--mix-peak'))).toBeLessThan(0.3);
+});
+
 it('clamps a stray progress instead of inverting the picture', () => {
   const { container } = render(<MixVisual blend={{ ...blend, progress: -1 }} />);
   const root = container.querySelector<HTMLElement>('.mix-artwork')!;

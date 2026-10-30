@@ -257,7 +257,14 @@ public partial class MainWindow
     private Button Card(string title, string subtitle, string? artwork, Action action)
     {
         var body = new StackPanel { Width = 140 };
-        var art = new Border { Width = 140, Height = 140, CornerRadius = new CornerRadius(18), Background = ArtworkBrush(artwork) };
+        // A hairline around the sleeve: on a dark page a solid cover needs an edge,
+        // and on a light one it needs the same edge the other way round.
+        var art = new Border {
+            Width = 140, Height = 140, CornerRadius = new CornerRadius(18),
+            Background = ArtworkBrush(artwork),
+            BorderThickness = new Thickness(1),
+            BorderBrush = (Brush)Application.Current.Resources["TonalBrush"],
+        };
         if (artwork == null) art.Child = new TextBlock { Text = "♪", FontSize = 40, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Foreground = (Brush)Application.Current.Resources["AccentBrush"] };
         body.Children.Add(art);
         body.Children.Add(new TextBlock { Text = title, FontSize = 15, FontWeight = FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(1, 9, 1, 2), ToolTip = title });
