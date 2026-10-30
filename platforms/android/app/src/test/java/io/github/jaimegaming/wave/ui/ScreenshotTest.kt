@@ -91,7 +91,7 @@ class ScreenshotTest {
         rule.setContent { WaveTheme { WaveApp(version = "0.1.1") } }
         rule.onNodeWithText("Remix").performClick()
         // The figure, the sleeve of the song that earned it, and a list.
-        rule.onNodeWithText("Most played").assertExists()
+        rule.onNodeWithText("MOST PLAYED").assertExists()
         rule.onNodeWithText("Your Remix").assertExists()
         rule.onNodeWithText("Play Remix").assertExists()
         // The stat-card sections the page used to have are gone.

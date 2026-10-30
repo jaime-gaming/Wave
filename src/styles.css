@@ -6892,6 +6892,22 @@ h1 {
   .remix-people {
     margin-top: 0;
   }
+  /* A wrapped line would start with a dot; stacked, each fact starts with a word. */
+  .remix-notes {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  .remix-notes span + span::before,
+  .remix-notes button::before,
+  .remix-notes span + button::before {
+    display: none;
+  }
+  .remix-mix-actions button {
+    white-space: nowrap;
+    padding-inline: 12px;
+    font-size: 13px;
+  }
   .remix-bars {
     height: 68px;
     gap: 6px;

@@ -364,7 +364,7 @@ public partial class MainWindow
         var cover = new Border { Width = 116, Height = 116, CornerRadius = new CornerRadius(18), Background = ArtworkBrush(top.Song?.Artwork) };
         if (top.Song?.Artwork == null) cover.Child = new TextBlock { Text = "\u266a", FontSize = 38, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Foreground = (Brush)Application.Current.Resources["AccentBrush"] };
         sleeve.Children.Add(cover);
-        var caption = Label("Most played", 11);
+        var caption = Label("MOST PLAYED", 11);
         caption.SetResourceReference(TextBlock.ForegroundProperty, "MutedBrush");
         caption.HorizontalAlignment = HorizontalAlignment.Right;
         caption.Margin = new Thickness(2, 7, 2, 0);
@@ -462,6 +462,7 @@ public partial class MainWindow
         var bars = new UniformGrid { Columns = days.Count, Height = 96, Margin = new Thickness(4, 8, 4, 0) };
         var labels = new UniformGrid { Columns = days.Count, Margin = new Thickness(4, 6, 4, 6) };
         var accent = (Brush)Application.Current.Resources["AccentBrush"];
+        var quiet = (Brush)Application.Current.Resources["TonalBrush"];
         foreach (var day in days)
         {
             double share = day.Seconds == 0 ? 0.05 : Math.Max(0.09, day.Seconds / (double)peak);
@@ -470,8 +471,9 @@ public partial class MainWindow
                 Width = 30,
                 Height = 96 * share,
                 CornerRadius = new CornerRadius(9, 9, 0, 0),
-                Background = accent,
-                Opacity = day.Equals(days[^1]) ? 1 : 0.55,
+                // Today is the one coloured bar; the rest are the page's quiet
+                // surface, as on the web page.
+                Background = day.Equals(days[^1]) ? accent : quiet,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Bottom,
             });
