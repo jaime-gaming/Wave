@@ -4,7 +4,29 @@ Release 0.1.1 · 28 October 2026. Historical run dates are retained below.
 
 ## Web
 
-### Remix as one page, and a wordmark that reads (current work)
+### The pass after the round: idle, clips, downloads, workflows (current work)
+
+- `npx tsc -b`, `npx eslint . --max-warnings=0`, `npx prettier --check .` and `npm run build:pages`:
+  clean. `npm test`: **539 tests across 86 files**, all passing.
+- The first full run after the drift guard was added failed `YouTubeStage.test.tsx`, and it was not
+  a flake: the guard read the time of the last jump from a ref initialised to zero, so in a fresh
+  test environment — where `performance.now()` is still under a second — that read looked like a
+  jump that had just happened, and the embed's first honest report was thrown away. The ref now
+  starts at `-Infinity`, the guard only ever applies to a jump that really happened, and the file
+  passes alone and in the full suite.
+- Removing the thirty-second immersion deleted its hook and its test, so the file count is one
+  lower than the previous round. Four browser tests that watched it were removed with it, and the
+  one that also guarded the transport was kept, rewritten to assert that a long idle now changes
+  nothing.
+- **Not verified here:** a browser. The clip's new sleeve-in-the-corner state only appears while a
+  real YouTube clip is playing, and the demo library the screenshots use has none, so it cannot
+  appear in `docs/media`. It was reasoned from the same container-query sizing the clip already
+  used, and it needs one look in a browser with a clip before it is called done.
+- The Windows ZIP now publishes self-contained. The trade is size — the artifact carries the
+  runtime — and the first hosted build after this change is what confirms the ZIP still starts;
+  it has not been run on a Windows machine from this workspace.
+
+### Remix as one page, and a wordmark that reads (previous work)
 
 - `npx tsc -b`, `npx eslint src --max-warnings=0` and `npx prettier --check .`: passed.
   `npm test`: **545 tests across 87 files**, all passing, including the rewritten Remix

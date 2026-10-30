@@ -139,6 +139,7 @@ Separate native Android (Kotlin/Compose) and Windows (C#/WPF) source implementat
 - [x] Run native build/unit/lint checks remotely.
 - [ ] Complete real Android/Windows target-device playback and accessibility checks.
 - [ ] Bring artwork/profile editing and lyric glyph fill to native parity (playlists, ordering and queue operations are done on both).
+- [ ] Bring the two web-only features to the native builds, which is the last gap in "the same app everywhere": YouTube songs and video clips. Both need an embedded player inside WPF and Android WebView respectively, plus the same drift correction the web uses; neither is started yet, and nothing in the app pretends otherwise.
 - [x] Add Android foreground service/audio focus/media session and rotation-safe playback lifecycle.
 - [x] Add Windows contract tests, playlists/queue/session persistence and WPF layout smoke tests.
 - [ ] Complete Windows system integration and trusted release signing/installer.
@@ -146,7 +147,7 @@ Separate native Android (Kotlin/Compose) and Windows (C#/WPF) source implementat
 
 ## Listening follow-up
 
-- [x] Web: bounded Now Playing, paused queue/progress restoration, enhanced LRC word stamps, metadata navigation and 30-second activity-controlled immersion.
+- [x] Web: bounded Now Playing, paused queue/progress restoration, enhanced LRC word stamps and metadata navigation. The 30-second immersion that took the screen over was removed in 0.1.1: the player opens only when asked.
 - [x] Port these listening/session features to Android and Windows (paused restoration, per-platform session persistence).
 - [ ] Validate them on real target devices: an Android phone with headphones and a car, and a Windows machine with a real codec matrix.
 - [ ] Evaluate synchronized lyric accuracy across real recording editions and providers; word timestamps cannot be inferred exactly from ordinary LRC.

@@ -37,11 +37,14 @@ export function VideoBackdrop({
   time,
   duration,
   playing,
+  onRevealed,
 }: {
   track: Track;
   time: number;
   duration: number;
   playing: boolean;
+  /** Told when the picture is on screen, so the player can step back for it. */
+  onRevealed?: (shown: boolean) => void;
 }) {
   const [clips, setClips] = useState(() => loadClips());
   const [search, setSearch] = useState<'searching' | 'empty' | 'unavailable'>('searching');
@@ -87,6 +90,7 @@ export function VideoBackdrop({
         time={time}
         duration={duration}
         playing={playing}
+        onRevealed={onRevealed}
       />
     );
 
@@ -140,11 +144,14 @@ function ClipPlayer({
   time,
   duration,
   playing,
+  onRevealed,
 }: {
   clip: StoredClip;
   time: number;
   duration: number;
   playing: boolean;
+  /** Told when the picture is really on screen, so the player can step back. */
+  onRevealed?: (shown: boolean) => void;
 }) {
   const frame = useRef<HTMLIFrameElement | null>(null);
   const latest = useRef<VideoState>(OFFLINE);
@@ -167,6 +174,13 @@ function ClipPlayer({
    * not to, so the picture arrives after them instead of with them.
    */
   const [revealed, setRevealed] = useState(false);
+
+  // The player folds its sleeve away while the picture is on screen, and comes
+  // back the moment it is not: a paused clip is a still wash, not a backdrop.
+  useEffect(() => {
+    onRevealed?.(revealed);
+  }, [revealed, onRevealed]);
+  useEffect(() => () => onRevealed?.(false), [onRevealed]);
 
   useEffect(() => {
     target.current = { position: time, playing, duration, at: performance.now() };
