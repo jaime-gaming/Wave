@@ -18,6 +18,8 @@ interface Session {
   trackId: string;
   startedAt: number;
   seconds: number;
+  /** Duration belongs to this playback, even if the next song is shorter. */
+  duration: number;
   /** Last position read from the player, so a seek does not count as listening. */
   last: number | null;
   completed: boolean;
@@ -55,13 +57,15 @@ export function useListeningHistory({
   const [today, setToday] = useState(() => new Date().setHours(0, 0, 0, 0));
   const session = useRef<Session | null>(null);
   const readTimeRef = useRef(readTime);
-  const durationRef = useRef(duration);
   useEffect(() => {
     readTimeRef.current = readTime;
   }, [readTime]);
   useEffect(() => {
-    durationRef.current = duration;
-  }, [duration]);
+    const current = session.current;
+    if (current && current.trackId === track?.id && Number.isFinite(duration) && duration > 0) {
+      current.duration = duration;
+    }
+  }, [duration, track?.id]);
 
   useEffect(() => {
     let active = true;
@@ -81,7 +85,7 @@ export function useListeningHistory({
   /** Writes the session if it deserves a row, and forgets it either way. */
   const settle = useCallback((current: Session | null) => {
     if (!current) return;
-    if (!countsAsPlay(current.seconds, durationRef.current)) return;
+    if (!countsAsPlay(current.seconds, current.duration)) return;
     const play = makePlay(
       current.trackId,
       current.startedAt,
@@ -108,6 +112,7 @@ export function useListeningHistory({
         trackId: track.id,
         startedAt: Date.now(),
         seconds: 0,
+        duration: track.duration,
         // Capture the starting position now, so the first second of real
         // playback is counted. A seek is still rejected by the step bound.
         last: Number.isFinite(initial) && initial >= 0 ? initial : null,
@@ -131,7 +136,7 @@ export function useListeningHistory({
       current.last = position;
       // Within a second of the end is the end: the song played through, and
       // that is what separates it from one that was skipped away.
-      const length = durationRef.current || track.duration || 0;
+      const length = current.duration || track.duration || 0;
       if (length > 0 && position >= length - 1) current.completed = true;
     }, SAMPLE_MS);
     return () => clearInterval(timer);

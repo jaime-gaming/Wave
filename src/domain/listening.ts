@@ -124,7 +124,7 @@ export interface ListeningSummary {
   topArtists: ArtistTotal[];
   /** Most recent plays, newest first, with the song still in the library. */
   recent: (PlayEvent & { track: Track })[];
-  /** Songs heard most recently, without repeats — the "jump back in" row. */
+  /** Songs heard most recently, without repeats. */
   recentTracks: Track[];
   uniqueTracks: number;
   uniqueArtists: number;

@@ -88,6 +88,14 @@ describe('recording what was listened to', () => {
     expect(plays[0].seconds).toBeGreaterThanOrEqual(34);
   });
 
+  it('uses the outgoing song duration when the next song is shorter', async () => {
+    const short = makeTrack({ id: 'short', duration: 8 });
+    const { listen, rerender } = setup({ track, playing: true });
+    await listen(10);
+    rerender({ track: short, playing: true, duration: 8 });
+    expect(await getPlays()).toHaveLength(0);
+  });
+
   it('leaves no trace of a song that was skipped before the threshold', async () => {
     const { listen, rerender } = setup({ track, playing: true });
     await listen(6);
