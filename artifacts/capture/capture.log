@@ -21,31 +21,31 @@ docs/media/remix-mobile.png
 docs/media/review-mobile-library.png
 docs/media/review-mobile-playing.png
 [review] playing-mobile: viewport 390px, scrollWidth 390px
-  overflowing: i.music-lighting__bass [-219..253]
+  overflowing: i.music-lighting__bass [-213..259]
                i.music-lighting__body [204..725]
-               i.music-lighting__air [-9..515]
-               g [-26..374]
-               path [-26..374]
+               i.music-lighting__air [-14..510]
+               g [-27..373]
+               path [-27..373]
 docs/media/review-mobile-player.png
 [review] player-mobile: viewport 390px, scrollWidth 390px
-  overflowing: i.music-lighting__bass [-218..253]
+  overflowing: i.music-lighting__bass [-212..259]
                i.music-lighting__body [153..674]
-               i.music-lighting__air [-9..515]
-               g [-30..370]
-               path [-30..370]
-               i.music-lighting__bass [-217..254]
+               i.music-lighting__air [-14..510]
+               g [-31..369]
+               path [-31..369]
+               i.music-lighting__bass [-211..260]
                i.music-lighting__body [152..673]
-               i.music-lighting__air [-8..516]
-               g [-4..396]
-               path [-4..396]
+               i.music-lighting__air [-13..511]
+               g [-5..395]
+               path [-5..395]
 [review] home-1024: viewport 1024px, scrollWidth 1024px
-  overflowing: i.music-lighting__bass [-396..480]
-               i.music-lighting__body [476..1444]
-               i.music-lighting__air [-2..972]
+  overflowing: i.music-lighting__bass [-385..491]
+               i.music-lighting__body [477..1445]
+               i.music-lighting__air [-11..963]
 docs/media/review-1024.png
 [review] home-820: viewport 820px, scrollWidth 820px
-  overflowing: i.music-lighting__bass [-348..422]
-               i.music-lighting__body [269..1119]
-               i.music-lighting__air [-6..850]
+  overflowing: i.music-lighting__bass [-338..432]
+               i.music-lighting__body [268..1119]
+               i.music-lighting__air [-13..842]
 docs/media/review-820.png
 Documentation images written to docs/media/.
