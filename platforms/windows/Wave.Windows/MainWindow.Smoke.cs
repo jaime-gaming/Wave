@@ -28,7 +28,7 @@ public partial class MainWindow
         Check(MiniPlayer.Visibility == Visibility.Collapsed, "Empty mini player should be hidden.");
         ShowPage("Search"); searchBox!.Text = "Local song 3"; Check(visible.Count == 1, "Native search failed.");
         ShowPage("Daily mix", DailyGroups()[0].Id); Check(visible.Count == 3, "Native daily mix is not browsable.");
-        Check(Summary.Text.EndsWith("· 4:30") || Summary.Text.Contains("song"), "A collection should count itself in the banner.");
+        Check(Summary.Text.Contains("·"), "A browsing page should count the library under its title.");
         await Capture("daily-mix");
         var snapshot = new NativePlaylist("smoke", "Morning collection", "Saved local selection", visible.Select(s => s.Id).ToList());
         SavePlaylists(new() { snapshot }); ShowPage("Playlists", snapshot.Id); Check(visible.Count == 3, "Playlist snapshot lost songs."); await Capture("playlist");

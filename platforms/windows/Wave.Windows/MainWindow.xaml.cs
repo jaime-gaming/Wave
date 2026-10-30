@@ -59,9 +59,9 @@ public partial class MainWindow : Window
         } catch (Exception error) { Notify("Could not restore your listening session: " + error.Message); }
     }
     /// <summary>
-    /// The line under the title says what the page is showing, not the size of the
-    /// whole library: a collection page counts that collection, Settings says what
-    /// is in Settings, and only the browsing pages count everything.
+    /// The line under the title says what the page is showing. Settings and Remix
+    /// say what is in them; the browsing pages count what is on this device, and a
+    /// collection page leaves its own count to the card it shows.
     /// </summary>
     private void UpdateSummary()
     {
@@ -73,7 +73,8 @@ public partial class MainWindow : Window
             "Artists" when collection == null => NativeCollections.Count(tracks.Select(s => s.Artist).Distinct().Count(), "artist"),
             "Playlists" when collection == null => NativeCollections.Count(playlists.Count, "playlist"),
             "Favorites" => NativeCollections.Count(tracks.Count(s => s.Favorite), "favorite"),
-            _ when collection != null => $"{NativeCollections.Count(SelectedSongs().Count, "song")} · {Clock(SelectedSongs().Sum(s => s.Duration))}",
+            // A collection page says the same thing as everywhere else, because
+            // the card itself counts the collection it is showing.
             _ => $"{NativeCollections.Count(tracks.Count, "song")} · {NativeCollections.Count(tracks.Select(AlbumKey).Distinct().Count(), "album")}",
         };
     }
