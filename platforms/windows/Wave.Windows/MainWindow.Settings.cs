@@ -17,6 +17,9 @@ public partial class MainWindow
         // band behind the rail. Reading the palette here is immediate and exact.
         Background = (Brush)Application.Current.Resources["BackgroundBrush"];
         Foreground = (Brush)Application.Current.Resources["InkBrush"];
+        // The rail sits on the window's own colour, so the root panel takes it too
+        // rather than waiting on a resource that may still hold the old palette.
+        if (Content is Panel root) root.Background = Background;
         FontSize = preferences.LargerText ? 18 : 15;
     }
     private void RenderSettings(string? section = null)
