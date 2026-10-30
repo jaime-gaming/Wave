@@ -12,7 +12,7 @@ docs/media/remix-mobile.png
   overflowing: i.music-lighting__bass [-227..244]
                i.music-lighting__body [146..617]
                i.music-lighting__air [20..543]
-               span [-34..314]
+               span [-34..315]
                span [158..450]
 [review] library-mobile: viewport 390px, scrollWidth 390px
   overflowing: i.music-lighting__bass [-227..244]
@@ -24,27 +24,27 @@ docs/media/review-mobile-playing.png
   overflowing: i.music-lighting__bass [-227..244]
                i.music-lighting__body [205..725]
                i.music-lighting__air [-5..519]
-               g [-26..374]
-               path [-26..374]
+               g [-22..378]
+               path [-22..378]
 docs/media/review-mobile-player.png
 [review] player-mobile: viewport 390px, scrollWidth 390px
   overflowing: i.music-lighting__bass [-227..244]
-               i.music-lighting__body [154..675]
+               i.music-lighting__body [149..670]
                i.music-lighting__air [-5..519]
                g [-30..370]
                path [-30..370]
                i.music-lighting__bass [-226..245]
-               i.music-lighting__body [153..674]
+               i.music-lighting__body [148..669]
                i.music-lighting__air [-4..520]
-               g [-4..396]
-               path [-4..396]
+               g [-6..394]
+               path [-6..394]
 [review] home-1024: viewport 1024px, scrollWidth 1024px
   overflowing: i.music-lighting__bass [-413..464]
-               i.music-lighting__body [478..1447]
+               i.music-lighting__body [466..1434]
 docs/media/review-1024.png
 [review] home-820: viewport 820px, scrollWidth 820px
   overflowing: i.music-lighting__bass [-363..408]
-               i.music-lighting__body [268..1119]
+               i.music-lighting__body [261..1112]
                i.music-lighting__air [1..857]
 docs/media/review-820.png
 Documentation images written to docs/media/.
