@@ -4,7 +4,7 @@ Updated: 28 October 2026. Applies to Wave's current development source. Deployme
 
 ## On your device
 
-Wave does not implement accounts, advertising, analytics, telemetry, cloud library storage or audio uploads. Web stores imported audio, metadata, favorites, playlists, images, lyrics and the listening history in IndexedDB for the current origin/profile, with preferences and the current playback session in localStorage. Android copies originals into app-private storage and saves local JSON/preferences, including a `history.json` of what was played. Windows uses `%LOCALAPPDATA%/Wave` with the same `history.json`. The listening history never leaves the device, is not sent anywhere, and can be cleared from the Remix page on every platform. No cross-device synchronization exists. Stored music remains original; edits change local database fields, not the original file tags.
+Wave does not implement accounts, advertising, analytics, telemetry, cloud library storage or audio uploads. Web stores imported audio, metadata, favorites, playlists, images, lyrics and the listening history in IndexedDB for the current origin/profile, with preferences and the current playback session in localStorage. Android copies originals into app-private storage and saves local JSON/preferences, including a `history.json` of what was played. Windows uses `%LOCALAPPDATA%/Wave` with the same `history.json`. The listening history never leaves the device, is not sent anywhere, and can be cleared from the Remix page. Removing the Home shelf does not erase it. There is no automatic cloud sync; the web client can explicitly pair devices and transfer selected music directly, as described below. Stored music remains original; edits change local database fields, not the original file tags.
 
 Keep your originals: clearing website data, browser eviction, uninstalling Android, or removing Windows app data may erase Wave's copies. Removing a web song removes its saved copy/references, not the original on your disk. Native builds currently have no library-delete UI: clear app-private data through the OS or remove the Windows data folder after exiting. Disabling automatic lyrics does not erase saved text. Web song editing can remove saved lyrics.
 
@@ -57,17 +57,14 @@ request. A YouTube song and any muted backdrop clip stream from YouTube inside t
 traffic and the viewing record belong to YouTube's policy. Wave does not download, proxy, extract
 or re-encode that audio; a song also imported as a file always plays from the local copy.
 
-## Wave 1.1 (planned, not active)
+## Explicit device linking (web)
 
-Release 0.1.1 has no sync, no accounts and no provider playlist import. The 1.1
-foundation in the source tree is not connected to the interface, so none of the
-following data flows is active yet. Before any of it ships, this file must list
-each one explicitly: borrowed audio copies on a second device and how to delete
-them; the signalling relay (encrypted pairing messages and connection metadata,
-never audio); a TURN relay, which does forward encrypted audio; and the Spotify
-and YouTube playlist requests, with their scopes, provider identity and
-retention. See [SPEC_1.1](docs/SPEC_1.1.md) for the threat model and the open
-questions.
+Two web clients can exchange pairing codes and, after confirmation, transfer selected tracks over a
+WebRTC data channel. The transfer is encrypted and the receiving device verifies the file before
+saving it; there is no account or automatic library upload. A public Google STUN service helps the
+peers discover their network addresses and can see the requesting IP address and port. Depending
+on the network, a direct connection may fail. Android and Windows do not yet implement this pairing
+flow. Provider playlist import and a signalling relay remain future work.
 
 ## Contact and rights
 

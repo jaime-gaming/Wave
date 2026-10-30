@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Home, Remix and the phone
+
+- Home follows the desktop composition shown in the reference again, and no longer has a
+  **Jump back in** shelf. Collection, daily mixes and recently added music remain.
+- Remix now presents the week as a quieter page rather than a stack of statistic cards.
+  The daily and hourly charts, artists, genre, playable list and explicit Save remain.
+- The wordmark keeps the original wave-shaped W and redraws the rest of the letters with
+  the same rounded stroke. The compact mark is the very same W.
+- Android's native shell now follows the mobile site's inset page, four-item dock, header
+  actions, collection shortcuts, daily-mix rows, Remix and player layout. Android playback,
+  the system picker and media-session controls remain native; complete feature and visual
+  parity still need device testing.
+
 ### Remix, and the history behind it
 
 - A play is written once a song has really been heard: half of it, or thirty seconds of

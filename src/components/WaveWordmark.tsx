@@ -13,21 +13,32 @@
  * anywhere the name would have to shrink to be readable. They are the same
  * curves, so the switch never looks like two different logos.
  */
-const W =
-  'M4 8.6C7 8.6 7 23.4 12 23.4C17 23.4 17 8.6 20 8.6C23 8.6 23 23.4 28 23.4C33 23.4 33 8.6 36 8.6';
+/**
+ * The W is the mark the app has always had: two crests of one stroke, drawn
+ * with round caps. It is not a letter with a wave in it — it is the wave.
+ */
+const W = 'M4 7C7 7 7 23 12 23C17 23 17 7 20 7C23 7 23 23 28 23C33 23 33 7 36 7';
 
-/** The word: W, then a bowl-and-stem a, a two-stroke v, and an e with its bar. */
+/**
+ * The rest of the name, set in the same pen on the same baseline.
+ *
+ * Every letter is one monoline stroke with the same weight as the mark, so the
+ * word reads as one hand rather than a logo followed by type: an `a` whose stem
+ * settles into the baseline like a wave, a `v` that is a trough of the same wave
+ * instead of two straight arms, and an `e` whose bar runs into a bowl that lifts
+ * away at the end. Nothing here is a font glyph, so it looks identical in the
+ * browser, on a phone and on Windows.
+ */
 const WORD = [
   W,
-  // a: the stem first, then the bowl that closes onto it.
-  'M59 9.4v13.2',
-  'M52 9a7 7 0 1 0 0 14a7 7 0 0 0 0-14',
-  // v: two strokes meeting at a round point.
-  'M67 9.2L75 23L83 9.2',
-  // e: a crossbar that sits a hair off level, and a bowl whose stroke leaves
-  // through the lower right rather than closing into a ring.
-  'M91.06 16.9H104.9',
-  'M104.9 16.9A7 7 0 1 0 101.84 21.87',
+  // a — bowl, then a stem that eases into the baseline.
+  'M60 10.2C60 16.4 60 21.4 61.6 22.4',
+  'M53 10a7 7 0 1 0 0 13a7 7 0 0 0 0-13',
+  // v — one trough, the same curve as the W's dips.
+  'M68 10.4C68.8 10.4 71.6 23.4 75.3 23.4C79 23.4 81.8 10.4 82.6 10.4',
+  // e — a bar, and a bowl that opens out to the lower right.
+  'M91 17.2H105',
+  'M105 17.2A7 7 0 1 0 103.2 20.4',
 ];
 
 function Pen({
@@ -68,13 +79,13 @@ export function WaveWordmark({
   return variant === 'mark' ? (
     <Pen
       paths={[W]}
-      viewBox="1.8 6 37 20"
+      viewBox="1 4.8 38 21"
       className={className ?? 'wave-wordmark wave-wordmark-mark'}
     />
   ) : (
     <Pen
       paths={WORD}
-      viewBox="1 6 114 20"
+      viewBox="1 4.8 112 21"
       className={className ?? 'wave-wordmark wave-wordmark-full'}
     />
   );

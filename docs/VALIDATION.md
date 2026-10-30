@@ -4,6 +4,18 @@ Release 0.1.1 · 28 October 2026. Historical run dates are retained below.
 
 ## Web
 
+### Home, Remix and the mobile shell (current work)
+
+- `npm test`: 540 tests across 86 files passed before adding the new Home and history-confirmation
+  checks; the focused Home, Remix and wordmark tests pass. `tests/remix.spec.ts`: four tests pass
+  in Chromium, including play, save and confirmation before clearing history.
+- `npm run capture:docs` ran locally against a headless Chromium and the generated demo library.
+  Home, the daily mix and Remix were reviewed at desktop and phone widths; the desktop page retains
+  the right-hand player column as in the reference and Home has no recent-listening shelf.
+- Android changes retain the native library and playback service. They require the hosted Android
+  build and a physical-device review; neither full visual parity nor feature parity is claimed.
+- The full Playwright suite was not run in this round. Earlier CI runs were red.
+
 ### The phone layout, and Windows redrawn (latest run)
 
 - `npx tsc -b`, `npx eslint .`, `npx prettier --check .`, `npm run build` and `npm run build:pages`:

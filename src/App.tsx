@@ -1093,9 +1093,6 @@ function WaveApp({
                 onMore={setTrackOptions}
                 artistPhotos={artistPhotos}
                 onMix={(mix, number) => setDailySelection({ mix, number })}
-                recentTracks={listening.summary.recentTracks}
-                weekSeconds={listening.summary.weekSeconds}
-                onListening={() => setPage('remix')}
               />
             ) : view === 'artists' && !group ? (
               <Artists

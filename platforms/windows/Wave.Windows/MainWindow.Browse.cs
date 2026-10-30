@@ -85,15 +85,6 @@ public partial class MainWindow
         }
         CollectionHeader.Children.Add(shortcuts);
 
-        var summary = ListeningNow();
-        if (summary.Recent.Count > 0) {
-            var week = summary.WeekSeconds > 0 ? Listening.Time(summary.WeekSeconds) + " this week" : "Remix";
-            CollectionHeader.Children.Add(SectionHeading("Jump back in", TextAction(week, "arrow-up-right", () => ShowPage("Remix"))));
-            var back = new WrapPanel();
-            foreach (var song in summary.Recent.Take(6)) back.Children.Add(Card(song.Title, song.Artist, song.Artwork, () => PlayCollection(summary.Recent, song.Id)));
-            CollectionHeader.Children.Add(back);
-        }
-
         var daily = DailyGroups();
         if (daily.Count > 0) {
             CollectionHeader.Children.Add(SectionHeading("Daily mixes"));

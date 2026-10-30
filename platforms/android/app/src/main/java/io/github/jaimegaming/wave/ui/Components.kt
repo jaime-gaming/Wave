@@ -2,6 +2,7 @@ package io.github.jaimegaming.wave.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,6 +28,8 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -54,28 +57,38 @@ fun WaveMark(size: Int = 28) {
 
 @Composable
 fun ScreenTitle(title: String, subtitle: String? = null, trailing: (@Composable () -> Unit)? = null) {
+    val actions = LocalChromeActions.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 8.dp, bottom = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .padding(top = 20.dp, bottom = 24.dp),
+        verticalAlignment = Alignment.Top,
     ) {
         Column(Modifier.weight(1f)) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.displaySmall,
-                color = MaterialTheme.colorScheme.onBackground,
+                fontSize = 40.sp,
+                lineHeight = 44.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = (-1).sp,
+                color = MaterialTheme.colorScheme.primary,
             )
             if (subtitle != null) {
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 2.dp),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                    modifier = Modifier.padding(top = 4.dp),
                 )
             }
         }
         trailing?.invoke()
+        if (actions != null) {
+            ChromeButton("plus", "Add music", actions.addMusic)
+            Spacer(Modifier.width(6.dp))
+            ChromeButton("settings", "Open settings", actions.openSettings)
+        }
     }
 }
 
@@ -89,8 +102,10 @@ fun SectionTitle(text: String, action: String? = null, onAction: (() -> Unit)? =
     ) {
         Text(
             text = text,
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.titleLarge,
+            fontSize = 19.sp,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.weight(1f),
         )
         if (action != null && onAction != null) {
@@ -107,13 +122,7 @@ fun SectionTitle(text: String, action: String? = null, onAction: (() -> Unit)? =
     }
 }
 
-/**
- * One song, one line of information, one way in.
- *
- * The playing row is the only row that is coloured, and it is coloured by a thin
- * bar on its leading edge rather than by a filled background: a list of songs is
- * not a table of cards.
- */
+/** A song row uses the same compact rounded surface as the web list. */
 @Composable
 fun SongRow(
     song: Song,
@@ -124,29 +133,27 @@ fun SongRow(
     modifier: Modifier = Modifier,
     trailing: String? = null,
 ) {
+    val shape = RoundedCornerShape(16.dp)
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
+            .padding(bottom = 5.dp)
+            .clip(shape)
+            .background(if (playing) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer)
+            .border(1.dp, if (playing) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f), shape)
+            .semantics { contentDescription = "Play ${song.title} by ${song.artist}" }
             .clickable(onClick = onPlay)
-            .padding(vertical = 8.dp, horizontal = 4.dp),
+            .padding(start = 10.dp, end = 2.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            Modifier
-                .width(3.dp)
-                .height(36.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(if (playing) MaterialTheme.colorScheme.primary else Color.Transparent),
-        )
-        Spacer(Modifier.width(11.dp))
         Cover(song, size = 48.dp, radius = 10.dp)
-        Spacer(Modifier.width(12.dp))
+        Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
             Text(
                 text = song.title,
                 style = MaterialTheme.typography.titleMedium,
-                color = if (playing) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground,
+                fontWeight = FontWeight.Bold,
+                color = if (playing) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -159,22 +166,13 @@ fun SongRow(
             )
         }
         if (trailing != null) {
-            Text(
-                text = trailing,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(end = 4.dp),
-            )
+            Text(trailing, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        IconButton(onClick = onFavorite) {
-            Text(
-                text = if (song.favorite) "♥" else "♡",
-                color = if (song.favorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 17.sp,
-            )
+        IconButton(onClick = onFavorite, modifier = Modifier.semantics { contentDescription = if (song.favorite) "Remove from favorites" else "Add to favorites" }) {
+            WaveIcon("favorite", 20.dp, if (song.favorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        IconButton(onClick = onMore) {
-            Text("⋯", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 18.sp)
+        IconButton(onClick = onMore, modifier = Modifier.semantics { contentDescription = "More options for ${song.title}" }) {
+            WaveIcon("more", 20.dp, MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

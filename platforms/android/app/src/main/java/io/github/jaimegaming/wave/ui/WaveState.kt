@@ -336,6 +336,15 @@ class WaveState(
         notice = "Remix saved as a playlist."
     }
 
+    /** Saves a daily mix without modifying its songs or the original files. */
+    fun saveDailyMix(label: String, songs: List<Song>) {
+        if (songs.isEmpty()) return
+        val playlist = repository.createPlaylist("Daily mix · $label")
+        repository.updatePlaylist(playlist.copy(trackIds = songs.map { it.id }))
+        playlists = repository.loadPlaylists()
+        notice = "Daily mix saved as a playlist."
+    }
+
     fun createPlaylist(name: String) {
         val playlist = repository.createPlaylist(name)
         playlists = repository.loadPlaylists()

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { RemixPage } from './RemixPage';
@@ -53,6 +53,31 @@ describe('the Remix page', () => {
     expect(props.onSave).toHaveBeenCalledWith(recap.mix);
     // The most played song leads the list, and its count is shown as a fact.
     expect(screen.getAllByText('2×').length).toBe(1);
+  });
+
+  it('shows the week as seven days and the artists behind it', () => {
+    render(<RemixPage {...props} />);
+    const week = screen.getByRole('region', { name: 'Listening per day' });
+    // One column per day, each named with its own total for screen readers.
+    expect(within(week).getAllByRole('button')).toHaveLength(7);
+    const artists = screen.getByRole('region', { name: 'Artists this week' });
+    expect(within(artists).getByText('Wave Tests')).toBeInTheDocument();
+    expect(within(artists).getByText('3 plays')).toBeInTheDocument();
+    const details = screen.getByRole('region', { name: 'More about this week' });
+    expect(within(details).getByText(/Most played genre/)).toBeInTheDocument();
+    expect(within(details).getByRole('img', { name: /0:00:/ })).toBeInTheDocument();
+  });
+
+  it('does not clear listening history without confirmation', async () => {
+    const user = userEvent.setup();
+    const onClear = vi.fn();
+    render(<RemixPage {...props} onClear={onClear} />);
+    await user.click(screen.getByRole('button', { name: 'Clear history' }));
+    await user.click(screen.getByRole('button', { name: 'Keep it' }));
+    expect(onClear).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Clear history' }));
+    await user.click(screen.getByRole('button', { name: 'Yes, clear' }));
+    expect(onClear).toHaveBeenCalledOnce();
   });
 
   it('says how the week compares with the one before it', () => {

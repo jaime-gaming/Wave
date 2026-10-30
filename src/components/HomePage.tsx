@@ -12,7 +12,6 @@ import { useArtworkColor } from '../hooks/useArtworkColor';
 import { Artwork } from './Artwork';
 import { ArtistPortrait } from './Artists';
 import { LibraryContent } from './LibraryContent';
-import { listeningTime } from '../domain/listening';
 
 export const HomePage = memo(function HomePage({
   tracks,
@@ -31,9 +30,6 @@ export const HomePage = memo(function HomePage({
   onFavorite,
   onMore,
   artistPhotos,
-  recentTracks = [],
-  weekSeconds = 0,
-  onListening,
 }: {
   tracks: Track[];
   artistPhotos?: Map<string, string | undefined>;
@@ -51,11 +47,6 @@ export const HomePage = memo(function HomePage({
   onPlay: (tracks: Track[], id: string) => void;
   onFavorite: (track: Track) => void;
   onMore: (track: Track) => void;
-  /** Songs this device played most recently, newest first. */
-  recentTracks?: Track[];
-  /** Seconds listened in the last seven days, for the Remix card. */
-  weekSeconds?: number;
-  onListening?: () => void;
 }) {
   const animation = useWaveMotion();
   const albums = useMemo(
@@ -103,35 +94,6 @@ export const HomePage = memo(function HomePage({
           ))}
         </div>
       </section>
-      {recentTracks.length > 0 && (
-        <section aria-label="Jump back in" className="home-resume-section">
-          <div className="section-heading">
-            <h2>Jump back in</h2>
-            {onListening && (
-              <button className="text-button" onClick={onListening}>
-                {weekSeconds ? `${listeningTime(weekSeconds)} this week` : 'Remix'}
-                <ArrowUpRight size={18} />
-              </button>
-            )}
-          </div>
-          <div className="home-resume">
-            {recentTracks.slice(0, 6).map((track) => (
-              <motion.button
-                key={track.id}
-                className="home-resume-card"
-                onClick={() => onPlay(recentTracks, track.id)}
-                whileHover={animation.enabled ? { y: -3 } : undefined}
-                whileTap={animation.enabled ? { scale: 0.97 } : undefined}
-                transition={animation.fast}
-              >
-                <Artwork track={track} />
-                <strong>{track.title}</strong>
-                <span>{track.artist}</span>
-              </motion.button>
-            ))}
-          </div>
-        </section>
-      )}
       <DailyMixes tracks={tracks} onOpen={onMix} />
       {albums.length > 0 && (
         <section aria-label="Recently added albums" className="home-albums">

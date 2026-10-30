@@ -393,3 +393,13 @@ every DynamicResource point into it, and a theme change re-reads it rather than 
 resource to notice. A page is either an opening that fills the card and scrolls as one thing
 (Home, Remix) or a short opening above a virtualised list (Library, Albums, Artists, Playlists,
 Search) — never two scrollbars side by side.
+
+## Mobile web and the Android shell
+
+The Android UI remains Compose rather than a WebView, so the system file picker, media session,
+headset controls and local audio playback retain their platform behaviour. `WaveChrome` mirrors
+the mobile web page margins, rounded dock and header actions; `WaveIcons` draws the web's Lucide
+paths on the same 24-unit grid. Home and Remix read the existing library and history rather than
+creating new stores. The desktop web page keeps its right-hand player column at a stable width
+before and during playback, matching the reference layout. These shared visual choices do not by
+themselves establish complete pixel or feature parity; see the device gates in `PLATFORMS.md`.

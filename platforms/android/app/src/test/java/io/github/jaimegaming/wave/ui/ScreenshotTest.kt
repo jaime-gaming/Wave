@@ -3,7 +3,12 @@ package io.github.jaimegaming.wave.ui
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import androidx.activity.ComponentActivity
+import androidx.compose.ui.test.assertExists
+import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
 import io.github.jaimegaming.wave.Library
 import io.github.jaimegaming.wave.Play
@@ -51,6 +56,23 @@ class ScreenshotTest {
     @Test
     fun library() = capture("android-library", Opening.Where(Destination.Library))
 
+    @Test
+    fun homeUsesTheMobileWebNavigation() {
+        val output = output() ?: return
+        seed(ApplicationProvider.getApplicationContext<WaveApplication>(), output)
+        rule.setContent { WaveTheme { WaveApp(version = "0.1.1") } }
+        rule.onNodeWithText("Your collection").assertExists()
+        rule.onNodeWithText("Jump back in").assertDoesNotExist()
+        rule.onNodeWithContentDescription("Open settings").performClick()
+        rule.onNodeWithText("Settings").assertExists()
+        rule.onNodeWithText("Home").performClick()
+        rule.onNodeWithText("Your collection").assertExists()
+        rule.onNodeWithText("Daily mix 1").performClick()
+        rule.onNodeWithText("Play mix").assertExists()
+        rule.onNodeWithText("Save as playlist").performClick()
+        rule.onNodeWithText("Daily mix saved as a playlist.").assertExists()
+    }
+
     private fun output(): File? {
         val flag = System.getProperty("wave.screenshots").orEmpty()
         assumeTrue("Pass -Dwave.screenshots=<directory> to capture.", flag.isNotEmpty())
@@ -62,12 +84,15 @@ class ScreenshotTest {
         val library = Library(app)
         // The same demo library the web captures use: three artists, an album each.
         val songs = listOf(
-            Triple("Night signals", "Northbound", "Northbound"),
-            Triple("Soft light", "Sunday Club", "Sunday Club"),
-            Triple("In the distance", "The Coastline", "The Coastline"),
-            Triple("Long way home", "Northbound", "Northbound"),
-            Triple("Late set", "Sunday Club", "Sunday Club"),
-            Triple("Salt air", "The Coastline", "The Coastline"),
+            Triple("After hours", "Northbound", "Night signals"),
+            Triple("Slow motion", "Northbound", "Night signals"),
+            Triple("Open skies", "Northbound", "Night signals"),
+            Triple("First light", "Sunday Club", "Soft light"),
+            Triple("Blue room", "Sunday Club", "Soft light"),
+            Triple("Quiet streets", "Sunday Club", "Soft light"),
+            Triple("Home again", "The Coastline", "In the distance"),
+            Triple("Out of town", "The Coastline", "In the distance"),
+            Triple("Paper maps", "The Coastline", "In the distance"),
         ).mapIndexed { index, (title, artist, album) ->
             Song(
                 id = "demo-$index",
@@ -76,19 +101,23 @@ class ScreenshotTest {
                 album = album,
                 filename = "$title.wav",
                 path = File(output, "demo-$index.wav").absolutePath,
-                duration = 180.0,
-                genre = if (index % 3 == 0) "Electronic" else if (index % 3 == 1) "Jazz" else "Rock",
+                duration = 120.0,
+                genre = listOf("Electronic", "Jazz", "Rock")[index / 3],
                 addedAt = System.currentTimeMillis() - index * 86_400_000L,
             )
         }
+        library.savePlaylists(emptyList())
+        library.clearPlays()
         library.save(songs)
-        // Two songs heard most, then the rest, on days inside the week.
+        // The same shape of week as the web capture, with only fixture songs.
         val now = System.currentTimeMillis()
-        for (round in 0 until 9) {
-            val song = songs[round % 3]
-            library.addPlay(Play(song.id, now - round * 3_600_000L, 120 + round * 10, true))
+        songs.forEachIndexed { index, song ->
+            repeat(4 - index / 3) { play ->
+                val at = now - ((index * 5 + play * 3) % 6) * 86_400_000L - play * 3_600_000L
+                library.addPlay(Play(song.id, at, 120 + index * 10, play % 2 == 0))
+            }
         }
-        library.addPlay(Play(songs[0].id, now - 8L * 86_400_000L, 200, true))
+
     }
 
     private fun capture(name: String, opening: Opening) {
