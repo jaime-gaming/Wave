@@ -3,10 +3,12 @@ package io.github.jaimegaming.wave.ui
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import androidx.activity.ComponentActivity
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ApplicationProvider
 import io.github.jaimegaming.wave.Library
 import io.github.jaimegaming.wave.Play
@@ -62,6 +64,14 @@ class ScreenshotTest {
 
     @Test
     fun player() = capture("android-now-playing", Opening.Player)
+
+    @Test
+    fun search() = capture("android-search", Opening.Where(Destination.Search)) {
+        // A word that is an album's name rather than a title's, so the picture
+        // shows what the page now does: the group above the songs.
+        rule.onNode(hasSetTextAction()).performTextInput("night")
+        rule.waitForIdle()
+    }
 
     @Test
     fun homeUsesTheMobileWebNavigation() {
@@ -149,7 +159,7 @@ class ScreenshotTest {
 
     }
 
-    private fun capture(name: String, opening: Opening, dark: Boolean = true) {
+    private fun capture(name: String, opening: Opening, dark: Boolean = true, before: (() -> Unit)? = null) {
         val output = output() ?: return
         val app = ApplicationProvider.getApplicationContext<WaveApplication>()
         seed(app, output)
@@ -160,6 +170,7 @@ class ScreenshotTest {
         }
         rule.setContent { WaveTheme(dark = dark) { WaveApp(version = "0.1.1", opening = opening) } }
         rule.waitForIdle()
+        before?.invoke()
         val view = rule.activity.window.decorView
         val width = if (view.width > 0) view.width else 822
         val height = if (view.height > 0) view.height else 1782
