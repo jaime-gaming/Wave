@@ -39,6 +39,7 @@ public partial class MainWindow
         Check(matches != null, "Search should name the collections it found, not only the songs.");
         Check(TextsIn(matches!).Any(text => text.Text == "Albums · 1"), "Search should group the album it found.");
         Check(matches!.Children.OfType<Button>().Count() == 1, "The album found by name should open from the search.");
+        await Capture("search");
         searchBox.Text = "Local song 3"; Check(visible.Count == 1, "Native search failed.");
         ShowPage("Daily mix", DailyGroups()[0].Id); Check(visible.Count == 3, "Native daily mix is not browsable.");
         Check(Summary.Text.Contains("·"), "A browsing page should count the library under its title.");

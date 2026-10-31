@@ -70,12 +70,18 @@ builds, so Windows may show a SmartScreen warning and Android asks you to allow 
 
 ![Wave for Windows: the collection, daily mixes and the songs underneath](docs/media/windows-home-dark.png)
 
+A search names what it found before it lists it — the artists, albums and playlists whose names
+match, each one a row that opens it:
+
+![Wave for Windows: a search naming the album it found above the songs](docs/media/windows-search.png)
+
 **Android**, from the built app itself:
 
 <p align="center">
   <img src="docs/media/android-home.png" alt="Wave for Android: home" width="260" />
   <img src="docs/media/android-remix.png" alt="Wave for Android: Remix" width="260" />
   <img src="docs/media/android-library.png" alt="Wave for Android: the library" width="260" />
+  <img src="docs/media/android-search.png" alt="Wave for Android: a search that names the album it found" width="260" />
 </p>
 
 Every image is a real capture, not a mock-up. The web ones come from `npm run capture:docs`
