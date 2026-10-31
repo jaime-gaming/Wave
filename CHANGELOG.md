@@ -40,6 +40,8 @@
 - The Devices page's main buttons are the app's accent buttons. "Link a device", "Send", "Scan a
   code" and "Confirm" were calling a class that was never defined, so they fell back to the
   browser's grey default — on the one page the site had been least looked at.
+- The YouTube-link form in Add Music uses the app's own link field and error line instead of two
+  class names that were never styled, so a wrong address is red and the field matches the clip form.
 - A screen that throws now says so instead of leaving a blank page: the message, the promise that
   the library is untouched, and two ways on — reload, or try the screen again.
 - The browser test report is published again. `continue-on-error` makes a step's conclusion a

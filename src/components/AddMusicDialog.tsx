@@ -96,7 +96,7 @@ export function AddMusicDialog({
             Paste the YouTube link for the song. Wave reads its title and artist, and looks up
             lyrics like any other song.
           </p>
-          <div className="video-clip-form">
+          <div className="clip-link">
             <label>
               <Link2 size={16} aria-hidden="true" />
               <span className="sr-only">YouTube link</span>
@@ -125,7 +125,7 @@ export function AddMusicDialog({
             </button>
           </div>
           {error && (
-            <p className="video-clip-error" role="alert">
+            <p className="form-error" role="alert">
               {error}
             </p>
           )}
