@@ -23,6 +23,13 @@
   The bottom bar's selected place is the site's pill too: a soft tinted block behind the icon,
   both of them in the accent.
 
+- Search stops being a list of songs and becomes a search. On Android it carries the site's five
+  kind tabs — All, Songs, Artists, Albums, Playlists — groups the answer by what matched, and opens
+  an artist, an album, an album's artist or a playlist straight from the results; the phrases
+  searched lately wait under the box until they are cleared. On Windows a search now names the
+  artists, albums and playlists it found above the songs, each row opening its collection, instead
+  of leaving an album's name a dead end.
+
 ### The scene that opens itself, and a Windows download that just runs
 
 - The player no longer takes the screen over. After thirty seconds of listening without a click it

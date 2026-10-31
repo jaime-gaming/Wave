@@ -31,7 +31,15 @@ public partial class MainWindow
         Check(CollectionHeader.Children.OfType<System.Windows.Controls.Primitives.UniformGrid>().First().Children.Count == 5, "Home collection shortcuts missing.");
         Check(Songs.Visibility == Visibility.Collapsed, "Home should read as one page, not a list under a shelf.");
         Check(MiniPlayer.Visibility == Visibility.Collapsed, "Empty mini player should be hidden.");
-        ShowPage("Search"); searchBox!.Text = "Local song 3"; Check(visible.Count == 1, "Native search failed.");
+        ShowPage("Search");
+        // A name typed in the box has to lead somewhere: the album found by its
+        // own name is a row that opens it, not a song list with no way up.
+        searchBox!.Text = "Album 1";
+        var matches = CollectionHeader.Children.OfType<StackPanel>().FirstOrDefault(panel => Equals(panel.Tag, "search-matches"));
+        Check(matches != null, "Search should name the collections it found, not only the songs.");
+        Check(TextsIn(matches!).Any(text => text.Text == "Albums · 1"), "Search should group the album it found.");
+        Check(matches!.Children.OfType<Button>().Count() == 1, "The album found by name should open from the search.");
+        searchBox.Text = "Local song 3"; Check(visible.Count == 1, "Native search failed.");
         ShowPage("Daily mix", DailyGroups()[0].Id); Check(visible.Count == 3, "Native daily mix is not browsable.");
         Check(Summary.Text.Contains("·"), "A browsing page should count the library under its title.");
         await Capture("daily-mix");

@@ -102,6 +102,19 @@ fun searchRank(song: Song, query: String): Int? {
     }
 }
 
+/**
+ * Whether a name answers to what was typed, the way the site decides it: every
+ * word has to be somewhere in the name, in any order, accents and punctuation
+ * aside. Used for the collections — artists, albums, playlists — which have no
+ * ranking of their own.
+ */
+fun matchesSearch(value: String, query: String): Boolean {
+    val words = canonical(query).split(' ').filter { it.isNotEmpty() }
+    if (words.isEmpty()) return true
+    val text = canonical(value)
+    return words.all { text.contains(it) }
+}
+
 /** Every song that matches, closest first; the tie is broken by title. */
 fun rankSongs(songs: List<Song>, query: String): List<Song> {
     if (canonical(query).isEmpty()) return songs

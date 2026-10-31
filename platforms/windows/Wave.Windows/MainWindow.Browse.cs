@@ -54,6 +54,7 @@ public partial class MainWindow
     private void UpdateSongs()
     {
         visible = SelectedSongs(); Songs.ItemsSource = visible;
+        SearchMatches();
         Songs.Visibility = !WholePage && visible.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         var old = CollectionHeader.Children.OfType<TextBlock>().FirstOrDefault(t => Equals(t.Tag, "empty"));
         if (old != null) CollectionHeader.Children.Remove(old);
@@ -61,6 +62,71 @@ public partial class MainWindow
             var empty = Label(tracks.Count == 0 ? "Your music belongs here. Add audio files from your device to get started." : "No songs in this selection yet.", 21);
             empty.Tag = "empty"; CollectionHeader.Children.Add(empty);
         }
+    }
+    /// <summary>Whether a name answers to the words typed, accents and order aside.</summary>
+    private static bool SearchMatch(string value, string query)
+    {
+        var words = LyricsClient.Canonical(query).Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (words.Length == 0) return true;
+        var text = LyricsClient.Canonical(value);
+        return words.All(word => text.Contains(word));
+    }
+    /// <summary>
+    /// Where else a search found something.
+    ///
+    /// The site answers a search with the artists, albums and playlists whose
+    /// names match, not only with songs — otherwise typing an album's name is a
+    /// dead end on a page that plainly holds it. The block is rebuilt on every
+    /// keystroke and removed when the box is empty.
+    /// </summary>
+    private void SearchMatches()
+    {
+        if (page != "Search") return;
+        foreach (var stale in CollectionHeader.Children.OfType<StackPanel>().Where(panel => Equals(panel.Tag, "search-matches")).ToList())
+            CollectionHeader.Children.Remove(stale);
+        if (string.IsNullOrWhiteSpace(searchQuery)) return;
+        var panel = new StackPanel { Tag = "search-matches", Margin = new Thickness(0, 2, 0, 8) };
+        void Group(string title, IEnumerable<(string Name, string Detail, Action Open)> found)
+        {
+            var rows = found.ToList();
+            if (rows.Count == 0) return;
+            panel.Children.Add(new TextBlock {
+                Text = $"{title} · {rows.Count}", FontSize = 13, FontWeight = FontWeights.Bold,
+                Foreground = (Brush)Application.Current.Resources["MutedBrush"], Margin = new Thickness(4, 10, 4, 6),
+            });
+            foreach (var row in rows) panel.Children.Add(MatchRow(title == "Artists" ? "artist" : title == "Albums" ? "disc" : "queue", row.Name, row.Detail, row.Open));
+        }
+        Group("Artists", tracks.GroupBy(track => track.Artist)
+            .Where(group => SearchMatch(group.Key, searchQuery))
+            .Select(group => (group.Key, $"{group.Count()} songs", (Action)(() => ShowPage("Artists", group.Key)))));
+        Group("Albums", tracks.GroupBy(AlbumKey)
+            .Where(group => SearchMatch(group.First().Album, searchQuery))
+            .Select(group => (group.First().Album, $"{group.First().Artist} · {group.Count()} songs", (Action)(() => ShowPage("Albums", group.Key)))));
+        Group("Playlists", playlists.Where(list => SearchMatch(list.Name, searchQuery))
+            .Select(list => (list.Name, $"{list.TrackIds.Count} songs", (Action)(() => ShowPage("Playlists", list.Id)))));
+        if (panel.Children.Count > 0) CollectionHeader.Children.Add(panel);
+    }
+    /// <summary>A named match under a search, opening the collection it belongs to.</summary>
+    private Button MatchRow(string icon, string title, string detail, Action open)
+    {
+        var body = new Grid();
+        body.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        body.Children.Add(Iconography.Draw(icon, 18, 1.7, (Brush)Application.Current.Resources["AccentBrush"]));
+        var words = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
+        words.Children.Add(new TextBlock { Text = title, FontWeight = FontWeights.SemiBold, FontSize = 15 });
+        words.Children.Add(new TextBlock { Text = detail, FontSize = 12, Foreground = (Brush)Application.Current.Resources["MutedBrush"] });
+        Grid.SetColumn(words, 1); body.Children.Add(words);
+        var button = new Button {
+            Content = body,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            Background = (Brush)Application.Current.Resources["TonalBrush"],
+            Padding = new Thickness(12, 8, 12, 8),
+            Margin = new Thickness(2),
+            MinHeight = 44,
+        };
+        button.Click += (_, _) => Safe(open);
+        return button;
     }
     /// <summary>
     /// Home, laid out the way the browser lays it out: one band of numbers, then
