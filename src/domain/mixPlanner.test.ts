@@ -340,3 +340,60 @@ describe('keeping the blend on the phrase', () => {
     expect(realignPlan({ ...plan, mode: 'cut', seconds: 0, bars: 0 }, 260)).not.toBeNull();
   });
 });
+
+/**
+ * Real DJ material, which is not a click track.
+ *
+ * Three things it does that a synthetic groove does not: it opens with a long
+ * intro, it is written at 174 and played at 87 (or the other way round), and
+ * sometimes it is played by people rather than by a grid.
+ */
+describe('Mix against real material', () => {
+  const club = (over: Partial<TrackAnalysis> = {}) =>
+    analysis({
+      beats: { bpm: 174, offset: 0.04, confidence: 0.8, stability: 0.96 },
+      ...over,
+    });
+
+  it('blends a 174 BPM record with an 87 BPM one without stretching either', () => {
+    const plan = planTransition(
+      club(),
+      club({ beats: { bpm: 87, offset: 0.02, confidence: 0.79, stability: 0.95 } }),
+    );
+    expect(plan.mode).toBe('beatmatched');
+    expect(plan.stretched).toBe(false);
+    expect(plan.incomingRate).toBe(1);
+    expect(plan.notes.join(' ')).toMatch(/half-time/i);
+  });
+
+  it('refuses the grid when the pulse drifts, and joins the pair gently instead', () => {
+    const live = club({ beats: { bpm: 118, offset: 0.1, confidence: 0.8, stability: 0.2 } });
+    const plan = planTransition(club(), live);
+    expect(plan.mode).toBe('crossfade');
+    expect(plan.stretched).toBe(false);
+    expect(plan.seconds).toBeGreaterThan(6);
+    expect(plan.notes.join(' ')).toMatch(/not steady|gently/i);
+  });
+
+  it('cues past a thirty-second intro to the first bar where the drums are playing', () => {
+    const longIntro = club({
+      segments: [
+        { start: 0, end: 28, level: 0.18, kind: 'intro' },
+        { start: 28, end: 200, level: 0.92, kind: 'body' },
+      ],
+      trimmed: { start: 0, end: 220 },
+      beats: { bpm: 124, offset: 0, confidence: 0.85, stability: 0.97 },
+    });
+    const plan = planTransition(analysis({ beats: { bpm: 124, offset: 0, confidence: 0.85 } }), longIntro);
+    expect(plan.mode).toBe('beatmatched');
+    // Cued at the drums, not at second zero — and never past the bound.
+    expect(plan.cue).toBeGreaterThan(24);
+    expect(plan.cue).toBeLessThanOrEqual(MAX_ENTRY + 1);
+  });
+
+  it('still refuses a genuinely different tempo', () => {
+    const plan = planTransition(club(), club({ beats: { bpm: 100, offset: 0, confidence: 0.8 } }));
+    expect(plan.stretched).toBe(false);
+    expect(plan.incomingRate).toBe(1);
+  });
+});

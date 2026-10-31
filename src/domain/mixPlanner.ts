@@ -1,4 +1,5 @@
-import { introEnd, overlapsRegion, type TrackAnalysis } from '../audio/dsp';
+import { introEnd, kickStart, overlapsRegion, type TrackAnalysis } from '../audio/dsp';
+import { isRubato, tempoRelation } from '../audio/tempo';
 
 /**
  * Mix planner: decides *how* two songs are joined, before any audio is touched.
@@ -23,6 +24,14 @@ export const MIN_BARS = 4;
 /** Hard ceiling for an explicit request; Mix itself chooses far fewer bars. */
 export const MAX_BARS = 16;
 /**
+ * How long a blend lasts when the tempo cannot be trusted.
+ *
+ * Rubato material is not crossfaded in the four bars a DJ would use; the two
+ * songs are given a longer, quieter overlap so the join reads as one song
+ * handing over to another rather than as a fade.
+ */
+export const RUBATO_SECONDS = 12;
+/**
  * How long a blend should last, near enough.
  *
  * Eight seconds was a crossfade: two songs sliding past each other. A mix needs
@@ -39,12 +48,14 @@ export const MAX_CUE_LEAD = 6;
  * How far into a song Mix may start it to reach the first bar with the drums
  * already playing.
  *
- * A record is cued on its first kick, not on its first second. Twenty seconds is
- * enough for the longest atmospheric intro and short enough that no verse, no
- * chorus and no hook can hide in the part that is skipped — and nothing is
- * skipped at all once a voice has been heard.
+ * A record is cued on its first kick, not on its first second. Real DJ material
+ * opens with eight, sixteen or thirty-two bars of intro — thirty-two bars of a
+ * 124 BPM record is over a minute — so the ceiling has to be large enough to
+ * reach the drums of a club edit, while the vocal guard below still refuses any
+ * skip that would hide a sung line. Nothing is skipped of a song that opens with
+ * a voice.
  */
-export const MAX_ENTRY = 20;
+export const MAX_ENTRY = 32;
 
 export type TransitionMode = 'beatmatched' | 'crossfade' | 'cut';
 
@@ -96,6 +107,10 @@ export function automaticBars(bpm: number): number {
   return clamp(bars, MIN_BARS, MAX_BARS);
 }
 
+function hasGrid(analysis: TrackAnalysis): boolean {
+  return analysis.beats.confidence >= 0.35 && analysis.beats.bpm >= 60;
+}
+
 function trusted(analysis: TrackAnalysis | undefined): analysis is TrackAnalysis {
   return (
     !!analysis &&
@@ -141,7 +156,10 @@ function alignIncoming(analysis: TrackAnalysis): number {
   const { bpm, offset } = analysis.beats;
   const period = 60 / bpm;
   const start = analysis.trimmed.start;
-  const body = clamp(introEnd(analysis), start, start + MAX_ENTRY);
+  // The end of the intro, or the first place the kick is already playing if that
+  // is later — a long intro often ends in a breakdown, not on a downbeat.
+  const kick = kickStart(analysis, introEnd(analysis));
+  const body = clamp(kick ?? introEnd(analysis), start, start + MAX_ENTRY);
   const entry = body - start > period ? body : start;
   const skip = !overlapsRegion(analysis.vocals, start, entry, 0.05);
   const from = skip ? entry : start;
@@ -219,18 +237,80 @@ export function planTransition(
   };
 
   if (!outgoing || !incoming) return fallback('No analysis available for one of the songs.');
+
+  /**
+   * Two songs with unsteady pulses are joined, not beatmatched.
+   *
+   * Rubato — a live drummer, a string quartet, a ballad that breathes — has no
+   * period to lock to, so a grid drifts off it within a bar and every aligned
+   * cue lands in the wrong place. The honest answer is a longer, gentler
+   * equal-power blend, started where the outgoing song has room.
+   */
+  const gentle = (reason: string): TransitionPlan => {
+    notes.push(reason);
+    const tail = outgoing.trimmed.end - outgoing.trimmed.start;
+    const head = incoming.trimmed.end - incoming.trimmed.start;
+    // Long enough to read as a handover, short enough to fit in both songs.
+    const seconds = Math.max(0.5, Math.min(RUBATO_SECONDS, tail, head, Math.max(minSeconds, tail)));
+    // A steady grid still decides *where* the blend starts, even when it is not
+    // steady enough to beatmatch to.
+    const start = hasGrid(outgoing)
+      ? alignOutgoing(outgoing, outgoing.trimmed.end - seconds)
+      : Math.max(outgoing.trimmed.start, outgoing.trimmed.end - seconds);
+    const cue = clamp(
+      kickStart(incoming) ?? introEnd(incoming),
+      incoming.trimmed.start,
+      Math.max(incoming.trimmed.start, incoming.trimmed.end - seconds),
+    );
+    return {
+      mode: 'crossfade',
+      seconds: Math.round(seconds * 100) / 100,
+      startAt: Math.round(start * 1000) / 1000,
+      cue: Math.round(cue * 1000) / 1000,
+      incomingRate: 1,
+      stretched: false,
+      bassSwapAt: 0.5,
+      bars: 0,
+      phaseAligned: false,
+      notes,
+    };
+  };
+  if (isRubato(outgoing.beats) || isRubato(incoming.beats))
+    return gentle(
+      'The pulse is not steady enough to beatmatch: blending gently instead of on a grid.',
+    );
   if (!trusted(outgoing) || !trusted(incoming))
     return fallback('No trusted beat grid: using an equal-power crossfade.');
 
   const bpmA = outgoing.beats.bpm;
   const bpmB = incoming.beats.bpm;
-  const rate = bpmA / bpmB;
-  const stretchNeeded = Math.abs(rate - 1);
+  // Compared as folded tempi: 174 and 87 are the same pulse to a dancer, and a
+  // mix between them needs no stretching at all. Only a real gap is refused.
+  const relation = tempoRelation(bpmA, bpmB);
+  // A written-at-174, played-at-87 pair folds to one tempo; the raw numbers are
+  // still worth saying out loud, because they explain why nothing was stretched.
+  const rawRatio = bpmA / bpmB;
+  const octave =
+    relation.kind === 'half' ||
+    relation.kind === 'double' ||
+    Math.abs(rawRatio / 2 - 1) <= 0.03 ||
+    Math.abs(rawRatio * 2 - 1) <= 0.03;
+  const stretchNeeded = relation.difference;
+  // Folding already resolved the octave, so what is left of `difference` is the
+  // real gap: a few per cent is a stretch, a lot of it is a different tempo.
   const stretchable = stretchNeeded <= maxStretch;
-  const incomingRate = stretchable ? Math.round(rate * 1000) / 1000 : 1;
-  if (stretchable && stretchNeeded > 0.004)
+  const incomingRate = stretchable ? Math.round(relation.ratio * 1000) / 1000 : 1;
+  if (stretchable && octave)
+    notes.push(
+      `Half-time relation: ${bpmB.toFixed(1)} and ${bpmA.toFixed(1)} BPM are the same pulse at twice the speed, so they are blended without stretching.`,
+    );
+  else if (stretchable && stretchNeeded > 0.004)
     notes.push(
       `Tempo matched: ${bpmB.toFixed(1)} → ${bpmA.toFixed(1)} BPM (${((incomingRate - 1) * 100).toFixed(1)} % stretch, pitch preserved).`,
+    );
+  else if (octave)
+    notes.push(
+      `Half-time relation: ${bpmB.toFixed(1)} and ${bpmA.toFixed(1)} BPM are the same pulse at twice the speed, so they are blended without stretching.`,
     );
   else if (!stretchable)
     notes.push(

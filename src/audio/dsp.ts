@@ -1,3 +1,5 @@
+import { tempoStability } from './tempo';
+
 /**
  * Signal analysis used by Mix.
  *
@@ -35,6 +37,14 @@ export interface Beats {
   offset: number;
   /** 0–1; below ~0.35 the grid should be treated as unknown. */
   confidence: number;
+  /**
+   * 0–1; how much the tempo holds from one half of the song to the other.
+   *
+   * A drum machine scores 1. Live material — a drummer, a string quartet, a
+   * ballad that breathes — scores low, and a grid that drifts is worse than no
+   * grid at all: it puts the cue in the wrong bar.
+   */
+  stability?: number;
 }
 
 export interface EnergySegment {
@@ -453,7 +463,12 @@ export function analyzePcm(
   const { frames, frameSeconds } = frameFeatures(samples, sampleRate, options);
   const duration = samples.length / sampleRate;
   const onset = normalise(onsetEnvelope(frames));
-  const beats = estimateTempo(onset, frameSeconds);
+  const beats: Beats = {
+    ...estimateTempo(onset, frameSeconds),
+    // Measured on the same envelope, so "steady" and "rubato" are two readings
+    // of one signal rather than two guesses about it.
+    stability: tempoStability(onset, frameSeconds, estimateTempo),
+  };
   const peak = frames.reduce((max, frame) => Math.max(max, frame.rms), 0);
   const totals: BandEnergies = { bass: 0, low: 0, mid: 0, high: 0 };
   for (const frame of frames) {
@@ -478,6 +493,39 @@ export function analyzePcm(
     },
     peak: Math.round(peak * 1000) / 1000,
   };
+}
+
+/**
+ * The first moment after the intro where the kick is already playing.
+ *
+ * Real DJ material opens with a long, deliberate intro: eight, sixteen, even
+ * thirty-two bars of hats, pads and a filtered loop before the drums arrive.
+ * Entering that with the outgoing song still playing gives the join nothing to
+ * land on — the new record has no downbeat to arrive with until half a minute
+ * later. This finds the frame where the bass is actually there, which is where a
+ * DJ cues the record.
+ *
+ * Returns `null` when the bass never rises, so the caller keeps its own answer
+ * instead of being handed a guess.
+ */
+export function kickStart(
+  analysis: TrackAnalysis,
+  from = introEnd(analysis),
+  share = 0.55,
+): number | null {
+  const body = analysis.segments.filter(
+    (segment) => segment.kind === 'body' || segment.kind === 'build',
+  );
+  if (!body.length) return null;
+  const average = body.reduce((total, segment) => total + segment.level, 0) / body.length;
+  if (average <= 0.01) return null;
+  // Level is the segment mean, so a kick is found where the section is at least
+  // `share` of the song's body — a filtered intro sits well below that.
+  for (const segment of analysis.segments) {
+    if (segment.end <= from) continue;
+    if (segment.level >= average * share) return Math.max(from, segment.start);
+  }
+  return null;
 }
 
 /** Where the first sustained body section starts, bounded to the audible part. */
