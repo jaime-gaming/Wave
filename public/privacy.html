@@ -19,7 +19,7 @@
         <p class="intro">
           Understand what stays here, when Wave connects, and the controls you have.
         </p>
-        <p class="updated">Updated 29 October 2026 · Version 0.1.1</p>
+        <p class="updated">Updated 31 October 2026 · Version 0.1.1</p>
       </header>
       <p class="notice">
         Wave is local-first, not a backup service: keep your original music files. Public deployment
@@ -120,6 +120,27 @@
         </p>
       </section>
       <section class="privacy-topic">
+        <h2>Linking two devices</h2>
+        <p>
+          Device linking is off until you open Settings → Devices and start it. One device shows a
+          QR code, the other reads it with its camera or opens the same link, and after you confirm
+          on both sides only the songs you ticked are copied, directly from one browser to the other
+          over an encrypted connection. Nothing passes through a Wave server: there is no account,
+          no relay and no automatic library upload, and the files you did not pick never leave the
+          device.
+        </p>
+        <p>
+          A public Google STUN service helps the two browsers find each other. It sees the
+          requesting IP address and port, and it never sees a song. If the two networks refuse a
+          direct connection the link fails and says so. Linked devices, and a borrowed song you
+          keep, are stored on the device until you remove them; the songs you keep are ordinary
+          local copies and are never deleted behind your back.
+        </p>
+        <p>
+          The camera asks for permission only when the scan button is pressed and closes as soon as
+          a code is read or the panel is dismissed. The picture is examined in the page and no frame
+          is stored or sent anywhere. A device with no camera can open the pairing link instead.
+        </p>
         <h2>Video clips and songs from YouTube</h2>
         <p>
           <strong>Clips.</strong> To find the video behind a song, Wave sends only the song title

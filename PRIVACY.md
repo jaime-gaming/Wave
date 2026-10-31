@@ -63,7 +63,10 @@ Two web clients can exchange pairing codes and, after confirmation, transfer sel
 WebRTC data channel. The transfer is encrypted and the receiving device verifies the file before
 saving it; there is no account or automatic library upload. A public Google STUN service helps the
 peers discover their network addresses and can see the requesting IP address and port. Depending
-on the network, a direct connection may fail. Android and Windows do not yet implement this pairing
+on the network, a direct connection may fail. Reading a code uses the device's camera, which is
+opened only when the scan button is pressed, only while the panel is open, and is closed again as
+soon as a code is read; no camera access happens on page load, and no frame is stored or sent
+anywhere — the picture is examined in the page. Android and Windows do not implement this pairing
 flow. Provider playlist import and a signalling relay remain future work.
 
 ## Contact and rights
