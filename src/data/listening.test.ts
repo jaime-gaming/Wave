@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { openDB } from 'idb';
 import { clearPlays, countPlays, getPlays, savePlay } from './listening';
-import { getTracks, openLibrary, saveTrack } from './library';
+import { getTracks, LIBRARY_VERSION, openLibrary, saveTrack } from './library';
 import { makePlay, MAX_PLAYS } from '../domain/listening';
 import { makeTrack } from '../test/fixtures';
 
@@ -70,9 +70,37 @@ describe('the library upgrade', () => {
 
     // Opening it again goes through the version-4 upgrade.
     const upgraded = await openLibrary();
-    expect(upgraded.version).toBe(4);
+    expect(upgraded.version).toBe(LIBRARY_VERSION);
     expect(upgraded.objectStoreNames.contains('plays')).toBe(true);
     expect(await getTracks()).toMatchObject([{ id: 'signal' }]);
+    upgraded.close();
+  });
+
+  it('adds the folder store to a version-4 library without touching its rows', async () => {
+    // A library from before folders were remembered: history and playlists are
+    // there, and the only thing the version-5 upgrade may do is add one store.
+    await deleted();
+    const legacy = await openDB('wave-library', 4, {
+      upgrade(db, oldVersion) {
+        if (oldVersion < 1) db.createObjectStore('tracks', { keyPath: 'id' });
+        if (oldVersion < 2) db.createObjectStore('playlists', { keyPath: 'id' });
+        if (oldVersion < 3) {
+          db.createObjectStore('artists', { keyPath: 'name' });
+          db.createObjectStore('albumOrders', { keyPath: 'id' });
+        }
+        if (oldVersion < 4)
+          db.createObjectStore('plays', { keyPath: 'id' }).createIndex('by-at', 'at');
+      },
+    });
+    await legacy.put('tracks', makeTrack({ title: 'Before folders' }));
+    await legacy.put('plays', { id: 'play-1', trackId: 'signal', at: Date.now(), seconds: 90 });
+    expect(legacy.objectStoreNames.contains('folders')).toBe(false);
+    legacy.close();
+
+    const upgraded = await openLibrary();
+    expect(upgraded.objectStoreNames.contains('folders')).toBe(true);
+    expect(await getTracks()).toMatchObject([{ title: 'Before folders' }]);
+    expect(await countPlays()).toBe(1);
     upgraded.close();
   });
 

@@ -7,18 +7,20 @@ import { makeTrack } from '../test/fixtures';
 const setup = (overrides: Partial<Parameters<typeof AddMusicDialog>[0]> = {}) => {
   const onYouTube = vi.fn().mockResolvedValue({ ok: true, track: makeTrack({ id: 'yt' }) });
   const onLocal = vi.fn();
+  const onFolderFiles = vi.fn();
   const onAdded = vi.fn();
   const onClose = vi.fn();
   render(
     <AddMusicDialog
       onClose={onClose}
       onLocal={onLocal}
+      onFolderFiles={onFolderFiles}
       onYouTube={onYouTube}
       onAdded={onAdded}
       {...overrides}
     />,
   );
-  return { onYouTube, onLocal, onAdded, onClose };
+  return { onYouTube, onLocal, onFolderFiles, onAdded, onClose };
 };
 
 describe('add music', () => {
@@ -29,6 +31,15 @@ describe('add music', () => {
     await userEvent.click(screen.getByRole('button', { name: /import local files/i }));
     expect(onClose).toHaveBeenCalled();
     expect(onLocal).toHaveBeenCalled();
+  });
+
+  it('offers a whole folder, and says when the browser cannot hand one over', async () => {
+    setup();
+    const folder = screen.getByRole('button', { name: /add a folder from this device/i });
+    // jsdom has neither a directory picker nor a directory input, so the honest
+    // answer is the third fallback rather than a button that quietly does nothing.
+    expect(folder).toHaveTextContent(/cannot hand over a folder/i);
+    expect(folder).toBeDisabled();
   });
 
   it('adds a pasted YouTube link and starts it', async () => {

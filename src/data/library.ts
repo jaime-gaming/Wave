@@ -20,6 +20,19 @@ interface WaveDatabase extends DBSchema {
   artists: { key: string; value: ArtistProfile };
   albumOrders: { key: string; value: AlbumOrder };
   plays: { key: string; value: PlayEvent; indexes: { 'by-at': number } };
+  /** Folders the listener asked Wave to remember. Added in version 5. */
+  folders: { key: string; value: RememberedFolder };
+}
+
+/** A folder Wave was given, and the browser's handle for asking again. */
+export interface RememberedFolder {
+  id: string;
+  name: string;
+  /** Absent on browsers without the File System Access API. */
+  handle?: unknown;
+  addedAt: number;
+  /** Last time files were read from it, for the sheet's line of text. */
+  scannedAt?: number;
 }
 const DATABASE_NAME = 'wave-library';
 
@@ -36,11 +49,16 @@ async function abortFailedTransaction(tx: { abort: () => void; done: Promise<unk
  * Schema versions.
  *
  * 1: tracks. 2: playlists. 3: artist profiles and album order. 4: listening
- * history. Each step is additive, so an old library opens and keeps every row;
- * a play is only ever appended, and the store is pruned by the domain rules
- * rather than by a migration.
+ * history. 5: remembered folders. Each step is additive, so an old library opens
+ * and keeps every row; a play is only ever appended, and the store is pruned by
+ * the domain rules rather than by a migration.
+ *
+ * Nothing is ever rewritten in place: a version bump only creates what is
+ * missing, which means a listener who updates mid-week keeps the same library
+ * and the same history. `docs/ARCHITECTURE.md` describes the rule and the
+ * migration test that holds it.
  */
-export const LIBRARY_VERSION = 4;
+export const LIBRARY_VERSION = 5;
 
 export function openLibrary() {
   return openDB<WaveDatabase>(DATABASE_NAME, LIBRARY_VERSION, {
@@ -55,6 +73,7 @@ export function openLibrary() {
         const plays = db.createObjectStore('plays', { keyPath: 'id' });
         plays.createIndex('by-at', 'at');
       }
+      if (oldVersion < 5) db.createObjectStore('folders', { keyPath: 'id' });
     },
     blocking(_old, _next, event) {
       (event.target as IDBDatabase).close();

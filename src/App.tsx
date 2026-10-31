@@ -1299,6 +1299,7 @@ function WaveApp({
             key="add-music"
             onClose={() => setAddOpen(false)}
             onLocal={chooseFiles}
+            onFolderFiles={importFiles}
             onYouTube={addFromYouTube}
             onAdded={playAdded}
             busy={busy || addBusy}
