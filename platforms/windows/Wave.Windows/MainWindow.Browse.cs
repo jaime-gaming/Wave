@@ -26,7 +26,15 @@ public partial class MainWindow
             CollectionHeader.Children.Add(searchBox);
             CollectionHeader.Children.Add(Label("Search your music", 22));
         } else {
-            var tabs = new WrapPanel { Margin = new Thickness(0, 4, 0, 8) };
+            // One row that scrolls sideways, as the site does, rather than a row
+            // that wraps: a wrapped tab loses its place in the order.
+            var strip = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 8) };
+            var tabs = new ScrollViewer {
+                Content = strip,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Hidden,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                HorizontalAlignment = HorizontalAlignment.Left,
+            };
             var counts = new Dictionary<string, int> {
                 ["Library"] = tracks.Count,
                 ["Albums"] = tracks.Select(AlbumKey).Distinct().Count(),
@@ -35,7 +43,7 @@ public partial class MainWindow
                 ["Favorites"] = tracks.Count(track => track.Favorite),
             };
             foreach (string view in new[] { "Library", "Albums", "Artists", "Playlists", "Favorites" })
-                tabs.Children.Add(Pill(view == "Library" ? "Songs" : view, page == view, () => ShowPage(view), counts[view]));
+                strip.Children.Add(Pill(view == "Library" ? "Songs" : view, page == view, () => ShowPage(view), counts[view]));
             CollectionHeader.Children.Add(tabs);
             if (collection != null) CollectionHeader.Children.Add(BackLink(page == "Daily mix" ? "Home" : page));
             if (page is "Albums" or "Artists" && collection == null) RenderGroups(page);
