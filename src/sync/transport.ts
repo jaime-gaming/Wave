@@ -1,3 +1,5 @@
+import { decodeSignal, encodeSignal } from './signal';
+
 /**
  * The wire between two devices.
  *
@@ -102,16 +104,13 @@ export function createTransport(
         await peer.setLocalDescription(await peer.createOffer());
         const wire = await describe('offer');
         setState('waiting');
-        const { encodeSignal } = await import('./signal');
         return encodeSignal(wire);
       }
       setState('waiting');
       const wire = await describe('answer');
-      const { encodeSignal } = await import('./signal');
       return encodeSignal(wire);
     },
     async acceptCode(code) {
-      const { decodeSignal } = await import('./signal');
       const wire = await decodeSignal<Wire>(code);
       setState('connecting');
       if (wire.mode === 'offer') {

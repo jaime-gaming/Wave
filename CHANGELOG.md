@@ -33,6 +33,10 @@
 - The camera in Settings → Devices is opened once. Passing the answer callback into the reader's
   effect meant any re-render of the page behind it — a progress row, a copied badge — tore the
   stream down and asked for it again, which reads as a camera that blinks and never settles.
+- A song kept from a linked device now says so. "Add to library" either worked in silence or, when
+  the copy was gone, did nothing at all; it answers in a line that fades by itself, names the file
+  with the extension it actually has (`.mp3`, not `.mpeg`), and says plainly when a pairing link
+  carried nothing.
 - The browser test report is published again. `continue-on-error` makes a step's conclusion a
   success, so the "report the failures" step and its artifact keyed on `if: failure()` never ran;
   they now key on the step's outcome, so a red browser suite lists its failing titles in the run.

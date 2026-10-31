@@ -281,7 +281,7 @@ Test Autoplay from a one-song Search queue into a larger local library, with Mix
 
 Use a 150-track owned fixture at 320 px to exercise off-thread import, plain large-collection rows, viewport containment, eight-row metadata paging and reduced motion. No DOM virtualization or device-level benchmark is claimed. Root position updates are bounded near 10 Hz; lyric native clocks and mix gain timing remain independent.
 
-Settings tests must navigate through the relevant menu, not query unmounted controls. Check all six sections, Back/focus return, persisted independent switches and both themes. Mobile regression fixtures include 400–500 character unbroken title/artist/album fields and 100-character playlist names. Check actual element bounds, not only document width: ellipsis/clamps are intentional but buttons and containers must stay inside the viewport. Verify the empty player is hidden, all library categories remain reachable and last rows scroll clear of the fixed dock. Keep native audio progression tests alongside layout tests.
+Settings tests must navigate through the relevant menu, not query unmounted controls. Check all seven sections, Back/focus return, persisted independent switches and both themes. Mobile regression fixtures include 400–500 character unbroken title/artist/album fields and 100-character playlist names. Check actual element bounds, not only document width: ellipsis/clamps are intentional but buttons and containers must stay inside the viewport. Verify the empty player is hidden, all library categories remain reachable and last rows scroll clear of the fixed dock. Keep native audio progression tests alongside layout tests.
 
 ### Candidate regression checks
 

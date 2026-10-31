@@ -4,6 +4,7 @@ import { motion } from 'motion/react';
 import { useWaveMotion } from '../ui/motion';
 import { useDevices, readPairingLink } from '../hooks/useDevices';
 import { QrScanner } from './QrScanner';
+import { borrowedName } from '../sync/fileName';
 import type { Track } from '../domain/types';
 
 const kb = (bytes: number) => {
@@ -50,7 +51,38 @@ export function DevicesPage({
   const [copied, setCopied] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirming, setConfirming] = useState<string | null>(null);
+  // A `#wave-pair=` address that carries nothing is answered as soon as the page
+  // opens, without an effect setting state on mount.
+  const [loaned, setLoaned] = useState<{ text: string; failed: boolean } | null>(() => {
+    const address = location.hash || location.search;
+    return /wave-pair=/u.test(address) && !readPairingLink(address)
+      ? { text: 'That link is not a Wave pairing link.', failed: true }
+      : null;
+  });
   const entries = useMemo(() => devices.peerLibrary?.entries ?? [], [devices.peerLibrary]);
+
+  // A borrowed song kept is a small, slow thing to read back: a line that says
+  // what happened, and goes away by itself. Before this, the button either
+  // worked in silence or did nothing at all.
+  const keepLoan = async (loanId: string, title: string | undefined) => {
+    const { getLoanedAudio } = await import('../sync/store');
+    const blob = await getLoanedAudio(loanId);
+    if (!blob) {
+      setLoaned({ text: 'That copy is no longer on this device.', failed: true });
+      return;
+    }
+    try {
+      await onAddLoaned(blob, borrowedName(title, blob.type));
+      setLoaned({ text: `Kept “${title ?? 'the song'}” in your library.`, failed: false });
+    } catch {
+      setLoaned({ text: 'The song could not be added. Nothing was changed.', failed: true });
+    }
+  };
+  useEffect(() => {
+    if (!loaned) return;
+    const timer = setTimeout(() => setLoaned(null), 4000);
+    return () => clearTimeout(timer);
+  }, [loaned]);
 
   // Opening a `#wave-pair=` link on this device joins straight away — once, not
   // on every render, and with the address cleaned so a refresh does not retry.
@@ -324,6 +356,11 @@ export function DevicesPage({
           {kb(devices.usedBytes)} of {kb(devices.capacityBytes)} used. Nothing here is ever removed
           automatically: a song that does not fit is refused, and you decide what to hand back.
         </p>
+        {loaned && (
+          <p className={loaned.failed ? 'devices-error' : 'devices-note'} role="status">
+            {loaned.text}
+          </p>
+        )}
         {!devices.loans.length && <p className="devices-note">Nothing borrowed.</p>}
         {!!devices.loans.length && (
           <ul className="devices-song-loans">
@@ -337,15 +374,7 @@ export function DevicesPage({
                 </span>
                 <button
                   className="text-button"
-                  onClick={async () => {
-                    const { getLoanedAudio } = await import('../sync/store');
-                    const blob = await getLoanedAudio(loan.loanId);
-                    if (blob)
-                      await onAddLoaned(
-                        blob,
-                        `${loan.title ?? 'Song'}.${blob.type.split('/')[1] || 'audio'}`,
-                      );
-                  }}
+                  onClick={() => void keepLoan(loan.loanId, loan.title)}
                 >
                   <Check size={15} /> Add to library
                 </button>
