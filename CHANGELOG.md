@@ -37,6 +37,11 @@
   the copy was gone, did nothing at all; it answers in a line that fades by itself, names the file
   with the extension it actually has (`.mp3`, not `.mpeg`), and says plainly when a pairing link
   carried nothing.
+- The Devices page's main buttons are the app's accent buttons. "Link a device", "Send", "Scan a
+  code" and "Confirm" were calling a class that was never defined, so they fell back to the
+  browser's grey default — on the one page the site had been least looked at.
+- A screen that throws now says so instead of leaving a blank page: the message, the promise that
+  the library is untouched, and two ways on — reload, or try the screen again.
 - The browser test report is published again. `continue-on-error` makes a step's conclusion a
   success, so the "report the failures" step and its artifact keyed on `if: failure()` never ran;
   they now key on the step's outcome, so a red browser suite lists its failing titles in the run.
