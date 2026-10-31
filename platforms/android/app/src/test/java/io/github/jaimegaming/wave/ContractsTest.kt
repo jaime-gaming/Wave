@@ -33,6 +33,13 @@ class ContractsTest {
   assertNull(seeker.sample(1,"song",true,7.0,8.0,2_000L))
  }
  @Test fun positionIsPublishedTenTimesASecond() { assertFalse(shouldPublishTime(10.0,10.05,false));assertTrue(shouldPublishTime(10.0,10.1,false));assertTrue(shouldPublishTime(10.0,10.02,true)) }
+ @Test fun collectionSearchIgnoresAccentsAndWordOrder() {
+  assertTrue(matchesSearch("Sigur Rós", "ros sigur"))
+  assertTrue(matchesSearch("The Coastal Line", "coastal"))
+  assertTrue(matchesSearch("Anything", ""))
+  assertFalse(matchesSearch("Northbound", "south"))
+  assertFalse(matchesSearch("Northbound", "northbound extra"))
+ }
  @Test fun equalPowerAndMetadata() { val gains=powerGains(.5);assertEquals(1.0,(gains.first*gains.first+gains.second*gains.second).toDouble(),.00001);assertEquals("beyonce",canonical("Beyoncé")) }
  @Test fun handoverArrivesEarlyAndHolds() {
   val early=handoverGains(.25);val late=handoverGains(.75)

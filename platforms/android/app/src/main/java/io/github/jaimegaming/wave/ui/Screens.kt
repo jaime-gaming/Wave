@@ -49,7 +49,9 @@ import io.github.jaimegaming.wave.Playlist
 import io.github.jaimegaming.wave.Song
 import io.github.jaimegaming.wave.WeekRecap
 import io.github.jaimegaming.wave.listeningTime
+import io.github.jaimegaming.wave.matchesSearch
 import io.github.jaimegaming.wave.weekRange
+import kotlinx.coroutines.delay
 
 // --- Home ------------------------------------------------------------------
 
@@ -237,16 +239,42 @@ private fun DailyMixRow(mix: DailyMix, number: Int, onOpen: () -> Unit) {
 
 // --- Search ----------------------------------------------------------------
 
+/** The categories a search can be narrowed to, in the site's order. */
+private val SearchKinds = listOf("All", "Songs", "Artists", "Albums", "Playlists")
+
 /**
  * Search that answers while it is being typed, and says where a match was found.
  *
  * The list is ranked, not filtered: a title that starts with what was typed comes
  * before one that contains it, and an artist match says so instead of silently
- * appearing under a song whose title has nothing to do with the words.
+ * appearing under a song whose title has nothing to do with the words. The kinds
+ * above it narrow the answer to one place, the groups name what matched, and the
+ * last few searches stay within reach — the same three things the site offers.
  */
 @Composable
 fun SearchScreen(state: WaveState, onOpenSong: (Song) -> Unit) {
-    val results = state.visible()
+    // A collection opened from a result takes the page, and Back returns to the
+    // search with the words still in the box.
+    if (state.open != null) {
+        CollectionScreen(state, onOpenSong)
+        return
+    }
+    var kind by rememberSaveable { mutableStateOf("All") }
+    val words = state.query
+    val songs = state.visible()
+    val artists = state.artists().entries.filter { matchesSearch(it.key, words) }
+    val albums = state.albums().entries.filter { entry ->
+        matchesSearch(entry.key + " " + entry.value.firstOrNull()?.artist.orEmpty(), words)
+    }
+    val playlists = state.playlists.filter { matchesSearch(it.name, words) }
+    // A search is remembered once it settles, not on every letter typed, so the
+    // list holds phrases rather than prefixes.
+    LaunchedEffect(words) {
+        if (words.trim().length >= 3) {
+            delay(1200)
+            state.rememberSearch(words)
+        }
+    }
     LazyColumn(
         modifier = Modifier.wavePage(),
         contentPadding = PaddingValues(start = 14.dp, end = 14.dp, bottom = 24.dp),
@@ -259,67 +287,145 @@ fun SearchScreen(state: WaveState, onOpenSong: (Song) -> Unit) {
             WaveSearchField(
                 value = state.query,
                 onValueChange = { state.query = it },
-                placeholder = "Songs, artists, albums",
+                placeholder = "Songs, artists, albums, playlists",
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 10.dp),
             )
-        }
-        if (state.query.isBlank()) {
-            item {
-                val mixes = state.mixes()
-                if (mixes.isNotEmpty()) {
-                    SectionTitle("Tags")
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        mixes.take(3).forEach { mix ->
-                            Text(
-                                text = mix.label,
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                                    .clickable { state.query = mix.label }
-                                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                            )
-                        }
-                    }
+            LazyRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 10.dp, bottom = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                items(SearchKinds) { label ->
+                    val selected = kind == label
+                    val (interaction, pressed) = rememberPress()
+                    Text(
+                        text = label,
+                        color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 14.sp,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                        modifier = Modifier
+                            .pressScale(pressed, amount = 0.94f)
+                            .clip(RoundedCornerShape(if (selected) 24.dp else 16.dp))
+                            .background(if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainer)
+                            .clickable(interactionSource = interaction, indication = null) { kind = label }
+                            .padding(horizontal = 20.dp, vertical = 10.dp),
+                    )
                 }
-                SectionTitle("Try a few")
-                state.artists().keys.take(6).forEach { artist ->
+            }
+        }
+        if (words.isBlank()) {
+            item {
+                Text(
+                    text = "Browse your collection",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                    modifier = Modifier.padding(top = 14.dp),
+                )
+                Text(
+                    text = "Find something in your collection. Search ignores accents and matches words in any order, and puts the closest name first.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
+                if (state.recentSearches.isNotEmpty()) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable { state.query = artist }
-                            .padding(vertical = 10.dp, horizontal = 4.dp),
+                            .padding(top = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(artist, style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            "Recent searches",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f),
+                        )
+                        TextButton(onClick = { state.clearRecentSearches() }) { Text("Clear") }
+                    }
+                }
+            }
+            if (state.recentSearches.isNotEmpty()) {
+                item {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(state.recentSearches) { term ->
+                            val (interaction, pressed) = rememberPress()
+                            Text(
+                                text = term,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier
+                                    .pressScale(pressed, amount = 0.94f)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                                    .clickable(interactionSource = interaction, indication = null) { state.query = term }
+                                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                            )
+                        }
                     }
                 }
             }
             return@LazyColumn
         }
-        if (results.isEmpty()) {
+        if (songs.isEmpty() && artists.isEmpty() && albums.isEmpty() && playlists.isEmpty()) {
             item {
                 EmptyState(
                     title = "No match",
-                    body = "Nothing in the library answers to \"${state.query}\".",
+                    body = "Nothing in the library answers to \"$words\".",
                     actionLabel = "Clear",
                     onAction = { state.query = "" },
                 )
             }
             return@LazyColumn
         }
-        item { SectionTitle(count(results.size, "song")) }
-        items(results, key = { it.id }) { song ->
-            SongRow(
-                song = song,
-                playing = state.player.current?.id == song.id,
-                onPlay = { onOpenSong(song) },
-                onFavorite = { state.toggleFavorite(song) },
-                onMore = { state.options = song },
-            )
+        if ((kind == "All" || kind == "Artists") && artists.isNotEmpty()) {
+            item { SectionTitle(count(artists.size, "artist")) }
+            items(artists, key = { "artist-" + it.key }) { entry ->
+                CollectionRow(
+                    title = entry.key,
+                    detail = count(entry.value.size, "song"),
+                    song = entry.value.first(),
+                    onOpen = { state.open = Open.Artist(entry.key) },
+                )
+            }
+        }
+        if ((kind == "All" || kind == "Albums") && albums.isNotEmpty()) {
+            item { SectionTitle(count(albums.size, "album")) }
+            items(albums, key = { "album-" + it.key }) { entry ->
+                CollectionRow(
+                    title = entry.key,
+                    detail = "${count(entry.value.size, "song")} · ${entry.value.first().artist}",
+                    song = entry.value.first(),
+                    onOpen = { state.open = Open.Album(entry.key) },
+                )
+            }
+        }
+        if ((kind == "All" || kind == "Playlists") && playlists.isNotEmpty()) {
+            item { SectionTitle(count(playlists.size, "playlist")) }
+            items(playlists, key = { "playlist-" + it.id }) { playlist ->
+                PlaylistRow(
+                    playlist = playlist,
+                    songs = state.playlistSongs(playlist),
+                    onOpen = { state.open = Open.Playlist(playlist.id) },
+                    onMore = { state.playlistEditor = playlist },
+                )
+            }
+        }
+        if (kind == "All" || kind == "Songs") {
+            if (songs.isNotEmpty()) {
+                item { SectionTitle(count(songs.size, "song")) }
+                items(songs, key = { "song-" + it.id }) { song ->
+                    SongRow(
+                        song = song,
+                        playing = state.player.current?.id == song.id,
+                        onPlay = { onOpenSong(song) },
+                        onFavorite = { state.toggleFavorite(song) },
+                        onMore = { state.options = song },
+                    )
+                }
+            }
         }
     }
 }

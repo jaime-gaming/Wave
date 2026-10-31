@@ -226,6 +226,31 @@ class WaveState(
         context.wave.preferences().edit().putBoolean(KEY_LYRICS, enabled).apply()
     }
 
+    // --- recent searches ---------------------------------------------------
+
+    /** The phrases searched for lately, newest first; the site keeps the same list. */
+    var recentSearches by mutableStateOf(
+        context.wave.preferences()
+            .getString(KEY_RECENT, "").orEmpty()
+            .split(RECENT_SEPARATOR)
+            .filter { it.isNotBlank() },
+    )
+        private set
+
+    fun rememberSearch(term: String) {
+        val words = term.trim()
+        if (words.length < 3) return
+        val next = (listOf(words) + recentSearches.filterNot { it.equals(words, ignoreCase = true) }).take(6)
+        if (next == recentSearches) return
+        recentSearches = next
+        context.wave.preferences().edit().putString(KEY_RECENT, next.joinToString(RECENT_SEPARATOR)).apply()
+    }
+
+    fun clearRecentSearches() {
+        recentSearches = emptyList()
+        context.wave.preferences().edit().remove(KEY_RECENT).apply()
+    }
+
     // --- browsing ----------------------------------------------------------
 
     /** Songs matching the search, best match first. */
@@ -456,6 +481,9 @@ class WaveState(
     private companion object {
         const val KEY_MIX = "mix"
         const val KEY_LYRICS = "lyrics"
+        const val KEY_RECENT = "recent-searches"
+        /** A character no phrase contains, so one string can hold the list. */
+        const val RECENT_SEPARATOR = "\u001f"
         const val LYRIC_COOLDOWN = 15 * 60 * 1000L
     }
 }
