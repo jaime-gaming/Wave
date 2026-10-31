@@ -139,12 +139,12 @@ Separate native Android (Kotlin/Compose) and Windows (C#/WPF) source implementat
 - [x] Run native build/unit/lint checks remotely.
 - [ ] Complete real Android/Windows target-device playback and accessibility checks.
 - [x] Search parity on both native builds: the site's five kind tabs and its collection groups on Android, the
-  artists/albums/playlists matches on Windows, and recent searches kept on the phone.
+      artists/albums/playlists matches on Windows, and recent searches kept on the phone.
 - [ ] Bring artwork/profile editing and lyric glyph fill to native parity (playlists, ordering and queue operations are done on both).
 - [ ] Bring the remaining web-only features to the native builds: YouTube songs, video clips and device linking.
-  The first two need an embedded player inside WPF and an Android WebView respectively, plus the same drift
-  correction the web uses; linking needs a camera reader and a transport on both. None is started yet, and
-  nothing in the app pretends otherwise.
+      The first two need an embedded player inside WPF and an Android WebView respectively, plus the same drift
+      correction the web uses; linking needs a camera reader and a transport on both. None is started yet, and
+      nothing in the app pretends otherwise.
 - [x] Add Android foreground service/audio focus/media session and rotation-safe playback lifecycle.
 - [x] Add Windows contract tests, playlists/queue/session persistence and WPF layout smoke tests.
 - [ ] Complete Windows system integration and trusted release signing/installer.
