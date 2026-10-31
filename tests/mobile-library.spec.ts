@@ -45,7 +45,7 @@ test('removed catalogue cannot make requests even with legacy consent; local tag
   });
   await expect(page.getByRole('status')).toContainText('1 track added');
   await page.getByRole('button', { name: 'Open settings' }).click();
-  await settingsMenu(page, 'Library management');
+  await settingsMenu(page, 'Library');
   await expect(page.getByRole('region', { name: 'Local metadata' })).toContainText(
     'Missing: album, artwork',
   );
@@ -71,13 +71,13 @@ test('removed catalogue cannot make requests even with legacy consent; local tag
   await library(page);
   await expect(page.locator('.album-name')).toHaveAttribute('title', 'Saved edition');
   await page.getByRole('button', { name: 'Open settings' }).click();
-  await settingsMenu(page, 'Library management');
+  await settingsMenu(page, 'Library');
   await expect(page.getByRole('region', { name: 'Local metadata' })).toContainText(
     'Missing: artwork',
   );
   expect(requests).toBe(0);
 });
-test('six settings menus isolate controls, preserve preferences, restore keyboard focus and fit phone widths', async ({
+test('seven settings menus isolate controls, preserve preferences, restore keyboard focus and fit phone widths', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 320, height: 568 });
@@ -85,15 +85,16 @@ test('six settings menus isolate controls, preserve preferences, restore keyboar
   await expect(page.getByRole('contentinfo', { name: 'Music player' })).not.toBeVisible();
   await page.getByRole('button', { name: 'Open settings' }).click();
   const hub = page.getByRole('region', { name: 'Settings', exact: true });
-  await expect(hub.locator('.settings-menu-item')).toHaveCount(6);
+  await expect(hub.locator('.settings-menu-item')).toHaveCount(7);
   await expect(hub.getByRole('switch')).toHaveCount(0);
   for (const menu of [
     'Appearance',
     'Playback',
     'Lyrics',
-    'Library management',
+    'Library',
+    'Devices',
     'Storage',
-    'About Wave',
+    'About',
   ]) {
     await settingsMenu(page, menu);
     await expect(hub.getByRole('heading', { name: menu, exact: true })).toBeFocused();

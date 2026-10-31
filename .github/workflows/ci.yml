@@ -34,14 +34,19 @@ jobs:
       # every push and reports, but it does not paint the whole check red while that
       # work is outstanding — that is what made every run look broken. The report is
       # still written and uploaded, and docs/VALIDATION.md says the suite is red.
+      # `continue-on-error` makes the step's conclusion a success, so `failure()`
+      # is never true after it — the report and the artifact below were skipped
+      # every single run. They key off the step's outcome instead, which is still
+      # "failure" and is the only thing that says what actually went red.
       - name: Browser suite (known red, tracked separately)
+        id: e2e
         continue-on-error: true
         run: npm run test:e2e
       - name: Report the failing browser tests
-        if: failure()
+        if: steps.e2e.outcome == 'failure'
         run: node scripts/e2e-failures.mjs
       - uses: actions/upload-artifact@v4
-        if: failure()
+        if: steps.e2e.outcome == 'failure'
         with:
           name: browser-test-report
           path: |

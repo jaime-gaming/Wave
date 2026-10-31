@@ -28,6 +28,14 @@ export function QrScanner({
   const video = useRef<HTMLVideoElement>(null);
   const [error, setError] = useState('');
   const [ready, setReady] = useState(false);
+  // The answer is read through a ref, so the camera starts once. Depending on
+  // the callback itself restarted the stream on every render of the page behind
+  // it — a permission prompt blinking, a black frame, and a scanner that could
+  // never settle while the page it sits on was busy.
+  const answer = useRef(onResult);
+  useEffect(() => {
+    answer.current = onResult;
+  }, [onResult]);
 
   useEffect(() => {
     let stream: MediaStream | null = null;
@@ -64,7 +72,7 @@ export function QrScanner({
         }
         if (value) {
           stopped = true;
-          onResult(value);
+          answer.current(value);
           return;
         }
       }
@@ -112,7 +120,7 @@ export function QrScanner({
       cancelAnimationFrame(frame);
       for (const track of stream?.getTracks() ?? []) track.stop();
     };
-  }, [onResult]);
+  }, []);
 
   return (
     <div className="qr-scanner" role="dialog" aria-label="Scan a Wave code">

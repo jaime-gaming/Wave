@@ -118,6 +118,8 @@ including the parts where the big services are the better choice.
 | Play a local library                  | Yes | Yes     | Yes     |
 | Mix, lyrics, daily mixes              | Yes | Yes     | Yes     |
 | Remix (weekly recap and playlist)     | Yes | Yes     | Yes     |
+| Search by song, artist, album, list   | Yes | Yes     | Yes     |
+| Link two devices with a QR code       | Yes | No      | No      |
 | Video clips, YouTube songs            | Yes | No      | No      |
 | Lock screen, headset and car controls | —   | —       | Yes     |
 | Works offline as an installed app     | Yes | Yes     | Yes     |

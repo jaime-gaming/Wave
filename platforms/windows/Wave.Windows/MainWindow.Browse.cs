@@ -27,8 +27,15 @@ public partial class MainWindow
             CollectionHeader.Children.Add(Label("Search your music", 22));
         } else {
             var tabs = new WrapPanel { Margin = new Thickness(0, 4, 0, 8) };
+            var counts = new Dictionary<string, int> {
+                ["Library"] = tracks.Count,
+                ["Albums"] = tracks.Select(AlbumKey).Distinct().Count(),
+                ["Artists"] = tracks.Select(track => track.Artist).Distinct().Count(),
+                ["Playlists"] = playlists.Count,
+                ["Favorites"] = tracks.Count(track => track.Favorite),
+            };
             foreach (string view in new[] { "Library", "Albums", "Artists", "Playlists", "Favorites" })
-                tabs.Children.Add(Pill(view == "Library" ? "Songs" : view, page == view, () => ShowPage(view)));
+                tabs.Children.Add(Pill(view == "Library" ? "Songs" : view, page == view, () => ShowPage(view), counts[view]));
             CollectionHeader.Children.Add(tabs);
             if (collection != null) CollectionHeader.Children.Add(BackLink(page == "Daily mix" ? "Home" : page));
             if (page is "Albums" or "Artists" && collection == null) RenderGroups(page);
@@ -173,20 +180,42 @@ public partial class MainWindow
             foreach (var song in recent) CollectionHeader.Children.Add(SongRow(song, () => PlayCollection(recent, song.Id)));
         }
     }
-    /// <summary>A view tab: quiet until it is the view you are looking at.</summary>
-    private Button Pill(string text, bool active, Action action)
+    /// <summary>
+    /// A view tab, built the way the browser builds it: a wide rounded pill with
+    /// its own count beside the name, filled with the accent when it is the view
+    /// you are looking at, and a short bar under it so the chosen one reads from
+    /// across the room rather than by its tint alone.
+    /// </summary>
+    private FrameworkElement Pill(string text, bool active, Action action, int? count = null)
     {
+        var words = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        words.Children.Add(new TextBlock { Text = text, FontSize = 15, FontWeight = active ? FontWeights.Bold : FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center });
+        if (count is int number) words.Children.Add(new TextBlock {
+            Text = number.ToString(), FontSize = 12, FontWeight = FontWeights.Bold, Margin = new Thickness(8, 0, 0, 0),
+            VerticalAlignment = VerticalAlignment.Center,
+            Foreground = (Brush)Application.Current.Resources[active ? "OnAccentBrush" : "MutedBrush"],
+        });
+        // The words take the pill's own colour, so the count follows the fill.
+        if (active) foreach (var block in words.Children.OfType<TextBlock>()) block.Foreground = (Brush)Application.Current.Resources["OnAccentBrush"];
         var button = new Button {
-            Content = text,
-            Padding = new Thickness(18, 8, 18, 8),
-            Margin = new Thickness(4),
-            MinHeight = 38,
-            Background = (Brush)Application.Current.Resources[active ? "AccentTonalBrush" : "TonalBrush"],
-            Foreground = (Brush)Application.Current.Resources[active ? "AccentBrush" : "InkBrush"],
-            FontWeight = active ? FontWeights.Bold : FontWeights.SemiBold,
+            Content = words,
+            Padding = new Thickness(22, 10, 22, 10),
+            Margin = new Thickness(0),
+            MinHeight = 48,
+            Background = (Brush)Application.Current.Resources[active ? "AccentBrush" : "TonalBrush"],
+            Foreground = (Brush)Application.Current.Resources[active ? "OnAccentBrush" : "InkBrush"],
         };
         button.Click += (_, _) => Safe(action);
-        return button;
+        var marker = new Border {
+            Height = 4, Width = 22, CornerRadius = new CornerRadius(2), Margin = new Thickness(0, 6, 0, 0),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Background = (Brush)Application.Current.Resources[active ? "AccentBrush" : "Transparent"],
+            Visibility = active ? Visibility.Visible : Visibility.Hidden,
+        };
+        var column = new StackPanel { Margin = new Thickness(4) };
+        column.Children.Add(button);
+        column.Children.Add(marker);
+        return column;
     }
     /// <summary>A way back that reads as a line of text, not as a button in the row.</summary>
     private Button BackLink(string destination)

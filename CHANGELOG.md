@@ -30,6 +30,17 @@
   artists, albums and playlists it found above the songs, each row opening its collection, instead
   of leaving an album's name a dead end.
 
+- The camera in Settings → Devices is opened once. Passing the answer callback into the reader's
+  effect meant any re-render of the page behind it — a progress row, a copied badge — tore the
+  stream down and asked for it again, which reads as a camera that blinks and never settles.
+- The browser test report is published again. `continue-on-error` makes a step's conclusion a
+  success, so the "report the failures" step and its artifact keyed on `if: failure()` never ran;
+  they now key on the step's outcome, so a red browser suite lists its failing titles in the run.
+  The suite's stale Settings expectations were re-baselined to the seven sections that exist.
+- Windows' library tabs are the site's pills: rounded, with their count, filled with the accent
+  when chosen and marked by a short bar under the selected one. The version number left the rail —
+  it was clipped at small window heights and Settings → About already says it.
+
 ### The scene that opens itself, and a Windows download that just runs
 
 - The player no longer takes the screen over. After thirty seconds of listening without a click it

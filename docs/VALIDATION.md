@@ -384,7 +384,7 @@ LRCLIB tests use controlled responses to verify exact/search matching, client id
 
 Ten Kotlin/C# source files passed syntax parsing. Seven native XML/XAML/project/manifest files parsed, and WPF event handler names were checked against code. These are static checks only: **native SDK compilation, native unit/lint workflows and actual runtime/device testing were not performed**. The required SDKs are not installed in this workspace. No APK, EXE, installer or signed production package was produced here.
 
-Native CI jobs and source projects exist, but no remote workflow was dispatched. Feature parity is incomplete; [PLATFORMS](PLATFORMS.md) and [ROADMAP](ROADMAP.md) list the outstanding functionality and release gates. Windows CI is framework-dependent and requires the separate .NET Desktop runtime. Native dependency inventories are preliminary, not a cleared release SBOM.
+That paragraph records the state before the hosted workflows existed; both native jobs have since been dispatched on every push and pass. Feature parity is now the whole of the interface except three rows — YouTube songs, video clips and device linking — which [PLATFORMS](PLATFORMS.md) and [ROADMAP](ROADMAP.md) list, together with the release gates. The published Windows ZIP is self-contained since 0.1.1 and needs no .NET runtime on the machine; only the build and the CI job use the SDK. Native dependency inventories are still preliminary, not a cleared release SBOM.
 
 ## Publication and legal status
 
@@ -595,3 +595,12 @@ a headless Chromium built from `@sparticuz/chromium` and NSS stubs: **77 passed,
 Nobody should read this round as having fixed or caused the browser gate. It needs its own
 pass: re-baseline the counts against the current interface, run the timing tests on a machine
 with a real audio clock, and keep the network-dependent ones behind an intercept.
+
+Two of the three kinds taken here. The stale counts are rebaselined: `mobile-library.spec.ts` now
+expects the seven Settings sections that exist (the fifth is Devices) and opens them by their real
+names, `Library` and `About`. The reporting is fixed too — `continue-on-error` makes a step's
+_conclusion_ a success, so `if: failure()` was never true after the browser suite and neither the
+annotation step nor the report artifact ran on any run; both now key off `steps.e2e.outcome`, so a
+red suite lists its failing titles in the run itself. The timing and provider failures still need a
+machine with a real audio clock and a reachable lyric service, and are left open rather than
+quietly skipped.

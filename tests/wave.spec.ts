@@ -450,7 +450,7 @@ test('mobile song options support favorites and confirmed removal of the playing
 
 async function enableEditor(page: import('@playwright/test').Page) {
   await page.getByRole('button', { name: 'Open settings' }).click();
-  await settingsMenu(page, 'Library management');
+  await settingsMenu(page, 'Library');
   await page.getByRole('switch', { name: 'Library editing' }).click();
   await closeSettings(page);
   await expect(page.getByRole('region', { name: 'Settings', exact: true })).toHaveCount(0);
