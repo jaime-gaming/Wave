@@ -38,12 +38,9 @@ export function checkRelease(root, tag) {
     'Android version code is missing',
   );
   // The places the listener actually reads the version from must not lag behind.
+  // The rail no longer carries the version — it was clipped on short windows and
+  // Settings → About says it — so the guard reads the About line itself.
   const labels = [
-    [
-      'platforms/windows/Wave.Windows/MainWindow.xaml',
-      /Text="(\d+\.\d+\.\d+)"/,
-      'Windows sidebar version',
-    ],
     [
       'platforms/windows/Wave.Windows/MainWindow.Settings.cs',
       /Wave (\d+\.\d+\.\d+)/,

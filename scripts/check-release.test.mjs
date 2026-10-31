@@ -57,8 +57,11 @@ test('rejects a mismatched native version', () =>
   }));
 test('rejects a stale version shown in a platform interface', () =>
   fixture((root, put) => {
-    put('platforms/windows/Wave.Windows/MainWindow.xaml', '<TextBlock Text="0.0.9"/>');
-    assert.throws(() => checkRelease(root), /Windows sidebar version differs/);
+    put(
+      'platforms/windows/Wave.Windows/MainWindow.Settings.cs',
+      'SettingsBody.Children.Add(Label("Wave 0.0.9 · 27 October 2026", 23));',
+    );
+    assert.throws(() => checkRelease(root), /Windows settings version differs/);
   }));
 test('rejects mismatched release notes', () =>
   fixture((root, put) => {
