@@ -384,7 +384,10 @@ describe('Mix against real material', () => {
       trimmed: { start: 0, end: 220 },
       beats: { bpm: 124, offset: 0, confidence: 0.85, stability: 0.97 },
     });
-    const plan = planTransition(analysis({ beats: { bpm: 124, offset: 0, confidence: 0.85 } }), longIntro);
+    const plan = planTransition(
+      analysis({ beats: { bpm: 124, offset: 0, confidence: 0.85 } }),
+      longIntro,
+    );
     expect(plan.mode).toBe('beatmatched');
     // Cued at the drums, not at second zero — and never past the bound.
     expect(plan.cue).toBeGreaterThan(24);

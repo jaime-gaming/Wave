@@ -39,10 +39,18 @@ describe('Folding a tempo', () => {
 
 describe('Tempo stability', () => {
   it('scores a machine steady and unsteady playing low', () => {
-    const steady = tempoStability(clicks(() => 25), 0.02, estimateTempo);
+    const steady = tempoStability(
+      clicks(() => 25),
+      0.02,
+      estimateTempo,
+    );
     expect(steady).toBeGreaterThanOrEqual(0.9);
     // A take that drifts from 100 to 150 BPM across the song.
-    const drifting = tempoStability(clicks((index) => 25 + index * 0.12), 0.02, estimateTempo);
+    const drifting = tempoStability(
+      clicks((index) => 25 + index * 0.12),
+      0.02,
+      estimateTempo,
+    );
     expect(drifting).toBeLessThan(steady);
     expect(drifting).toBeLessThan(0.6);
   });
