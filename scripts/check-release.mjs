@@ -14,6 +14,14 @@ export function checkRelease(root, tag) {
   const lock = JSON.parse(read('package-lock.json'));
   assert.equal(lock.version, pkg.version, 'Lockfile version differs');
   assert.equal(lock.packages?.['']?.version, pkg.version, 'Lockfile root version differs');
+  // A version bump once rewrote a dependency's own entry — win-guid, which really is
+  // 0.2.1 — and `npm ci` then refused the tree. Every entry must still agree with the
+  // tarball it points at, whatever the project's version happens to be.
+  for (const [key, entry] of Object.entries(lock.packages ?? {})) {
+    const installed = /\/-(\d+\.\d+\.\d+[^/]*)\.tgz$/.exec(entry?.resolved ?? '')?.[1];
+    if (installed)
+      assert.equal(entry.version, installed, `Lockfile entry ${key} points at ${installed}`);
+  }
   const windows = read('platforms/windows/Wave.Windows/Wave.Windows.csproj');
   assert.equal(
     windows.match(/<Version>([^<]+)<\/Version>/)?.[1],
