@@ -1168,6 +1168,7 @@ function WaveApp({
                 onFavorite={favoriteTrack}
                 onMore={setTrackOptions}
                 artistPhotos={artistPhotos}
+                onDevices={() => openSettings('devices')}
                 onMix={(mix, number) => setDailySelection({ mix, number })}
               />
             ) : view === 'artists' && !group ? (

@@ -2,7 +2,16 @@ import type { DailyMix } from '../domain/dailyMixes';
 import { DailyMixes } from './DailyMixes';
 import { memo, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { ArrowUpRight, Disc3, Heart, ListMusic, Music2, Users, Plus } from 'lucide-react';
+import {
+  ArrowUpRight,
+  Disc3,
+  Heart,
+  ListMusic,
+  Music2,
+  Users,
+  Plus,
+  Smartphone,
+} from 'lucide-react';
 import { albumKey, collectAlbums, collectArtists } from '../domain/collections';
 import type { LibraryView, Playlist, Track } from '../domain/types';
 import { useWaveMotion } from '../ui/motion';
@@ -30,9 +39,12 @@ export const HomePage = memo(function HomePage({
   onFavorite,
   onMore,
   artistPhotos,
+  onDevices,
 }: {
   tracks: Track[];
   artistPhotos?: Map<string, string | undefined>;
+  /** Opens the device screen: the first thing a phone should offer. */
+  onDevices?: () => void;
   playlists: Playlist[];
   current?: Track;
   playing: boolean;
@@ -94,6 +106,33 @@ export const HomePage = memo(function HomePage({
           ))}
         </div>
       </section>
+      {/*
+       * Linking, first, on a phone.
+       *
+       * A person opening Wave on their phone usually has their music on the
+       * computer in front of them, and the one thing that makes this app worth
+       * having there is that the two devices share what they hold. It is a card
+       * of its own at the top of the page rather than a line in Settings, and it
+       * disappears once a device is linked.
+       */}
+      {onDevices && (
+        <motion.button
+          type="button"
+          className="home-link-card"
+          onClick={onDevices}
+          whileTap={animation.enabled ? { scale: 0.985 } : undefined}
+          transition={animation.fast}
+        >
+          <span className="home-link-icon" aria-hidden="true">
+            <Smartphone size={20} />
+          </span>
+          <span className="home-link-copy">
+            <strong>Bring your other device in</strong>
+            <small>Scan a code and listen to the songs on your computer from here.</small>
+          </span>
+          <ArrowUpRight size={18} aria-hidden="true" />
+        </motion.button>
+      )}
       <DailyMixes tracks={tracks} onOpen={onMix} />
       {albums.length > 0 && (
         <section aria-label="Recently added albums" className="home-albums">

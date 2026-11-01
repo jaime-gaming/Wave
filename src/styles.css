@@ -6975,3 +6975,53 @@ h1 {
     transition: none;
   }
 }
+
+/*
+ * Linking, offered first on a phone.
+ *
+ * Phones are where a linked device matters: the music is on a computer, the
+ * listener is not. It is the first card under the collection, and on a wide
+ * screen — where both halves are usually in the same room — it steps aside.
+ */
+.home-link-card {
+  display: none;
+  width: 100%;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 22px;
+  text-align: left;
+  background: var(--primary-container, #232b3a);
+  color: var(--on-primary-container, #e7ecf7);
+  border: 1px solid color-mix(in srgb, var(--primary, #b0c7ff) 16%, transparent);
+}
+.home-link-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  flex: none;
+  background: color-mix(in srgb, var(--primary, #b0c7ff) 22%, transparent);
+  color: var(--primary, #b0c7ff);
+}
+.home-link-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.home-link-copy strong {
+  font-size: 15px;
+  font-weight: 650;
+}
+.home-link-copy small {
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--muted, #a5adbb);
+}
+@media (max-width: 760px) {
+  .home-link-card {
+    display: flex;
+  }
+}
