@@ -15,19 +15,14 @@ import type { RefObject } from 'react';
 import {
   ChevronDown,
   Captions,
-  Heart,
-  ListMusic,
-  Pause,
-  Play,
   Repeat,
   Repeat1,
   Shuffle,
   SkipBack,
   SkipForward,
-  Volume2,
-  VolumeX,
   Film,
 } from 'lucide-react';
+import { HeartGlyph, MutedGlyph, PauseGlyph, PlayGlyph, QueueGlyph, SoundGlyph } from './Glyphs';
 import { Artwork } from './Artwork';
 import { Modal } from './Modal';
 import { formatTime, type Track } from '../domain/types';
@@ -77,7 +72,7 @@ function PlaySymbol({ playing, size }: { playing: boolean; size: number }) {
           exit={{ opacity: 0, rotate: animation.enabled ? 15 : 0, y: animation.enabled ? -5 : 0 }}
           transition={animation.effects}
         >
-          {playing ? <Pause size={size} /> : <Play size={size} />}
+          {playing ? <PauseGlyph size={size} /> : <PlayGlyph size={size} />}
         </motion.span>
       </AnimatePresence>
     </span>
@@ -282,7 +277,7 @@ function PlayerDetails({
                   if (current) onFavorite(current);
                 }}
               >
-                <Heart size={23} fill={current?.favorite ? 'currentColor' : 'none'} />
+                <HeartGlyph size={23} fill={current?.favorite ? 'currentColor' : 'none'} />
               </button>
             </div>
             <div className="stage-volume">
@@ -291,7 +286,7 @@ function PlayerDetails({
                 onClick={player.toggleMute}
                 aria-label={volume ? 'Mute' : 'Unmute'}
               >
-                {volume ? <Volume2 size={21} /> : <VolumeX size={21} />}
+                {volume ? <SoundGlyph size={21} /> : <MutedGlyph size={21} />}
               </button>
               <input
                 aria-label="Volume"
@@ -566,7 +561,7 @@ export function PlayerBar(props: PlayerProps) {
               aria-label={player.volume ? 'Mute' : 'Unmute'}
               onClick={player.toggleMute}
             >
-              {player.volume ? <Volume2 size={20} /> : <VolumeX size={20} />}
+              {player.volume ? <SoundGlyph size={20} /> : <MutedGlyph size={20} />}
             </button>
             <input
               type="range"
@@ -579,7 +574,7 @@ export function PlayerBar(props: PlayerProps) {
             />
           </div>
           <button className="icon-button compact-queue" aria-label="Show queue" onClick={onQueue}>
-            <ListMusic size={22} />
+            <QueueGlyph size={22} />
           </button>
         </div>
       </footer>
@@ -616,7 +611,7 @@ export function PlayerBar(props: PlayerProps) {
                   aria-expanded={props.queueOpen}
                   onClick={onQueue}
                 >
-                  <ListMusic size={23} />
+                  <QueueGlyph size={23} />
                 </button>
               </>
             }

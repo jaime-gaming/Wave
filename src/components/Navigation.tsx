@@ -1,17 +1,15 @@
 import { WaveWordmark } from './WaveWordmark';
 import { motion } from 'motion/react';
 import { useWaveMotion } from '../ui/motion';
+import { Disc3, ListMusic, Users } from 'lucide-react';
 import {
-  Home,
-  Library,
-  Search,
-  Settings,
-  AudioLines,
-  Disc3,
-  Heart,
-  ListMusic,
-  Users,
-} from 'lucide-react';
+  HeartGlyph,
+  HomeGlyph,
+  LibraryGlyph,
+  RemixGlyph,
+  SearchGlyph,
+  SettingsGlyph,
+} from './Glyphs';
 import type { LibraryView } from '../domain/types';
 export type Page = 'home' | 'search' | 'library' | 'remix' | 'settings';
 export function Navigation({
@@ -43,10 +41,10 @@ export function Navigation({
       <nav className="app-navigation" aria-label="Main navigation">
         {(
           [
-            { id: 'home', name: 'Home', icon: Home },
-            { id: 'search', name: 'Search', icon: Search },
-            { id: 'library', name: 'Library', icon: Library },
-            { id: 'remix', name: 'Remix', icon: AudioLines },
+            { id: 'home', name: 'Home', icon: HomeGlyph },
+            { id: 'search', name: 'Search', icon: SearchGlyph },
+            { id: 'library', name: 'Library', icon: LibraryGlyph },
+            { id: 'remix', name: 'Remix', icon: RemixGlyph },
           ] as const
         ).map(({ id, name, icon: Icon }) => (
           <motion.button
@@ -79,7 +77,12 @@ export function Navigation({
             { id: 'albums', label: 'Albums', name: 'Browse albums', icon: Disc3 },
             { id: 'artists', label: 'Artists', name: 'Browse artists', icon: Users },
             { id: 'playlists', label: 'Playlists', name: 'Browse playlists', icon: ListMusic },
-            { id: 'favorites', label: 'Favorites', name: 'Browse favorite songs', icon: Heart },
+            {
+              id: 'favorites',
+              label: 'Favorites',
+              name: 'Browse favorite songs',
+              icon: HeartGlyph,
+            },
           ] as const
         ).map(({ id, label, name, icon: Icon }) => (
           <button
@@ -95,7 +98,7 @@ export function Navigation({
         ))}
       </div>
       <button className="rail-settings" onClick={onSettings} aria-label="Settings">
-        <Settings size={21} />
+        <SettingsGlyph size={21} />
         <span>Settings</span>
       </button>
     </aside>

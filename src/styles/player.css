@@ -98,16 +98,6 @@
  * of the video, and it comes back the moment the picture is paused or hidden.
  * Sizes are capped so the layout never gains a scrollbar because of it.
  */
-.player-normal-view.clip-live .stage-cover {
-  width: min(34%, 22dvh);
-  border-radius: 20px;
-  align-self: flex-start;
-  margin-top: 4px;
-  box-shadow: 0 18px 40px -22px #000c;
-  transition:
-    width 0.4s cubic-bezier(0.32, 0, 0.24, 1),
-    border-radius 0.4s ease;
-}
 .stage-cover {
   transition:
     width 0.4s cubic-bezier(0.32, 0, 0.24, 1),
@@ -1740,5 +1730,119 @@
 @media (prefers-reduced-motion: reduce) {
   .break-overlay {
     backdrop-filter: none;
+  }
+}
+
+/*
+ * With a clip playing, the picture is the room and everything else is furniture
+ * against the wall.
+ *
+ * The player stops being a page and becomes a column at the left: a small sleeve
+ * with the title and artist under it, the transport directly below, and the
+ * words in a narrow column of their own on the right. All of it is small, all of
+ * it hugs the bottom, and the middle of the screen stays empty for the video —
+ * which is the only thing here that deserves the space.
+ */
+.player-normal-view.clip-live .stage-layout {
+  grid-template-columns: minmax(0, 320px) minmax(0, 260px);
+  grid-template-rows: minmax(0, 1fr);
+  justify-content: space-between;
+  align-items: end;
+  gap: 18px clamp(18px, 3vw, 44px);
+  padding-bottom: 6px;
+}
+.player-normal-view.clip-live .stage-record {
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 0;
+  max-width: 320px;
+}
+.player-normal-view.clip-live .stage-cover {
+  width: 92px;
+  border-radius: 16px;
+  align-self: flex-start;
+  margin-top: 0;
+  box-shadow: 0 16px 34px -20px #000c;
+  transition:
+    width 0.4s cubic-bezier(0.32, 0, 0.24, 1),
+    border-radius 0.4s ease;
+}
+.player-normal-view.clip-live .stage-track {
+  align-items: flex-start;
+  text-align: left;
+  gap: 2px;
+}
+.player-normal-view.clip-live .stage-track h3 {
+  font-size: 17px;
+  letter-spacing: -0.2px;
+}
+.player-normal-view.clip-live .stage-metadata {
+  flex-wrap: wrap;
+  gap: 2px 10px;
+}
+.player-normal-view.clip-live .stage-metadata .metadata-link {
+  font-size: 12.5px;
+}
+.player-normal-view.clip-live .stage-controls {
+  grid-area: 1/1;
+  align-self: end;
+  width: min(320px, 100%);
+}
+.player-normal-view.clip-live .stage-transport {
+  padding: 8px 12px 10px;
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--container) 78%, transparent);
+  backdrop-filter: blur(10px);
+}
+.player-normal-view.clip-live .stage-play {
+  width: 58px;
+  min-width: 58px;
+  height: 46px;
+  border-radius: 20px;
+}
+.player-normal-view.clip-live .stage-skip svg {
+  width: 22px;
+  height: 22px;
+}
+.player-normal-view.clip-live .stage-modes,
+.player-normal-view.clip-live .stage-volume {
+  transform: scale(0.88);
+  transform-origin: left center;
+}
+.player-normal-view.clip-live .stage-lyrics {
+  grid-area: 1/2;
+  align-self: end;
+  max-height: min(46dvh, 420px);
+  padding: 0;
+}
+.player-normal-view.clip-live .stage-lyrics .lyrics-panel {
+  font-size: 13px;
+}
+/* Only the words and the way out: no tools, no heading, nothing to configure. */
+.player-normal-view.clip-live .stage-lyrics .lyrics-tools,
+.player-normal-view.clip-live .stage-lyrics .lyrics-timing {
+  display: none;
+}
+.player-normal-view.clip-live .stage-lyrics-toggle {
+  height: 28px;
+  flex: 0 0 28px;
+  font-size: 12px;
+  opacity: 0.72;
+}
+@media (max-width: 900px) {
+  .player-normal-view.clip-live .stage-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    align-items: end;
+  }
+  .player-normal-view.clip-live .stage-lyrics {
+    grid-area: 1/1;
+    justify-self: end;
+    max-width: 200px;
+    max-height: 30dvh;
+  }
+  .player-normal-view.clip-live .stage-controls {
+    grid-area: 2/1;
   }
 }
