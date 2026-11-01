@@ -1,3 +1,4 @@
+import { searchableTitle } from './searchText';
 /**
  * Automatic video-clip matching.
  *
@@ -131,8 +132,10 @@ const strip = (value: string) =>
 const tokens = (value: string) => strip(value).split(' ').filter(Boolean);
 
 /** Song + artist, with the words search engines need to find the official clip. */
+export { searchableTitle } from './searchText';
+
 export function clipQuery(source: ClipSource): string {
-  const title = strip(source.title);
+  const title = strip(searchableTitle(source.title));
   const artist = strip(source.artist);
   if (!artist || artist === 'unknown artist') return title;
   // Avoid sending the artist twice when the title already begins with it.
@@ -150,13 +153,23 @@ export function videoClipQuery(source: ClipSource): string {
   return base ? `${base} official video` : base;
 }
 
-function jaccard(a: string[], b: string[]): number {
+/**
+ * How much of the song's name the candidate's title actually carries.
+ *
+ * Symmetric similarity was the wrong measure: an official upload is titled
+ * "Nils Frahm - Says (Official Video)" and a symmetric score punishes it for
+ * naming the artist, so the act's own channel was the one upload that could
+ * fail. Measuring against the shorter side gives an upload with extra words the
+ * benefit of the doubt, which the artist-channel and duration rules already
+ * guard; an unrelated title still shares almost nothing.
+ */
+function titleOverlap(a: string[], b: string[]): number {
   if (!a.length || !b.length) return 0;
   const left = new Set(a),
     right = new Set(b);
   let shared = 0;
   for (const token of left) if (right.has(token)) shared++;
-  return shared / (left.size + right.size - shared);
+  return shared / Math.min(left.size, right.size);
 }
 
 const containsAny = (haystack: string, words: string[]) =>
@@ -243,6 +256,11 @@ export function isArtistChannel(candidate: ClipCandidate, source: ClipSource): b
   const author = strip(candidate.author);
   if (!author) return false;
   if (author.includes(artist)) return true;
+  // Channels glue the act's name together — "NilsFrahmVEVO", "Nils Frahm
+  // Official" — and a space is not a different artist. Comparing the squashed
+  // forms is what makes an official video findable for any act with a VEVO
+  // channel, which is most of them.
+  if (author.replace(/\s+/gu, '').includes(artist.replace(/\s+/gu, ''))) return true;
   // "The Midnight" and "Midnight": an article in front is not a different act.
   const meaningful = tokens(author).filter((token) => !CHANNEL_NOISE.includes(token));
   const wanted = tokens(artist).filter((token) => !CHANNEL_NOISE.includes(token));
@@ -266,7 +284,7 @@ export function scoreClip(candidate: ClipCandidate, source: ClipSource): number 
   // lyrics. Never worth a frame, whatever else the search returned.
   if (isLyricVideo(candidate)) return 0;
 
-  const titleScore = jaccard(
+  const titleScore = titleOverlap(
     tokens(source.title).filter((token) => !NOISE.includes(token)),
     tokens(candidate.title).filter((token) => !NOISE.includes(token)),
   );

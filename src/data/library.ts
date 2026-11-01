@@ -172,6 +172,51 @@ export function editTrackMetadata(id: string, metadata: TrackMetadata): Promise<
     }),
   );
 }
+/**
+ * Writes what an online catalogue filled in, and remembers that the song was
+ * asked about.
+ *
+ * Two things can never come from here: a field the listener edited (a song with
+ * `editedAt` is left alone entirely) and the running time, which belongs to the
+ * decoded file rather than to a catalogue's edition of it. A title change
+ * invalidates cached online lyrics the same way a hand edit does, because it
+ * changes what would be searched for.
+ */
+export function applyOnlineDetails(
+  id: string,
+  patch: Partial<Pick<Track, 'title' | 'artist' | 'album' | 'year' | 'genres' | 'artwork'>>,
+  options: { checked?: boolean } = {},
+): Promise<Track | null> {
+  return mutateTrack(id, (track) => {
+    const next = track.editedAt ? { ...track } : { ...track, ...cleanPatch(patch) };
+    next.detailsCheckedAt = Date.now();
+    if (!options.checked) delete next.detailsCheckedAt;
+    if (track.editedAt) return next;
+    return next.title !== track.title || next.artist !== track.artist
+      ? invalidateOnlineLyrics(track, next)
+      : next;
+  }).catch(() => null);
+}
+
+/** Blank values are never written: a gap is better than an empty string. */
+function cleanPatch(
+  patch: Partial<Pick<Track, 'title' | 'artist' | 'album' | 'year' | 'genres' | 'artwork'>>,
+) {
+  const clean: typeof patch = {};
+  if (patch.title?.trim()) clean.title = patch.title.trim().slice(0, 200);
+  if (patch.artist?.trim()) clean.artist = patch.artist.trim().slice(0, 200);
+  if (patch.album?.trim()) clean.album = patch.album.trim().slice(0, 200);
+  if (patch.year && patch.year > 1000) clean.year = patch.year;
+  if (patch.genres?.length) clean.genres = patch.genres.filter(Boolean).slice(0, 4);
+  if (patch.artwork) clean.artwork = patch.artwork;
+  return clean;
+}
+
+/** Marks a song as already asked about, so it is not asked again for a month. */
+export function markDetailsChecked(id: string): Promise<Track | null> {
+  return mutateTrack(id, (track) => ({ ...track, detailsCheckedAt: Date.now() })).catch(() => null);
+}
+
 export function restoreTrackMetadata(id: string): Promise<Track> {
   return mutateTrack(id, (track) => {
     if (!track.originalMetadata) return track;

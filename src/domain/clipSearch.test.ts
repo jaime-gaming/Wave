@@ -11,6 +11,7 @@ import {
   isMusicVideo,
   pickClip,
   scoreClip,
+  searchableTitle,
   type ClipCandidate,
 } from './clipSearch';
 
@@ -197,5 +198,34 @@ describe('a clip is a video, not the song with a still picture', () => {
     const neutral = candidate({ title: 'M83 - Midnight City', author: 'M83' });
     expect(isAudioOnly(neutral)).toBe(false);
     expect(isMusicVideo(neutral)).toBe(false);
+  });
+});
+
+describe('finding an official upload for a real act', () => {
+  it('accepts a channel that glues the name together', () => {
+    const source = { title: 'Says', artist: 'Nils Frahm', duration: 214 };
+    const vevo = {
+      videoId: 'x',
+      title: 'Nils Frahm - Says (Official Video)',
+      author: 'NilsFrahmVEVO',
+      duration: 220,
+    };
+    expect(isArtistChannel(vevo, source)).toBe(true);
+    expect(scoreClip(vevo, source)).toBeGreaterThan(0.5);
+  });
+
+  it('searches for the song, not for its edition', () => {
+    expect(searchableTitle('Says (Remastered 2011)')).toBe('Says');
+    expect(searchableTitle('Says [Deluxe Edition]')).toBe('Says');
+    expect(searchableTitle('Says - Radio Edit')).toBe('Says');
+    // A featured artist is part of the song, so it stays.
+    expect(searchableTitle('Says (feat. Ólafur Arnalds)')).toBe('Says (feat. Ólafur Arnalds)');
+  });
+
+  it('leaves a plain title exactly as it was', () => {
+    expect(searchableTitle('Says')).toBe('Says');
+    expect(clipQuery({ title: 'Says', artist: 'Nils Frahm', duration: 214 })).toBe(
+      'nils frahm says',
+    );
   });
 });

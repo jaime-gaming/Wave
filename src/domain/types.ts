@@ -32,6 +32,8 @@ export interface Track {
   genres?: string[];
   year?: number;
   metadataCheck?: import('./metadata').MetadataCheck;
+  /** When the online catalogue was last asked about this song. */
+  detailsCheckedAt?: number;
   trackNumber?: number;
   discNumber?: number;
   originalMetadata?: TrackMetadata;

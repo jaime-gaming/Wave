@@ -51,6 +51,7 @@ src/
 │   ├── import.ts
 │   └── library.ts
 ├── domain/
+│   ├── catalogue.ts
 │   ├── importFile.ts
 │   ├── linkImport.ts
 │   ├── playlistImport.ts
@@ -98,6 +99,26 @@ A `Playlist` has a UUID, name, description, optional artwork, ordered unique tra
 `Track.originalMetadata` captures title, artist, album, and artwork at the first edit; subsequent edits retain that snapshot. `editedAt` records the last edit. Restore reapplies the snapshot and removes both fields. Favorites and metadata updates read fresh database records atomically, preventing a stale favorite click from overwriting saved edits. The hook merges returned records while retaining the existing audio Blob reference so these updates do not restart playback.
 
 Playlist name/membership management is always available. Song edits and custom playlist descriptions/covers require the Settings opt-in. Disabling it retains saved values; no file tags are rewritten and no export is implemented. Changes become visible only after successful writes. Failed saves leave the form and stored data available for retry.
+
+### Completing details online
+
+`domain/catalogue.ts` is the whole decision: which songs are worth a question (`needsDetails`),
+how strongly a release answers one (`scoreRelease`, title plus artist plus running time, with a
+different act disqualifying rather than merely costing), and exactly which fields may be written
+(`detailsPatch`). It only ever fills a gap, refuses a song the listener edited, and never touches
+`duration`, which belongs to the decoded file.
+
+`services/catalogue.ts` asks Apple's iTunes Search API — no key, CORS allowed, and the only public
+catalogue that returns title, artist, album, year, genre, running time and a sleeve in one
+response. The cover is fetched separately and stored through `readArtwork`, so what lands in the
+library is a local image, not a hot link. `hooks/useCatalogueDetails.ts` runs the queue: twelve
+songs at most per sitting, 700 ms apart, one timestamp per song so it is not asked again for a
+month, and nothing at all while the browser reports no connection. Its only interface is Settings →
+Library, which states how much is missing and offers to look up now.
+
+Lyrics and clip discovery both benefit without knowing about it: a track whose artist was filled in
+is searched with a real artist name, and `domain/searchText.ts` keeps edition words — "(Remastered
+2011)", "[Deluxe Edition]", "- Radio Edit" — out of both queries.
 
 ### Folders and playlist migration
 

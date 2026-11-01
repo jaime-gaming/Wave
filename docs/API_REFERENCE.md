@@ -159,6 +159,37 @@ MAX_FOLDER_DEPTH // 12
 - A handle that the browser cannot store is dropped and the folder is remembered by name only, so the sheet asks for it again rather than claiming access it does not have.
 - Nothing here reads audio data; the returned `File` objects go through the ordinary importer.
 
+## Song details API
+
+Defined in `src/domain/catalogue.ts`, `src/services/catalogue.ts` and
+`src/hooks/useCatalogueDetails.ts`:
+
+```ts
+needsDetails(track): boolean
+catalogueQuery(track): string
+scoreRelease(track, release): number
+bestRelease(track, releases, accept = 0.62): CatalogueRelease | undefined
+detailsPatch(track, release): { patch, filled }
+isPlaceholderArtist(value) / isPlaceholderAlbum(value) / looksLikeFileName(track)
+searchCatalogue(term, { signal?, country? }): Promise<CatalogueRelease[]>
+downloadCover(url, signal?): Promise<File | undefined>
+parseCatalogueResults(payload): CatalogueRelease[]
+preferredCountry(locale?): string
+useCatalogueDetails({ tracks, onUpdate, enabled?, online? }): { filling, completed, lookUp }
+detailsQueue(tracks, now?): Track[]
+detailsSummary(tracks): { incomplete, complete }
+DETAILS_FLAG / DETAILS_RETRY_MS / DETAILS_BATCH / DETAILS_GAP_MS
+applyOnlineDetails(id, patch, { checked? }): Promise<Track | null> // src/data/library.ts
+markDetailsChecked(id): Promise<Track | null>
+```
+
+- `detailsPatch` only returns fields with a real gap, and nothing at all for a track with `editedAt`.
+  `duration` is never in the patch.
+- `searchCatalogue` sends the query and the storefront only, resolves to `[]` for any failure and
+  never throws, so the caller needs no error branch.
+- `useCatalogueDetails` asks about at most `DETAILS_BATCH` songs per pass, waits `DETAILS_GAP_MS`
+  between requests, and remembers `detailsCheckedAt` on the track.
+
 ## Playlist migration API
 
 Defined in `src/domain/importFile.ts`, `playlistImport.ts` and `linkImport.ts`:

@@ -1,4 +1,6 @@
 using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -152,12 +154,56 @@ public partial class MainWindow : Window
         MiniPlayer.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
         MiniHeight.Height = new GridLength(show ? 92 : 0);
     }
-    private async void ImportClick(object sender, RoutedEventArgs e)
+    private static readonly string[] AudioExtensions = [".mp3", ".wav", ".flac", ".m4a", ".aac", ".ogg", ".oga", ".opus", ".wma", ".aiff", ".aif"];
+
+    /// <summary>
+    /// "Add music" offers the two things it means: some files, or a whole folder.
+    /// It used to open the file picker straight away, which left a folder of
+    /// albums — the ordinary way a library is stored — with no way in.
+    /// </summary>
+    private void ImportClick(object sender, RoutedEventArgs e)
     {
-        var picker = new OpenFileDialog { Multiselect = true, Filter = "Audio|*.mp3;*.wav;*.flac;*.m4a;*.aac;*.ogg;*.wma;*.aiff" };
+        var menu = new ContextMenu();
+        var files = new MenuItem { Header = "Choose files…" };
+        files.Click += async (_, _) => await ImportFiles();
+        var folder = new MenuItem { Header = "Choose a folder…" };
+        folder.Click += async (_, _) => await ImportFolder();
+        menu.Items.Add(files);
+        menu.Items.Add(folder);
+        menu.PlacementTarget = sender as UIElement;
+        menu.IsOpen = true;
+    }
+
+    private async Task ImportFiles()
+    {
+        var picker = new OpenFileDialog { Multiselect = true, Filter = "Audio|*.mp3;*.wav;*.flac;*.m4a;*.aac;*.ogg;*.oga;*.opus;*.wma;*.aiff;*.aif" };
         if (picker.ShowDialog() != true) return;
+        await ImportPaths(picker.FileNames);
+    }
+
+    private async Task ImportFolder()
+    {
+        var picker = new OpenFolderDialog { Title = "Choose a folder of music", Multiselect = false };
+        if (picker.ShowDialog() != true) return;
+        string[] found;
+        try { found = Directory.EnumerateFiles(picker.FolderName, "*", SearchOption.AllDirectories).ToArray(); }
+        catch (Exception error) { Notify(error.Message); return; }
+        // A folder is not curated the way a hand-picked set of files is, so an
+        // odd file is skipped instead of failing the whole import.
+        var usable = found
+            .Where(path => AudioExtensions.Contains(System.IO.Path.GetExtension(path).ToLowerInvariant()))
+            .Where(path => { try { var length = new FileInfo(path).Length; return length > 0 && length <= 209715200; } catch { return false; } })
+            .ToArray();
+        if (usable.Length == 0) { Notify("No music files in that folder."); return; }
+        await ImportPaths(usable);
+    }
+
+    private async Task ImportPaths(IEnumerable<string> paths)
+    {
+        var list = paths.ToArray();
         try {
-            Notify("Adding your music…"); int added = await repository.Import(picker.FileNames);
+            Notify($"Adding {list.Length} {(list.Length == 1 ? "file" : "files")}…");
+            int added = await repository.Import(list);
             tracks = repository.Load(); Notify($"{added} tracks added; identical files skipped."); Refresh();
         } catch (Exception error) { tracks = repository.Load(); Refresh(); Notify(error.Message); }
     }

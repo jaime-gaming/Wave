@@ -26,19 +26,19 @@ const setup = (overrides: Partial<Parameters<typeof AddMusicDialog>[0]> = {}) =>
 describe('add music', () => {
   it('offers a local file or a YouTube song', async () => {
     const { onLocal, onClose } = setup();
-    expect(screen.getByRole('button', { name: /import local files/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /add from youtube/i })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: /import local files/i }));
+    expect(screen.getByRole('button', { name: /from this device/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /from youtube/i })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /from this device/i }));
     expect(onClose).toHaveBeenCalled();
     expect(onLocal).toHaveBeenCalled();
   });
 
   it('offers a whole folder, and says when the browser cannot hand one over', async () => {
     setup();
-    const folder = screen.getByRole('button', { name: /add a folder from this device/i });
+    const folder = screen.getByRole('button', { name: /add a whole folder/i });
     // jsdom has neither a directory picker nor a directory input, so the honest
     // answer is the third fallback rather than a button that quietly does nothing.
-    expect(folder).toHaveTextContent(/cannot hand over a folder/i);
+    expect(folder).toHaveTextContent(/choose the files inside it instead/i);
     expect(folder).toBeDisabled();
   });
 

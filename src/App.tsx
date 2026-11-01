@@ -1,6 +1,12 @@
 import type { MixSelection } from './components/DailyMixPage';
 import type { SettingsSection } from './components/SettingsPage';
 import { LocalMetadataReview } from './components/LocalMetadataReview';
+import { useOnline } from './ui/network';
+import {
+  detailsEnabled,
+  setDetailsEnabled,
+  useCatalogueDetails,
+} from './hooks/useCatalogueDetails';
 import { ContextMenu, type ContextAction } from './components/ContextMenu';
 import { MusicLighting } from './components/MusicLighting';
 import { QueuePanel } from './components/QueuePanel';
@@ -254,6 +260,23 @@ function WaveApp({
   const [trackOptions, setTrackOptions] = useState<Track | null>(null);
   const clipsForOptions = useMemo(() => (trackOptions ? loadClips() : {}), [trackOptions]);
   const [editorEnabled, setEditorEnabled] = useState(() => readFlag('wave-editor-enabled'));
+  /**
+   * Online detail lookups are on unless the listener turned them off, and they
+   * stop entirely without a connection: a promise to fill gaps is not a
+   * promise to keep retrying in an offline room.
+   */
+  const [detailsOn, setDetailsOn] = useState(() => detailsEnabled());
+  const toggleDetails = useCallback((next: boolean) => {
+    setDetailsEnabled(next);
+    setDetailsOn(next);
+  }, []);
+  const online = useOnline();
+  const catalogue = useCatalogueDetails({
+    tracks: library.tracks,
+    onUpdate: library.applyDetails,
+    enabled: detailsOn,
+    online,
+  });
   const [editingTrack, setEditingTrack] = useState<Track | null>(null);
   const [playlistId, setPlaylistId] = useState<string | null>(null);
   const [playlistForm, setPlaylistForm] = useState<'new' | 'edit' | null>(null);
@@ -965,7 +988,14 @@ function WaveApp({
                           </motion.span>
                         </button>
                       </div>
-                      <LocalMetadataReview tracks={library.tracks} />
+                      <LocalMetadataReview
+                        tracks={library.tracks}
+                        enabled={detailsOn}
+                        onToggle={toggleDetails}
+                        onLookUp={() => void catalogue.lookUp()}
+                        filling={catalogue.filling}
+                        completed={catalogue.completed}
+                      />
                     </>
                   }
                   devices={

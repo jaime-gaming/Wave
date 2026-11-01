@@ -154,18 +154,60 @@ export async function readFolder(
 }
 
 /** Chosen by the listener, remembered for next time. Null when they cancelled. */
-export async function pickFolder(
-  scope: PickerScope | undefined = globalThis.window as PickerScope,
-) {
-  if (!scope?.showDirectoryPicker) return null;
+/**
+ * Whether the app is running inside somebody else's frame.
+ *
+ * Chrome refuses the directory picker in a cross-origin frame ("cross origin
+ * sub frames aren't allowed to show a file picker") and there is no way to ask
+ * first — the call simply throws. Knowing this up front is the difference
+ * between a button that works and one that appears to do nothing, so the frame
+ * is detected and the folder input is used instead.
+ */
+export function inEmbeddedFrame(
+  scope: (PickerScope & { top?: unknown }) | undefined = globalThis.window as PickerScope,
+): boolean {
+  if (!scope) return false;
   try {
-    return (await scope.showDirectoryPicker({
+    return Boolean(scope.top) && scope.top !== scope;
+  } catch {
+    // Reading `top` from a cross-origin frame throws: that is itself the answer.
+    return true;
+  }
+}
+
+/** The picker is only offered where it can actually open. */
+export function canShowFolderPicker(
+  scope: (PickerScope & { top?: unknown }) | undefined = globalThis.window as PickerScope,
+): boolean {
+  return supportsFolderPicker(scope) && !inEmbeddedFrame(scope);
+}
+
+export type FolderPick =
+  { ok: true; handle: DirectoryHandleLike } | { ok: false; reason: 'cancelled' | 'blocked' };
+
+/**
+ * Opens the browser's own folder chooser.
+ *
+ * Cancelling and being refused are different outcomes and the caller must be
+ * able to tell them apart: one is silence, the other needs a fallback. Treating
+ * both as "null" is what made the folder button look broken inside a frame.
+ */
+export async function pickFolder(
+  scope: (PickerScope & { top?: unknown }) | undefined = globalThis.window as PickerScope,
+): Promise<FolderPick> {
+  if (!scope?.showDirectoryPicker) return { ok: false, reason: 'blocked' };
+  try {
+    const handle = (await scope.showDirectoryPicker({
       id: 'wave-music',
       mode: 'read',
     })) as DirectoryHandleLike;
-  } catch {
-    // Cancelling the picker throws; that is not an error to report.
-    return null;
+    return { ok: true, handle };
+  } catch (error) {
+    const name = (error as { name?: string } | undefined)?.name;
+    // The listener closed the chooser: nothing to report and nothing to fall
+    // back to, because they did not ask for anything.
+    if (name === 'AbortError') return { ok: false, reason: 'cancelled' };
+    return { ok: false, reason: 'blocked' };
   }
 }
 

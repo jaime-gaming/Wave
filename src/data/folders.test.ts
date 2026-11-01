@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  canShowFolderPicker,
+  inEmbeddedFrame,
   folderAccess,
+  pickFolder,
   isAudioFile,
   markFolderScanned,
   readFolder,
@@ -98,5 +101,38 @@ describe('Feature detection', () => {
     expect(supportsFolderPicker({ showDirectoryPicker: async () => directory('x', []) })).toBe(
       true,
     );
+  });
+
+  it("will not promise a chooser inside somebody else's frame", () => {
+    const scope = { showDirectoryPicker: async () => directory('Music', []) };
+    const window = { ...scope } as { showDirectoryPicker: unknown; top: unknown };
+    window.top = window;
+    expect(canShowFolderPicker(window as never)).toBe(true);
+    // A frame whose `top` is a different object is not a top-level window.
+    expect(canShowFolderPicker({ ...scope, top: {} } as never)).toBe(false);
+    expect(canShowFolderPicker(undefined)).toBe(false);
+    expect(inEmbeddedFrame({} as never)).toBe(false);
+  });
+
+  it('tells a cancelled chooser apart from a refused one', async () => {
+    const cancelled = {
+      showDirectoryPicker: async () => {
+        throw Object.assign(new Error('closed'), { name: 'AbortError' });
+      },
+    };
+    expect(await pickFolder(cancelled)).toEqual({ ok: false, reason: 'cancelled' });
+    // Chrome refuses the picker in a cross-origin frame with an ordinary error.
+    const refused = {
+      showDirectoryPicker: async () => {
+        throw new Error('Failed to execute showDirectoryPicker');
+      },
+    };
+    expect(await pickFolder(refused)).toEqual({ ok: false, reason: 'blocked' });
+    expect(await pickFolder({})).toEqual({ ok: false, reason: 'blocked' });
+    const handle = directory('Music', []);
+    expect(await pickFolder({ showDirectoryPicker: async () => handle })).toEqual({
+      ok: true,
+      handle,
+    });
   });
 });

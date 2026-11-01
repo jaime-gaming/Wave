@@ -36,6 +36,8 @@ builds, so Windows may show a SmartScreen warning and Android asks you to allow 
   depth, once you have said yes; it remembers the folder so the next read is one click.
 - **Browses and searches** songs, albums, artists, playlists and favourites from your own
   collection.
+- **Fills in the gaps.** Songs that know nothing but their filename get their artist, album, year,
+  genre and cover looked up while you listen — never over something you typed.
 - **Daily mixes** from the genre tags your files already carry: play one, shuffle it, or save it
   as an ordinary playlist.
 - **Lyrics that follow the song**, word by word when the file carries timings. Saved lyrics work

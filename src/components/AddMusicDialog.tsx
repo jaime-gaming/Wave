@@ -4,6 +4,7 @@ import { Modal } from './Modal';
 import { networkAriaLabel, networkLabel, useOnline } from '../ui/network';
 import type { Track } from '../domain/types';
 import {
+  canShowFolderPicker,
   forgetFolder,
   markFolderScanned,
   pickFolder,
@@ -12,7 +13,6 @@ import {
   rememberedFolders,
   requestFolderAccess,
   supportsDirectoryInput,
-  supportsFolderPicker,
   type DirectoryHandleLike,
 } from '../data/folders';
 import type { RememberedFolder } from '../data/library';
@@ -51,7 +51,9 @@ export function AddMusicDialog({
   const [folders, setFolders] = useState<RememberedFolder[]>([]);
   const [folderBusy, setFolderBusy] = useState('');
   const [folderError, setFolderError] = useState('');
-  const canPick = supportsFolderPicker();
+  // The picker is preferred, but never at the cost of a dead button: inside a
+  // frame, or where the API is missing, the folder input does the same job.
+  const canPick = canShowFolderPicker();
   const canChooseDirectory = supportsDirectoryInput();
 
   useEffect(() => {
@@ -69,11 +71,15 @@ export function AddMusicDialog({
 
   /**
    * Reads a folder the listener has just granted, and hands its files to the
-   * importer. Nothing is remembered unless the browser lets the handle be
-   * stored, and the remember step never blocks the import itself.
+   * importer.
+   *
+   * The files are imported first and the folder is remembered afterwards,
+   * without being awaited: a browser that refuses to store the handle (or a
+   * profile whose database is mid-upgrade) must never be the reason a folder of
+   * music fails to arrive.
    */
   const readGranted = async (handle: DirectoryHandleLike) => {
-    setFolderBusy(handle.name);
+    setFolderBusy(handle.name || 'folder');
     setFolderError('');
     try {
       const files = await readFolder(handle);
@@ -81,11 +87,12 @@ export function AddMusicDialog({
         setFolderError('No music files in that folder.');
         return;
       }
-      // Remembered before the import so a slow library update cannot lose it.
-      await rememberFolder(handle).catch(() => undefined);
-      setFolders(await rememberedFolders());
       onFolderFiles(files);
       onClose();
+      void rememberFolder(handle)
+        .then(() => rememberedFolders())
+        .then((saved) => setFolders(saved))
+        .catch(() => undefined);
     } catch {
       setFolderError('That folder could not be read. Nothing was imported.');
     } finally {
@@ -93,15 +100,21 @@ export function AddMusicDialog({
     }
   };
 
+  /** Every fallback ends in the same place, so a folder arrives one way only. */
   const chooseFolder = async () => {
     if (canPick) {
-      const handle = await pickFolder();
-      if (handle) await readGranted(handle);
+      const pick = await pickFolder();
+      if (pick.ok) return readGranted(pick.handle);
+      if (pick.reason === 'cancelled') return;
+      // Refused by the browser — a frame, a policy, an older build — so the
+      // click is answered with the input instead of nothing at all.
+      setFolderError('This window cannot open a folder chooser, so Wave is asking the usual way.');
+    }
+    if (canChooseDirectory) {
+      directory.current?.click();
       return;
     }
-    // Firefox and Safari: a directory input still hands over the whole folder,
-    // one level of permission and no handle to keep.
-    directory.current?.click();
+    setFolderError('This browser cannot hand over a whole folder. Choose the files inside it.');
   };
 
   const allowFolder = async (folder: RememberedFolder) => {
@@ -116,7 +129,7 @@ export function AddMusicDialog({
       return;
     }
     await readGranted(folder.handle as DirectoryHandleLike);
-    await markFolderScanned(folder.id).catch(() => undefined);
+    void markFolderScanned(folder.id).catch(() => undefined);
   };
 
   const submit = async () => {
@@ -137,11 +150,6 @@ export function AddMusicDialog({
     <Modal title="Add music" className="add-music-modal" onClose={onClose}>
       {mode === 'choose' ? (
         <>
-          <p className="modal-description">
-            Import files from this device, or add a song from YouTube by link. Local files never
-            leave the device; a YouTube song plays through YouTube&apos;s own player and is never
-            downloaded.
-          </p>
           <div className="add-music-choices">
             <button
               type="button"
@@ -153,24 +161,24 @@ export function AddMusicDialog({
               disabled={busy}
             >
               <FolderOpen size={24} aria-hidden="true" />
-              <strong>Import local files</strong>
-              <span>MP3, WAV, M4A, OGG or FLAC, up to 200 MB each. Original files, untouched.</span>
+              <strong>From this device</strong>
+              <span>MP3, WAV, M4A, OGG, FLAC.</span>
             </button>
             <button
               type="button"
               className="add-music-choice"
               onClick={() => void chooseFolder()}
               disabled={busy || (!canPick && !canChooseDirectory)}
-              aria-label="Add a folder from this device"
+              aria-label="Add a whole folder"
             >
               <FolderSearch size={24} aria-hidden="true" />
-              <strong>{folderBusy ? `Reading ${folderBusy}…` : 'Add a whole folder'}</strong>
+              <strong>{folderBusy ? `Reading ${folderBusy}…` : 'A whole folder'}</strong>
               <span>
-                {canPick
-                  ? 'Choose a folder and Wave reads every song inside it, at any depth. It asks once for permission, and the folder is remembered so you can read it again.'
-                  : canChooseDirectory
-                    ? 'Choose a folder and Wave reads every song inside it. This browser cannot remember a folder afterwards, so you will pick it again next time.'
-                    : 'This browser cannot hand over a folder. Choose the files inside it instead.'}
+                {canChooseDirectory
+                  ? canPick
+                    ? 'Everything inside it, at any depth. Remembered for next time.'
+                    : 'Everything inside it, at any depth.'
+                  : 'Choose the files inside it instead.'}
               </span>
             </button>
             <button
@@ -181,12 +189,8 @@ export function AddMusicDialog({
               aria-label={networkAriaLabel(online, 'Add from YouTube')}
             >
               <Video size={24} aria-hidden="true" />
-              <strong>{networkLabel(online, 'Add from YouTube')}</strong>
-              <span>
-                {online
-                  ? 'Paste a video link. The song plays from YouTube with its video, and Wave keeps its own controls.'
-                  : 'Adding a YouTube song needs a connection. Files on this device work offline.'}
-              </span>
+              <strong>{networkLabel(online, 'From YouTube')}</strong>
+              <span>{online ? 'Paste a link.' : 'Needs a connection.'}</span>
             </button>
           </div>
           {!!folders.length && (
@@ -253,10 +257,6 @@ export function AddMusicDialog({
         </>
       ) : (
         <>
-          <p className="modal-description">
-            Paste the YouTube link for the song. Wave reads its title and artist, and looks up
-            lyrics like any other song.
-          </p>
           <div className="clip-link">
             <label>
               <Link2 size={16} aria-hidden="true" />

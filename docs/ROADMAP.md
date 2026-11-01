@@ -234,6 +234,8 @@ downloads Spotify audio. YouTube audio is never extracted.
 - [x] QR device linking, with nothing saved removed to make room.
 - [x] Mix against real material: folded tempo comparison, a gentle blend for rubato songs, and a cue
       that enters a long intro instead of skipping it.
+- [x] Online song details: artist, album, year, genre and cover filled in for songs with gaps,
+      one at a time, only ever over a hole.
 - [x] Whole-folder import and a playlist migration sheet that only writes the confirmed matches.
 - [x] The web client published at wave.jaime-gaming.com.
 - [ ] Real-device pass on the clip backdrop, the blend and the animation timings.

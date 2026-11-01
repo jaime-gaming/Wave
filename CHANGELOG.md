@@ -335,6 +335,30 @@
 - The Windows app is a native C#/WPF shell with the web's layout. It remains an unsigned test
   build.
 
+### Details that fill themselves in
+
+- A song that only knows its filename is no longer stuck that way. Wave looks up the artist, album,
+  year, genre and cover for songs with gaps — quiet, one at a time, never for a song that is already
+  complete and never over something typed by hand. The switch lives in Settings → Library, is on
+  unless turned off, and stops entirely without a connection.
+- The lookup only ever fills a hole: an artist the file already carries is not "corrected" by
+  whichever release ranked first, and the running time stays the decoder's.
+- Song details in Settings now says how much of the library is missing something, what has been
+  completed, and offers a lookup on the spot instead of the old line about doing none of it.
+- The folder button works inside an embedded window. Chrome refuses the directory picker in a
+  cross-origin frame, and Wave treated the refusal the same way as the listener closing the
+  chooser, so the click did nothing at all. A refusal now falls through to the browser's folder
+  input, the import is no longer held up by remembering the folder, and Windows gained the folder
+  choice it never had — files or a whole folder, from the same button.
+- Finding a video clip got the VEVO case right. A channel that glues the act's name together
+  ("NilsFrahmVEVO") is recognised as the artist's own, which is where most official videos live,
+  and an official upload titled "Artist - Song" is no longer punished for naming the artist.
+- Clip and lyric searches both ignore edition words — "(Remastered 2011)", "[Deluxe Edition]",
+  "- Radio Edit" — while keeping a featured artist, so the searches ask for the song rather than
+  for one pressing of it.
+- Fewer words before the music: the Add music and playlist sheets lost their explanatory
+  paragraphs and their per-option subtitles, keeping one short line each.
+
 ### Movement on Windows and Android
 
 - Windows pages rise into place instead of swapping: the incoming page fades in while it lifts a

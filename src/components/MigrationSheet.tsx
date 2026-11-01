@@ -110,8 +110,8 @@ export function MigrationSheet({
           <Check size={28} aria-hidden="true" />
           <h3>{name.trim() || 'Your playlist'} is here</h3>
           <p>
-            {report?.matchedCount} {report?.matchedCount === 1 ? 'song' : 'songs'} are now in your
-            library, in the order the list had them. Nothing already in Wave was moved or removed.
+            {report?.matchedCount} {report?.matchedCount === 1 ? 'song is' : 'songs are'} in your
+            library now, in the list&apos;s order.
           </p>
           <button className="filled-button" onClick={onClose}>
             Back to playlists
@@ -119,10 +119,7 @@ export function MigrationSheet({
         </div>
       ) : !report || !list ? (
         <div className="migration-input">
-          <p className="modal-description">
-            Paste a playlist from another app, or choose the file it exported. Wave only looks for
-            the songs you already have here — it does not upload your library anywhere.
-          </p>
+          <p className="modal-description">Paste a playlist, or choose the file it exported.</p>
           <label className="form-field">
             Playlist, song list or link
             <textarea
@@ -169,8 +166,8 @@ export function MigrationSheet({
             />
           </div>
           <p className="migration-hint">
-            Accepted: <code>.m3u</code>, <code>.csv</code> from a data export, or plain text. A
-            Spotify or YouTube link cannot be read on its own — those lists live behind an account.
+            <code>.m3u</code>, <code>.csv</code> or one song per line. A Spotify or YouTube link
+            opens nothing on its own: those lists belong to an account.
           </p>
         </div>
       ) : (
@@ -227,10 +224,7 @@ export function MigrationSheet({
             </p>
           )}
           {!!report.missingCount && (
-            <p className="migration-hint">
-              Songs Wave does not have are left out. Add them later from Add Music — matching again
-              will find them in the same order.
-            </p>
+            <p className="migration-hint">Songs you do not have yet are left out.</p>
           )}
           <div className="migration-actions">
             <button className="tonal-button" onClick={() => setReport(null)} disabled={saving}>

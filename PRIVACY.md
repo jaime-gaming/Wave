@@ -8,6 +8,23 @@ Wave does not implement accounts, advertising, analytics, telemetry, cloud libra
 
 Keep your originals: clearing website data, browser eviction, uninstalling Android, or removing Windows app data may erase Wave's copies. Removing a web song removes its saved copy/references, not the original on your disk. Android offers explicit removal after confirmation: it deletes Wave-owned copies only when they are inside its audio directory and are not referenced by another song. MediaStore originals and files outside that directory are not deleted. Windows data can also be cleared through the operating system after exiting. Disabling automatic lyrics does not erase saved text. Web song editing can remove saved lyrics.
 
+## Optional song-detail lookups
+
+Songs whose own tags are incomplete — no artist, no album, no year, no sleeve, or a title that is
+really a filename — can have those gaps filled from a public catalogue. The switch is in Settings →
+Library and is **on by default**; turning it off stops every new request immediately.
+
+Apple's iTunes Search API receives the artist and title already stored on the device (or, when the
+artist is unknown, the title alone) and the storefront taken from the browser's language. It
+returns the matching release and a cover image, which is fetched once and stored locally. Nothing
+else is sent: no audio, no artwork from your files, no identifiers, no account, no listening
+history. A song that is already complete is never sent anywhere, a song edited by hand is never
+overwritten, and the running time always stays the decoder's own measurement.
+
+The catalogue's servers necessarily see connection information such as an IP address; HTTPS does
+not hide that from the recipient. Requests are spaced out, bounded, and skipped entirely while the
+device reports no connection. Lookup history is a timestamp on the song record, kept on the device.
+
 ## Optional online lyrics
 
 Automatic lookup is **off initially**; the web also requires its consent preference. Enable it in Settings to request lyrics for eligible selected tracks. A manual **Search online** requests only that song even while automatic lookup is off. Turning the switch off prevents new automatic requests; an already in-flight network request may already have reached the provider.

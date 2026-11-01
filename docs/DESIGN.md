@@ -188,6 +188,21 @@ Clips are discovered, not pasted. The backdrop searches once per song, shows wha
 
 Sync now distinguishes three magnitudes of drift. Below 0.15 s nothing happens. Between 0.15 s and 1.1 s the muted clip is played slightly faster or slower, which closes the gap without a visible jump; because the clip has no audible role, a temporary rate change costs nothing. At 1.1 s or more — or when the clip is not playing at all — Wave seeks, then waits out a cooldown. After a seek the rate always returns to 1.
 
+## Saying less
+
+Every sheet in this round lost a paragraph. Add music is three choices with a four-word line under
+each — "MP3, WAV, M4A, OGG, FLAC", "Everything inside it, at any depth", "Paste a link" — because a
+listener who has opened "Add music" has already decided to add music and does not need to be told
+what a local file is. The playlist sheet is one line of instruction, one field and two buttons; its
+footnote is a list of file types, not a policy. Song details in Settings is a switch, one sentence
+about the state of the library, and the songs themselves.
+
+The rule behind the trimming: a line stays if it changes what the listener does. "Cannot be
+undone" stays. "Your files never leave the device" moves to Privacy, where somebody reading about
+privacy will find it and somebody pressing Add will not have to skip it. Nothing technical remains
+in the interface — no "cross-origin", no "directory handle", no "provider", no file-size limits in
+the copy of a button.
+
 ## Bringing a library across
 
 Two ways in, both of them deliberate and neither of them silent.

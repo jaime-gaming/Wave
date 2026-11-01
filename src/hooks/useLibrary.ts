@@ -9,6 +9,7 @@ import {
 } from '../data/library';
 import { startTransition, useCallback, useEffect, useRef, useState } from 'react';
 import {
+  applyOnlineDetails,
   deleteTrack,
   getTracks,
   saveTrack,
@@ -236,6 +237,19 @@ export function useLibrary() {
       current.map((track) => (track.id === id ? { ...updated, blob: track.blob } : track)),
     );
   }, []);
+  /** Writes what the online catalogue filled in, and hands back the new song. */
+  const applyDetails = useCallback(async (id: string, patch: Record<string, unknown>) => {
+    const updated = await applyOnlineDetails(
+      id,
+      patch as Parameters<typeof applyOnlineDetails>[1],
+      { checked: true },
+    );
+    if (updated)
+      setTracks((current) =>
+        current.map((track) => (track.id === id ? { ...updated, blob: track.blob } : track)),
+      );
+    return updated;
+  }, []);
   const reload = useCallback(async () => {
     const saved = await getTracks();
     setTracks((current) =>
@@ -251,6 +265,7 @@ export function useLibrary() {
   }, []);
   return {
     reload,
+    applyDetails,
     acceptLyrics,
     acceptDuration,
     saveLyrics,

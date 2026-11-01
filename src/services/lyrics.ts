@@ -5,6 +5,7 @@ import { lyricsKey, type LyricsLookup } from '../domain/lyricsLookup';
 import { lookupMetadata, recordingMatch } from '../domain/lyricsMatch';
 import { extendedLyricsEnabled, fetchWordLyrics, wordProviderName } from './lyricsExtra';
 import { lyricText } from '../domain/wordLyrics';
+import { searchableTitle } from '../domain/searchText';
 import type { Track } from '../domain/types';
 export interface LyricsResult {
   lookup: LyricsLookup;
@@ -171,17 +172,22 @@ async function fetchLyrics(track: Track, signal: AbortSignal): Promise<LyricsRes
       }
       return result;
     };
-    let value = params.has('duration') ? await request('get', params) : undefined;
-    let found = accept(value);
+    let found = accept(params.has('duration') ? await request('get', params) : undefined);
     if (found) return found;
     if (params.has('album_name') && params.has('duration')) {
       params.delete('album_name');
-      value = await request('get', params);
-      found = accept(value);
+      found = accept(await request('get', params));
       if (found) return found;
     }
+    // A title that carries edition words is searched twice: once as the file
+    // spells it, and once as the song is actually credited. The second form is
+    // what finds a match when "(Remastered 2011)" is in the way.
+    const plainTitle = searchableTitle(metadata.title);
     for (const query of [
       new URLSearchParams({ track_name: metadata.title, artist_name: metadata.artist }),
+      ...(plainTitle && plainTitle !== metadata.title
+        ? [new URLSearchParams({ track_name: plainTitle, artist_name: metadata.artist })]
+        : []),
       new URLSearchParams({ q: `${metadata.title} ${metadata.artist}` }),
       ...(track.artist.trim() !== metadata.artist
         ? [new URLSearchParams({ track_name: metadata.title, artist_name: track.artist.trim() })]
