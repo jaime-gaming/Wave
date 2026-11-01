@@ -23,7 +23,7 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run build:pages
-      - name: Verify committed Pages site
+      - name: Verify the committed static mirror
         run: |
           git diff --exit-code -- docs
           test -z "$(git ls-files --others --exclude-standard docs)"

@@ -1303,47 +1303,77 @@
 /*
  * The light lives in the letters.
  *
- * A brighter copy of the word sits in a gradient that is wider than the text and
- * slides across it, so each letter brightens as the highlight reaches it and
- * returns to grey behind it. The grey colour underneath is what a browser
- * without `background-clip: text` paints, so nothing disappears if the clipping
- * is unsupported — the word simply stays still.
+ * Each letter carries its own highlight layer, offset in time by its position in
+ * the word, so the light travels across the word as a wave instead of a single
+ * gradient sliding over it. Two things are driven by the cue's own progress: the
+ * letters tighten very slightly as the blend approaches, and the glow under them
+ * grows, so the word is heading somewhere rather than looping.
  */
 .mix-cue-word {
+  display: inline-flex;
   font-size: 11px;
   font-weight: 500;
-  letter-spacing: 0.14em;
+  letter-spacing: calc(0.14em + var(--cue-progress, 0) * 0.05em);
   text-transform: uppercase;
-  background-image: linear-gradient(
-    100deg,
-    currentColor 0%,
-    currentColor 36%,
-    color-mix(in srgb, var(--text, #fff) 55%, currentColor) 44%,
-    var(--text, #fff) 50%,
-    color-mix(in srgb, var(--text, #fff) 55%, currentColor) 56%,
-    currentColor 64%,
-    currentColor 100%
+  color: var(--muted, #9aa2b1);
+  transition: letter-spacing 0.6s linear;
+  filter: drop-shadow(
+    0 0 calc(2px + var(--cue-progress, 0) * 7px)
+      color-mix(in srgb, var(--primary, #b0c7ff) calc(var(--cue-progress, 0) * 38%), transparent)
   );
-  background-size: 220% 100%;
-  background-position: 100% 50%;
+}
+.mix-cue-letter {
+  display: inline-block;
+  color: transparent;
+  /* The grey the letters sit at, painted underneath the highlight layer. */
+  background-image:
+    linear-gradient(var(--muted, #9aa2b1), var(--muted, #9aa2b1)),
+    linear-gradient(
+      100deg,
+      transparent 0%,
+      transparent 42%,
+      color-mix(in srgb, var(--text, #fff) 70%, var(--primary, #b0c7ff)) 50%,
+      transparent 58%,
+      transparent 100%
+    );
+  background-size:
+    100% 100%,
+    900% 100%;
+  background-position:
+    0 0,
+    100% 0;
   background-repeat: no-repeat;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation: mix-cue-shimmer 4.4s cubic-bezier(0.4, 0, 0.3, 1) infinite;
+  animation: mix-cue-travel 5.2s cubic-bezier(0.45, 0, 0.25, 1) infinite;
+  animation-delay: calc(var(--letter-index, 0) * -0.16s);
 }
-@keyframes mix-cue-shimmer {
+@keyframes mix-cue-travel {
   0%,
-  16% {
-    background-position: 100% 50%;
+  52% {
+    background-position:
+      0 0,
+      100% 0;
   }
-  62%,
+  78%,
   100% {
-    background-position: 0% 50%;
+    background-position:
+      0 0,
+      -20% 0;
   }
 }
+/*
+ * When the blend begins, the word steps back: it has announced itself and the
+ * music is now the announcement. The label is removed by the player itself, so
+ * this only has to stop the light from looping brightly through the handover.
+ */
 @media (prefers-reduced-motion: reduce) {
   .mix-cue-word {
+    transition: none;
+    filter: none;
+  }
+  .mix-cue-letter {
     animation: none;
     background-image: none;
     -webkit-text-fill-color: currentColor;

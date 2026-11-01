@@ -1,5 +1,12 @@
 import { mixCues, type MixCues } from '../domain/mix';
-import { handoverGains, levelTrim, planGains, type TransitionPlan } from '../domain/mixPlanner';
+import {
+  panSpread,
+  handoverGains,
+  levelTrim,
+  planGains,
+  smoothstep,
+  type TransitionPlan,
+} from '../domain/mixPlanner';
 import { bassShelfDb, filterOutHz, MixGraph, OPEN_AIR_HZ, stretchRate } from './mixGraph';
 import type { TrackAnalysis } from './dsp';
 import { sourceEnvelope } from './sourceEnvelope';
@@ -21,6 +28,9 @@ interface AudioCallbacks {
     value: { outgoing: Blob; incoming: Blob; progress: number; seconds: number } | null,
   ) => void;
 }
+/** How long the new song takes to get its own level back after a handover. */
+export const SETTLE_SECONDS = 4;
+
 /** Two native decoders; equal-power sine/cosine gains preserve nominal power during overlap. */
 export class MixAudio {
   active: Deck;
@@ -39,12 +49,27 @@ export class MixAudio {
     filterOut: boolean;
     /** Level match between the two records, applied only for the overlap. */
     trim: { outgoing: number; incoming: number };
+    /** Playback rate the outgoing deck is bent towards, and by when. */
+    outgoingRate: number;
   };
+  /**
+   * The few seconds after a handover where the new song's level match is given
+   * back to it.
+   *
+   * A level match only exists while two songs share the stage. When the overlap
+   * ends, restoring the deck to unity in one frame is a jump in volume — the new
+   * song sounds like it suddenly got louder, which is the one thing the match
+   * was supposed to prevent. The match is therefore released slowly, over about
+   * four seconds, and nobody can hear a ramp that gentle.
+   */
+  private settling?: { deck: Deck; from: number; start: number; seconds: number };
   private mixEnabled = false;
   private graph: MixGraph | null = null;
   private analyses = new WeakMap<Blob, TrackAnalysis>();
   private profiles = new WeakMap<Blob, MixCues>();
   private requested = new WeakSet<Blob>();
+  /** Elements that really have a Web Audio chain; anything else uses volume. */
+  private attached = new WeakSet<HTMLAudioElement>();
   private pending = false;
   private blocked?: Blob;
   private generation = 0;
@@ -104,7 +129,7 @@ export class MixAudio {
   analysisFor(blob: Blob | undefined) {
     return blob ? this.analyses.get(blob) : undefined;
   }
-  /** Playback rate that matches a deck to `bpm`, inside the 8 % window. */
+  /** Playback rate that matches a deck to `bpm`, inside the stretch window. */
   stretchFor(blob: Blob | undefined, bpm: number) {
     return stretchRate(blob ? this.analyses.get(blob) : undefined, bpm);
   }
@@ -189,13 +214,24 @@ export class MixAudio {
     if (!this.graph?.running) return;
     const chain = this.graph.chain(deck.element);
     if (!chain) return;
+    this.attached.add(deck.element);
     // The element keeps only the master volume; the mix curve lives in the graph.
     this.graph.setGain(deck.element, 1);
     this.graph.setBass(deck.element, 0);
   }
+  /**
+   * Sets a deck's share of the mix.
+   *
+   * The check is on the deck, not on the graph. An element that was assigned
+   * while the audio context was still suspended has no chain yet, and writing a
+   * gain into a chain that does not exist does nothing at all — which is how a
+   * newly arriving song ended up playing at full volume for a second before
+   * "adjusting". If the deck is not attached, the element's own volume carries
+   * the curve, and the very same value is written to the graph the moment it is.
+   */
   private applyDeckGain(deck: Deck, gain: number) {
     const value = Math.max(0, Math.min(1, gain));
-    if (this.graph) {
+    if (this.graph && this.attached.has(deck.element)) {
       this.graph.setGain(deck.element, value);
       deck.element.volume = this.volume;
     } else {
@@ -362,6 +398,7 @@ export class MixAudio {
     this.startTransition(blob, plan.seconds, guard, onStarted, {
       cue: plan.cue,
       rate: plan.incomingRate,
+      outgoingRate: plan.outgoingRate,
       bassSwapAt: plan.bassSwapAt,
     });
   }
@@ -380,6 +417,7 @@ export class MixAudio {
     options: {
       cue?: number;
       rate?: number;
+      outgoingRate?: number;
       bassSwap?: boolean;
       bassSwapAt?: number;
       filterOut?: boolean;
@@ -427,7 +465,14 @@ export class MixAudio {
           trim: levelTrim(
             outgoing.blob ? this.analyses.get(outgoing.blob) : undefined,
             incoming.blob ? this.analyses.get(incoming.blob) : undefined,
+            // Where the two songs are actually heard together: the outgoing one
+            // from the point its tail begins, the incoming one from its cue.
+            {
+              outgoing: this.element.currentTime,
+              incoming: cue,
+            },
           ),
+          outgoingRate: options.outgoingRate ?? 1,
           outgoing,
           incoming,
           start: performance.now(),
@@ -468,6 +513,7 @@ export class MixAudio {
       if (this.graph) {
         this.graph.setBass(deck.element, 0);
         this.graph.setAir(deck.element, OPEN_AIR_HZ);
+        this.graph.setPan(deck.element, 0);
         this.graph.setGain(deck.element, 1);
       }
     }
@@ -523,6 +569,24 @@ export class MixAudio {
     this.updateFade();
     const master = this.volume * this.fadeGain;
     if (!this.fading) {
+      if (this.settling) {
+        const settle = this.settling;
+        const t = Math.min(1, (performance.now() - settle.start) / (settle.seconds * 1000));
+        if (t >= 1 || settle.deck !== this.active) {
+          this.settling = undefined;
+          this.applyDeckGain(settle.deck, 1);
+        } else {
+          const eased = settle.from + (1 - settle.from) * smoothstep(t);
+          this.applyDeckGain(settle.deck, eased);
+          for (const deck of [this.active, this.spare]) {
+            if (deck && deck !== settle.deck && this.graph) {
+              this.graph.setBass(deck.element, 0);
+              this.graph.setGain(deck.element, 1);
+            }
+          }
+          return;
+        }
+      }
       for (const deck of [this.active, this.spare]) {
         if (deck && this.graph) {
           this.graph.setBass(deck.element, 0);
@@ -547,6 +611,18 @@ export class MixAudio {
     // heard as the mix going quiet.
     this.applyDeckGain(this.fading.outgoing, gains.outgoing * this.fading.trim.outgoing);
     this.applyDeckGain(this.fading.incoming, gains.incoming * this.fading.trim.incoming);
+    // Two records in one space: they separate in the stereo field as they meet
+    // and come back to the centre together. No level is touched.
+    if (this.fading.mixed && this.graph) {
+      this.graph.setPan(this.fading.outgoing.element, panSpread(progress, 'outgoing'));
+      this.graph.setPan(this.fading.incoming.element, panSpread(progress, 'incoming'));
+    }
+    // The old song eases towards the new one's tempo over the first half of the
+    // overlap instead of the new one doing all the travelling.
+    if (this.fading.mixed && this.fading.outgoingRate !== 1) {
+      const bend = smoothstep(Math.min(1, progress / 0.45));
+      this.fading.outgoing.element.playbackRate = 1 + (this.fading.outgoingRate - 1) * bend;
+    }
     if (this.fading.bassSwap && this.graph) {
       // A's lows close as B's open, so the kick never disappears between the two
       // songs and the low end clearly changes hands once.
@@ -565,10 +641,20 @@ export class MixAudio {
       if (this.graph) {
         this.graph.setBass(finished.incoming.element, 0);
         this.graph.setAir(finished.incoming.element, OPEN_AIR_HZ);
+        this.graph.setPan(finished.incoming.element, 0);
       }
       this.fading = undefined;
-      // Back to unity: from here the song plays exactly as it does alone.
-      this.graph?.setGain(finished.incoming.element, 1);
+      // The new song takes its own level back — slowly. Anything under about
+      // four seconds is inaudible as a change and stops the one jump a handover
+      // used to have.
+      if (finished.trim.incoming !== 1) {
+        this.settling = {
+          deck: finished.incoming,
+          from: finished.trim.incoming,
+          start: performance.now(),
+          seconds: SETTLE_SECONDS,
+        };
+      } else this.applyDeckGain(finished.incoming, 1);
       this.callbacks.blend?.(null);
     }
   }

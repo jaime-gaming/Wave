@@ -20,6 +20,9 @@ export interface DeckChain {
   air: BiquadFilterNode;
 }
 
+/** Widest pan a deck is moved during a mix, well short of a hard side. */
+export const MAX_PAN = 0.5;
+
 /** Low shelf corner: below this, the deck is the "bass" deck or it is not. */
 export const BASS_SHELF_HZ = 180;
 /** How far down the outgoing low end goes at the swap point. */
@@ -29,7 +32,7 @@ export const OPEN_AIR_HZ = 20_000;
 /** Where the outgoing song's top ends up as it leaves the mix. */
 export const CLOSED_AIR_HZ = 1_600;
 
-type Chain = { gain: AudioParam; bass: AudioParam; air: AudioParam };
+type Chain = { gain: AudioParam; bass: AudioParam; air: AudioParam; pan?: AudioParam };
 
 export class MixGraph {
   private readonly context: AudioContext;
@@ -103,9 +106,23 @@ export class MixGraph {
         source.connect(bass);
         bass.connect(gain);
         gain.connect(air);
-        air.connect(this.context.destination);
+        // A panner finishes the chain where the browser has one. It is the only
+        // effect in the graph that changes no level: two songs separate in the
+        // stereo field during a blend and come back to the centre.
+        const pan = this.context.createStereoPanner?.();
+        if (pan) {
+          air.connect(pan);
+          pan.connect(this.context.destination);
+        } else {
+          air.connect(this.context.destination);
+        }
         this.sources.add(source);
-        chain = { gain: gain.gain, bass: bass.gain, air: air.frequency };
+        chain = {
+          gain: gain.gain,
+          bass: bass.gain,
+          air: air.frequency,
+          ...(pan ? { pan: pan.pan } : {}),
+        };
         this.chains.set(element, chain);
       } catch {
         return null;
@@ -149,6 +166,20 @@ export class MixGraph {
     else chain.bass.value = safe;
   }
 
+  /**
+   * Places a deck in the stereo field, −1 left to 1 right.
+   *
+   * Only ever moved during a blend and always returned to 0, so ordinary
+   * playback is exactly centred and unchanged.
+   */
+  setPan(element: HTMLAudioElement, value: number, at = 0): void {
+    const chain = this.chains.get(element);
+    if (!chain?.pan) return;
+    const safe = Number.isFinite(value) ? Math.max(-MAX_PAN, Math.min(MAX_PAN, value)) : 0;
+    if (at > 0) chain.pan.setTargetAtTime(safe, this.context.currentTime + at, 0.08);
+    else chain.pan.value = safe;
+  }
+
   /** Releases the context. Sources cannot be detached, so they are left silent. */
   async close(): Promise<void> {
     for (const source of this.sources) {
@@ -185,11 +216,16 @@ export function bassShelfDb(role: 'outgoing' | 'incoming', progress: number): nu
  * preserved by the browser, so this is a small tempo adjustment, not a chipmunk
  * effect, and it is reverted as soon as the transition ends.
  */
+export const STRETCH_LIMIT = 0.16;
+
 export function stretchRate(analysis: TrackAnalysis | undefined, targetBpm: number): number {
   if (!analysis || analysis.beats.confidence < 0.35) return 1;
   if (!Number.isFinite(targetBpm) || targetBpm <= 0) return 1;
   const rate = targetBpm / analysis.beats.bpm;
-  if (!Number.isFinite(rate) || Math.abs(rate - 1) > 0.08) return 1;
+  // Sixteen per cent, not eight: a broader window matches far more real pairs,
+  // and the browser preserves pitch, so this is a tempo change and not a
+  // chipmunk. The fallback above still refuses anything wilder.
+  if (!Number.isFinite(rate) || Math.abs(rate - 1) > STRETCH_LIMIT) return 1;
   return Math.round(rate * 1000) / 1000;
 }
 

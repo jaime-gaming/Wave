@@ -28,13 +28,20 @@ WebView, a signed release asset, or a camera reader and transport, and none of t
 above them exists on all three platforms; where the wording differs, it is the platform's own control for
 the same job, not a missing feature.
 
-## Browser and GitHub Pages
+## Browser and Cloudflare Pages
 
-The published web client is https://wave.jaime-gaming.com, and `docs/CNAME` holds that host so a rebuild cannot lose it. Use Node.js 22.12+ or 24 and `npm ci && npm run dev`. Production: `npm run build`. For a repository path, use `WAVE_BASE_PATH=/Wave/ npm run build` and serve it below `/Wave/`.
+The published web client is **https://wave.jaime-gaming.com**, served by **Cloudflare Pages**. Use Node.js 22.12+ or 24 and `npm ci && npm run dev`. Production: `npm run build`. For a repository path, use `WAVE_BASE_PATH=/Wave/ npm run build` and serve it below `/Wave/`.
 
-To deploy **without a custom Actions workflow**, select **Settings → Pages → Build and deployment → Source: Deploy from a branch**, then **Branch: main**, **Folder: /docs**, and Save after merging the PR. The compiled site is committed in `docs/index.html` and `docs/site-assets/`; `.nojekyll` disables Jekyll processing. Do not select the repository root: its index is Vite source, not the production site. GitHub may show its built-in Pages deployment job; no Wave deployment workflow or `PAGES_ENABLED` variable is needed.
+Cloudflare Pages builds the repository itself: **Build command** `npm run build`, **Build output directory** `dist`, Node 22 or newer. The custom domain is set once in the Pages project (**Custom domains → wave.jaime-gaming.com**); there is no `CNAME` file to commit, because Cloudflare owns the record. Branch builds get `*.pages.dev` preview URLs automatically, and every build is immutable.
 
-After any web source or public asset change, run `npm ci && npm run build:pages` and commit the generated `docs` changes alongside the source. This cross-platform command uses relative URLs (repository paths and custom domains both work), replaces generated site assets, and preserves Markdown documentation. Preview with `npx vite preview --host 0.0.0.0` after building. CI checks that the committed site matches a fresh build. No repository setting, visibility, tag or release is changed by the build command. Browser libraries are specific to a site origin and profile. HTTPS is needed for Web Crypto/persistence. No backend or API keys are needed.
+Two files in `public/` carry the hosting rules and are copied into the build:
+
+- `_redirects` — one page, so an unknown path is served `index.html` with a `200`. Real files (icons, fonts, `privacy.html`, the service worker) are matched first.
+- `_headers` — `nosniff`, `no-referrer`, a camera-only `Permissions-Policy`, `SAMEORIGIN` framing, a year of immutable caching for the hashed `site-assets/`, and revalidation for `index.html` and `sw.js` so a new release is actually picked up.
+
+The same build is committed under `docs/` as a static mirror for hosts that serve from the repository (GitHub Pages, an object store, a USB stick); it is not what Cloudflare deploys. `npm run build:pages` produces it.
+
+After any web source or public asset change, run `npm ci && npm run build:pages` and commit the generated `docs` mirror alongside the source. This cross-platform command uses relative URLs (repository paths and custom domains both work), replaces generated site assets, and preserves Markdown documentation. Preview with `npx vite preview --host 0.0.0.0` after building. CI checks that the committed site matches a fresh build. No repository setting, visibility, tag or release is changed by the build command. Browser libraries are specific to a site origin and profile. HTTPS is needed for Web Crypto/persistence. No backend or API keys are needed.
 
 ## Windows
 

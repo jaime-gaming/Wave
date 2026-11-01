@@ -8,6 +8,8 @@ import {
   MAX_CUE_LEAD,
   MAX_ENTRY,
   MAX_STRETCH,
+  PAN_SPREAD,
+  panSpread,
   planGains,
   planTransition,
   planTransitionCached,
@@ -92,27 +94,44 @@ describe('Mix transition planning', () => {
     expect(plan.phaseAligned).toBe(true);
   });
 
-  it('stretches the incoming song when the tempo gap is under 8 %', () => {
+  it('meets in the middle when the two tempos are close', () => {
     const plan = planTransition(
       analysis(),
       analysis({ beats: { bpm: 126, offset: 0.02, confidence: 0.8 } }),
     );
     expect(plan.mode).toBe('beatmatched');
     expect(plan.stretched).toBe(true);
-    expect(plan.incomingRate).toBeCloseTo(120 / 126, 3);
+    // Neither deck takes the whole correction: the new song rises a little and
+    // the old one eases down a little, so both end on exactly the same pulse.
+    expect(plan.incomingRate).toBeCloseTo(Math.sqrt(120 / 126), 3);
+    expect(plan.outgoingRate).toBeCloseTo(Math.sqrt(126 / 120), 3);
+    // Both decks land on the same pulse (rounding to 3 dp costs a hair).
+    expect(plan.outgoingRate! * 120).toBeCloseTo(plan.incomingRate * 126, 1);
     expect(Math.abs(plan.incomingRate - 1)).toBeLessThanOrEqual(MAX_STRETCH);
     expect(plan.notes.join(' ')).toMatch(/pitch preserved/i);
   });
 
-  it('refuses to stretch beyond the limit and shortens the overlap instead', () => {
-    const plan = planTransition(
+  it('stretches further than the old eight per cent, and only refuses a real gap', () => {
+    // 140 against 120 is a 16 % gap: inside the widened window, so it is mixed.
+    const close = planTransition(
       analysis(),
       analysis({ beats: { bpm: 140, offset: 0, confidence: 0.9 } }),
     );
-    expect(plan.incomingRate).toBe(1);
-    expect(plan.stretched).toBe(false);
-    expect(plan.bars).toBeLessThanOrEqual(4);
-    expect(plan.notes.join(' ')).toMatch(/too wide to stretch/i);
+    expect(close.mode).toBe('beatmatched');
+    expect(close.stretched).toBe(true);
+    // The faster incoming song is eased down; the slower outgoing one eased up.
+    expect(close.incomingRate).toBeLessThan(1);
+    expect(close.outgoingRate).toBeGreaterThan(1);
+    // 140 against 112 is 25 %: still refused, and shortened instead.
+    const wide = planTransition(
+      analysis({ beats: { bpm: 112, offset: 0.05, confidence: 0.85 } }),
+      analysis({ beats: { bpm: 140, offset: 0, confidence: 0.9 } }),
+    );
+    expect(wide.incomingRate).toBe(1);
+    expect(wide.outgoingRate).toBe(1);
+    expect(wide.stretched).toBe(false);
+    expect(wide.bars).toBeLessThanOrEqual(4);
+    expect(wide.notes.join(' ')).toMatch(/too wide to stretch/i);
   });
 
   it('falls back to an equal-power crossfade without a trusted grid', () => {
@@ -395,8 +414,48 @@ describe('Mix against real material', () => {
   });
 
   it('still refuses a genuinely different tempo', () => {
-    const plan = planTransition(club(), club({ beats: { bpm: 100, offset: 0, confidence: 0.8 } }));
+    const plan = planTransition(
+      analysis(),
+      analysis({ beats: { bpm: 168, offset: 0, confidence: 0.8 } }),
+    );
     expect(plan.stretched).toBe(false);
     expect(plan.incomingRate).toBe(1);
+    expect(plan.outgoingRate).toBe(1);
+  });
+});
+
+describe('The extra moves a mix makes', () => {
+  it('separates the two songs in the stereo field and brings them home', () => {
+    // Nothing at the very start or the very end: ordinary playback is centred.
+    expect(panSpread(0, 'outgoing')).toBe(0);
+    expect(panSpread(1, 'incoming')).toBe(0);
+    // In the middle they are apart, and mirrored.
+    expect(panSpread(0.5, 'outgoing')).toBeLessThan(0);
+    expect(panSpread(0.5, 'incoming')).toBeGreaterThan(0);
+    expect(panSpread(0.5, 'incoming')).toBeCloseTo(-panSpread(0.5, 'outgoing'), 3);
+    expect(Math.abs(panSpread(0.5, 'outgoing'))).toBeLessThanOrEqual(PAN_SPREAD);
+  });
+
+  it('matches levels where the two songs actually meet, not on average', () => {
+    // Both songs average the same level, so a whole-body comparison finds
+    // nothing to do — but the join is between one song's quiet tail and the
+    // other's loud opening, which is exactly where the jolt used to be.
+    const outgoing = analysis({
+      segments: [
+        { start: 0, end: 100, level: 0.9, kind: 'body' },
+        { start: 100, end: 200, level: 0.1, kind: 'body' },
+      ],
+    });
+    const incoming = analysis({
+      segments: [
+        { start: 0, end: 100, level: 0.9, kind: 'body' },
+        { start: 100, end: 200, level: 0.1, kind: 'body' },
+      ],
+    });
+    expect(levelTrim(outgoing, incoming)).toEqual({ outgoing: 1, incoming: 1 });
+    // The incoming song arrives loud over a quiet tail: it is the one turned down.
+    const join = levelTrim(outgoing, incoming, { outgoing: 190, incoming: 0 });
+    expect(join.outgoing).toBe(1);
+    expect(join.incoming).toBeLessThan(1);
   });
 });

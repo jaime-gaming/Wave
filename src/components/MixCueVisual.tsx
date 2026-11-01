@@ -44,24 +44,43 @@ export function MixCueVisual({
 /**
  * The word itself: small, quiet, and the only place Wave says "Mixing".
  *
- * The light is inside the word, not around it. A soft highlight travels across
- * the letters — the letters themselves brighten as it passes and go back to
- * grey behind it — then rests before going round again. That is the whole
- * animation: no bars, no line, no border, nothing beside the word.
+ * The animation is the word doing what a blend does. Each letter lights in turn
+ * — a highlight that travels left to right and never restarts in the middle of
+ * the lead-in — and as the handover gets closer the letters tighten by a hair
+ * and the glow behind them grows, so the announcement is *approaching*
+ * something instead of looping until the song happens to end.
  *
- * The sweep is a `background-clip: text` gradient with a static grey underneath,
- * so a browser that cannot clip to text still shows a plain word rather than a
- * hole where the word should be. Reduced motion stops it on the first frame.
+ * Every letter is its own span so the light can be a per-letter delay rather
+ * than a sliding gradient: a gradient across a whole word can only cross it at
+ * one constant speed, while letters can wait, hurry and settle. The word is
+ * still one string for a screen reader, which hears the sentence and not the
+ * parts.
+ *
+ * Reduced motion keeps the word still and readable: no sweep, no tightening.
  */
 export function MixCueLabel({ cue }: { cue: MixCue }) {
+  const progress = Math.max(0, Math.min(1, cue.progress));
+  const word = 'Mixing';
   return (
     <span
       className="mix-cue-label"
       role="status"
       aria-label={`Mixing into ${cue.to.title} by ${cue.to.artist}`}
     >
-      <span className="mix-cue-word" aria-hidden="true">
-        Mixing
+      <span
+        className="mix-cue-word"
+        aria-hidden="true"
+        style={{ '--cue-progress': progress } as CSSProperties}
+      >
+        {[...word].map((letter, index) => (
+          <span
+            className="mix-cue-letter"
+            key={`${letter}-${index}`}
+            style={{ '--letter-index': index, '--letters': word.length } as CSSProperties}
+          >
+            {letter}
+          </span>
+        ))}
       </span>
     </span>
   );

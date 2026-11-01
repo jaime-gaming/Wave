@@ -388,7 +388,7 @@ That paragraph records the state before the hosted workflows existed; both nativ
 
 ## Publication and legal status
 
-No GitHub Pages deployment, release or remote publication was performed. Publishing requires maintainer Pages configuration and merging/pushing the source changes through the normal repository process. The legal-analysis document was removed at the project owner’s request. New legally motivated product changes require owner approval.
+No hosting deployment, release or remote publication was performed. Publishing requires the Cloudflare Pages project to build the merged commit. The legal-analysis document was removed at the project owner’s request. New legally motivated product changes require owner approval.
 
 ## Visual listening redesign follow-up
 
@@ -624,5 +624,5 @@ fade used by the Windows window) and the Android page transition are therefore r
 The WPF smoke's captured screenshots will show the pages after their entrances have settled, which
 is the point — an entrance is not allowed to leave a page half-drawn or unusable.
 
-The custom domain is configured in `docs/CNAME` and in the build script; DNS, the Pages custom-domain
-setting and the certificate remain repository settings that only the maintainer can change.
+The custom domain is configured in the Cloudflare Pages project, not in this repository; the DNS
+record and the certificate remain dashboard settings that only the maintainer can change.

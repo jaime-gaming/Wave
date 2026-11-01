@@ -19,7 +19,18 @@ import { isRubato, tempoRelation } from '../audio/tempo';
  * preserved, and only while the two songs overlap.
  */
 export const BEATS_PER_BAR = 4;
-export const MAX_STRETCH = 0.08;
+/**
+ * The widest tempo correction Mix will make, relative.
+ *
+ * Eight per cent kept the music safe but refused a great many real pairs —
+ * half the records in a collection sit between 100 and 130 BPM, and a six per
+ * cent gap is audibly nothing with pitch preserved. Sixteen per cent covers
+ * those, and it is still the point where a slow song starts to lose its weight,
+ * which is why the outgoing deck is only ever nudged by half of it.
+ */
+export const MAX_STRETCH = 0.16;
+/** How far the outgoing deck may be nudged to meet the incoming one. */
+export const MAX_OUTGOING_BEND = 0.08;
 export const MIN_BARS = 4;
 /** Hard ceiling for an explicit request; Mix itself chooses far fewer bars. */
 export const MAX_BARS = 16;
@@ -82,6 +93,11 @@ export interface TransitionPlan {
   cue: number;
   /** Playback rate for the incoming deck during the overlap. */
   incomingRate: number;
+  /**
+   * Playback rate the outgoing deck is bent towards during the first part of
+   * the overlap. 1 when the two tempos already agree or the grid is shaky.
+   */
+  outgoingRate?: number;
   /** True when the rate is a tempo change rather than 1.0. */
   stretched: boolean;
   /** Fraction of the overlap after which bass is swapped to the incoming song. */
@@ -213,6 +229,7 @@ export function planTransition(
         startAt: outgoing?.trimmed.end ?? 0,
         cue: incoming?.trimmed.start ?? 0,
         incomingRate: 1,
+        outgoingRate: 1,
         stretched: false,
         bassSwapAt: 0.5,
         bars: 0,
@@ -228,6 +245,7 @@ export function planTransition(
       startAt: Math.max(outgoing.trimmed.start, outgoing.trimmed.end - seconds),
       cue: Math.max(0, incoming.trimmed.start),
       incomingRate: 1,
+      outgoingRate: 1,
       stretched: false,
       bassSwapAt: 0.5,
       bars: 0,
@@ -268,6 +286,7 @@ export function planTransition(
       startAt: Math.round(start * 1000) / 1000,
       cue: Math.round(cue * 1000) / 1000,
       incomingRate: 1,
+      outgoingRate: 1,
       stretched: false,
       bassSwapAt: 0.5,
       bars: 0,
@@ -299,14 +318,33 @@ export function planTransition(
   // Folding already resolved the octave, so what is left of `difference` is the
   // real gap: a few per cent is a stretch, a lot of it is a different tempo.
   const stretchable = stretchNeeded <= maxStretch;
-  const incomingRate = stretchable ? Math.round(relation.ratio * 1000) / 1000 : 1;
+  /**
+   * Both decks share the correction instead of one deck doing all of it.
+   *
+   * A correction applied entirely to the incoming song is a correction applied
+   * entirely to a song nobody has heard yet, and it is the one that colours the
+   * sound most. Meeting in the middle — the old record nudged down as it leaves,
+   * the new one brought up as it arrives — halves the deviation on each and is
+   * what a person with two turntables actually does. Ratios split in the
+   * geometric mean, so the two decks end on exactly the same pulse.
+   */
+  const meeting = Math.sqrt(relation.ratio);
+  const bendable = 1 + Math.min(MAX_OUTGOING_BEND, maxStretch);
+  const incomingRate =
+    stretchable && Math.abs(relation.ratio - 1) > 0.004
+      ? Math.round(clamp(meeting, 1 / bendable, bendable) * 1000) / 1000
+      : 1;
+  const outgoingRate =
+    stretchable && Math.abs(relation.ratio - 1) > 0.004
+      ? Math.round(clamp(1 / meeting, 1 / bendable, bendable) * 1000) / 1000
+      : 1;
   if (stretchable && octave)
     notes.push(
       `Half-time relation: ${bpmB.toFixed(1)} and ${bpmA.toFixed(1)} BPM are the same pulse at twice the speed, so they are blended without stretching.`,
     );
   else if (stretchable && stretchNeeded > 0.004)
     notes.push(
-      `Tempo matched: ${bpmB.toFixed(1)} → ${bpmA.toFixed(1)} BPM (${((incomingRate - 1) * 100).toFixed(1)} % stretch, pitch preserved).`,
+      `Tempo matched: ${bpmB.toFixed(1)} → ${(bpmB * incomingRate).toFixed(1)} BPM while the old song bends from ${bpmA.toFixed(1)} to ${(bpmA * outgoingRate).toFixed(1)} (${((incomingRate - 1) * 100).toFixed(1)} % and ${((outgoingRate - 1) * 100).toFixed(1)} %, pitch preserved).`,
     );
   else if (octave)
     notes.push(
@@ -373,6 +411,7 @@ export function planTransition(
     startAt: Math.round(startAt * 1000) / 1000,
     cue: Math.round(cue * 1000) / 1000,
     incomingRate,
+    outgoingRate,
     stretched: stretchable && stretchNeeded > 0.004,
     bassSwapAt: 0.5,
     bars,
@@ -392,9 +431,50 @@ export function planTransition(
  * and its loudness on disk are untouched, and the deck is back at unity when the
  * handover ends.
  */
+/** Mean level of the body segments that overlap a window of the song. */
+function levelAround(analysis: TrackAnalysis | undefined, seconds: number, window = 12): number | undefined {
+  if (!analysis) return undefined;
+  const from = seconds,
+    to = seconds + window;
+  const inside = analysis.segments.filter(
+    (segment) => segment.kind === 'body' && segment.level > 0.01 && segment.end > from && segment.start < to,
+  );
+  if (!inside.length) return undefined;
+  // Weighted by how much of each segment is actually inside the window, so a
+  // blend that starts halfway through a loud passage is judged by that passage.
+  let total = 0,
+    weight = 0;
+  for (const segment of inside) {
+    const share = Math.min(segment.end, to) - Math.max(segment.start, from);
+    if (share <= 0) continue;
+    total += segment.level * share;
+    weight += share;
+  }
+  return weight > 0 ? total / weight : undefined;
+}
+
+/**
+ * The level match between two records.
+ *
+ * It used to compare the average level of both bodies, which is the wrong
+ * question: the only thing that has to match is the moment the two songs are
+ * actually heard together. A quiet album track whose outro is loud and a loud
+ * single whose intro is quiet average out to "matched" and then arrive with a
+ * jolt, which is exactly the "it comes in too loud and then it adjusts" that
+ * made a mix feel unfinished.
+ *
+ * `at` gives the two positions — where the outgoing song's tail begins and
+ * where the incoming song is cued — and the comparison happens there. Without
+ * it the old whole-body average is used, so nothing that cannot say where the
+ * join is gets a worse answer than before.
+ *
+ * Only ever attenuates: the louder of the two is turned down, never the quieter
+ * one up, so nothing clips and no file is made louder than it was mastered.
+ */
 export function levelTrim(
   outgoing: TrackAnalysis | undefined,
   incoming: TrackAnalysis | undefined,
+  at?: { outgoing: number; incoming: number },
 ): { outgoing: number; incoming: number } {
   const meanBody = (analysis: TrackAnalysis | undefined) => {
     if (!analysis) return undefined;
@@ -404,14 +484,35 @@ export function levelTrim(
     if (!levels.length) return undefined;
     return levels.reduce((total, level) => total + level, 0) / levels.length;
   };
-  const a = meanBody(outgoing),
-    b = meanBody(incoming);
+  const a = (at ? levelAround(outgoing, at.outgoing) : undefined) ?? meanBody(outgoing),
+    b = (at ? levelAround(incoming, at.incoming) : undefined) ?? meanBody(incoming);
   if (!a || !b) return { outgoing: 1, incoming: 1 };
   const decibels = Math.max(-6, Math.min(6, 20 * Math.log10(b / a)));
   if (!Number.isFinite(decibels) || Math.abs(decibels) < 0.5) return { outgoing: 1, incoming: 1 };
   return decibels > 0
     ? { outgoing: 1, incoming: Math.round(10 ** (-decibels / 20) * 1000) / 1000 }
     : { outgoing: Math.round(10 ** (decibels / 20) * 1000) / 1000, incoming: 1 };
+}
+
+/**
+ * How far the two songs are pulled apart in the stereo field.
+ *
+ * A blend is two records in one space, and the ear separates them best by
+ * position rather than by level: the old one drifts a little towards one side as
+ * it leaves, the new one arrives from the other, and both come back to the
+ * centre by the end. It costs no level at all — the power of the overlap stays
+ * exactly what `handoverGains` says it is — and it is the one effect that makes
+ * a handover sound deliberate without colouring either song.
+ */
+export const PAN_SPREAD = 0.32;
+
+export function panSpread(progress: number, role: 'outgoing' | 'incoming'): number {
+  const p = clamp(progress, 0, 1);
+  // Opens over the first fifth, holds, closes over the last third.
+  const open = p < 0.2 ? smoothstep(p / 0.2) : 1;
+  const close = p > 0.66 ? 1 - smoothstep((p - 0.66) / 0.34) : 1;
+  const amount = PAN_SPREAD * Math.min(open, close);
+  return Number(((role === 'outgoing' ? -amount : amount) || 0).toFixed(3));
 }
 
 /**
@@ -502,7 +603,7 @@ export function bassSwapGains(progress: number): { outgoing: number; incoming: n
   return { outgoing: Math.cos((smooth * Math.PI) / 2), incoming: Math.sin((smooth * Math.PI) / 2) };
 }
 
-const smoothstep = (value: number) => {
+export const smoothstep = (value: number) => {
   const t = clamp(value, 0, 1);
   return t * t * (3 - 2 * t);
 };
