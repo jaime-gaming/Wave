@@ -350,6 +350,10 @@
   chooser, so the click did nothing at all. A refusal now falls through to the browser's folder
   input, the import is no longer held up by remembering the folder, and Windows gained the folder
   choice it never had — files or a whole folder, from the same button.
+- A folder no longer stops at its first bad file. One truncated download, one tag this browser
+  cannot read or one zero-byte placeholder used to end the whole import; each file is now its own
+  attempt and the message counts the ones that could not be read. Running out of storage still
+  stops cleanly, because that is the one failure that cannot be skipped past.
 - Finding a video clip got the VEVO case right. A channel that glues the act's name together
   ("NilsFrahmVEVO") is recognised as the artist's own, which is where most official videos live,
   and an official upload titled "Artist - Song" is no longer punished for naming the artist.

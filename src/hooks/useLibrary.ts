@@ -72,46 +72,69 @@ export function useLibrary() {
       let added = 0,
         duplicates = 0,
         rejected = 0,
-        wrongFormat = 0;
+        wrongFormat = 0,
+        failed = 0,
+        outOfSpace = false;
       setProgress({ done: 0, total: files.length });
       try {
         for (const [index, file] of files.entries()) {
+          // One unreadable file is one file. A folder of a thousand songs is not
+          // a curated set, and a single odd tag, a truncated download or a codec
+          // this browser cannot read must not end the import of the other 999.
           if (!isAudioFile(file) || file.size > MAX_FILE_SIZE || file.size === 0) {
             if (isLegacyAudioFile(file)) wrongFormat++;
             rejected++;
           } else {
-            const id = await contentIdentity(file);
-            for (const old of existing.current.filter(
-              (track) => !track.contentHash && track.blob && track.size === file.size,
-            )) {
-              const hash = await contentIdentity(old.blob!);
-              await recordContentHash(old.id, hash);
-              known.current.add(hash);
-              existing.current = existing.current.map((track) =>
-                track.id === old.id ? { ...track, contentHash: hash } : track,
-              );
+            // Reading a file can fail on the file; writing one can only fail on
+            // the library, so the two are handled apart.
+            let prepared: { id: string; track?: Track } | undefined;
+            try {
+              const id = await contentIdentity(file);
+              for (const old of existing.current.filter(
+                (track) => !track.contentHash && track.blob && track.size === file.size,
+              )) {
+                const hash = await contentIdentity(old.blob!);
+                recordContentHash(old.id, hash).catch(() => undefined);
+                known.current.add(hash);
+                existing.current = existing.current.map((track) =>
+                  track.id === old.id ? { ...track, contentHash: hash } : track,
+                );
+              }
+              prepared = known.current.has(id)
+                ? { id }
+                : { id, track: { ...(await readTrack(file, id)), contentHash: id } };
+            } catch {
+              failed++;
             }
-            if (known.current.has(id)) {
+            if (prepared?.track) {
+              try {
+                await saveTrack(prepared.track);
+                known.current.add(prepared.id);
+                existing.current = [...existing.current, prepared.track];
+                startTransition(() => setTracks((current) => [...current, prepared!.track!]));
+                added++;
+              } catch {
+                // Storage is the one failure that cannot be skipped past: stop
+                // cleanly, say so, and leave what was already saved in place.
+                outOfSpace = true;
+                break;
+              }
+            } else if (prepared) {
               duplicates++;
-            } else {
-              const track = { ...(await readTrack(file, id)), contentHash: id };
-              await saveTrack(track);
-              known.current.add(id);
-              existing.current = [...existing.current, track];
-              startTransition(() => setTracks((current) => [...current, track]));
-              added++;
             }
           }
           setProgress({ done: index + 1, total: files.length });
           await new Promise<void>((resolve) => setTimeout(resolve, 0));
         }
       } catch {
-        setError(
-          'Import stopped: browser storage is unavailable or full. Files already added are safe.',
-        );
+        outOfSpace = true;
       } finally {
+        if (outOfSpace)
+          setError(
+            'Import stopped: browser storage is unavailable or full. Files already added are safe.',
+          );
         setMessage(
-          `${added} ${added === 1 ? 'track' : 'tracks'} added${duplicates ? ` · ${duplicates} already in your library` : ''}${rejected ? ` · ${rejected} skipped (${IMPORT_FORMAT_HINT}, up to 200 MB)` : ''}${wrongFormat ? ` · ${wrongFormat} in a format Wave no longer imports` : ''}.`,
+          `${added} ${added === 1 ? 'track' : 'tracks'} added${duplicates ? ` · ${duplicates} already in your library` : ''}${rejected ? ` · ${rejected} skipped (${IMPORT_FORMAT_HINT}, up to 200 MB)` : ''}${failed ? ` · ${failed} could not be read` : ''}${wrongFormat ? ` · ${wrongFormat} in a format Wave no longer imports` : ''}.`,
         );
         setProgress(null);
         importing.current = false;

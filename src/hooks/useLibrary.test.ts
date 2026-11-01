@@ -106,6 +106,22 @@ describe('library workflow', () => {
     expect(result.current.error).toContain('storage');
     expect(result.current.progress).toBeNull();
   });
+  it('imports the rest of a folder when one file cannot be read', async () => {
+    // A folder of a thousand songs is not curated: one truncated download must
+    // not cost the other 999.
+    vi.mocked(readTrack).mockRejectedValueOnce(new Error('bad tag'));
+    const { result } = renderHook(useLibrary);
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    await act(async () => {
+      await result.current.importFiles([
+        new File(['x'], 'broken.mp3'),
+        new File(['y'], 'fine.wav'),
+      ]);
+    });
+    expect(result.current.tracks).toHaveLength(1);
+    expect(result.current.message).toContain('could not be read');
+    expect(result.current.error).toBe('');
+  });
   it('reports initialization errors instead of hanging', async () => {
     vi.mocked(getTracks).mockRejectedValueOnce(new Error('blocked'));
     const { result } = renderHook(useLibrary);
