@@ -275,7 +275,13 @@ private fun SongActions(song: Song, state: WaveState, onEdit: () -> Unit, modifi
     }
 }
 
-/** Position, the two clocks and the transport, on one surface at the bottom. */
+/**
+ * Position, the two clocks and the transport, on one surface at the bottom.
+ *
+ * The opt-in travels with the function: it draws the same Material slider as the
+ * screen above it, and an opt-in on the caller does not reach the callee.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TransportDeck(song: Song, player: Player) {
     Column(

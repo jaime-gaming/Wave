@@ -149,7 +149,7 @@ public partial class MainWindow : Window
         if (NavigationPanel.Content is StackPanel rail)
         {
             rail.Margin = narrow ? new Thickness(8, 24, 8, 18) : new Thickness(16, 24, 12, 18);
-            foreach (var element in rail.Children)
+            foreach (var element in rail.Children.OfType<FrameworkElement>())
             {
                 if (element is Button button && button.Content is StackPanel content)
                 {
