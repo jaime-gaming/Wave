@@ -1688,3 +1688,57 @@
     transition: none;
   }
 }
+
+/*
+ * The break card.
+ *
+ * Dimming the whole page would suggest something has gone wrong. This floats a
+ * small card over it instead, low on the screen where the eye already is.
+ */
+.break-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: end center;
+  padding: 0 16px calc(16px + 88px + 16px);
+  background: color-mix(in srgb, var(--bg, #101319) 62%, transparent);
+  backdrop-filter: blur(6px);
+}
+.break-card {
+  width: min(440px, 100%);
+  padding: 22px 22px 18px;
+  border-radius: 26px;
+  background: var(--surface, #1b1f27);
+  color: var(--text, #eef1f7);
+  border: 1px solid color-mix(in srgb, var(--primary, #b0c7ff) 14%, transparent);
+  box-shadow: 0 24px 60px rgb(0 0 0 / 38%);
+}
+.break-card h2 {
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  margin: 0;
+}
+.break-card p {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--muted, #a5adbb);
+}
+.break-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+.break-actions button {
+  padding: 9px 16px;
+  border-radius: 14px;
+  font-size: 14px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .break-overlay {
+    backdrop-filter: none;
+  }
+}

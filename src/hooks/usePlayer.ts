@@ -8,6 +8,7 @@ import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { playerReducer, shuffleQueue } from '../domain/player';
 import { resolvePlayable } from '../domain/youtubeTrack';
 import { describeSilence, silenceReport, trimFromReport, type SilenceReport } from '../domain/silence';
+import { breakDue, freshBreak, heardFor, nextBreakThreshold } from '../domain/breakTime';
 import { planEdgeHandover } from '../domain/edgeMix';
 import { PlaybackClock } from './playbackClock';
 import { cueTiming, MixCueStore } from '../ui/mixCue';
@@ -762,6 +763,42 @@ export function usePlayer(
     [],
   );
   /**
+   * The long-session question.
+   *
+   * Time is counted only while the music is running, in five-second steps, and
+   * never written to disk: a break is about this sitting, not about a lifetime.
+   * When it is due, the music stops before the question is shown — asking
+   * somebody to take a break while the bass is still going is an odd thing to do.
+   */
+  const [breakOpen, setBreakOpen] = useState(false);
+  const listened = useRef(freshBreak());
+  const breakThreshold = useRef(undefined as number | undefined);
+  useEffect(() => {
+    if (!state.playing) return;
+    const timer = setInterval(() => {
+      listened.current = heardFor(listened.current, 5);
+      if (breakDue(listened.current, breakThreshold.current)) {
+        if (stateRef.current.playing) dispatch({ type: 'pause' });
+        setBreakOpen(true);
+      }
+    }, 5_000);
+    return () => clearInterval(timer);
+  }, [state.playing]);
+  const keepListening = useCallback(() => {
+    breakThreshold.current = nextBreakThreshold(
+      breakThreshold.current ?? listened.current.listened,
+    );
+    setBreakOpen(false);
+    if (!stateRef.current.playing) dispatch({ type: 'toggle' });
+  }, []);
+  const stopForNow = useCallback(() => {
+    breakThreshold.current = nextBreakThreshold(
+      breakThreshold.current ?? listened.current.listened,
+    );
+    setBreakOpen(false);
+  }, []);
+
+  /**
    * Dead air the listener has not answered about yet, for this song only.
    *
    * Measured when the song is played, never at import: analysing a library of
@@ -794,6 +831,9 @@ export function usePlayer(
   }, [tracks]);
 
   return {
+    breakOpen,
+    keepListening,
+    stopForNow,
     silenceNotice,
     removeSilence,
     keepSilence,

@@ -4,6 +4,7 @@ import { YouTubeStage } from './YouTubeStage';
 import { MixVisual } from './MixVisual';
 import { MixCueLabel, MixCueVisual } from './MixCueVisual';
 import { SilenceNotice } from './SilenceNotice';
+import { BreakPrompt } from './BreakPrompt';
 import { cueForTrack, useMixCue, type MixCue } from '../ui/mixCue';
 import { WaveSeek } from './WaveSeek';
 import { LyricsPanel } from './LyricsPanel';
@@ -399,6 +400,11 @@ export function PlayerBar(props: PlayerProps) {
   }, [expanded, player.current?.id]);
   return (
     <>
+      <BreakPrompt
+        open={player.breakOpen}
+        onContinue={player.keepListening}
+        onStop={player.stopForNow}
+      />
       {!showing && (
         <SilenceNotice
           text={player.silenceNotice?.text ?? null}
