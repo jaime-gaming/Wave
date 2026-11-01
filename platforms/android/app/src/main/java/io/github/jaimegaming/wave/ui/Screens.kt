@@ -266,15 +266,18 @@ fun SearchScreen(state: WaveState, onOpenSong: (Song) -> Unit) {
     // Ranked like the songs: the artist, album or playlist whose name was typed
     // comes first, instead of whatever the library happened to hold first. A
     // collection is also found by who made it, so typing an artist's name reaches
-    // the albums under it rather than a dead end.
+    // the albums under it rather than a dead end. Both lists keep their map shape
+    // because the rows below read them as name-to-songs entries.
     val allArtists = state.artists()
     val allAlbums = state.albums()
-    val artists = rankNames(allArtists.keys.toList(), words).map { it to allArtists.getValue(it) }
-    val albumsByName = rankNames(allAlbums.keys.toList(), words)
-    val albumsByArtist = allAlbums.keys.filter { key ->
-        key !in albumsByName && allAlbums.getValue(key).any { matchesSearch(it.artist, words) }
+    val artists = rankNames(allArtists.keys.toList(), words).associateWith { name ->
+        allArtists.getValue(name)
     }
-    val albums = (albumsByName + albumsByArtist.sortedBy { it.lowercase() }).map { it to allAlbums.getValue(it) }
+    val albumsByName = rankNames(allAlbums.keys.toList(), words)
+    val albumsByArtist = allAlbums.keys
+        .filter { key -> key !in albumsByName && allAlbums.getValue(key).any { matchesSearch(it.artist, words) } }
+        .sortedBy { it.lowercase() }
+    val albums = (albumsByName + albumsByArtist).associateWith { key -> allAlbums.getValue(key) }
     val playlists = rankNames(state.playlists.map { it.name }, words).mapNotNull { name ->
         state.playlists.firstOrNull { it.name == name }
     }
