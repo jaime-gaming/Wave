@@ -94,11 +94,44 @@ const letters = (value: string) =>
 
 const tokens = (value: string) => new Set(letters(value).split(' ').filter(Boolean));
 
+/**
+ * A title without the parts a provider adds and a file rarely has.
+ *
+ * "Song (feat. Somebody) - 2011 Remaster" and "Song" are the same recording, and
+ * a match that fails because of the bracket is a gap left open for no reason.
+ */
+export function bareTitle(value: string): string {
+  return letters(
+    value
+      .replace(/[([{][^)\]}]*[)\]}]/gu, ' ')
+      .replace(/\s+[-–—]\s+.*$/u, ' ')
+      .replace(/\b(?:feat|ft|featuring|prod|remaster(?:ed)?|deluxe|edition)\b.*$/iu, ' '),
+  );
+}
+
 function shared(left: Set<string>, right: Set<string>): number {
   if (!left.size || !right.size) return 0;
   let count = 0;
   for (const token of left) if (right.has(token)) count++;
   return count / Math.min(left.size, right.size);
+}
+
+/**
+ * Whether one title contains the other once its decorations are gone.
+ *
+ * "Song" against "Song (feat. Somebody)" is a full match, not a half one: the
+ * shorter title is entirely present in the longer. Two titles that merely share
+ * a word are not, which is why this is containment and not overlap.
+ */
+function titleOverlap(track: string, release: string): number {
+  const left = bareTitle(track);
+  const right = bareTitle(release);
+  if (!left || !right) return 0;
+  if (left === right) return 1;
+  const shorter = left.length <= right.length ? left : right;
+  const longer = shorter === left ? right : left;
+  if (shorter.length < 4) return 0;
+  return longer.includes(shorter) ? 1 : 0;
 }
 
 /**
@@ -111,7 +144,10 @@ function shared(left: Set<string>, right: Set<string>): number {
 export function scoreRelease(track: Track, release: CatalogueRelease): number {
   const wantedTitle = tokens(track.title.replace(/[_]+/gu, ' '));
   const foundTitle = tokens(release.title);
-  const titleScore = shared(wantedTitle, foundTitle);
+  const titleScore = Math.max(
+    shared(wantedTitle, foundTitle),
+    titleOverlap(track.title, release.title),
+  );
   if (titleScore < 0.5) return 0;
   let score = titleScore * 0.6;
   const artist = isPlaceholderArtist(track.artist) ? '' : track.artist;
@@ -168,8 +204,16 @@ export function detailsPatch(track: Track, release: CatalogueRelease): DetailsPa
   const patch: DetailsPatch['patch'] = {};
   const filled: string[] = [];
 
-  if (looksLikeFileName(track) && !isPlaceholderAlbum(release.album) && release.title.trim()) {
-    patch.title = release.title.trim();
+  // A title that is really a filename is the one thing worth replacing, and it
+  // does not depend on the album being known: a nameless album used to block the
+  // fix, which left the file's name sitting in the library forever.
+  const releaseTitle = release.title.trim();
+  if (
+    looksLikeFileName(track) &&
+    releaseTitle &&
+    !looksLikeFileName({ ...track, title: releaseTitle })
+  ) {
+    patch.title = releaseTitle;
     filled.push('title');
   }
   if (isPlaceholderArtist(track.artist) && !isPlaceholderArtist(release.artist)) {
@@ -190,8 +234,17 @@ export function detailsPatch(track: Track, release: CatalogueRelease): DetailsPa
     filled.push('year');
   }
   if (!track.genres?.length && release.genre?.trim()) {
-    patch.genres = [release.genre.trim()];
-    filled.push('genre');
+    // Providers list several styles in one string; splitting them keeps the
+    // library's own genre filter useful instead of holding "Pop / Soul".
+    const genres = release.genre
+      .split(/\s*[/;|,]\s*|\s+(?:and|&)\s+/iu)
+      .map((genre) => genre.trim())
+      .filter((genre) => genre.length > 1)
+      .slice(0, 3);
+    if (genres.length) {
+      patch.genres = genres;
+      filled.push(genres.length === 1 ? 'genre' : 'genres');
+    }
   }
   return { patch, filled };
 }

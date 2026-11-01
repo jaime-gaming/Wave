@@ -261,9 +261,9 @@ function WaveApp({
   const clipsForOptions = useMemo(() => (trackOptions ? loadClips() : {}), [trackOptions]);
   const [editorEnabled, setEditorEnabled] = useState(() => readFlag('wave-editor-enabled'));
   /**
-   * Online detail lookups are on unless the listener turned them off, and they
-   * stop entirely without a connection: a promise to fill gaps is not a
-   * promise to keep retrying in an offline room.
+   * Online detail lookups are off until the listener turns them on, and they
+   * stop entirely without a connection: a promise to fill gaps is not a promise
+   * to keep retrying in an offline room.
    */
   const [detailsOn, setDetailsOn] = useState(() => detailsEnabled());
   const toggleDetails = useCallback((next: boolean) => {

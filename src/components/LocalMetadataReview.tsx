@@ -45,7 +45,10 @@ export function LocalMetadataReview({
       <div className="settings-switch-row">
         <div>
           <strong>Fill in missing details</strong>
-          <span>Artist, album, year and cover, looked up while you listen.</span>
+          <span>
+            Sends the names of incomplete songs to a catalogue to find the artist, album, year and
+            cover. Off unless you turn it on.
+          </span>
         </div>
         {onToggle && (
           <button
@@ -61,11 +64,13 @@ export function LocalMetadataReview({
         )}
       </div>
       <p>
-        {filling
-          ? `Looking up ${filling} ${filling === 1 ? 'song' : 'songs'}…`
-          : gaps
-            ? `${gaps} ${gaps === 1 ? 'song is' : 'songs are'} missing something${completed ? ` · ${completed} completed` : ''}`
-            : 'Every song knows what it is.'}
+        {!enabled
+          ? 'Nothing leaves this device while this is off.'
+          : filling
+            ? `Looking up ${filling} ${filling === 1 ? 'song' : 'songs'}…`
+            : gaps
+              ? `${gaps} ${gaps === 1 ? 'song is' : 'songs are'} missing something${completed ? ` · ${completed} completed` : ''}`
+              : 'Every song knows what it is.'}
       </p>
       {!!gaps && onLookUp && enabled && (
         <button className="tonal-button" onClick={onLookUp} disabled={!!filling}>

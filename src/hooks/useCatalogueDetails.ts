@@ -14,8 +14,8 @@ import type { Track } from '../domain/types';
 /**
  * Filling in what a file could not say about itself.
  *
- * Runs quietly in the background, one song at a time and only when the library
- * already has songs with holes: an unknown artist, no album, no year, no sleeve,
+ * Runs quietly in the background, one song at a time and only when the listener
+ * has turned lookups on and the library already has songs with holes: an unknown artist, no album, no year, no sleeve,
  * or a title that is really a filename. Each song is asked about once and then
  * left alone for a month — a catalogue that answers "no" today may answer
  * tomorrow, but not on every render.
@@ -32,11 +32,19 @@ export const DETAILS_BATCH = 12;
 /** Space between questions, so the provider is not hammered. */
 export const DETAILS_GAP_MS = 700;
 
+/**
+ * Off, and it stays off until the listener turns it on.
+ *
+ * Reaching a catalogue means sending song names to somebody else, which is not
+ * something to do on a person's behalf because they opened an app. The switch
+ * lives in the song details panel, its default is off, and nothing here talks to
+ * the network until it has been moved.
+ */
 export function detailsEnabled(): boolean {
   try {
-    return localStorage.getItem(DETAILS_FLAG) !== 'off';
+    return localStorage.getItem(DETAILS_FLAG) === 'on';
   } catch {
-    return true;
+    return false;
   }
 }
 

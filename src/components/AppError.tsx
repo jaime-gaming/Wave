@@ -6,14 +6,18 @@ import { Component, type ReactNode } from 'react';
  * Wave keeps everything on the device, so a screen that throws is a screen that
  * can be reloaded back to the same library — nothing is lost. What it must not do
  * is go white and silent, which is what an unhandled render error does to the
- * whole app. This keeps the page readable, says what happened in a sentence, and
- * offers the two honest ways out: reload, or start over with the library intact.
+ * whole app.
+ *
+ * The page is written for the person looking at it, not for a console: no stack
+ * trace, no error text, no file names. It says what happened in one sentence,
+ * promises what was not touched, and offers the two honest ways out. The reason
+ * itself goes to the console, where it is useful and where nobody has to read it.
  */
-export class AppError extends Component<{ children: ReactNode }, { message: string | null }> {
-  state: { message: string | null } = { message: null };
+export class AppError extends Component<{ children: ReactNode }, { crashed: boolean }> {
+  state: { crashed: boolean } = { crashed: false };
 
-  static getDerivedStateFromError(error: unknown) {
-    return { message: error instanceof Error ? error.message : String(error) };
+  static getDerivedStateFromError() {
+    return { crashed: true };
   }
 
   componentDidCatch(error: unknown) {
@@ -22,13 +26,20 @@ export class AppError extends Component<{ children: ReactNode }, { message: stri
   }
 
   render() {
-    if (this.state.message === null) return this.props.children;
+    if (!this.state.crashed) return this.props.children;
     return (
       <div className="app-crash" role="alert">
-        <h1>Wave hit a snag drawing this screen.</h1>
+        {/* A record that has stopped turning: the bars are where the sound was. */}
+        <span className="app-crash-mark" aria-hidden="true">
+          <i />
+          <i />
+          <i />
+          <i />
+        </span>
+        <h1>This screen stopped. Your music didn’t.</h1>
         <p>
-          Your music is still on this device and nothing was changed. Reload to carry on where you
-          were.
+          Nothing on this device was changed. Reload to carry on where you were — the player picks
+          up from the same place.
         </p>
         <div className="app-crash-actions">
           <button className="primary-button" onClick={() => location.reload()}>
@@ -39,13 +50,12 @@ export class AppError extends Component<{ children: ReactNode }, { message: stri
             onClick={() => {
               // A fresh start that keeps the library: the drawing state is what
               // broke, not the files.
-              this.setState({ message: null });
+              this.setState({ crashed: false });
             }}
           >
             Try this screen again
           </button>
         </div>
-        <p className="app-crash-detail">{this.state.message}</p>
       </div>
     );
   }

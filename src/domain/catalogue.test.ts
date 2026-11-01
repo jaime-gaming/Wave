@@ -75,6 +75,14 @@ describe('matching a release to a track', () => {
     expect(scoreRelease(track, { ...release, title: 'Something else entirely' })).toBe(0);
   });
 
+  it('accepts a title the provider decorated', () => {
+    // A file says "Says"; the release says "Says (feat. Somebody) - Remastered".
+    // That is the same recording, and the bracket used to hide it.
+    const decorated = { ...release, title: 'Says (feat. Somebody) - 2013 Remastered' };
+    expect(scoreRelease(track, decorated)).toBeGreaterThan(0.6);
+    expect(bestRelease(track, [decorated])).toBe(decorated);
+  });
+
   it('refuses an edition that is minutes off', () => {
     expect(bestRelease(track, [{ ...release, duration: 640 }])).toBeUndefined();
   });
@@ -113,6 +121,20 @@ describe('what may be written', () => {
       release,
     );
     expect(patch.title).toBe('Says');
+  });
+
+  it('repairs a filename even when nothing is known about the album', () => {
+    const { patch, filled } = detailsPatch(
+      { ...bare, title: 'nils_frahm_-_says', fileName: 'nils_frahm_-_says.mp3' },
+      { ...release, album: 'Unknown album' },
+    );
+    expect(patch.title).toBe('Says');
+    expect(filled).toContain('title');
+  });
+
+  it('splits the styles a provider lists in one string', () => {
+    const { patch } = detailsPatch(bare, { ...release, genre: 'Electronic / Ambient' });
+    expect(patch.genres).toEqual(['Electronic', 'Ambient']);
   });
 
   it('does nothing at all once the listener has edited the song', () => {

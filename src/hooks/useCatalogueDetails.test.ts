@@ -1,12 +1,23 @@
-import { describe, expect, it } from 'vitest';
+import { act, renderHook } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   detailsQueue,
   detailsEnabled,
   detailsSummary,
+  useCatalogueDetails,
   DETAILS_RETRY_MS,
   DETAILS_BATCH,
 } from './useCatalogueDetails';
+import { searchCatalogue } from '../services/catalogue';
 import { makeTrack } from '../test/fixtures';
+
+vi.mock('../services/catalogue', () => ({
+  searchCatalogue: vi.fn(async () => []),
+  downloadCover: vi.fn(async () => undefined),
+  preferredCountry: vi.fn(() => undefined),
+}));
+
+beforeEach(() => vi.mocked(searchCatalogue).mockClear());
 
 const bare = (id: string, overrides = {}) =>
   makeTrack({ id, title: `Song ${id}`, artwork: undefined, year: undefined, ...overrides });
@@ -46,11 +57,51 @@ describe('deciding which songs to ask about', () => {
     expect(detailsSummary([complete, bare('gap')])).toEqual({ incomplete: 1, complete: 1 });
   });
 
-  it('is on unless the listener turned it off', () => {
+  it('is off until the listener turns it on', () => {
     localStorage.removeItem('wave-complete-details');
+    expect(detailsEnabled()).toBe(false);
+    localStorage.setItem('wave-complete-details', 'on');
     expect(detailsEnabled()).toBe(true);
     localStorage.setItem('wave-complete-details', 'off');
     expect(detailsEnabled()).toBe(false);
     localStorage.removeItem('wave-complete-details');
+  });
+
+  it('keeps quiet about the network while it is off', async () => {
+    vi.useFakeTimers();
+    try {
+      renderHook(() =>
+        useCatalogueDetails({
+          tracks: [bare('gap')],
+          onUpdate: vi.fn(async () => null),
+          enabled: false,
+        }),
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5_000);
+      });
+      expect(searchCatalogue).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('asks once the listener turns it on', async () => {
+    vi.useFakeTimers();
+    try {
+      renderHook(() =>
+        useCatalogueDetails({
+          tracks: [bare('gap')],
+          onUpdate: vi.fn(async () => null),
+          enabled: true,
+        }),
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2_000);
+      });
+      expect(searchCatalogue).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
