@@ -335,6 +335,19 @@
 - The Windows app is a native C#/WPF shell with the web's layout. It remains an unsigned test
   build.
 
+### Movement on Windows and Android
+
+- Windows pages rise into place instead of swapping: the incoming page fades in while it lifts a
+  few pixels, and the outgoing one only fades. A change on the page you are already looking at
+  keeps the gentler fade, so a favourite toggled does not replay the entrance.
+- A new song's cover in Now Playing settles from just under its size with a small overshoot —
+  weight, not a bounce — and the same song's metadata edits do not replay it.
+- Windows' own "show animations" system setting and the in-app Animations switch both turn all of
+  it off, including the new movement; when either is off nothing animates and no page waits for an
+  animation to finish.
+- Android pages rise on a spring under their cross-fade, matching the site, instead of a flat
+  dissolve between screens.
+
 ### Folders, playlists, and the place Wave lives
 
 - A whole folder can be handed to Wave. It is read at any depth, the browser is asked once for

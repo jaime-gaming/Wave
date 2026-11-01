@@ -604,3 +604,25 @@ annotation step nor the report artifact ran on any run; both now key off `steps.
 red suite lists its failing titles in the run itself. The timing and provider failures still need a
 machine with a real audio clock and a reachable lyric service, and are left open rather than
 quietly skipped.
+
+## Release 0.1.1 · 2 November 2026 — folders, migration and real material
+
+Checked in this preparation workspace: `npx tsc -b`, `npx eslint . --max-warnings=0`,
+`npx prettier --check .`, `npm run build:pages`, and `npx vitest run` — **573 tests across 93
+files**. Two tests failed once under a full parallel run and passed when their files ran alone:
+the 5 000-song matching budget and the paired-channel exchange. Both are timing-sensitive and are
+recorded here as such rather than quietly re-run until green.
+
+New coverage this round: tempo folding and rubato detection (`src/audio/tempo.test.ts`), the
+gentle path and octave note in the planner, folder walking with unreadable subdirectories and the
+file ceiling, `.m3u`/`.csv`/text reading, the staged migration preview (including that it writes
+nothing before confirmation and offers no zero-song playlist), and a version-4 → version-5 library
+upgrade that keeps every row and adds only the `folders` store.
+
+Not verified here: nothing was compiled on Windows or Android. `Motion.cs` (the rise, settle and
+fade used by the Windows window) and the Android page transition are therefore reviewed, not run.
+The WPF smoke's captured screenshots will show the pages after their entrances have settled, which
+is the point — an entrance is not allowed to leave a page half-drawn or unusable.
+
+The custom domain is configured in `docs/CNAME` and in the build script; DNS, the Pages custom-domain
+setting and the certificate remain repository settings that only the maintainer can change.

@@ -36,6 +36,8 @@ public partial class MainWindow : Window
     private bool MixEnabled => preferences.Mix ?? preferences.Crossfade > 0;
     private TextBox? searchBox;
     private string searchQuery = "";
+    private string? artShown;
+    private string renderedPage = "";
 
     public MainWindow() : this(null) { }
     public MainWindow(string? folder)
@@ -118,7 +120,14 @@ public partial class MainWindow : Window
         if (expanded) SetLyricsVisibility();
         UpdateDock();
         if (page == "Settings") RenderSettings(); else if (!expanded) Refresh();
-        if (preferences.Animations) LibraryView.BeginAnimation(OpacityProperty, new DoubleAnimation(.35, 1, TimeSpan.FromMilliseconds(180)));
+        // A page change rises instead of swapping in place, and an unchanged
+        // page (a progress tick, a favourite toggled) only fades its list.
+        bool changed = page != renderedPage;
+        renderedPage = page;
+        if (page == "Settings") { if (changed) Motion.Rise(SettingsView, Motion.Enabled(preferences.Animations)); }
+        else if (expanded) { if (changed) Motion.Rise(NowView, Motion.Enabled(preferences.Animations)); }
+        else if (changed) Motion.Rise(LibraryView, Motion.Enabled(preferences.Animations));
+        else Motion.Fade(LibraryView, Motion.Enabled(preferences.Animations));
     }
     /// <summary>
     /// Home, Remix and Settings are pages made of headings, shelves and rows; they
@@ -293,6 +302,9 @@ public partial class MainWindow : Window
         MiniTitle.Text = NowTitle.Text = Current.Title; MiniArtist.Text = Current.Artist; NowArtist.Content = Current.Artist;
         NowArt.Background = ArtworkBrush(Current.Artwork); ArtPlaceholder.Visibility = Current.Artwork == null ? Visibility.Visible : Visibility.Collapsed;
         MiniArt.Background = ArtworkBrush(Current.Artwork);
+        // A new song's cover arrives rather than appears; the same song's
+        // metadata edit does not replay the movement.
+        if (artShown != Current.Id) { Motion.Settle(NowArt, Motion.Enabled(preferences.Animations)); artShown = Current.Id; }
         if (MiniArt.Child is TextBlock note) note.Visibility = Current.Artwork == null ? Visibility.Visible : Visibility.Collapsed;
         if (Current.Favorite) FavoriteButton.SetResourceReference(Control.ForegroundProperty, "AccentBrush");
         else FavoriteButton.ClearValue(Control.ForegroundProperty);

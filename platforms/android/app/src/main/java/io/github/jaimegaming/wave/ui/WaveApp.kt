@@ -9,7 +9,10 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -151,7 +154,20 @@ fun WaveApp(version: String, opening: Opening = Opening.Default) {
                     CompositionLocalProvider(LocalChromeActions provides ChromeActions(addMusic, openSettings)) {
                         AnimatedContent(
                             targetState = state.destination,
-                            transitionSpec = { fadeIn(tween(180)) togetherWith fadeOut(tween(140)) },
+                            // The site's page change: the incoming page rises a
+                            // few pixels while it fades in, the outgoing one only
+                            // fades — a spring, so it settles instead of stopping.
+                            transitionSpec = {
+                                (
+                                    fadeIn(tween(200)) +
+                                        slideInVertically(
+                                            spring(
+                                                dampingRatio = Spring.DampingRatioNoBouncy,
+                                                stiffness = Spring.StiffnessMediumLow,
+                                            ),
+                                        ) { height -> height / 90 }
+                                    ) togetherWith fadeOut(tween(140))
+                            },
                             label = "page",
                         ) { destination ->
                             when (destination) {

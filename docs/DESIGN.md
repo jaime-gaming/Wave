@@ -212,6 +212,16 @@ or YouTube link lives behind an account Wave does not have — instead of a spin
 The list rises once on arrival with the reveal fade; rows do not animate individually, because a
 hundred staggered rows is a performance problem dressed as a mood.
 
+### The same movement on Windows and Android
+
+The motion tokens are not a web-only idea. Windows keeps three shapes in `Motion.cs` — `Rise` for
+a page arriving, `Settle` for a cover that becomes a new song, and `Fade` for content that changes
+in place — each with the same short ease the site uses (`CubicEase` for the rise, a 0.12-amplitude
+`BackEase` for the settle, which is the WPF translation of the web's one-overshoot spring). Both the
+Animations preference and Windows' own "show animations" setting collapse them to nothing, and no
+code path waits on one to finish. Android's page change adds the same rise under its cross-fade on
+a non-bouncing spring, so a screen arrives from a few pixels below rather than dissolving in place.
+
 ## Motion language
 
 Movement is split by purpose, not by size. Springs carry anything the user operates: cards, rows, sheets and artwork, so they settle with a little weight. Eased fades carry pure appearance changes: lyrics, veils, overlays and colour, so they never overshoot. The stage uses the slowest spring (`cinematic`) plus a short blur so a new cover resolves instead of popping; lists use one parent with staggered children so a grid arrives as a group and not as noise. Every token collapses to `{ duration: 0 }` under reduced motion, and the variants drop their blur and offsets, so the layout does not move at all.
