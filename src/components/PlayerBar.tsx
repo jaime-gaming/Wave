@@ -405,6 +405,22 @@ export function PlayerBar(props: PlayerProps) {
   // The picture, when there is one, is the stage. The sleeve steps back to a
   // corner so the clip is not watched through a square of album art.
   const [clipLive, setClipLive] = useState(false);
+  /**
+   * A picture on screen changes what the whole window should look like.
+   *
+   * The spectral wash that follows the artwork is drawn by a sibling of the
+   * video, not by the video's container, so the only honest way to switch it off
+   * is at the root — the same place the palette and the motion preference live.
+   */
+  const clipShowing = clipLive && videoClip && expanded;
+  useEffect(() => {
+    const root = document.documentElement;
+    if (clipShowing) root.dataset.clip = 'live';
+    else delete root.dataset.clip;
+    return () => {
+      delete root.dataset.clip;
+    };
+  }, [clipShowing]);
   useEffect(() => {
     if (!expanded) return;
     const timer = setTimeout(() => setLyricsOpen(true), 0);
@@ -696,7 +712,7 @@ export function PlayerBar(props: PlayerProps) {
             <MusicLighting className="stage-aura" />
             <div
               data-track-id={player.current?.id}
-              className={`player-normal-view${clipLive && videoClip && expanded ? ' clip-live' : ''}`}
+              className={`player-normal-view${clipShowing ? ' clip-live' : ''}`}
             >
               <PlayerDetails
                 {...props}

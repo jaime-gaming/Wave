@@ -1,4 +1,4 @@
-# Wave platforms · 0.2.1
+# Wave platforms · 0.2.0
 
 **Release date: 28 October 2026.** Wave has three independent implementations, not WebView/Electron wrappers. The web client is the most complete; Windows follows its structure with native C#/WPF controls, while Android uses Kotlin/Compose. Libraries are separate and never synchronized or silently migrated.
 
@@ -18,7 +18,7 @@
 | Cover editing                             | Song/playlist/artist                     | Song covers                                       | Embedded artwork only                          |
 | System media controls                     | Browser-dependent                        | Not yet                                           | Media session, focus, widget, tile, shortcuts  |
 | YouTube songs, video clips                | Yes                                      | Not yet                                           | Not yet                                        |
-| Device linking (Settings → Devices)       | Yes                                      | Not yet                                           | Not yet                                        |
+| Device linking (Settings → Devices)       | Yes, by QR, link or pasted code          | Not yet                                           | Not yet                                        |
 | Whole-folder import                       | Yes; remembered where the browser allows | Not yet                                           | Yes; document tree, any depth                  |
 | Playlist migration (.m3u/.csv/text)       | Yes                                      | Not yet                                           | Not yet                                        |
 | Hosted build checks                       | Passed                                   | Passed + contracts + WPF layout smoke             | Passed unit/lint/debug build                   |
@@ -60,7 +60,9 @@ Home has collection shortcuts, daily mixes and album cards; the listening recap 
 
 CI runs a dependency-free contract runner, compiles/publishes the application and executes an isolated WPF smoke mode that exercises Home, Search, daily mixes, saved playlists, Remix, six Settings sections and narrow light-theme layout. It captures PNGs in `wave-windows-ui-smoke`, and a push publishes them as `docs/media/windows-*.png`; this is not a physical-device or codec/playback matrix. The fixture library is temporary and does not touch a real user library.
 
-Metadata reading remains limited to ID3/WAV. Automatic embedded artwork extraction, the site's search kind tabs and recent searches, artist photos, album ordering, word-stamped LRC, waveform analysis and system media integration are not complete. YouTube songs, video clips and device linking are web-only, as they are on the phone. OS codecs govern playback. Do not call this complete web parity.
+Metadata reading remains limited to ID3/WAV. Automatic embedded artwork extraction, the site's search kind tabs and recent searches, artist photos, album ordering, word-stamped LRC, waveform analysis and system media integration are not complete. YouTube songs, video clips and device linking are web-only, as they are on the phone: the pairing
+exchange is specified in [`PAIRING.md`](PAIRING.md) so that a native client can implement the same
+one instead of a second, incompatible one. OS codecs govern playback. Do not call this complete web parity.
 
 See [WINDOWS_RELEASE](WINDOWS_RELEASE.md) for checksums, signing and Defender limits. Test ZIPs are clearly labeled unsigned. Upstream .NET license/notices remain bundled; future self-contained packages must inventory their exact runtime pack.
 
@@ -83,7 +85,7 @@ Output: `platforms/android/app/build/outputs/apk/debug/app-debug.apk`, a debug t
 
 The web client offers the native app once to a phone that opens it: a small sheet above the player with **Download the app** and **Keep using the web**. Either answer is remembered in `localStorage` (`wave-android-prompt`), a device running the app from its home screen is never asked, and Settings → About can open the sheet again on purpose. The download button currently points at the **releases page** (`src/ui/androidApp.ts`), because the hosted workflow uploads a debug test APK as a build artifact rather than a release asset; until a signed APK is attached to a release, that button cannot deliver a file, and `ANDROID_APP_URL` is the one line to change when it can.
 
-The phone build is native, but its visual target is the mobile website rather than a different phone design. Its inset page, four-item dock, header actions, Home shortcuts, daily mixes, Remix and player have been brought closer to the web. `ui/Theme.kt` contains the palette and type; `ui/WaveChrome.kt` and `ui/WaveIcons.kt` contain the shared shell and the same line-art icons; `ui/Screens.kt` contains the pages; and `ui/WaveState.kt` connects them to the native library and player. Pickers, notifications and media-session controls remain Android features. Search carries the site's five kind tabs — All, Songs, Artists, Albums, Playlists — the artists, albums and playlists it finds, each opening its own collection, and the phrases searched lately, kept between launches and clearable in one tap. This is not yet a claim of pixel-identical parity or a substitute for a device pass: YouTube songs, clip playback, device linking (and the Devices section of Settings that holds it) and the web's interpolated lyric fill are still web-only. Android highlights explicit enhanced-LRC word timestamps and falls back to synchronized lines when only line timings are available.
+The phone build is native, but its visual target is the mobile website rather than a different phone design. Its inset page, four-item dock, header actions, Home shortcuts, daily mixes, Remix and player have been brought closer to the web. `ui/Theme.kt` contains the palette and type; `ui/WaveChrome.kt` and `ui/WaveIcons.kt` contain the shared shell and the same line-art icons; `ui/Screens.kt` contains the pages; and `ui/WaveState.kt` connects them to the native library and player. Pickers, notifications and media-session controls remain Android features. Search carries the site's five kind tabs — All, Songs, Artists, Albums, Playlists — the artists, albums and playlists it finds, each opening its own collection, and the phrases searched lately, kept between launches and clearable in one tap. The icons are the web's own drawings: `WaveIcons.kt` and `App.xaml` carry the path data `Glyphs.tsx` produces, so the three clients draw one hand. This is not yet a claim of pixel-identical parity or a substitute for a device pass: YouTube songs, clip playback, device linking (and the Devices section of Settings that holds it) and the web's interpolated lyric fill are still web-only. Android highlights explicit enhanced-LRC word timestamps and falls back to synchronized lines when only line timings are available.
 
 Playback is `PlaybackService`, a media playback foreground service holding a `MediaSessionCompat`. That one thing is what puts the song on the lock screen, in the shade and in a car, what lets a headset pause it, and what survives the screen going off. The session also holds audio focus: a call or a navigation prompt pauses the music and, unless the listener paused it themselves, it comes back afterwards. Headphones out stops playback. Rotation and theme changes do not restart anything, because the activity declares the configuration changes it handles.
 
@@ -97,7 +99,7 @@ The phone screens in `docs/media/android-*.png` are rendered by `ScreenshotTest`
 
 ## Publication gates
 
-Run checks at the latest revision, perform real target-device playback/accessibility/DPI checks, state the reduced native scope, review exact runtime notices and sign using credentials kept outside the repository. At the approved merge, tag its actual merged commit as `v0.2.1` and create the GitHub Release. Never include signing keys or personal music. [Privacy](../PRIVACY.md) and existing rights restrictions remain applicable.
+Run checks at the latest revision, perform real target-device playback/accessibility/DPI checks, state the reduced native scope, review exact runtime notices and sign using credentials kept outside the repository. At the approved merge, tag its actual merged commit as `v0.2.0` and create the GitHub Release. Never include signing keys or personal music. [Privacy](../PRIVACY.md) and existing rights restrictions remain applicable.
 
 ### Lyric-service traffic
 

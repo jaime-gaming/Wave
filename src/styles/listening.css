@@ -63,6 +63,17 @@
 :root[data-music-active='false'] .music-lighting {
   opacity: 0;
 }
+/*
+ * With a clip playing there is already a picture in the room, and a spectral
+ * wash on top of it is what made the video look faded and slightly wrong: the
+ * palette's three radial gradients, up to seven tenths opaque, were painting over
+ * someone else's footage. The light belongs to the artwork; the video brings its
+ * own.
+ */
+:root[data-clip='live'] .stage-aura {
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
 :root[data-palette-transition='mix'] .stage-aura::after {
   content: '';
   position: absolute;

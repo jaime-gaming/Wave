@@ -1,6 +1,6 @@
 # Validation record
 
-Release 0.2.1 · 1 November 2026. Historical run dates are retained below.
+Release 0.2.0 · 1 November 2026. Historical run dates are retained below.
 
 ## Web
 
@@ -642,10 +642,22 @@ record and the certificate remain dashboard settings that only the maintainer ca
 - **Native and browser passes**: the clip column layout, the stereo spread and the break card are
   reasoned and unit-checked, not judged on devices. The real-device pass is still outstanding.
 
-## 0.2.1 checks (latest run)
+## 0.2.0 checks: the second pass (latest run)
+
+- The clip stage was checked by reading the grid and by component tests, not by eye: no browser runs
+  in the verification sandbox, so a screenshot pass is still outstanding and is listed in the
+  roadmap. The three defects the reading found are concrete — two parts in one grid cell, the
+  palette's radial wash painting over the video, and a 16:9 frame cover-cropped into a portrait
+  screen — and each is fixed by a rule that cannot silently regress.
+- The pasted-code path validates its input before touching the transport (a link, or a payload that
+  starts with `wave1.`), and refuses anything else with a sentence rather than an error frame.
 
 - The icon module is drawn, not imported: the whole suite runs against it, and the packed
   icon dependency is removed from `package.json` and the lockfile.
+- The Android and Windows icon tables were generated from the web module's own path output and
+  diffed against it, and every icon name the two shells ask for exists in both. Neither native
+  build can be compiled in this sandbox, so their compilation is left to the `Native builds` job;
+  the port itself is mechanical — the same strings, the same 24-unit grid, the same pen weight.
 - False-positive rules are covered by tests that fail on the old behaviour: a self-titled
   song is no longer reported as a swap, a title containing "Take" is not a filename, a
   slash does not name two artists, and two and a half seconds of silence is not mentioned.

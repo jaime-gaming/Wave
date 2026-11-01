@@ -1,6 +1,6 @@
 <p align="center"><img src="public/wave-wordmark.svg" alt="Wave" width="270" /></p>
 <p align="center"><strong>Your music files, played properly.</strong></p>
-<p align="center"><a href="https://wave.jaime-gaming.com">wave.jaime-gaming.com</a> · Version <strong>0.2.1</strong> · <a href="#get-started">Get started</a> · <a href="docs/WHY_WAVE.md">Why Wave</a> · <a href="docs/media/wave-promo.mp4">Watch the demo</a> · <a href="docs/RELEASE_NOTES_0.2.1.md">What's new</a></p>
+<p align="center"><a href="https://wave.jaime-gaming.com">wave.jaime-gaming.com</a> · Version <strong>0.2.0</strong> · <a href="#get-started">Get started</a> · <a href="docs/WHY_WAVE.md">Why Wave</a> · <a href="docs/media/wave-promo.mp4">Watch the demo</a> · <a href="docs/RELEASE_NOTES_0.2.0.md">What's new</a></p>
 
 ![Wave Home on the web: a local collection, album artwork and daily mixes](docs/media/home-desktop.png)
 

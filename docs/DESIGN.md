@@ -1,6 +1,6 @@
 # Wave Architecture
 
-**Version: 0.2.1 · Release date: 1 November 2026.**
+**Version: 0.2.0 · Release date: 1 November 2026.**
 
 ## Scope and platform decision
 
@@ -267,9 +267,16 @@ The decoder reports duration with its source track ID, so late metadata cannot o
 
 Every icon in the app is drawn in `src/components/Glyphs.tsx` with the same pen as the wordmark — one stroke weight, round caps, shapes that lean off the grid — instead of being taken
 from an icon pack, because a screen of grid-perfect glyphs reads as a template. With a clip playing,
-`.player-normal-view.clip-live` turns the player into a small column at the left (a 92 px sleeve, the
-title and artist under it, the transport directly below) and puts the words in a 260 px column at the
-right with nothing but the hide control; the middle of the screen belongs to the picture. The break
+`.player-normal-view.clip-live` turns the player into a small column at the left (an 84 px sleeve, the
+title and artist under it, the transport directly below) and puts the words in a 240 px column at the
+right with nothing but the hide control; the middle of the screen belongs to the picture. Every part
+of that grid names its own cell — placing two of them in one cell is what made the earlier version
+look broken. Three things keep the picture honest: the palette's spectral wash is switched off at the
+root (`data-clip="live"`) because it used to paint a colour gradient over someone else's footage; the
+veil is a vignette around the edges rather than a blanket over the middle; and on a phone held upright
+the video takes a 16:9 band of its own at the top, whole and uncropped, with the player underneath,
+because cover-cropping a landscape video into a portrait screen keeps the middle third and throws away
+the rest. The break
 card floats low and small over a dimmed page rather than taking the screen over, and the silence
 question is one sentence above the bar with two answers. Both are `role="dialog"`/`role="status"` with
 no technical text, and both are animated through `useWaveMotion` so reduced motion keeps them still.

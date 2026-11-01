@@ -29,14 +29,15 @@ const failureText = (reason: string) =>
 /**
  * Devices.
  *
- * One way in, and one only: a QR code. This device shows one, or it reads one.
- * Two scans and the two devices are linked — no typing, no copying, no codes to
- * read out — because a pairing that takes a sentence to explain is a pairing
- * people do not finish.
+ * The QR code is the fast way in: this device shows one, or it reads one, and two
+ * scans link them. That is the whole of the happy path, because a pairing that
+ * takes a sentence to explain is a pairing people do not finish.
  *
- * Opening the link works too, for the case where the two devices cannot see each
- * other's screens: the QR *is* a link, and opening it lands here with the invite
- * already in hand.
+ * There are two doors beside it, both for the cases where a camera cannot help:
+ * a link to open, and a code to paste. Pasting matters most between two computers
+ * — neither has a camera pointed at anything — and it is also what makes the
+ * format usable by every other way of running Wave, since a pairing code is just
+ * text either way.
  */
 export function DevicesPage({
   tracks,
@@ -51,6 +52,9 @@ export function DevicesPage({
   const [copied, setCopied] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirming, setConfirming] = useState<string | null>(null);
+  /** A code someone pasted, and whether it was understood. */
+  const [pasted, setPasted] = useState('');
+  const [pasteError, setPasteError] = useState(false);
   // A `#wave-pair=` address that carries nothing is answered as soon as the page
   // opens, without an effect setting state on mount.
   const [loaned, setLoaned] = useState<{ text: string; failed: boolean } | null>(() => {
@@ -119,6 +123,33 @@ export function DevicesPage({
     void (scanning === 'reply' ? devices.acceptReply(value) : devices.join(value));
   };
 
+  /**
+   * A code typed or pasted instead of scanned.
+   *
+   * The answer decides which half of the handshake it was: a fresh invite starts
+   * the exchange, a reply finishes it. Accepting both here means the person does
+   * not have to know which one they were given.
+   */
+  const submitPaste = () => {
+    const value = pasted.trim();
+    if (!value) return;
+    const asLink = readPairingLink(value);
+    const asCode = value.startsWith('wave1.') ? value : null;
+    if (!asLink && !asCode) {
+      setPasteError(true);
+      return;
+    }
+    setPasted('');
+    setPasteError(false);
+    void (async () => {
+      if (asLink) return devices.join(asLink);
+      // A reply only exists while this device is waiting for one; anything else
+      // is a fresh invitation.
+      if (devices.stage === 'show-code') return devices.acceptReply(asCode!);
+      return devices.join(asCode!);
+    })();
+  };
+
   return (
     <div className="devices-page">
       <p className="devices-intro">
@@ -184,6 +215,48 @@ export function DevicesPage({
             </div>
           </section>
         </div>
+      )}
+
+      {devices.stage === 'idle' && (
+        <section className="devices-card devices-paste">
+          <h3>
+            <Link2 size={18} aria-hidden="true" /> Paste a code
+          </h3>
+          <p>
+            No camera on hand? Copy the code from the other device and put it here. On two computers
+            this is the quickest way.
+          </p>
+          <label className="devices-paste-field">
+            <span className="sr-only">Pairing code from the other device</span>
+            <input
+              value={pasted}
+              spellCheck={false}
+              autoComplete="off"
+              placeholder="wave1.…"
+              onChange={(event) => {
+                setPasted(event.target.value);
+                setPasteError(false);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') submitPaste();
+              }}
+            />
+            <button
+              type="button"
+              className="tonal-button"
+              disabled={!pasted.trim() || devices.busy}
+              onClick={submitPaste}
+            >
+              Use it
+            </button>
+          </label>
+          {pasteError && (
+            <p className="devices-error" role="alert">
+              That does not look like a Wave code. Copy all of it, including the part that starts
+              with wave1.
+            </p>
+          )}
+        </section>
       )}
 
       {(devices.stage === 'show-code' || devices.stage === 'show-reply') && (

@@ -1,6 +1,6 @@
 # Wave Architecture
 
-**Version: 0.2.1 · Release date: 1 November 2026.**
+**Version: 0.2.0 · Release date: 1 November 2026.**
 
 ## Scope and platform decision
 
@@ -299,6 +299,14 @@ The lyric hook now uses request generations and abort checks so a canceled reque
 
 `src/styles/player.css` owns the expanded stage/transport namespace, replacing obsolete competing player selectors. Record/reader/transport have explicit grid areas; the artwork size is bounded by its actual record container, including short landscape. `PlaySymbol` has a fixed icon slot during presence transitions. The seek component observes its rendered width: the full SVG path extends beyond both edges and travels by exactly one 32 px period inside a progress clip. The thumb is outside that clip, stays inside the SVG and retains a transparent native range hit target with standard keyboard behavior. Pause flattens the path; reduced motion stops translation.
 
+### Pairing (`src/sync/`)
+
+Transport, keys, six digits and frames are specified in [`PAIRING.md`](PAIRING.md) so that a client
+on another platform can join the same network rather than inventing a second one. The web client
+exchanges the handshake by hand — the offer, the answer and the candidates travel as `wave1.…` text,
+shown as a QR code, openable as a link, or pasted — because there is no signalling server, and
+because a pairing code that is only visible to a camera cannot be used between two computers.
+
 ### Silent edges (`src/domain/silence.ts`, `MixAudio`)
 
 `silenceReport` reads the analysis bounds already computed for the mix and turns them into a report —
@@ -458,7 +466,9 @@ exceptions and a phone rule that lands between them loses to whichever came last
 Windows is drawn from the same tokens and the same line art. Every icon in `App.xaml` is a
 `PathGeometry` on the browser's 24-unit grid, and `Iconography` reads those resources by name,
 so a list built in code and a button written in XAML draw the same shape and no icon font has to
-be installed. The palette is `App.ApplyBrushes`' single dictionary: the window, the root panel and
+be installed. The figures are the path strings `src/components/Glyphs.tsx` produces, not a second
+set of drawings made to look similar: a shape corrected on the web is corrected on both natives by
+copying its path. The palette is `App.ApplyBrushes`' single dictionary: the window, the root panel and
 every DynamicResource point into it, and a theme change re-reads it rather than waiting for a
 resource to notice. A page is either an opening that fills the card and scrolls as one thing
 (Home, Remix) or a short opening above a virtualised list (Library, Albums, Artists, Playlists,
@@ -468,8 +478,9 @@ Search) — never two scrollbars side by side.
 
 The Android UI remains Compose rather than a WebView, so the system file picker, media session,
 headset controls and local audio playback retain their platform behaviour. `WaveChrome` mirrors
-the mobile web page margins, rounded dock and header actions; `WaveIcons` draws the web's Lucide
-paths on the same 24-unit grid. Home and Remix read the existing library and history rather than
+the mobile web page margins, rounded dock and header actions; `WaveIcons` holds the same path data
+as `Glyphs.tsx` and strokes it with the same 1.8-unit pen (the pause bars are drawn heavier, since
+two outlined bars at 20 dp read as a smudge). Home and Remix read the existing library and history rather than
 creating new stores. The desktop web page keeps its right-hand player column at a stable width
 before and during playback, matching the reference layout. These shared visual choices do not by
 themselves establish complete pixel or feature parity; see the device gates in `PLATFORMS.md`.

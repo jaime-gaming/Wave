@@ -31,18 +31,24 @@ import type { ReactNode, SVGProps } from 'react';
  */
 type IconProps = SVGProps<SVGSVGElement> & { size?: number };
 
+/**
+ * A number as path data wants it: no 6.3999999999999995.
+ *
+ * The same strings are copied into the Android and Windows drawing code, so a
+ * tidy number here is a tidy number in three codebases.
+ */
+const n = (value: number) => Math.round(value * 1000) / 1000;
+
 /** A rectangle drawn from its corner, with rounded corners. */
-const box = (x: number, y: number, width: number, height: number, radius: number) =>
-  `M${x + radius} ${y}h${width - radius * 2}a${radius} ${radius} 0 0 1 ${radius} ${radius}v${
-    height - radius * 2
-  }a${radius} ${radius} 0 0 1 ${-radius} ${radius}h${-(width - radius * 2)}a${radius} ${radius} 0 0 1 ${-radius} ${-radius}v${-(
-    height -
-    radius * 2
-  )}a${radius} ${radius} 0 0 1 ${radius} ${-radius}Z`;
+const box = (x: number, y: number, width: number, height: number, radius: number) => {
+  const inner = n(width - radius * 2);
+  const tall = n(height - radius * 2);
+  return `M${n(x + radius)} ${n(y)}h${inner}a${radius} ${radius} 0 0 1 ${radius} ${radius}v${tall}a${radius} ${radius} 0 0 1 ${-radius} ${radius}h${-inner}a${radius} ${radius} 0 0 1 ${-radius} ${-radius}v${-tall}a${radius} ${radius} 0 0 1 ${radius} ${-radius}Z`;
+};
 
 /** A circle as one closed path, so it needs no element of its own. */
 const ring = (cx: number, cy: number, r: number) =>
-  `M${cx - r} ${cy}a${r} ${r} 0 1 0 ${r * 2} 0a${r} ${r} 0 1 0 ${-r * 2} 0`;
+  `M${n(cx - r)} ${n(cy)}a${r} ${r} 0 1 0 ${n(r * 2)} 0a${r} ${r} 0 1 0 ${n(-r * 2)} 0`;
 
 /** A dot, drawn as a stroke of no length with a round cap. */
 const dot = (x: number, y: number) => `M${x} ${y}h.01`;

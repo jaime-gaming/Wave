@@ -24,6 +24,9 @@ internal static class Iconography
     /// <summary>A stroked icon at the requested size, coloured by whatever it sits in.</summary>
     internal static Path Draw(string name, double size = 20, double thickness = 1.7, Brush? brush = null)
     {
+        // Two outlined bars at eighteen pixels close up into a hollow box, so the
+        // pause is drawn heavier than the rest of the set.
+        if (name == "pause") thickness = Math.Max(thickness, 2.4);
         var path = new Path
         {
             Data = (Geometry)(Application.Current.TryFindResource(Key(name))

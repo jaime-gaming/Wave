@@ -1,23 +1,16 @@
 # Changelog
 
-## 0.2.1 — 1 November 2026
-
-### Wave's own line, and fewer wrong claims
-
-- Every icon in the app is drawn in one file against one grid, and the icon pack is gone from the
-  dependencies. The library is a stack of covers, settings a mixer, pause two capsules.
-- The `v` in the wordmark is rebuilt on the W's own trough: both arms the same weight, standing on
-  the baseline instead of leaning into a hinge.
-- With a clip playing, each part of the player has a cell of its own in a three-column grid, so
-  nothing overlaps anything; the picture keeps almost all of itself, and the note about a missing
-  clip sits beside the transport rather than across the middle.
-- During a mix the arriving song's clip fades in on the same progress number as its sound.
-- A title containing "Take", "Mix", "Copy" or "Final" is no longer called a filename; a swapped
-  artist and title is only reported when the file name proves it; a slash no longer names two
-  artists, so `AC/DC` stays one; silence must reach three seconds at the front or four at the back
-  to be mentioned; a missing year or genre is no longer treated as a gap.
-
 ## 0.2.0 — 1 November 2026
+
+### The picture, the pasted code
+
+- A playing clip is no longer washed out: the palette's light follows the cover only, and the veil
+  over the video is a vignette rather than a blanket. Pausing dims the picture instead of blurring
+  it, and on a phone held upright the video keeps its own band at the top instead of being cropped
+  into a slice with the player underneath.
+- The words on top of the picture sit on a scrim of their own, so every one of them is readable.
+- Devices can be paired by pasting a code, for the two computers that have no camera between them.
+- `docs/PAIRING.md` specifies the pairing exchange so Android and Windows can implement the same one.
 
 ### The mix, the edges of a file, and a name for every artist
 
@@ -52,8 +45,9 @@
   break. Both answers give the next question twenty minutes more room.
 - On a phone, bringing the other device in is the first card under the collection.
 - The navigation and transport icons are drawn by the same hand as the wordmark instead of taken
-  from an icon pack. With a clip playing, the player becomes a small column at the left, the words
-  a narrow column at the right, and the picture keeps the middle of the screen.
+  from an icon pack, and Android and Windows carry the same path data rather than drawings made to
+  look similar. With a clip playing, the player becomes a small column at the left, the words a
+  narrow column at the right, and the picture keeps the middle of the screen.
 - `wave.jaime-gaming.com` is served by Cloudflare Pages: `public/_redirects` and `public/_headers`
   travel with the build, the Playwright mirror under `docs/` is only a mirror, and the domain is
   set in the Pages dashboard rather than by a CNAME file.

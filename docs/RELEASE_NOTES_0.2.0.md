@@ -37,6 +37,49 @@ unsigned CI packages remain test artifacts, not official signed installers.
 - With them on, a title the provider decorated with a featured artist still matches, a filename is
   repaired even when the album is unknown, and several styles in one string become separate genres.
 
+## Wave's own line
+
+- The icon pack is gone. Navigation, transport, rows, cards and dialogs are drawn in one file
+  against one grid, with one stroke weight and round caps, the way the mark is drawn: the library
+  is a stack of covers, settings is a mixer, pause is two capsules rather than two outlined boxes
+  that smudged at small sizes.
+- The `v` in **Wave** is rebuilt on the W's own trough: both arms carry the same weight and the
+  letter stands on the baseline instead of leaning into a hinge.
+- Android and Windows draw those same paths. `WaveIcons.kt` and the `PathGeometry` entries in
+  `App.xaml` hold the strings `Glyphs.tsx` produces, so the phone and the desktop stop borrowing a
+  second set of shapes, and a correction made on the web is copied to both by copying its path.
+
+## A clip has room
+
+- With a video playing, each part of the player has its own place in the grid, so nothing sits on
+  top of anything else: the sleeve, the title and the transport in the left column, the words in
+  the right one, and the picture in the middle.
+- The picture keeps almost all of itself. The spectral wash that follows the cover no longer paints
+  over the video — the light belongs to the artwork, and the video brings its own — and the veil is
+  a vignette instead of a blanket.
+- On a phone held upright the video is not cropped into a slice: it keeps a band of its own at the
+  top, whole, and the player moves underneath it.
+- Pausing stoops the picture instead of smearing it, and a missing clip is mentioned in a small note
+  beside the transport rather than across the middle.
+- During a mix, the arriving song's clip fades in on the same progress number as its sound.
+
+## Linking
+
+- Devices can be linked without a camera: a pairing code can be pasted, which is the quickest way
+  between two computers and the path every other platform can use.
+- `docs/PAIRING.md` writes the whole exchange down — transport, keys, six digits, frames — so
+  Android and Windows can join the same network instead of inventing a second one.
+
+## Fewer wrong claims
+
+- A title is called a filename only when it plainly is one. Titles containing "Take", "Mix",
+  "Copy" or "Final" used to be renamed by the catalogue.
+- "The artist and the title look swapped" is only said when the file name itself holds them the
+  other way round.
+- A comma names two acts; a slash does not, so `AC/DC` is one artist again.
+- Silence has to reach three seconds at the front or four at the back before Wave mentions it,
+  and a missing year or genre is no longer treated as a gap.
+
 ## The app itself
 
 - The error screen is written for a person: a small stopped waveform, one sentence, the two ways out.
