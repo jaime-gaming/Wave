@@ -28,7 +28,13 @@ import type { ArtistProfile } from './domain/types';
 import { LibrarySurface } from './components/LibrarySurface';
 import { HomePage } from './components/HomePage';
 import { Artists, ArtistHeader } from './components/Artists';
-import { albumKey, collectAlbums, collectArtists } from './domain/collections';
+import {
+  albumKey,
+  artistCredits,
+  collectAlbums,
+  collectArtists,
+  primaryArtist,
+} from './domain/collections';
 import { AnimatePresence, MotionConfig, motion } from 'motion/react';
 import { MotionPreference, useWaveMotion } from './ui/motion';
 import { usePlaylists } from './hooks/usePlaylists';
@@ -389,7 +395,9 @@ function WaveApp({
     if (view === 'favorites') tracks = tracks.filter((track) => track.favorite);
     if (group)
       tracks = tracks.filter((track) =>
-        view === 'artists' ? track.artist === group : albumKey(track) === group,
+        view === 'artists'
+          ? artistCredits(track.artist).includes(group)
+          : albumKey(track) === group,
       );
     if (selectedPlaylist && sort === 'playlist') return tracks;
     if (view === 'albums' && group && sort === 'album')
@@ -518,8 +526,10 @@ function WaveApp({
   );
   const openArtist = useCallback(
     (name: string) => {
+      // A tag that names two acts opens the first of them, which is the profile
+      // the listener means when they tap the artist under a song.
       browse('artists');
-      setGroup(name);
+      setGroup(primaryArtist(name));
     },
     [browse],
   );

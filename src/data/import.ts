@@ -1,6 +1,6 @@
 import { parseLocalMetadata } from './metadataReader';
 import { cleanTag, missingTag, metadataIssues } from '../domain/metadata';
-import { inferFileMetadata } from '../domain/musicIdentity';
+import { inferFileMetadata, splitInlineArtist, stripLeadingNumber } from '../domain/musicIdentity';
 import { canonical, cleanTitle } from '../domain/lyricsMatch';
 import { readArtwork } from './artwork';
 import { embeddedLyrics } from '../domain/lyrics';
@@ -81,6 +81,18 @@ export async function readTrack(file: File, id: string): Promise<Track> {
       canonical(cleanTitle(inferred.title)) === canonical(cleanTitle(track.title))
         ? inferred.artist
         : 'Unknown artist');
+    // A position in an album is not part of a song's name.
+    const numbered = stripLeadingNumber(track.title);
+    if (numbered) track.title = numbered;
+    // A title tag that holds the whole line gives up its artist, but only when
+    // there is no artist to disagree with.
+    if (missingTag(track.artist)) {
+      const split = splitInlineArtist(track.title);
+      if (split) {
+        track.artist = split.artist;
+        track.title = split.title;
+      }
+    }
     const album = cleanTag(metadata.common.album);
     if (!missingTag(album)) track.album = album;
     track.genres = [...new Set(metadata.common.genre?.map(cleanTag).filter(Boolean) ?? [])].slice(

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Check, ChevronLeft, ChevronRight, Music2, Sparkles } from 'lucide-react';
 import type { Track } from '../domain/types';
-import { metadataIssues } from '../domain/metadata';
+import { describeIssues, metadataIssues } from '../domain/metadata';
 import { needsDetails } from '../domain/catalogue';
 
 /**
@@ -85,7 +85,7 @@ export function LocalMetadataReview({
               <Music2 size={19} />
               <div>
                 <strong title={track.title}>{track.title}</strong>
-                <span>Missing {issues.join(', ')}</span>
+                <span>{describeIssues(issues)}</span>
               </div>
             </li>
           ))}

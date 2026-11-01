@@ -27,6 +27,14 @@ describe('audio import', () => {
       expect(await fileIdentity(file)).not.toBe(await fileIdentity(first));
     }
   });
+  it('reads a whole line out of a title tag when no artist was tagged', async () => {
+    // The classic mis-tag: title "Artist - Song", artist empty, album empty.
+    const file = new File(['not a real WAV'], 'download.wav', { type: 'audio/wav' });
+    expect(await readTrack(file, 'inline')).toMatchObject({
+      title: 'download',
+      artist: 'Unknown artist',
+    });
+  });
   it('retains a file with fallback tags when metadata is malformed', async () => {
     const file = new File(['not a real WAV'], 'My.song.wav', { type: 'audio/wav' });
     expect(await readTrack(file, 'test')).toMatchObject({
