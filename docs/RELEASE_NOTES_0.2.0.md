@@ -49,6 +49,17 @@ unsigned CI packages remain test artifacts, not official signed installers.
   `App.xaml` hold the strings `Glyphs.tsx` produces, so the phone and the desktop stop borrowing a
   second set of shapes, and a correction made on the web is copied to both by copying its path.
 
+## A player that fits the screen it is on
+
+- With a clip playing there is one shelf under the picture instead of three pieces floating over it:
+  the sleeve with its title, the transport and the words, on a single surface, in that order.
+- The shelf reflows rather than being rearranged by hand. The words move under the transport when
+  there is no room beside it, and on a phone the three go one under another with the picture whole
+  above them.
+- The phone's Now Playing puts the record on one side and the words on the other as soon as the
+  screen is wide enough for both, and the Windows window turns its rail into a column of icons in a
+  narrow window instead of squeezing the page beside it.
+
 ## A clip has room
 
 - With a video playing, each part of the player has its own place in the grid, so nothing sits on

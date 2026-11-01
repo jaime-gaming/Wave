@@ -161,7 +161,7 @@
               <Grid.RenderTransform><TranslateTransform x:Name="Slide" X="0"/></Grid.RenderTransform>
               <Border x:Name="Hover" Background="{DynamicResource TonalBrush}" CornerRadius="14" Opacity="0"/>
               <Border Background="{TemplateBinding Background}" CornerRadius="14" Padding="{TemplateBinding Padding}">
-                <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center"/>
               </Border>
             </Grid>
             <ControlTemplate.Triggers>

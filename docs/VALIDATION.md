@@ -664,3 +664,21 @@ record and the certificate remain dashboard settings that only the maintainer ca
 - No pixel screenshots were taken for this release: the sandbox has no browser that can
   run (no system Chromium and no allowed download for one), so layout changes were verified
   by reading the grid rules and by component tests, not by eye.
+
+## 0.2.0 checks: the third pass
+
+- The clip stage was rebuilt rather than patched: the three floating pieces and the scrim behind them
+  were replaced by one shelf drawn in the layout's last grid row, with one named cell per part. Read
+  back from the stylesheet, the surface spans `2 / 1 / -1 / -1` in every width, so it cannot end up
+  shorter than its contents, and no part is placed in a cell another part already holds.
+- The three widths that matter are rules on the same shelf instead of three different layouts: three
+  columns, then the words on a row of their own, then one column. A short window (`max-height: 560px`)
+  only tightens the sizes, and the phone in portrait keeps the picture's own 16:9 band above it.
+- The Android Now Playing and the Windows rail were changed for width, and neither native toolchain
+  exists in this sandbox: their compilation is left to `Native builds`, and the phone screenshots are
+  regenerated from the real `WaveApp` by the same job. The ports are structural — a two-pane split at
+  600 dp, a rail that keeps its icons under a thousand pixels — not new behaviour that could be wrong
+  in a way a screenshot would not show.
+- Web: 633 tests in 100 files, TypeScript, eslint and Prettier clean, production and `/Wave/` builds
+  succeed. No browser was available to photograph the new shelf, so its appearance is still reasoned
+  from the rules rather than seen.

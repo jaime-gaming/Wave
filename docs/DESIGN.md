@@ -267,11 +267,12 @@ The decoder reports duration with its source track ID, so late metadata cannot o
 
 Every icon in the app is drawn in `src/components/Glyphs.tsx` with the same pen as the wordmark — one stroke weight, round caps, shapes that lean off the grid — instead of being taken
 from an icon pack, because a screen of grid-perfect glyphs reads as a template. With a clip playing,
-`.player-normal-view.clip-live` turns the player into a small column at the left (an 84 px sleeve, the
-title and artist under it, the transport directly below) and puts the words in a 240 px column at the
-right with nothing but the hide control; the middle of the screen belongs to the picture. Every part
-of that grid names its own cell — placing two of them in one cell is what made the earlier version
-look broken. Three things keep the picture honest: the palette's spectral wash is switched off at the
+`.player-normal-view.clip-live` gives the picture the top of the screen and puts everything else on one
+shelf under it: the sleeve with its title and artist, the transport, and the words, left to right, on
+a single surface. The shelf is one grid row, so it reflows instead of being repositioned — the words
+drop under the transport when there is no room beside them, and on a phone the three go one under
+another. An earlier version scattered those parts into three corners and needed a rule per width to
+stop them colliding, which is how a layout stops adapting. Three things keep the picture honest: the palette's spectral wash is switched off at the
 root (`data-clip="live"`) because it used to paint a colour gradient over someone else's footage; the
 veil is a vignette around the edges rather than a blanket over the middle; and on a phone held upright
 the video takes a 16:9 band of its own at the top, whole and uncropped, with the player underneath,

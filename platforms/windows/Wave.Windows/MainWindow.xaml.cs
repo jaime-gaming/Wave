@@ -40,6 +40,7 @@ public partial class MainWindow : Window
     private string searchQuery = "";
     private string? artShown;
     private string renderedPage = "";
+    private bool railNarrow;
 
     public MainWindow() : this(null) { }
     public MainWindow(string? folder)
@@ -52,7 +53,7 @@ public partial class MainWindow : Window
             plays = Listening.Load(repository.Folder);
         } catch (Exception error) { Notify("Could not open local storage: " + error.Message); }
         ApplyTheme(); volume = Math.Clamp(preferences.Volume, 0, 1); Volume.Value = volume;
-        initialized = true; ShowPage("Home"); timer.Tick += Tick; timer.Start();
+        initialized = true; Loaded += (_, _) => FitRail(); ShowPage("Home"); timer.Tick += Tick; timer.Start();
         try {
             var session = NativeCollections.Load<ListeningSession>(repository.Folder, "session.json");
             if (session != null) {
@@ -90,7 +91,7 @@ public partial class MainWindow : Window
         if (destination != "Now playing" && destination != "Settings") previousPage = destination;
         page = destination; collection = group;
         bool expanded = page == "Now playing";
-        SidebarWidth.Width = new GridLength(expanded ? 0 : 216);
+        ApplyRailWidth();
         NavigationPanel.Visibility = PageHeader.Visibility = expanded ? Visibility.Collapsed : Visibility.Visible;
         Heading.Text = collection ?? page;
         UpdateSummary();
@@ -131,6 +132,42 @@ public partial class MainWindow : Window
         else if (changed) Motion.Rise(LibraryView, Motion.Enabled(preferences.Animations));
         else Motion.Fade(LibraryView, Motion.Enabled(preferences.Animations));
     }
+    /// <summary>
+    /// A narrow window keeps the rail and loses the words.
+    ///
+    /// Below a thousand pixels the rail costs the page more width than it can
+    /// spare, so it becomes a column of icons whose names live in their tooltips,
+    /// and the page gets that width back. It widens again the moment there is
+    /// room: the handover is the window resizing, not a setting.
+    /// </summary>
+    private void WindowResized(object sender, SizeChangedEventArgs e) => FitRail();
+    private void FitRail()
+    {
+        bool narrow = ActualWidth > 0 && ActualWidth < 1000;
+        if (narrow == railNarrow) return;
+        railNarrow = narrow;
+        if (NavigationPanel.Content is StackPanel rail)
+        {
+            rail.Margin = narrow ? new Thickness(8, 24, 8, 18) : new Thickness(16, 24, 12, 18);
+            foreach (var element in rail.Children)
+            {
+                if (element is Button button && button.Content is StackPanel content)
+                {
+                    foreach (var label in content.Children.OfType<TextBlock>())
+                        label.Visibility = narrow ? Visibility.Collapsed : Visibility.Visible;
+                    button.HorizontalContentAlignment = narrow ? HorizontalAlignment.Center : HorizontalAlignment.Left;
+                }
+                else if (element is TextBlock or Viewbox)
+                {
+                    // The wordmark and "your collection" are words about the rail;
+                    // a rail of icons has room for neither.
+                    element.Visibility = narrow ? Visibility.Collapsed : Visibility.Visible;
+                }
+            }
+        }
+        ApplyRailWidth();
+    }
+    private void ApplyRailWidth() => SidebarWidth.Width = new GridLength(page == "Now playing" ? 0 : railNarrow ? 96 : 216);
     /// <summary>
     /// Home, Remix and Settings are pages made of headings, shelves and rows; they
     /// have no song list of their own below the fold, so their opening fills the

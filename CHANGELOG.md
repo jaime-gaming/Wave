@@ -11,6 +11,13 @@
 - The words on top of the picture sit on a scrim of their own, so every one of them is readable.
 - Devices can be paired by pasting a code, for the two computers that have no camera between them.
 - `docs/PAIRING.md` specifies the pairing exchange so Android and Windows can implement the same one.
+- With a clip playing, the player is one shelf at the bottom of the screen: the sleeve with its title,
+  the transport and the words on a single surface, in that order, with the picture above them. It
+  reflows instead of being repositioned — the words drop under the transport at medium widths and
+  stack under it on a phone — so no width has to be patched by hand.
+- The phone's Now Playing is two panes from 600 dp, the record on one side and the words on the other,
+  the way the same page is laid out on a computer. The Windows window narrows to a rail of icons under
+  a thousand pixels instead of squeezing the page beside its own words.
 
 ### The mix, the edges of a file, and a name for every artist
 

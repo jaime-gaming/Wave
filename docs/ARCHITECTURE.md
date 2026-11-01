@@ -299,6 +299,13 @@ The lyric hook now uses request generations and abort checks so a canceled reque
 
 `src/styles/player.css` owns the expanded stage/transport namespace, replacing obsolete competing player selectors. Record/reader/transport have explicit grid areas; the artwork size is bounded by its actual record container, including short landscape. `PlaySymbol` has a fixed icon slot during presence transitions. The seek component observes its rendered width: the full SVG path extends beyond both edges and travels by exactly one 32 px period inside a progress clip. The thumb is outside that clip, stays inside the SVG and retains a transparent native range hit target with standard keyboard behavior. Pause flattens the path; reduced motion stops translation.
 
+With a clip playing, `clip-live` puts the record, the transport and the words in the last row of the
+stage grid and draws one surface behind them with the layout's own `::before`, so a single shelf holds
+all three and the picture keeps everything above it. The shelf is expressed as grid rows rather than
+as absolute positions: `2 / 1 / -1 / -1` for the surface and one named cell per part, so a narrower
+window moves the words to a row of their own and a phone stacks the three, without a rule that places
+anything twice. The old bottom-left scrim is gone with the islands it was hiding.
+
 ### Pairing (`src/sync/`)
 
 Transport, keys, six digits and frames are specified in [`PAIRING.md`](PAIRING.md) so that a client
@@ -468,7 +475,9 @@ Windows is drawn from the same tokens and the same line art. Every icon in `App.
 so a list built in code and a button written in XAML draw the same shape and no icon font has to
 be installed. The figures are the path strings `src/components/Glyphs.tsx` produces, not a second
 set of drawings made to look similar: a shape corrected on the web is corrected on both natives by
-copying its path. The palette is `App.ApplyBrushes`' single dictionary: the window, the root panel and
+copying its path. The rail collapses to its icons under a thousand pixels of window width and widens again above it,
+so the page keeps its width rather than being squeezed by words it can read in a tooltip. The palette
+is `App.ApplyBrushes`' single dictionary: the window, the root panel and
 every DynamicResource point into it, and a theme change re-reads it rather than waiting for a
 resource to notice. A page is either an opening that fills the card and scrolls as one thing
 (Home, Remix) or a short opening above a virtualised list (Library, Albums, Artists, Playlists,
@@ -477,7 +486,9 @@ Search) — never two scrollbars side by side.
 ## Mobile web and the Android shell
 
 The Android UI remains Compose rather than a WebView, so the system file picker, media session,
-headset controls and local audio playback retain their platform behaviour. `WaveChrome` mirrors
+headset controls and local audio playback retain their platform behaviour. `NowPlaying` is one column on a phone and two panes from 600 dp — the record on one side, the words
+on the other — which is the split the same page uses on a computer; a single centred column on a
+tablet leaves two thirds of the screen empty and stretches the lyrics past reading. `WaveChrome` mirrors
 the mobile web page margins, rounded dock and header actions; `WaveIcons` holds the same path data
 as `Glyphs.tsx` and strokes it with the same 1.8-unit pen (the pause bars are drawn heavier, since
 two outlined bars at 20 dp read as a smudge). Home and Remix read the existing library and history rather than
