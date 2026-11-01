@@ -43,7 +43,10 @@ export function silenceReport(
 ): SilenceReport | null {
   if (!analysis || !Number.isFinite(analysis.duration) || analysis.duration <= 0) return null;
   const start = Math.max(0, Math.min(analysis.trimmed.start, analysis.duration));
-  const end = Math.max(start, Math.min(analysis.trimmed.end || analysis.duration, analysis.duration));
+  const end = Math.max(
+    start,
+    Math.min(analysis.trimmed.end || analysis.duration, analysis.duration),
+  );
   const leading = round(start);
   const trailing = round(Math.max(0, analysis.duration - end));
   return {
@@ -61,10 +64,7 @@ export function silenceReport(
  * A trim keeps its margins: the listener asked for the silence to go, not for
  * the first fraction of a second of the song to go with it.
  */
-export function playableBounds(
-  duration: number,
-  trim: SilenceBounds | undefined,
-): SilenceBounds {
+export function playableBounds(duration: number, trim: SilenceBounds | undefined): SilenceBounds {
   const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : 0;
   if (!trim) return { start: 0, end: safeDuration };
   const start = Math.max(0, Math.min(trim.start, safeDuration));

@@ -167,7 +167,10 @@ export function trimTrackSilence(
   return mutateTrack(id, (track) => {
     const start = Math.max(0, Math.min(bounds.start, track.duration || bounds.start));
     const end = Math.max(start, Math.min(bounds.end, track.duration || bounds.end));
-    return { ...track, trim: { start: Math.round(start * 100) / 100, end: Math.round(end * 100) / 100 } };
+    return {
+      ...track,
+      trim: { start: Math.round(start * 100) / 100, end: Math.round(end * 100) / 100 },
+    };
   });
 }
 export function restoreTrackSilence(id: string): Promise<Track> {

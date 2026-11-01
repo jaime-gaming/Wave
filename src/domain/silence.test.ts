@@ -7,7 +7,10 @@ import {
   SILENCE_MARGIN,
 } from './silence';
 
-const analysis = (start: number, end: number, duration = 200) => ({ duration, trimmed: { start, end } });
+const analysis = (start: number, end: number, duration = 200) => ({
+  duration,
+  trimmed: { start, end },
+});
 
 describe('dead air at the edges of a file', () => {
   it('measures both ends against the whole file', () => {

@@ -432,12 +432,17 @@ export function planTransition(
  * handover ends.
  */
 /** Mean level of the body segments that overlap a window of the song. */
-function levelAround(analysis: TrackAnalysis | undefined, seconds: number, window = 12): number | undefined {
+function levelAround(
+  analysis: TrackAnalysis | undefined,
+  seconds: number,
+  window = 12,
+): number | undefined {
   if (!analysis) return undefined;
   const from = seconds,
     to = seconds + window;
   const inside = analysis.segments.filter(
-    (segment) => segment.kind === 'body' && segment.level > 0.01 && segment.end > from && segment.start < to,
+    (segment) =>
+      segment.kind === 'body' && segment.level > 0.01 && segment.end > from && segment.start < to,
   );
   if (!inside.length) return undefined;
   // Weighted by how much of each segment is actually inside the window, so a

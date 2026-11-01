@@ -7,7 +7,12 @@ import { MixAudio } from '../audio/MixAudio';
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { playerReducer, shuffleQueue } from '../domain/player';
 import { resolvePlayable } from '../domain/youtubeTrack';
-import { describeSilence, silenceReport, trimFromReport, type SilenceReport } from '../domain/silence';
+import {
+  describeSilence,
+  silenceReport,
+  trimFromReport,
+  type SilenceReport,
+} from '../domain/silence';
 import { breakDue, freshBreak, heardFor, nextBreakThreshold } from '../domain/breakTime';
 import { planEdgeHandover } from '../domain/edgeMix';
 import { PlaybackClock } from './playbackClock';
@@ -55,11 +60,7 @@ export interface SilenceStore {
   keep: (id: string) => void;
 }
 
-export function usePlayer(
-  tracks: Track[],
-  libraryReady = true,
-  silenceStore?: SilenceStore,
-) {
+export function usePlayer(tracks: Track[], libraryReady = true, silenceStore?: SilenceStore) {
   const [saved] = useState(readPlaybackSession);
   const [mixEnabled, setMixEnabled] = useState(savedMix);
   const [autoplay, setAutoplay] = useState(savedAutoplay);
