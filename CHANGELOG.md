@@ -1,5 +1,46 @@
 # Changelog
 
+## 0.2.0 — 1 November 2026
+
+### The mix, the edges of a file, and a name for every artist
+
+- A song that arrives in a mix no longer plays a second at full volume before it settles. The
+  reason was quiet and real: a deck handed its file while the audio context was still asleep had
+  nowhere to write a level, so the level did nothing. It now follows the element until the graph
+  exists, and the match is measured where the two songs actually meet — the outgoing song's tail
+  against the incoming song's opening — instead of averaging both records. When the overlap ends
+  the new song takes its own level back over four seconds, so the handover has no jump left in it.
+- Both decks share the tempo correction instead of the new song doing all the travelling, and the
+  window is sixteen per cent rather than eight: far more real pairs now meet on the beat. During
+  the blend the two records also separate in the stereo field and come back to the centre, which
+  costs no level at all — the power of the overlap is exactly what the curve says it is.
+- "Mixing" is now letters rather than a gradient. Each letter carries its own light, offset by its
+  place in the word, so the highlight travels like a wave; the word tightens a hair and its glow
+  grows as the handover approaches.
+- The error screen is written for a person: a small stopped waveform, one sentence, and the two
+  honest ways out. The exception itself stays in the console and never appears on the page.
+- Online detail lookups are off until they are switched on. When they are on, they finish the job
+  better: a title the provider decorated with a featured artist still matches, a filename is
+  repaired even when the album is unknown, and the several styles a provider lists in one string
+  become separate genres.
+- An artist tag that names two acts — "A, B" — now gives each act a profile, and the song appears
+  under both. Names that genuinely contain a comma stay whole. A title tag holding the whole line
+  gives up its artist when none was tagged, a zero-padded album position leaves the name, and the
+  song details panel says what a song needs in words, including when the artist and title look
+  swapped.
+- Dead air at the edges of a file is measured when the song plays, mentioned once beside the
+  player, and removable. A trim is a pair of playback bounds: the recording keeps every sample,
+  the editor gives the whole file back, and the question is never asked twice.
+- After an hour and a half of actual playing the music stops and Wave asks whether you want a
+  break. Both answers give the next question twenty minutes more room.
+- On a phone, bringing the other device in is the first card under the collection.
+- The navigation and transport icons are drawn by the same hand as the wordmark instead of taken
+  from an icon pack. With a clip playing, the player becomes a small column at the left, the words
+  a narrow column at the right, and the picture keeps the middle of the screen.
+- `wave.jaime-gaming.com` is served by Cloudflare Pages: `public/_redirects` and `public/_headers`
+  travel with the build, the Playwright mirror under `docs/` is only a mirror, and the domain is
+  set in the Pages dashboard rather than by a CNAME file.
+
 ## 0.1.1 — 2 November 2026
 
 ### The mix, the sleeve, and the two native builds

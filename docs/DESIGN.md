@@ -1,6 +1,6 @@
 # Wave Architecture
 
-**Version: 0.1.1 · Release date: 2 November 2026.**
+**Version: 0.2.0 · Release date: 1 November 2026.**
 
 ## Scope and platform decision
 
@@ -262,6 +262,18 @@ Separate native Android (Kotlin/Compose) and Windows (C#/WPF) source implementat
 `playbackSession` validates versioned localStorage session data before reducer restoration. Library hydration prunes missing IDs and reconstructs queue/order before audio loading. Restored playback is always paused; `loadedmetadata` applies the selected position, clamped to the native duration. Periodic and page lifecycle saves include the decoder clock rather than a fabricated timer. Queue reconciliation preserves play intent for surviving tracks.
 
 The decoder reports duration with its source track ID, so late metadata cannot overwrite another song. Significant corrections update metadata and invalidate only stale online-lyric caches, never local lyrics or the stored audio bytes. Exact lookup uses cleaned/inferred title and artist; recording editions, duration and the resulting timeline constrain synchronization.
+
+### Icons, the clip stage and the two cards
+
+Every icon in the rail and the transport is drawn in `src/components/Glyphs.tsx` with the same pen as
+the wordmark — one stroke weight, round caps, shapes that lean off the grid — instead of being taken
+from an icon pack, because a screen of grid-perfect glyphs reads as a template. With a clip playing,
+`.player-normal-view.clip-live` turns the player into a small column at the left (a 92 px sleeve, the
+title and artist under it, the transport directly below) and puts the words in a 260 px column at the
+right with nothing but the hide control; the middle of the screen belongs to the picture. The break
+card floats low and small over a dimmed page rather than taking the screen over, and the silence
+question is one sentence above the bar with two answers. Both are `role="dialog"`/`role="status"` with
+no technical text, and both are animated through `useWaveMotion` so reduced motion keeps them still.
 
 `PlayerBar` owns the open lyric disclosure and nothing owns an idle timer: the thirty-second scene that used to take the screen over was removed in 0.1.1, and Now Playing opens only from an explicit action. The bounded listening grid is still separate from the cinematic lyric stage, which is a reading mode inside the open player. No second audio element/clock is introduced by it.
 

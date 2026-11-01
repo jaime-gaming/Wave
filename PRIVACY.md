@@ -12,7 +12,8 @@ Keep your originals: clearing website data, browser eviction, uninstalling Andro
 
 Songs whose own tags are incomplete — no artist, no album, no year, no sleeve, or a title that is
 really a filename — can have those gaps filled from a public catalogue. The switch is in Settings →
-Library and is **on by default**; turning it off stops every new request immediately.
+Library and is **off by default**: nothing is sent until it is switched on, and switching it off stops
+every new request immediately.
 
 Apple's iTunes Search API receives the artist and title already stored on the device (or, when the
 artist is unknown, the title alone) and the storefront taken from the browser's language. It
@@ -24,6 +25,10 @@ overwritten, and the running time always stays the decoder's own measurement.
 The catalogue's servers necessarily see connection information such as an IP address; HTTPS does
 not hide that from the recipient. Requests are spaced out, bounded, and skipped entirely while the
 device reports no connection. Lookup history is a timestamp on the song record, kept on the device.
+
+Silent edges measured at the start and end of a file are a local measurement. Removing them stores a
+pair of playback bounds on the song record; the original audio is never rewritten and the editor can
+give the whole file back.
 
 ## Optional online lyrics
 

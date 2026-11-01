@@ -1,6 +1,6 @@
 # Wave Roadmap
 
-**Version: 0.1.1 · Release date: 2 November 2026.**
+**Version: 0.2.0 · Release date: 1 November 2026.**
 
 Wave 1.1 scope (device sync, YouTube links and playlist import) is specified in
 [SPEC_1.1](SPEC_1.1.md); its foundation is implemented but not user-facing yet.
@@ -123,7 +123,7 @@ Local smart mixes and advanced search may be explored after library and playback
 
 Use the [issue tracker](https://github.com/jaime-gaming/Wave/issues) to propose or discuss work. Include the user benefit, browser constraints, privacy impact, and a test plan. See [CONTRIBUTING.md](../CONTRIBUTING.md).
 
-Release 0.1.1 is dated 2 November 2026; published assets and tag identity are recorded on the GitHub Release. There is no released 1.0.0 or completed Android parity.
+Release 0.2.0 is dated 1 November 2026; published assets and tag identity are recorded on the GitHub Release. There is no released 1.0.0 or completed Android parity.
 
 Immediate import persistence, exact-byte renamed-file deduplication, compact covers/lyrics and browser-controlled eviction protection are implemented. Portable backup/export and lossless reduction of original audio storage are not implemented; original bytes necessarily occupy their original size.
 
@@ -225,6 +225,26 @@ no interface, provider client or Android port exists yet.
 Provider limits are part of the scope, not an implementation detail: new Spotify
 applications cannot read playlists owned by other accounts, and Wave never
 downloads Spotify audio. YouTube audio is never extracted.
+
+## Release 0.2.0 · 1 November 2026
+
+- [x] A mix whose level arrives with the file, is measured at the join and is released over four
+      seconds instead of a frame.
+- [x] Both decks share the tempo correction, inside a sixteen per cent window, and the two records
+      separate in the stereo field while they meet without touching the level.
+- [x] **Mixing** drawn as letters, each one lit in turn as the handover approaches.
+- [x] Silent edges measured on playback, mentioned once, removable as playback bounds — the file
+      keeps every sample and the editor gives the whole thing back.
+- [x] An artist tag naming two acts gives each act a profile; names with a real comma stay whole.
+- [x] Titles holding the whole line give up their artist, album positions leave the name, and song
+      details say what is missing in words.
+- [x] Online lookups off until switched on, and better at what they accept when they are on.
+- [x] An error screen written for a person, with the exception kept in the console.
+- [x] A break offered after an hour and a half of actual listening.
+- [x] Linking another device is the first card on a phone.
+- [x] Wave's own icons, drawn with the wordmark's pen, and a clip mode that keeps the picture.
+- [x] Served by Cloudflare Pages with `_redirects` and `_headers` in the build.
+- [ ] Real-device pass on the new clip layout, the stereo spread and the break card.
 
 ## Release 0.1.1 · 2 November 2026
 

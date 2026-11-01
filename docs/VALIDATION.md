@@ -1,6 +1,6 @@
 # Validation record
 
-Release 0.1.1 · 28 October 2026. Historical run dates are retained below.
+Release 0.2.0 · 1 November 2026. Historical run dates are retained below.
 
 ## Web
 
@@ -244,7 +244,7 @@ Browser coverage includes paused restoration of saved queue/native position, art
 ### Mix, clip discovery and YouTube songs (web, latest run)
 
 - `npx tsc -b`, `npx eslint .`, `npx prettier --check .` and `npm run build`: passed.
-- Mix: `dsp` (14), `mixPlanner` (12), `mixGraph` (5) and `MixAudio` (12) tests cover tempo/phase estimation, silence trimming, energy segments, vocal regions, bar-aligned planning, the ±8 % stretch window, vocal-aware cue relocation, bass-swap curves, graph wiring and plan execution. These are synthetic-signal and engine tests: **no real recording was judged by ear**, and the analysis cost was measured on generated PCM, not on a large local library.
+- Mix: `dsp` (14), `mixPlanner` (12), `mixGraph` (5) and `MixAudio` (12) tests cover tempo/phase estimation, silence trimming, energy segments, vocal regions, bar-aligned planning, the ±16 % stretch window split across both decks, join-window level matching, the stereo spread, vocal-aware cue relocation, bass-swap curves, graph wiring and plan execution. These are synthetic-signal and engine tests: **no real recording was judged by ear**, and the analysis cost was measured on generated PCM, not on a large local library.
 - Clip discovery: `clipSearch` domain (6) and service (4) tests cover ranking, rejection of karaoke/cover/reaction uploads, provider payload parsing, provider fallback, caching and offline failure. Providers are community services: availability, rate limits and terms were **not** verified against the live hosts from this workspace.
 - YouTube songs: `youtubeTrack` (4), `YouTubeStage` (4), `AddMusicDialog` (3) and `useLibrary` (8) tests cover link validation, title splitting, records without local bytes, embed options, transport commands, message-source validation and duplicate refusal. **No live YouTube playback or oEmbed request was made**; browser autoplay policy on a real device is unverified.
 - Video sync: 9 tests cover pause/play, the new rate nudging, hard-drift seeking, cooldown and offset clamping. Real embed drift on slow connections remains unmeasured.
@@ -626,3 +626,18 @@ is the point — an entrance is not allowed to leave a page half-drawn or unusab
 
 The custom domain is configured in the Cloudflare Pages project, not in this repository; the DNS
 record and the certificate remain dashboard settings that only the maintainer can change.
+
+## 0.2.0 checks (latest run)
+
+- **Domain and engine tests** cover the new behaviour directly: the meet-in-the-middle tempo split
+  and its refusal past 16 %, join-window level matching against whole-body matching, `panSpread`
+  returning to the centre at both ends, `silenceReport`/`trimFromReport`/`playableBounds` including
+  bounds that make no sense, `breakTime` counting only playing seconds and never shortening its
+  interval, `artistCredits` splitting a duet while leaving "Earth, Wind & Fire" and "Tyler, the
+  Creator" whole, `splitInlineArtist` refusing a long or bracketed left side, `describeIssues`
+  naming what a song needs, and the catalogue accepting a decorated title while still repairing a
+  filename when the album is unknown.
+- **Lookups default**: a hook test proves no request leaves the device while the switch is off and
+  that the first one leaves as soon as it is on.
+- **Native and browser passes**: the clip column layout, the stereo spread and the break card are
+  reasoned and unit-checked, not judged on devices. The real-device pass is still outstanding.
