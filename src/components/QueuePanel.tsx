@@ -9,7 +9,7 @@ import {
   ArrowUp,
   ArrowDown,
   Check,
-} from 'lucide-react';
+} from './Glyphs';
 import { Artwork } from './Artwork';
 import { EmptyState } from './EmptyState';
 import { formatTime, type Track } from '../domain/types';

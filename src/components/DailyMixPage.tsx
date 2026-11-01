@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Play, Shuffle, ListPlus } from 'lucide-react';
+import { ArrowLeft, Play, Shuffle, ListPlus } from './Glyphs';
 import type { DailyMix } from '../domain/dailyMixes';
 import { formatTime, type Track } from '../domain/types';
 import { playlistIcon } from '../domain/playlistVisual';

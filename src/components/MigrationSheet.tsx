@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { ArrowLeft, Check, CircleDashed, FileUp, ListMusic, Upload, X } from 'lucide-react';
+import { ArrowLeft, Check, CircleDashed, FileUp, ListMusic, Upload, X } from './Glyphs';
 import { motion } from 'motion/react';
 import { Modal } from './Modal';
 import { isLink, parsePlaylistText, type ParsedList } from '../domain/importFile';

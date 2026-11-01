@@ -63,8 +63,11 @@ export function artistCredits(artist: string): string[] {
   const value = artist.trim();
   if (!value) return [value];
   if (COMMA_NAMES.has(value.toLowerCase())) return [value];
+  // A semicolon or a comma names two acts. A slash does not: AC/DC, Simon/Funk
+  // and a hundred other names contain one, and splitting them invented artists
+  // nobody has.
   const parts = value
-    .split(/\s*[;,/]\s*(?![^()]*\))/u)
+    .split(/\s*[;,]\s*(?![^()]*\))/u)
     .map((part) => part.trim())
     .filter(Boolean)
     // A trailing fragment that starts in lowercase is part of the name, not a

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ExternalLink, Film, Link2, Loader2, Trash2 } from 'lucide-react';
+import { ExternalLink, Film, Link2, Loader2, Trash2 } from './Glyphs';
 import { searchClips, chooseClip } from '../services/clipSearch';
 import { autoClipStart } from '../domain/clipSearch';
 import { CLIPS_CHANGED, getClip, loadClips, removeClip } from '../domain/videoClips';

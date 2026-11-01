@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import jsQR from 'jsqr';
-import { Camera, X } from 'lucide-react';
+import { Camera, X } from './Glyphs';
 
 interface Detector {
   detect: (source: CanvasImageSource) => Promise<{ rawValue: string }[]>;

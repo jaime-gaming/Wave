@@ -14,7 +14,7 @@ import {
   Minus,
   Plus,
   Music2,
-} from 'lucide-react';
+} from './Glyphs';
 import {
   activeLyricIndex,
   lyricFillProgress,

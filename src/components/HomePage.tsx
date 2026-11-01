@@ -2,16 +2,7 @@ import type { DailyMix } from '../domain/dailyMixes';
 import { DailyMixes } from './DailyMixes';
 import { memo, useMemo } from 'react';
 import { motion } from 'motion/react';
-import {
-  ArrowUpRight,
-  Disc3,
-  Heart,
-  ListMusic,
-  Music2,
-  Users,
-  Plus,
-  Smartphone,
-} from 'lucide-react';
+import { ArrowUpRight, Disc3, Heart, ListMusic, Music2, Users, Plus, Smartphone } from './Glyphs';
 import { albumKey, collectAlbums, collectArtists } from '../domain/collections';
 import type { LibraryView, Playlist, Track } from '../domain/types';
 import { useWaveMotion } from '../ui/motion';

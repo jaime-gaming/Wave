@@ -2,7 +2,7 @@ import { lookupLyrics } from '../services/lyrics';
 import { lyricsCooldown } from '../services/lyricsCooldown';
 import { canLookup } from '../domain/lyricsLookup';
 import { useEffect, useRef, useState } from 'react';
-import { FileUp, Save, Trash2, Search, X } from 'lucide-react';
+import { FileUp, Save, Trash2, Search, X } from './Glyphs';
 import { parseLyrics, MAX_LYRICS_LENGTH, type Lyrics } from '../domain/lyrics';
 import type { Track } from '../domain/types';
 import { Modal } from './Modal';

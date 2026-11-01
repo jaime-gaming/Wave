@@ -35,11 +35,15 @@ const WORD = [
   'M47.2 10.8a6.1 6.1 0 1 0 0 12.2a6.1 6.1 0 1 0 0-12.2',
   // a — the stem, set against the bowl and stopping a little short of it.
   'M53.3 11.4V22.2',
-  // v — one trough, the same curve as the dips in the W.
-  'M62 10.9C63.4 15.2 65.2 23.3 66.9 23.3C68.6 23.3 70.4 15.2 71.8 10.9',
+  // v — the trough of the W, at the height of the letters beside it: two arms
+  // that leave the x-height straight down and meet once, in the middle, with the
+  // same vertical tangents the W's dips have. Drawn symmetrically about 63.6 so
+  // the letter cannot lean; the previous one had its right arm half the weight of
+  // its left and a hinge at the bottom, which is what read as a broken V.
+  'M57.6 10.9C57.6 17.4 61.2 23 63.6 23C66 23 69.6 17.4 69.6 10.9',
   // e — the bar, then a bowl that leaves the stroke open towards the bottom.
-  'M89.2 16.4H76.6',
-  'M89.2 16.4A6.3 6.3 0 1 0 87.6 21.7',
+  'M84.6 16.2H72.2',
+  'M84.6 16.2A6.4 6.4 0 1 0 82.4 21.6',
 ];
 
 function Pen({
@@ -86,7 +90,7 @@ export function WaveWordmark({
   ) : (
     <Pen
       paths={WORD}
-      viewBox="0.5 4.4 91.5 21.4"
+      viewBox="1 4 87 21"
       className={className ?? 'wave-wordmark wave-wordmark-full'}
     />
   );

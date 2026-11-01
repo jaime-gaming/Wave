@@ -1,15 +1,7 @@
 import { WaveWordmark } from './WaveWordmark';
 import { motion } from 'motion/react';
 import { useWaveMotion } from '../ui/motion';
-import { Disc3, ListMusic, Users } from 'lucide-react';
-import {
-  HeartGlyph,
-  HomeGlyph,
-  LibraryGlyph,
-  RemixGlyph,
-  SearchGlyph,
-  SettingsGlyph,
-} from './Glyphs';
+import { Disc3, Heart, Home, Library, ListMusic, Remix, Search, Settings, Users } from './Glyphs';
 import type { LibraryView } from '../domain/types';
 export type Page = 'home' | 'search' | 'library' | 'remix' | 'settings';
 export function Navigation({
@@ -41,10 +33,10 @@ export function Navigation({
       <nav className="app-navigation" aria-label="Main navigation">
         {(
           [
-            { id: 'home', name: 'Home', icon: HomeGlyph },
-            { id: 'search', name: 'Search', icon: SearchGlyph },
-            { id: 'library', name: 'Library', icon: LibraryGlyph },
-            { id: 'remix', name: 'Remix', icon: RemixGlyph },
+            { id: 'home', name: 'Home', icon: Home },
+            { id: 'search', name: 'Search', icon: Search },
+            { id: 'library', name: 'Library', icon: Library },
+            { id: 'remix', name: 'Remix', icon: Remix },
           ] as const
         ).map(({ id, name, icon: Icon }) => (
           <motion.button
@@ -81,7 +73,7 @@ export function Navigation({
               id: 'favorites',
               label: 'Favorites',
               name: 'Browse favorite songs',
-              icon: HeartGlyph,
+              icon: Heart,
             },
           ] as const
         ).map(({ id, label, name, icon: Icon }) => (
@@ -98,7 +90,7 @@ export function Navigation({
         ))}
       </div>
       <button className="rail-settings" onClick={onSettings} aria-label="Settings">
-        <SettingsGlyph size={21} />
+        <Settings size={21} />
         <span>Settings</span>
       </button>
     </aside>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Film } from 'lucide-react';
+import { Film } from './Glyphs';
 import { EmptyState } from './EmptyState';
 import { readEmbedProgress, youtubeEmbedUrl } from '../domain/youtube';
 import {

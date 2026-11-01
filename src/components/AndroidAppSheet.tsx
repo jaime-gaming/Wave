@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
-import { Download, Smartphone, X } from 'lucide-react';
+import { Download, Smartphone, X } from './Glyphs';
 import { useWaveMotion } from '../ui/motion';
 import { ANDROID_APP_URL } from '../ui/androidApp';
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowRight, Camera, Check, Copy, Link2, QrCode, RotateCcw, Trash2 } from 'lucide-react';
+import { ArrowRight, Camera, Check, Copy, Link2, QrCode, RotateCcw, Trash2 } from './Glyphs';
 import { motion } from 'motion/react';
 import { useWaveMotion } from '../ui/motion';
 import { useDevices, readPairingLink } from '../hooks/useDevices';

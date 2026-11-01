@@ -1,5 +1,5 @@
 import { memo, useDeferredValue, useEffect, useMemo, useState, type RefObject } from 'react';
-import { Search, X, Music2, Disc3, Users, ListMusic, ArrowUpRight } from 'lucide-react';
+import { Search, X, Music2, Disc3, Users, ListMusic, ArrowUpRight } from './Glyphs';
 import { motion } from 'motion/react';
 import type { Track, Playlist, LibraryView } from '../domain/types';
 import { collectAlbums, collectArtists, initials } from '../domain/collections';

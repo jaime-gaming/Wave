@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Check, ChevronLeft, ChevronRight, Music2, Sparkles } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Music2, Sparkles } from './Glyphs';
 import type { Track } from '../domain/types';
 import { describeIssues, metadataIssues } from '../domain/metadata';
 import { needsDetails } from '../domain/catalogue';

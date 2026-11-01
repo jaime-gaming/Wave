@@ -8,7 +8,7 @@ import { BreakPrompt } from './BreakPrompt';
 import { cueForTrack, useMixCue, type MixCue } from '../ui/mixCue';
 import { WaveSeek } from './WaveSeek';
 import { LyricsPanel } from './LyricsPanel';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useWaveMotion } from '../ui/motion';
 import type { RefObject } from 'react';
@@ -21,9 +21,10 @@ import {
   SkipBack,
   SkipForward,
   Film,
-} from 'lucide-react';
-import { HeartGlyph, MutedGlyph, PauseGlyph, PlayGlyph, QueueGlyph, SoundGlyph } from './Glyphs';
+} from './Glyphs';
+import { Heart, VolumeX, Pause, Play, ListMusic, Volume2 } from './Glyphs';
 import { Artwork } from './Artwork';
+import { getClip, loadClips } from '../domain/videoClips';
 import { Modal } from './Modal';
 import { formatTime, type Track } from '../domain/types';
 import type { usePlayer } from '../hooks/usePlayer';
@@ -72,7 +73,7 @@ function PlaySymbol({ playing, size }: { playing: boolean; size: number }) {
           exit={{ opacity: 0, rotate: animation.enabled ? 15 : 0, y: animation.enabled ? -5 : 0 }}
           transition={animation.effects}
         >
-          {playing ? <PauseGlyph size={size} /> : <PlayGlyph size={size} />}
+          {playing ? <Pause size={size} /> : <Play size={size} />}
         </motion.span>
       </AnimatePresence>
     </span>
@@ -277,7 +278,7 @@ function PlayerDetails({
                   if (current) onFavorite(current);
                 }}
               >
-                <HeartGlyph size={23} fill={current?.favorite ? 'currentColor' : 'none'} />
+                <Heart size={23} fill={current?.favorite ? 'currentColor' : 'none'} />
               </button>
             </div>
             <div className="stage-volume">
@@ -286,7 +287,7 @@ function PlayerDetails({
                 onClick={player.toggleMute}
                 aria-label={volume ? 'Mute' : 'Unmute'}
               >
-                {volume ? <SoundGlyph size={21} /> : <MutedGlyph size={21} />}
+                {volume ? <Volume2 size={21} /> : <VolumeX size={21} />}
               </button>
               <input
                 aria-label="Volume"
@@ -370,6 +371,22 @@ export function PlayerBar(props: PlayerProps) {
   // while the outgoing song is still on, and by the time the two meet the
   // interface has already moved on to the incoming one.
   const pending = cueForTrack(cue, player.current?.id);
+  /**
+   * The other half of a mix, when it has a picture of its own.
+   *
+   * Read from the stored clips rather than by rendering a second search: a song
+   * with no clip must leave the outgoing picture alone, not replace it with a
+   * note about a missing one, and a note inside a fade would be visible.
+   */
+  const blendTrack = player.blend?.to;
+  const blendTo =
+    blendTrack &&
+    blendTrack.id !== player.current?.id &&
+    getClip(blendTrack.id, loadClips()) !== undefined
+      ? blendTrack
+      : undefined;
+  const blendProgress = Math.max(0, Math.min(1, player.blend?.progress ?? 0));
+  const blendSeconds = (player.blend?.seconds ?? 0) * blendProgress;
   // The player opens when it is asked to. It used to take the screen over after
   // thirty seconds of listening without a click; that scene is gone, so an idle
   // room now stays exactly as the listener left it.
@@ -561,7 +578,7 @@ export function PlayerBar(props: PlayerProps) {
               aria-label={player.volume ? 'Mute' : 'Unmute'}
               onClick={player.toggleMute}
             >
-              {player.volume ? <SoundGlyph size={20} /> : <MutedGlyph size={20} />}
+              {player.volume ? <Volume2 size={20} /> : <VolumeX size={20} />}
             </button>
             <input
               type="range"
@@ -574,7 +591,7 @@ export function PlayerBar(props: PlayerProps) {
             />
           </div>
           <button className="icon-button compact-queue" aria-label="Show queue" onClick={onQueue}>
-            <QueueGlyph size={22} />
+            <ListMusic size={22} />
           </button>
         </div>
       </footer>
@@ -611,7 +628,7 @@ export function PlayerBar(props: PlayerProps) {
                   aria-expanded={props.queueOpen}
                   onClick={onQueue}
                 >
-                  <QueueGlyph size={23} />
+                  <ListMusic size={23} />
                 </button>
               </>
             }
@@ -645,13 +662,35 @@ export function PlayerBar(props: PlayerProps) {
             ) : (
               videoClip &&
               player.current && (
-                <VideoBackdrop
-                  track={player.current}
-                  time={time}
-                  duration={player.duration}
-                  playing={player.state.playing}
-                  onRevealed={setClipLive}
-                />
+                <>
+                  <VideoBackdrop
+                    track={player.current}
+                    time={time}
+                    duration={player.duration}
+                    playing={player.state.playing}
+                    onRevealed={setClipLive}
+                  />
+                  {/*
+                   * A mix is two songs for a while, so it is two pictures for a
+                   * while. The arriving song's clip fades in over the one that is
+                   * leaving, on the same progress number the sound uses, and the
+                   * handover is over when both are done. Songs without a clip
+                   * simply leave the other picture alone.
+                   */}
+                  {blendTo && (
+                    <div
+                      className="video-backdrop-blend"
+                      style={{ '--blend-progress': blendProgress } as CSSProperties}
+                    >
+                      <VideoBackdrop
+                        track={blendTo}
+                        time={blendSeconds}
+                        duration={blendTo.duration}
+                        playing={player.state.playing}
+                      />
+                    </div>
+                  )}
+                </>
               )
             )}
             <MusicLighting className="stage-aura" />

@@ -9,7 +9,7 @@ import {
   HardDrive,
   Info,
   Smartphone,
-} from 'lucide-react';
+} from './Glyphs';
 import { motion } from 'motion/react';
 import { useWaveMotion } from '../ui/motion';
 const sections = [

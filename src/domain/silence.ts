@@ -30,9 +30,15 @@ export interface SilenceReport extends SilenceBounds {
   worth: boolean;
 }
 
-/** Silence shorter than this is part of how the recording sounds. */
-export const SILENCE_MIN_START = 1.5;
-export const SILENCE_MIN_END = 2;
+/**
+ * How much dead air has to be there before it is worth a word.
+ *
+ * Three seconds at the front and four at the back: shorter gaps are how plenty
+ * of recordings breathe, and a question about a second and a half of nothing is
+ * a false alarm that costs the listener attention for no gain.
+ */
+export const SILENCE_MIN_START = 3;
+export const SILENCE_MIN_END = 4;
 /** Kept on each side so a trim never shaves the first attack or the last tail. */
 export const SILENCE_MARGIN = 0.25;
 

@@ -66,7 +66,7 @@ import {
   Shuffle,
   SlidersHorizontal,
   X,
-} from 'lucide-react';
+} from './components/Glyphs';
 import { useLibrary } from './hooks/useLibrary';
 import { useAppPalette } from './hooks/useAppPalette';
 import { usePlayer } from './hooks/usePlayer';

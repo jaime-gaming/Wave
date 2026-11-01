@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { HardDrive, ShieldCheck, RefreshCw } from 'lucide-react';
+import { HardDrive, ShieldCheck, RefreshCw } from './Glyphs';
 import type { Track } from '../domain/types';
 import { formatBytes, libraryFootprint, requestPersistentStorage } from '../data/storage';
 import { countPlays } from '../data/listening';

@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { motion } from 'motion/react';
-import { ArrowLeft, Music2, Disc3, Play, Shuffle, ImagePlus } from 'lucide-react';
+import { ArrowLeft, Music2, Disc3, Play, Shuffle, ImagePlus } from './Glyphs';
 import { artistCredits, collectArtists, initials, type ArtistGroup } from '../domain/collections';
 import { filterTracks, formatTime, type Track } from '../domain/types';
 import { AlbumCard } from './CollectionCard';

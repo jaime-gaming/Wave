@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { RotateCcw, Save } from 'lucide-react';
+import { RotateCcw, Save } from './Glyphs';
 import type { Track, TrackMetadata } from '../domain/types';
 import { Modal } from './Modal';
 import { ArtworkPicker } from './ArtworkPicker';

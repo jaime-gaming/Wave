@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, Plus, Search } from 'lucide-react';
+import { Check, Plus, Search } from './Glyphs';
 import { Modal } from './Modal';
 import { ArtworkPicker } from './ArtworkPicker';
 import { usePlaylistVisual } from '../hooks/usePlaylistVisual';

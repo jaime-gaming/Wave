@@ -1,3 +1,4 @@
+import { rolesSwapped } from './musicIdentity';
 import type { Track } from './types';
 export type MetadataIssue = 'title' | 'artist' | 'album' | 'duration' | 'artwork' | 'roles';
 export interface MetadataCheck {
@@ -16,27 +17,20 @@ export const cleanTag = (value: unknown) =>
 export const missingTag = (value: string) =>
   !value.trim() ||
   /^(?:unknown(?: (?:artist|album|title))?|untitled|n\/a|null|undefined)$/iu.test(value.trim());
-const comparable = (value: string) =>
-  value
-    .toLocaleLowerCase()
-    .normalize('NFKD')
-    .replace(/\p{M}/gu, '')
-    .replace(/[^\p{L}\p{N}]+/gu, ' ')
-    .trim();
 
 export function metadataIssues(
-  track: Pick<Track, 'title' | 'artist' | 'album' | 'duration' | 'artwork'>,
+  track: Pick<Track, 'title' | 'artist' | 'album' | 'duration' | 'artwork'> & {
+    fileName?: string;
+  },
 ): MetadataIssue[] {
   const issues: MetadataIssue[] = [];
   for (const field of ['title', 'artist', 'album'] as const)
     if (missingTag(track[field])) issues.push(field);
-  // The same words in two fields is the classic mis-mapping: the artist sat
-  // down in the title, or the album did. Worth a look, never a silent rewrite.
-  const title = missingTag(track.title) ? '' : comparable(track.title);
-  if (title) {
-    if (!missingTag(track.artist) && comparable(track.artist) === title) issues.push('roles');
-    else if (!missingTag(track.album) && comparable(track.album) === title) issues.push('roles');
-  }
+  // "The artist and the title look swapped" is only said when there is evidence
+  // for it: the file name itself disagrees with the tags in exactly that way.
+  // Comparing two tags for equality flagged every song whose title repeats its
+  // artist — self-titled albums, "X by X" singles — which is not a mistake.
+  if (rolesSwapped(track)) issues.push('roles');
   if (!Number.isFinite(track.duration) || track.duration <= 0) issues.push('duration');
   if (!track.artwork) issues.push('artwork');
   return issues;

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { FolderOpen, FolderSearch, Link2, Video } from 'lucide-react';
+import { FolderOpen, FolderSearch, Link2, Video } from './Glyphs';
 import { Modal } from './Modal';
 import { networkAriaLabel, networkLabel, useOnline } from '../ui/network';
 import type { Track } from '../domain/types';

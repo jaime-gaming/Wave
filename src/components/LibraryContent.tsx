@@ -16,7 +16,7 @@ import {
   Play,
   Plus,
   Search,
-} from 'lucide-react';
+} from './Glyphs';
 import { Artwork } from './Artwork';
 import { EmptyState } from './EmptyState';
 import { formatTime, type LibraryView, type Track } from '../domain/types';

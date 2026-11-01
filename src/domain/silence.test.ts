@@ -1,11 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  describeSilence,
-  playableBounds,
-  silenceReport,
-  trimFromReport,
-  SILENCE_MARGIN,
-} from './silence';
+import { describeSilence, playableBounds, silenceReport, trimFromReport } from './silence';
 
 const analysis = (start: number, end: number, duration = 200) => ({
   duration,
@@ -14,10 +8,19 @@ const analysis = (start: number, end: number, duration = 200) => ({
 
 describe('dead air at the edges of a file', () => {
   it('measures both ends against the whole file', () => {
-    const report = silenceReport(analysis(2.4, 190))!;
-    expect(report.leading).toBe(2.4);
+    const report = silenceReport(analysis(4.2, 190))!;
+    expect(report.leading).toBe(4.2);
     expect(report.trailing).toBe(10);
     expect(report.worth).toBe(true);
+  });
+
+  it('leaves short gaps alone, because they are how recordings breathe', () => {
+    // Two and a half seconds in, three seconds out: part of the recording.
+    expect(silenceReport(analysis(2.4, 197))!.worth).toBe(false);
+    expect(silenceReport(analysis(1.2, 197))!.worth).toBe(false);
+    // Either side alone is enough to mention it.
+    expect(silenceReport(analysis(3.4, 197))!.worth).toBe(true);
+    expect(silenceReport(analysis(0.2, 195))!.worth).toBe(true);
   });
 
   it('says nothing about a recording that starts and stops with the music', () => {
@@ -26,11 +29,11 @@ describe('dead air at the edges of a file', () => {
   });
 
   it('keeps a margin so a trim never shaves the playing', () => {
-    const trim = trimFromReport(silenceReport(analysis(2.4, 190))!);
+    const trim = trimFromReport(silenceReport(analysis(4.2, 190))!);
     // Rounded to a tenth of a second, then pulled back by the margin.
-    expect(trim.start).toBe(2.2);
+    expect(trim.start).toBe(4.0);
     expect(trim.end).toBe(190.3);
-    expect(trim.start).toBeLessThan(2.4 - SILENCE_MARGIN + 0.1);
+    expect(trim.start).toBeLessThan(4.2);
     expect(trim.end).toBeGreaterThan(190);
   });
 
@@ -43,8 +46,8 @@ describe('dead air at the edges of a file', () => {
   });
 
   it('describes the silence the way someone would say it', () => {
-    expect(describeSilence(silenceReport(analysis(2.4, 190))!)).toBe(
-      '2.4 seconds of silence at the start and 10 seconds at the end',
+    expect(describeSilence(silenceReport(analysis(4.2, 190))!)).toBe(
+      '4.2 seconds of silence at the start and 10 seconds at the end',
     );
     expect(describeSilence(silenceReport(analysis(0, 194))!)).toBe(
       '6.0 seconds of silence at the end',

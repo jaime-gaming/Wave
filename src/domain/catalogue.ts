@@ -47,7 +47,12 @@ export function isPlaceholderAlbum(album: string | undefined): boolean {
 export function looksLikeFileName(track: Pick<Track, 'title' | 'fileName'>): boolean {
   const title = track.title.trim();
   if (!title) return true;
-  if (/[_]{1,}|\b(?:final|mix|copy|take)\s*\d*\b/iu.test(title)) return true;
+  // Underscores joined as words, or a bare track position: the two shapes a
+  // filename has and a title almost never does. The old rule also caught any
+  // title containing "final", "mix", "copy" or "take", which called perfectly
+  // good songs by their file name — "Take Five" among them.
+  if (/\p{L}[_]+\p{L}/u.test(title)) return true;
+  if (/^\d{1,3}\s*[-._]\s*\p{L}/u.test(title)) return true;
   const stem = track.fileName
     .replace(/\.[a-z0-9]{2,5}$/iu, '')
     .replace(/[_-]+/gu, ' ')
@@ -65,12 +70,13 @@ export function looksLikeFileName(track: Pick<Track, 'title' | 'fileName'>): boo
 export function needsDetails(track: Track): boolean {
   if (track.editedAt) return false;
   if (track.source === 'youtube') return false;
+  // Only the things a listener actually notices are missing: who it is, what it
+  // is called, which album it belongs to and which cover it wears. A year or a
+  // genre missing is normal in a private library and never worth a request.
   return (
     !track.artwork ||
     isPlaceholderArtist(track.artist) ||
     isPlaceholderAlbum(track.album) ||
-    !track.year ||
-    !track.genres?.length ||
     looksLikeFileName(track)
   );
 }

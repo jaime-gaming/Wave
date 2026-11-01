@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
-import { AudioLines, Disc3, Play } from 'lucide-react';
+import { AudioLines, Disc3, Play } from './Glyphs';
 import { Artwork } from './Artwork';
 import { EmptyState } from './EmptyState';
 import { useWaveMotion } from '../ui/motion';

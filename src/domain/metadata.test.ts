@@ -10,16 +10,34 @@ it('normalizes broken controls and identifies missing fields without inventing m
 });
 
 describe('roles that were filed in the wrong place', () => {
-  it('notices the artist sitting in the title', () => {
-    const track = {
+  it('says nothing when the title repeats the artist, because that is not a mistake', () => {
+    const selfTitled = {
       title: 'Nils Frahm',
       artist: 'Nils Frahm',
       album: 'Spaces',
       duration: 214,
       artwork: 'x',
+      fileName: 'Nils Frahm - Spaces.mp3',
     };
-    expect(metadataIssues(track)).toContain('roles');
-    expect(describeIssues(metadataIssues(track))).toContain('look swapped');
+    expect(metadataIssues(selfTitled)).not.toContain('roles');
+  });
+
+  it('notices a swap the file name proves', () => {
+    const swapped = {
+      title: 'Says',
+      artist: 'Nils Frahm',
+      album: 'Spaces',
+      duration: 214,
+      artwork: 'x',
+      fileName: 'Nils Frahm - Says.mp3',
+    };
+    // The file name says artist first, and the tags say it the other way round.
+    expect(metadataIssues({ ...swapped, title: 'Nils Frahm', artist: 'Says' })).toContain('roles');
+    expect(
+      describeIssues(metadataIssues({ ...swapped, title: 'Nils Frahm', artist: 'Says' })),
+    ).toContain('look swapped');
+    // In the right order it is simply a correct song.
+    expect(metadataIssues(swapped)).not.toContain('roles');
   });
 
   it('says what a song needs without listing field names', () => {

@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode, type CSSProperties, type RefObject } from 'react';
-import { X } from 'lucide-react';
+import { X } from './Glyphs';
 import { motion, useIsPresent, type TargetAndTransition, type Transition } from 'motion/react';
 import { useWaveMotion } from '../ui/motion';
 

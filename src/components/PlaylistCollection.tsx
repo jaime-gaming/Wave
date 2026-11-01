@@ -1,5 +1,5 @@
 import { matchesSearch } from '../domain/musicIdentity';
-import { ArrowLeft, FolderInput, ListMusic, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, FolderInput, ListMusic, Pencil, Plus, Trash2 } from './Glyphs';
 import { motion } from 'motion/react';
 import type { Playlist, Track } from '../domain/types';
 import { usePlaylistVisual } from '../hooks/usePlaylistVisual';
