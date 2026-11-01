@@ -28,6 +28,21 @@ class LibraryContractsTest {
     }
 
     @Test
+    fun aQueryMatchesTheStartsOfWordsInAnyOrder() {
+        assertEquals(2, searchRank(song("1", title = "Midnight City"), "city mid"))
+        // "night" inside "midnight" is a weaker answer than a word that begins with it.
+        assertTrue(searchRank(song("1", title = "Midnight"), "night")!! > searchRank(song("2", title = "Night signals"), "night")!!)
+    }
+
+    @Test
+    fun namesAreRankedTheNameTypedFirst() {
+        val names = listOf("Nightcall (Deluxe)", "Midnight City", "Nightcall", "Nights")
+        assertEquals(listOf("Nights", "Nightcall", "Nightcall (Deluxe)", "Midnight City"), rankNames(names, "night"))
+        assertEquals(names, rankNames(names, "  "))
+        assertEquals(emptyList<String>(), rankNames(names, "zzz"))
+    }
+
+    @Test
     fun searchIgnoresAccentsAndCase() {
         assertEquals(0, searchRank(song("1", title = "Beyoncé"), "BEYONCE"))
         assertEquals(0, searchRank(song("1", title = "Café del mar"), "cafe del mar"))

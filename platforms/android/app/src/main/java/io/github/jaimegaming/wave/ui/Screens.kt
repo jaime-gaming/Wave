@@ -50,6 +50,7 @@ import io.github.jaimegaming.wave.Song
 import io.github.jaimegaming.wave.WeekRecap
 import io.github.jaimegaming.wave.listeningTime
 import io.github.jaimegaming.wave.matchesSearch
+import io.github.jaimegaming.wave.rankNames
 import io.github.jaimegaming.wave.weekRange
 import kotlinx.coroutines.delay
 
@@ -262,11 +263,21 @@ fun SearchScreen(state: WaveState, onOpenSong: (Song) -> Unit) {
     var kind by rememberSaveable { mutableStateOf("All") }
     val words = state.query
     val songs = state.visible()
-    val artists = state.artists().entries.filter { matchesSearch(it.key, words) }
-    val albums = state.albums().entries.filter { entry ->
-        matchesSearch(entry.key + " " + entry.value.firstOrNull()?.artist.orEmpty(), words)
+    // Ranked like the songs: the artist, album or playlist whose name was typed
+    // comes first, instead of whatever the library happened to hold first. A
+    // collection is also found by who made it, so typing an artist's name reaches
+    // the albums under it rather than a dead end.
+    val allArtists = state.artists()
+    val allAlbums = state.albums()
+    val artists = rankNames(allArtists.keys.toList(), words).map { it to allArtists.getValue(it) }
+    val albumsByName = rankNames(allAlbums.keys.toList(), words)
+    val albumsByArtist = allAlbums.keys.filter { key ->
+        key !in albumsByName && allAlbums.getValue(key).any { matchesSearch(it.artist, words) }
     }
-    val playlists = state.playlists.filter { matchesSearch(it.name, words) }
+    val albums = (albumsByName + albumsByArtist.sortedBy { it.lowercase() }).map { it to allAlbums.getValue(it) }
+    val playlists = rankNames(state.playlists.map { it.name }, words).mapNotNull { name ->
+        state.playlists.firstOrNull { it.name == name }
+    }
     // A search is remembered once it settles, not on every letter typed, so the
     // list holds phrases rather than prefixes.
     LaunchedEffect(words) {

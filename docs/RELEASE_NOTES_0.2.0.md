@@ -51,11 +51,16 @@ unsigned CI packages remain test artifacts, not official signed installers.
 
 ## A player that fits the screen it is on
 
-- With a clip playing there is one shelf under the picture instead of three pieces floating over it:
-  the sleeve with its title, the transport and the words, on a single surface, in that order.
-- The shelf reflows rather than being rearranged by hand. The words move under the transport when
-  there is no room beside it, and on a phone the three go one under another with the picture whole
-  above them.
+- With a clip playing there is one shelf under the picture instead of three pieces floating over it.
+  The words of the song take the left side; the sleeve with its title, artist and album takes the
+  right, right-aligned and compact, and the transport runs underneath both.
+- Closing the words leaves their toggle in place, so the shelf does not jump, and the open player
+  loses its frame in this mode: less page padding, a one-line heading, the picture getting the rest.
+- The shelf reflows rather than being rearranged by hand. On a phone the four rows stack, with the
+  picture whole above them.
+- Search ranks what it returns, in all three clients. A query made of the starts of words matches a
+  title in any order, a name you typed comes before a longer one that begins with it, and artists,
+  albums and playlists are ranked instead of listed in whatever order the library held.
 - The phone's Now Playing puts the record on one side and the words on the other as soon as the
   screen is wide enough for both, and the Windows window turns its rail into a column of icons in a
   narrow window instead of squeezing the page beside it.

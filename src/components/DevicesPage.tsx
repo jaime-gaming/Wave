@@ -20,9 +20,9 @@ const failureText = (reason: string) =>
     rejected: 'The other device declined.',
     'unsupported-version': 'That device runs a different version of Wave.',
     self: 'That is this device. Use the other one to scan.',
-    authentication: 'The two devices did not agree on the same key. Start again.',
+    authentication: 'The two devices did not recognise each other. Start again.',
     replay: 'A message arrived twice and was refused. Start again.',
-    protocol: 'The two devices are not speaking the same protocol.',
+    protocol: 'The two devices could not agree on how to talk. Make sure both run the same Wave.',
     transport: 'The connection closed. Nothing was lost. Start again when you are ready.',
   })[reason] ?? 'The link failed. Nothing was changed.';
 
@@ -311,12 +311,12 @@ export function DevicesPage({
           </div>
           <p className="devices-note">
             The link stays remembered. Next time, scanning one code is enough. The six digits are
-            skipped because both devices already know each other's key.
+            skipped because the two devices already know each other.
           </p>
           {devices.progress && (
             <p className="devices-note" role="status">
               {devices.progress.total > 0
-                ? `Receiving ${devices.progress.received} of ${devices.progress.total} pieces…`
+                ? `Receiving songs… ${devices.progress.received} of ${devices.progress.total}`
                 : 'Preparing the songs…'}
             </p>
           )}

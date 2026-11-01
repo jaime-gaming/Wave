@@ -88,18 +88,54 @@ fun searchRank(song: Song, query: String): Int? {
     val artist = canonical(song.artist)
     val album = canonical(song.album)
     val file = canonical(song.filename.substringBeforeLast('.'))
+    // Every word of the query starting a word of the title is a real answer —
+    // "city mid" for Midnight City — while the same letters buried inside a word
+    // are not, and rank below who made the song.
+    val starts = { text: String -> needle.split(' ').filter { it.isNotEmpty() }.let { parts ->
+        parts.isNotEmpty() && parts.all { part -> text.split(' ').any { word -> word.startsWith(part) } }
+    } }
     return when {
         title == needle -> 0
-        title.startsWith("$needle ") -> 1
-        title.split(' ').any { it.startsWith(needle) } -> 2
+        title.startsWith(needle) -> 1
+        starts(title) -> 2
         title.contains(needle) -> 3
         artist == needle -> 4
-        artist.startsWith(needle) -> 5
-        artist.contains(needle) -> 5
-        album.contains(needle) -> 6
-        file.contains(needle) -> 7
+        starts(artist) -> 4
+        artist.contains(needle) -> 4
+        album == needle -> 5
+        starts(album) -> 5
+        album.contains(needle) -> 5
+        file.contains(needle) -> 6
         else -> null
     }
+}
+
+/**
+ * The same ladder for names that carry no ranking of their own: artists, albums
+ * and playlists. The name that was typed comes first, then one that starts with
+ * it, then one holding that word, then any that merely contains the letters, and
+ * a shorter name wins a tie because Night answers "night" more closely than
+ * Nightcall (Deluxe).
+ */
+fun rankNames(values: List<String>, query: String): List<String> {
+    val needle = canonical(query)
+    if (needle.isEmpty()) return values
+    val parts = needle.split(' ').filter { it.isNotEmpty() }
+    return values
+        .mapNotNull { value ->
+            val text = canonical(value)
+            if (!parts.all { text.contains(it) }) return@mapNotNull null
+            val weight = when {
+                text == needle -> 0
+                text.startsWith(needle) -> 1
+                text.split(' ').any { it.startsWith(needle) } -> 2
+                text.contains(needle) -> 3
+                else -> 4
+            }
+            Triple(weight, text.length, value)
+        }
+        .sortedWith(compareBy({ it.first }, { it.second }, { canonical(it.third) }))
+        .map { it.third }
 }
 
 /**

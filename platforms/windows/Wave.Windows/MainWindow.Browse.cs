@@ -60,10 +60,9 @@ public partial class MainWindow
         if (page == "Playlists") return NativeCollections.Resolve(playlists.Find(p => p.Id == collection)?.TrackIds ?? [], tracks);
         if (page == "Daily mix") return DailyGroups().FirstOrDefault(g => g.Id == collection)?.Songs ?? [];
         if (page == "Remix") return ListeningNow().Recent;
-        if (page == "Search") {
-            var words = LyricsClient.Canonical(searchQuery).Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            return tracks.Where(s => words.All(word => LyricsClient.Canonical(s.Title + " " + s.Artist + " " + s.Album).Contains(word))).ToList();
-        }
+        // Ranked, not filtered: the song whose title answers the words comes first,
+        // rather than whichever one was imported first.
+        if (page == "Search") return Search.Songs(tracks, searchQuery);
         return page == "Home" ? tracks.TakeLast(6).Reverse().ToList() : tracks;
     }
     private void UpdateSongs()
@@ -77,14 +76,6 @@ public partial class MainWindow
             var empty = Label(tracks.Count == 0 ? "Your music belongs here. Add audio files from your device to get started." : "No songs in this selection yet.", 21);
             empty.Tag = "empty"; CollectionHeader.Children.Add(empty);
         }
-    }
-    /// <summary>Whether a name answers to the words typed, accents and order aside.</summary>
-    private static bool SearchMatch(string value, string query)
-    {
-        var words = LyricsClient.Canonical(query).Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        if (words.Length == 0) return true;
-        var text = LyricsClient.Canonical(value);
-        return words.All(word => text.Contains(word));
     }
     /// <summary>
     /// Where else a search found something.
@@ -111,13 +102,11 @@ public partial class MainWindow
             });
             foreach (var row in rows) panel.Children.Add(MatchRow(title == "Artists" ? "artist" : title == "Albums" ? "disc" : "queue", row.Name, row.Detail, row.Open));
         }
-        Group("Artists", tracks.GroupBy(track => track.Artist)
-            .Where(group => SearchMatch(group.Key, searchQuery))
+        Group("Artists", Search.Names(tracks.GroupBy(track => track.Artist), searchQuery, group => group.Key)
             .Select(group => (group.Key, $"{group.Count()} songs", (Action)(() => ShowPage("Artists", group.Key)))));
-        Group("Albums", tracks.GroupBy(AlbumKey)
-            .Where(group => SearchMatch(group.First().Album, searchQuery))
+        Group("Albums", Search.Names(tracks.GroupBy(AlbumKey), searchQuery, group => group.First().Album, group => group.First().Artist)
             .Select(group => (group.First().Album, $"{group.First().Artist} · {group.Count()} songs", (Action)(() => ShowPage("Albums", group.Key)))));
-        Group("Playlists", playlists.Where(list => SearchMatch(list.Name, searchQuery))
+        Group("Playlists", Search.Names(playlists, searchQuery, list => list.Name, list => list.Description)
             .Select(list => (list.Name, $"{list.TrackIds.Count} songs", (Action)(() => ShowPage("Playlists", list.Id)))));
         if (panel.Children.Count > 0) CollectionHeader.Children.Add(panel);
     }

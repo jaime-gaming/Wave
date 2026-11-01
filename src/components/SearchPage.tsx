@@ -7,6 +7,7 @@ import { matchesSearch } from '../domain/musicIdentity';
 import {
   clearRecentSearches,
   loadRecentSearches,
+  rankNames,
   rankTracks,
   rememberSearch,
 } from '../domain/searchRank';
@@ -75,17 +76,33 @@ export const SearchPage = memo(function SearchPage({
     const timer = setTimeout(() => setRecent(rememberSearch(deferredQuery)), 1200);
     return () => clearTimeout(timer);
   }, [deferredQuery]);
+  // Ranked like the songs are: the collection whose name you typed comes first,
+  // not whichever one was alphabetically in the way.
   const albums = useMemo(
     () =>
-      collectAlbums(tracks).filter((a) => matchesSearch(`${a.name} ${a.artist}`, deferredQuery)),
+      rankNames(
+        collectAlbums(tracks),
+        deferredQuery,
+        (album) => album.name,
+        (album) => album.artist,
+      ),
     [tracks, deferredQuery],
   );
   const artists = useMemo(
-    () => collectArtists(tracks).filter((a) => matchesSearch(a.name, deferredQuery)),
+    () => rankNames(collectArtists(tracks), deferredQuery, (artist) => artist.name),
     [tracks, deferredQuery],
   );
-  const playlists = allPlaylists.filter((a) =>
-    matchesSearch(`${a.name} ${a.description}`, deferredQuery),
+  const playlists = useMemo(
+    () =>
+      rankNames(
+        allPlaylists.filter((list) =>
+          matchesSearch(`${list.name} ${list.description}`, deferredQuery),
+        ),
+        deferredQuery,
+        (list) => list.name,
+        (list) => list.description,
+      ),
+    [allPlaylists, deferredQuery],
   );
   const count =
     kind === 'Songs'

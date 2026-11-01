@@ -682,3 +682,15 @@ record and the certificate remain dashboard settings that only the maintainer ca
 - Web: 633 tests in 100 files, TypeScript, eslint and Prettier clean, production and `/Wave/` builds
   succeed. No browser was available to photograph the new shelf, so its appearance is still reasoned
   from the rules rather than seen.
+
+## 0.2.0 checks: the fourth pass
+
+- The clip shelf was rebuilt again to the arrangement asked for — words left, sleeve and its printed
+  details right and above the transport, transport across the foot — and read back from the stylesheet:
+  four named cells in the shelf row, the surface behind them, and a closed-words state that keeps the
+  toggle rather than collapsing a column. No browser exists in this sandbox, so this remains a reading
+  of the rules, not a screenshot.
+- Search ranking is unit-tested in each client's own suite: the web's `searchRank` tests cover the
+  word-start distinction, the artist-only match and the name ranking; `LibraryContractsTest` covers the
+  Kotlin ladder and `rankNames`; the Windows ladder is the same expressions compiled by the native job.
+- Web: 639 tests in 100 files, TypeScript, eslint, Prettier and both production builds pass.

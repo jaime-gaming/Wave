@@ -14,7 +14,7 @@ import type { Track } from './types';
  * then the album, then anything else that contains every word. Ties keep
  * library order, so the list does not shuffle between keystrokes.
  */
-export type MatchKind = 'exact' | 'prefix' | 'word' | 'artist' | 'album' | 'other';
+export type MatchKind = 'exact' | 'prefix' | 'word' | 'letters' | 'artist' | 'album' | 'other';
 
 const WORD = /\s+/u;
 
@@ -29,6 +29,14 @@ function startsWithWord(haystack: string, query: string) {
   return haystack.split(WORD).some((word) => word.startsWith(query));
 }
 
+/** Every word of the query beginning a word of the text: "city mid" finds *Midnight City*. */
+function everyWordStarts(haystack: string, query: string) {
+  const parts = query.split(WORD).filter(Boolean);
+  if (parts.length === 0) return false;
+  const words = haystack.split(WORD);
+  return parts.every((part) => words.some((word) => word.startsWith(part)));
+}
+
 /** How well one song answers one query, and whether it answers at all. */
 export function rankMatch(track: Track, rawQuery: string): MatchKind | null {
   const query = searchText(rawQuery);
@@ -40,9 +48,17 @@ export function rankMatch(track: Track, rawQuery: string): MatchKind | null {
     return null;
   if (title === query) return 'exact';
   if (title.startsWith(query)) return 'prefix';
-  if (startsWithWord(title, query)) return 'word';
-  if (startsWithWord(artist, query) || artist === query) return 'artist';
-  if (startsWithWord(album, query) || album === query) return 'album';
+  // Every word of the query beginning a word of the title is a real answer —
+  // "city mid" for *Midnight City*, "night" for *Nightcall* — while the same
+  // letters buried inside a word are not, and rank below who made the song.
+  if (everyWordStarts(title, query)) return 'word';
+  if (title.includes(query)) return 'letters';
+  if (artist === query || startsWithWord(artist, query) || everyWordStarts(artist, query))
+    return 'artist';
+  if (artist.includes(query)) return 'artist';
+  if (album === query || startsWithWord(album, query) || everyWordStarts(album, query))
+    return 'album';
+  if (album.includes(query)) return 'album';
   if (containsWords(title, query)) return 'word';
   return 'other';
 }
@@ -51,9 +67,10 @@ const WEIGHT: Record<MatchKind, number> = {
   exact: 0,
   prefix: 1,
   word: 2,
-  artist: 3,
-  album: 4,
-  other: 5,
+  letters: 3,
+  artist: 4,
+  album: 5,
+  other: 6,
 };
 
 /**
@@ -70,6 +87,47 @@ export function rankTracks(tracks: Track[], query: string, limit = Infinity): Tr
   }
   scored.sort((a, b) => a.weight - b.weight || a.index - b.index);
   return scored.slice(0, limit === Infinity ? scored.length : limit).map((entry) => entry.track);
+}
+
+/**
+ * The same ladder for the things that are only a name: artists, albums and
+ * playlists.
+ *
+ * They used to be filtered and left in whatever order the library happened to
+ * hold, so typing an artist's name surfaced three of their albums before the
+ * artist themselves. Now the name you typed comes first, a name that starts with
+ * it next, then a name with that word in it, then anything that merely contains
+ * the letters — and a shorter name wins a tie, because *Night* is a closer answer
+ * to "night" than *Nightcall (Deluxe)*.
+ */
+export function rankNames<T>(
+  items: T[],
+  query: string,
+  nameOf: (item: T) => string,
+  detailOf?: (item: T) => string,
+): T[] {
+  const needle = searchText(query);
+  if (!needle) return items;
+  const scored: { item: T; weight: number; length: number; index: number }[] = [];
+  for (const [index, item] of items.entries()) {
+    const name = searchText(nameOf(item));
+    const detail = detailOf ? searchText(detailOf(item)) : '';
+    const haystack = `${name} ${detail}`;
+    if (!needle.split(WORD).every((part) => haystack.includes(part))) continue;
+    const weight =
+      name === needle
+        ? 0
+        : name.startsWith(needle)
+          ? 1
+          : startsWithWord(name, needle)
+            ? 2
+            : name.includes(needle)
+              ? 3
+              : 4;
+    scored.push({ item, weight, length: name.length, index });
+  }
+  scored.sort((a, b) => a.weight - b.weight || a.length - b.length || a.index - b.index);
+  return scored.map((entry) => entry.item);
 }
 
 /**

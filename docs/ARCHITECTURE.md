@@ -279,6 +279,13 @@ Lyric rows use size-container typography and whole-line clamping instead of clip
 
 `useAppPalette` samples the playing local artwork (or restores neutral roles on pause) and updates root tonal variables. `document.startViewTransition` snapshots the CSS change; the new root clips from a bottom-centered circle. The initial neutral state, reduced motion, unavailable API and hidden documents avoid animation. `wave-palette` stores only hue/saturation for consistent standalone privacy-page appearance.
 
+Search ranks rather than filters, in one ladder shared by the three clients: the exact title, a title
+that starts with the query, a query whose every word begins a word of the title (`city mid` finds
+_Midnight City_), the same letters buried inside a word, then the artist, the album and the file name.
+Artists, albums and playlists go through `rankNames`, which puts the name typed first and prefers the
+shorter of two equal matches; the page used to filter those collections and leave them in library
+order, so an artist's third album could arrive before the artist.
+
 `playlistIcon` creates escaped deterministic SVG data URIs. `usePlaylistVisual` samples up to twelve distinct member artworks locally, shares a bounded 64-entry promise cache and computes a multicolor icon in memory. Explicit artwork bypasses generation. `useArtworkColor` tones the resulting playlist surfaces independently from the global current-song palette. No database migration or audio-storage change is needed.
 
 ## Discovery refinement (web)
@@ -299,12 +306,12 @@ The lyric hook now uses request generations and abort checks so a canceled reque
 
 `src/styles/player.css` owns the expanded stage/transport namespace, replacing obsolete competing player selectors. Record/reader/transport have explicit grid areas; the artwork size is bounded by its actual record container, including short landscape. `PlaySymbol` has a fixed icon slot during presence transitions. The seek component observes its rendered width: the full SVG path extends beyond both edges and travels by exactly one 32 px period inside a progress clip. The thumb is outside that clip, stays inside the SVG and retains a transparent native range hit target with standard keyboard behavior. Pause flattens the path; reduced motion stops translation.
 
-With a clip playing, `clip-live` puts the record, the transport and the words in the last row of the
-stage grid and draws one surface behind them with the layout's own `::before`, so a single shelf holds
-all three and the picture keeps everything above it. The shelf is expressed as grid rows rather than
-as absolute positions: `2 / 1 / -1 / -1` for the surface and one named cell per part, so a narrower
-window moves the words to a row of their own and a phone stacks the three, without a rule that places
-anything twice. The old bottom-left scrim is gone with the islands it was hiding.
+With a clip playing, `clip-live` puts the words in the left cell of the shelf row and the record in
+the right one, with the transport across the row beneath, and draws one surface behind them all with
+the layout's own `::before` (`grid-area: 2 / 1 / -1 / -1`), so the picture keeps everything above it.
+Every part names its own cell; a narrower window narrows the right column, a phone stacks the four
+rows, and the closed-words state moves the record to the full width rather than leaving a hole. The
+old bottom-left scrim is gone with the islands it was hiding.
 
 ### Pairing (`src/sync/`)
 

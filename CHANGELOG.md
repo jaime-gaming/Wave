@@ -11,10 +11,16 @@
 - The words on top of the picture sit on a scrim of their own, so every one of them is readable.
 - Devices can be paired by pasting a code, for the two computers that have no camera between them.
 - `docs/PAIRING.md` specifies the pairing exchange so Android and Windows can implement the same one.
-- With a clip playing, the player is one shelf at the bottom of the screen: the sleeve with its title,
-  the transport and the words on a single surface, in that order, with the picture above them. It
-  reflows instead of being repositioned — the words drop under the transport at medium widths and
-  stack under it on a phone — so no width has to be patched by hand.
+- With a clip playing, the player is one shelf at the bottom of the screen, arranged the way the eye
+  reads it: the words of the song on the left, and on the right the sleeve with its title, artist and
+  album, right-aligned and compact, just above a transport that runs the full width. With the words
+  closed only their toggle stays, so nothing jumps when they open, and the open player gives up its
+  frame in this mode so the picture keeps the room.
+- Search ranks everything it returns. A query whose words begin words of a title now matches it in
+  any order (`city mid` finds _Midnight City_), a title with the same letters buried inside a word
+  ranks below the artist, and artists, albums and playlists are ranked rather than filtered, so the
+  name typed comes first instead of whichever one the library held first. The phone and the Windows
+  window use the same ladder.
 - The phone's Now Playing is two panes from 600 dp, the record on one side and the words on the other,
   the way the same page is laid out on a computer. The Windows window narrows to a rail of icons under
   a thousand pixels instead of squeezing the page beside its own words.

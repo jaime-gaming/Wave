@@ -3,6 +3,7 @@ import {
   clearRecentSearches,
   loadRecentSearches,
   rankMatch,
+  rankNames,
   rankTracks,
   rememberSearch,
 } from './searchRank';
@@ -82,5 +83,66 @@ describe('recent searches', () => {
     expect(loadRecentSearches(broken)).toEqual([]);
     // A store that refuses the write still answers for this session.
     expect(rememberSearch('anything', broken)).toEqual(['anything']);
+  });
+});
+
+describe('closer answers first', () => {
+  const shelf = [
+    makeTrack({ id: 'deluxe', title: 'Nightcall (Deluxe)', artist: 'Kavinsky' }),
+    makeTrack({ id: 'plain', title: 'Nightcall', artist: 'Kavinsky' }),
+    makeTrack({ id: 'word', title: 'The Nightingale', artist: 'Someone' }),
+    makeTrack({ id: 'artist', title: 'Odyssey', artist: 'Nightcall' }),
+    makeTrack({ id: 'inner', title: 'Goodnight Moon', artist: 'Ambrosia' }),
+  ];
+
+  it('puts the same title with nothing added above its deluxe edition', () => {
+    expect(
+      rankTracks(shelf, 'nightcall')
+        .map((track) => track.id)
+        .slice(0, 2),
+    ).toEqual(['plain', 'deluxe']);
+  });
+
+  it('separates a title word from the same letters buried in the middle of a word', () => {
+    expect(rankMatch(shelf[2], 'night')).toBe('word');
+    expect(rankMatch(shelf[4], 'night')).toBe('letters');
+    const order = rankTracks(shelf, 'night').map((track) => track.id);
+    expect(order.indexOf('word')).toBeLessThan(order.indexOf('inner'));
+  });
+
+  it('finds a song by its artist even when the title has none of the words', () => {
+    // The title is an exact word match, the artist match comes after it, and a
+    // song whose title only contains the letters comes last of the three.
+    expect(rankMatch(shelf[0], 'nightcall')).toBe('prefix');
+    expect(rankMatch(shelf[3], 'nightcall')).toBe('artist');
+    expect(rankTracks(shelf, 'nightcall').map((track) => track.id)).toEqual([
+      'plain',
+      'deluxe',
+      'artist',
+    ]);
+  });
+
+  it('matches the words of a query in any order at the start of words', () => {
+    const track = makeTrack({ id: 'c', title: 'Midnight City', artist: 'M83' });
+    expect(rankMatch(track, 'city mid')).toBe('word');
+  });
+});
+
+describe('ranking names', () => {
+  const names = ['Nightcall', 'Nightcall (Deluxe)', 'Midnight City', 'Nights'];
+
+  it('answers a typed name with that name before a longer one that starts with it', () => {
+    expect(rankNames(names, 'night', (name) => name)).toEqual([
+      'Nights',
+      'Nightcall',
+      'Nightcall (Deluxe)',
+      'Midnight City',
+    ]);
+  });
+
+  it('keeps every match of an empty query, and drops what does not match at all', () => {
+    expect(rankNames(names, '  ', (name) => name)).toEqual(names);
+    expect(rankNames(names, 'zzz', (name) => name)).toEqual([]);
+    expect(rankNames(names, 'midnight', (name) => name)).toEqual(['Midnight City']);
   });
 });
