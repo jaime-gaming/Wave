@@ -457,7 +457,7 @@ formatBytes(value: number): string
 
 `saveLyricsResult` atomically rejects stale metadata matches or manual/embedded overrides and never recreates deleted tracks. Repository records persist raw lyric text without parsed lines; public reads rehydrate them. Hooks preserve active Blob identity on merges. `player.blend` exposes progress, actual seconds, outgoing/incoming Blobs and optional resolved `from`/`to` tracks; null means no overlap. This remains internal transition state for fading covers; the UI does not expose a mix progress meter or banner.
 
-Storage estimates are approximate and exclude general database overhead; cover estimates include original-cover metadata retained for restoration. Persistent storage is browser-controlled eviction protection, not a backup or protection against clearing site data.
+Storage estimates are approximate and exclude general database overhead; cover estimates include original-cover metadata retained for restoration. Persistent storage is a browser promise not to clear the library to make room, not a backup and no protection against clearing site data. The Settings page states both in plain words: "Space used", nothing re-encoded, and the two sentence-long outcomes of asking for protection.
 
 ## Three-platform update
 

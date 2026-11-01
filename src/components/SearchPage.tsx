@@ -171,10 +171,7 @@ export const SearchPage = memo(function SearchPage({
       {!query.trim() ? (
         <div className="search-start">
           <h2>Browse your collection</h2>
-          <p>
-            Find something in your collection. Search ignores accents and matches words in any
-            order, and puts the closest name first.
-          </p>
+          <p>Accents and word order do not matter. The closest name comes first.</p>
           {!!recent.length && (
             <div className="search-recent">
               <div className="search-recent-head">

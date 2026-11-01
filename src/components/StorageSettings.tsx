@@ -18,7 +18,7 @@ export function StorageSettings({ tracks }: { tracks: Track[] }) {
       setQuota(info?.quota);
       setPersisted((await navigator.storage?.persisted?.()) ?? false);
     } catch {
-      setMessage('Storage estimates are unavailable in this browser.');
+      setMessage('This browser cannot say how much space is left.');
     }
   };
   useEffect(() => {
@@ -58,7 +58,7 @@ export function StorageSettings({ tracks }: { tracks: Track[] }) {
         )}
         {usage !== undefined && (
           <div>
-            <dt>Origin usage estimate</dt>
+            <dt>Space used</dt>
             <dd>
               {formatBytes(usage)}
               {quota !== undefined ? ` / ${formatBytes(quota)}` : ''}
@@ -67,9 +67,8 @@ export function StorageSettings({ tracks }: { tracks: Track[] }) {
         )}
       </dl>
       <p className="modal-description">
-        Files are saved when imported, even if you never play them. Exact byte duplicates are
-        skipped. Audio is stored once at original quality; covers are compact JPEGs and lyrics are
-        small text records.
+        Songs are kept from the moment you add them, even if you never play them. The same file is
+        never stored twice, and nothing is re-encoded: the audio stays exactly as it arrived.
       </p>
       <div className="storage-actions">
         <button
@@ -81,8 +80,8 @@ export function StorageSettings({ tracks }: { tracks: Track[] }) {
             setPersisted(protectedStorage);
             setMessage(
               protectedStorage
-                ? 'Browser eviction protection enabled.'
-                : 'The browser did not grant protection. Open Wave in its own tab and try again.',
+                ? 'Your files are protected: the browser will not clear them to make room.'
+                : 'The browser would not promise to keep them. Open Wave in its own tab and try again.',
             );
             await refresh();
             setBusy(false);
