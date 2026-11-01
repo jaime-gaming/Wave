@@ -28,6 +28,7 @@ import { MotionPreference, useWaveMotion } from './ui/motion';
 import { usePlaylists } from './hooks/usePlaylists';
 import { PlaylistCollection, PlaylistHeader } from './components/PlaylistCollection';
 import { PlaylistDialog, AddSongsDialog, AddToPlaylistDialog } from './components/PlaylistDialog';
+import { MigrationSheet } from './components/MigrationSheet';
 import { TrackEditor } from './components/TrackEditor';
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -260,6 +261,7 @@ function WaveApp({
   const [addingTrack, setAddingTrack] = useState<Track | null>(null);
   const [pendingPlaylistTrack, setPendingPlaylistTrack] = useState<Track | null>(null);
   const [deletingPlaylist, setDeletingPlaylist] = useState(false);
+  const [migrationOpen, setMigrationOpen] = useState(false);
   const selectedPlaylist = collections.playlists.find((playlist) => playlist.id === playlistId);
   const [largeText, setLargeText] = useState(() => readFlag('wave-large-text'));
   useEffect(() => {
@@ -514,6 +516,22 @@ function WaveApp({
   };
   const playAlbumTrack = useCallback((track: Track) => openAlbum(albumKey(track)), [openAlbum]);
   const createPlaylist = useCallback(() => setPlaylistForm('new'), []);
+  const saveMigrated = useCallback(
+    async (name: string, trackIds: string[]) => {
+      const saved = await collections.create(
+        {
+          name,
+          description: 'Brought over from another app. Songs already in your library were reused.',
+        },
+        trackIds,
+      );
+      if (!saved) return false;
+      setView('playlists');
+      setPlaylistId(saved.id);
+      return true;
+    },
+    [collections],
+  );
   const playShuffle = () => shuffleCollection(visible);
 
   const contextTrack = context?.trackId
@@ -1117,6 +1135,7 @@ function WaveApp({
                   query={query}
                   onOpen={openPlaylist}
                   onCreate={() => setPlaylistForm('new')}
+                  onImport={() => setMigrationOpen(true)}
                 />
               )
             ) : (
@@ -1303,6 +1322,14 @@ function WaveApp({
             onYouTube={addFromYouTube}
             onAdded={playAdded}
             busy={busy || addBusy}
+          />
+        )}
+        {migrationOpen && (
+          <MigrationSheet
+            key="migration"
+            tracks={library.tracks}
+            onSave={saveMigrated}
+            onClose={() => setMigrationOpen(false)}
           />
         )}
         {queueOpen && (
