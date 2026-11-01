@@ -144,6 +144,42 @@ async function mutateTrack(id: string, mutate: (track: Track) => Track): Promise
     db.close();
   }
 }
+/**
+ * Silent edges: recorded once, then either removed or kept.
+ *
+ * None of these touch the audio. `silence` is what the analysis measured, `trim`
+ * is the pair of bounds playback obeys, and `silenceKept` is the listener saying
+ * they want the file as it is. The recording keeps every sample in every case —
+ * removing a trim restores the song exactly as it was imported.
+ */
+export function recordTrackSilence(
+  id: string,
+  bounds: { start: number; end: number },
+): Promise<Track> {
+  return mutateTrack(id, (track) =>
+    track.trim || track.silenceKept ? track : { ...track, silence: bounds },
+  );
+}
+export function trimTrackSilence(
+  id: string,
+  bounds: { start: number; end: number },
+): Promise<Track> {
+  return mutateTrack(id, (track) => {
+    const start = Math.max(0, Math.min(bounds.start, track.duration || bounds.start));
+    const end = Math.max(start, Math.min(bounds.end, track.duration || bounds.end));
+    return { ...track, trim: { start: Math.round(start * 100) / 100, end: Math.round(end * 100) / 100 } };
+  });
+}
+export function restoreTrackSilence(id: string): Promise<Track> {
+  return mutateTrack(id, (track) => {
+    const restored = { ...track };
+    delete restored.trim;
+    return restored;
+  });
+}
+export function keepTrackSilence(id: string): Promise<Track> {
+  return mutateTrack(id, (track) => ({ ...track, silenceKept: true }));
+}
 export function toggleTrackFavorite(id: string): Promise<Track> {
   return mutateTrack(id, (track) => ({ ...track, favorite: !track.favorite }));
 }

@@ -7,6 +7,7 @@ import { MixAudio } from '../audio/MixAudio';
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { playerReducer, shuffleQueue } from '../domain/player';
 import { resolvePlayable } from '../domain/youtubeTrack';
+import { describeSilence, silenceReport, trimFromReport, type SilenceReport } from '../domain/silence';
 import { planEdgeHandover } from '../domain/edgeMix';
 import { PlaybackClock } from './playbackClock';
 import { cueTiming, MixCueStore } from '../ui/mixCue';
@@ -38,7 +39,26 @@ function savedAutoplay() {
     return true;
   }
 }
-export function usePlayer(tracks: Track[], libraryReady = true) {
+/**
+ * What the listener may do about the dead air measured at the edges of a file.
+ *
+ * Passed in rather than owned here: the library is the only thing that can
+ * persist anything, and the player must not know how it does that.
+ */
+export interface SilenceStore {
+  /** Records what was measured, so the question is only asked once. */
+  record: (id: string, bounds: { start: number; end: number }) => void;
+  /** Removes the silence from the library's playback of that song. */
+  trim: (id: string, bounds: { start: number; end: number }) => void;
+  /** The listener chose to keep it. */
+  keep: (id: string) => void;
+}
+
+export function usePlayer(
+  tracks: Track[],
+  libraryReady = true,
+  silenceStore?: SilenceStore,
+) {
   const [saved] = useState(readPlaybackSession);
   const [mixEnabled, setMixEnabled] = useState(savedMix);
   const [autoplay, setAutoplay] = useState(savedAutoplay);
@@ -130,18 +150,31 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
    * Mix analysis runs in a worker on a downmixed copy, so the interface keeps its
    * frame budget. Results are cached per file, so a song is analysed at most once.
    */
-  const prime = useCallback((blob: Blob | undefined) => {
-    if (!blob) return;
-    const cached = cachedAnalysis(blob);
-    if (cached) {
-      engine.current?.setAnalysis(blob, cached);
-      return;
-    }
-    void analyzeTrack(blob).then((analysis) => {
-      if (!analysis) return;
-      engine.current?.setAnalysis(blob, analysis);
-    });
-  }, []);
+  const prime = useCallback(
+    (blob: Blob | undefined) => {
+      if (!blob) return;
+      const note = (analysis: Parameters<typeof silenceReport>[0]) => {
+        if (!silenceStore) return;
+        const track = context.current.tracks.find((item) => item.blob === blob);
+        if (!track || track.trim || track.silenceKept || track.silence) return;
+        const report = silenceReport(analysis);
+        if (!report?.worth) return;
+        silenceStore.record(track.id, { start: report.start, end: report.end });
+      };
+      const cached = cachedAnalysis(blob);
+      if (cached) {
+        engine.current?.setAnalysis(blob, cached);
+        note(cached);
+        return;
+      }
+      void analyzeTrack(blob).then((analysis) => {
+        if (!analysis) return;
+        engine.current?.setAnalysis(blob, analysis);
+        note(analysis);
+      });
+    },
+    [silenceStore],
+  );
 
   useEffect(() => {
     readyRef.current = libraryReady;
@@ -728,7 +761,42 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
     () => (youTubeRef.current ? undefined : engine.current?.element),
     [],
   );
+  /**
+   * Dead air the listener has not answered about yet, for this song only.
+   *
+   * Measured when the song is played, never at import: analysing a library of
+   * thousands to decide whether to mention two seconds would make importing
+   * slow and the app feel busy. The question is asked once and never returns.
+   */
+  const silenceNotice: { text: string; report: SilenceReport } | null = (() => {
+    if (!current?.silence || current.trim || current.silenceKept || !silenceStore) return null;
+    const report = silenceReport({
+      duration: current.duration || current.silence.end,
+      trimmed: current.silence,
+    });
+    if (!report?.worth) return null;
+    return { text: describeSilence(report), report };
+  })();
+
+  const removeSilence = useCallback(() => {
+    if (!current || !silenceNotice || !silenceStore) return;
+    silenceStore.trim(current.id, trimFromReport(silenceNotice.report));
+  }, [current, silenceNotice, silenceStore]);
+
+  const keepSilence = useCallback(() => {
+    if (!current || !silenceStore) return;
+    silenceStore.keep(current.id);
+  }, [current, silenceStore]);
+
+  /** A trim is playback bounds, so the engine is told whenever they change. */
+  useEffect(() => {
+    for (const track of tracks) if (track.blob) engine.current?.setBounds(track.blob, track.trim);
+  }, [tracks]);
+
   return {
+    silenceNotice,
+    removeSilence,
+    keepSilence,
     mixCue,
     mixEnabled,
     setMixEnabled,

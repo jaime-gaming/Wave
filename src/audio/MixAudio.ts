@@ -70,6 +70,14 @@ export class MixAudio {
   private requested = new WeakSet<Blob>();
   /** Elements that really have a Web Audio chain; anything else uses volume. */
   private attached = new WeakSet<HTMLAudioElement>();
+  /**
+   * Bounds a file is played between, per file.
+   *
+   * The engine owns playback for the whole app, so this is the one place a
+   * library trim has to be honoured: start after the silence, and treat the end
+   * of the music as the end of the song.
+   */
+  private bounds = new WeakMap<Blob, { start: number; end: number }>();
   private pending = false;
   private blocked?: Blob;
   private generation = 0;
@@ -128,6 +136,19 @@ export class MixAudio {
   }
   analysisFor(blob: Blob | undefined) {
     return blob ? this.analyses.get(blob) : undefined;
+  }
+  /** Sets or clears the silent edges the listener removed from a song. */
+  setBounds(blob: Blob | undefined, bounds?: { start: number; end: number }) {
+    if (!blob) return;
+    if (!bounds || (!bounds.start && !Number.isFinite(bounds.end))) this.bounds.delete(blob);
+    else this.bounds.set(blob, bounds);
+  }
+  private boundsOf(deck: Deck) {
+    if (!deck.blob) return { start: 0, end: 0 };
+    const stored = this.bounds.get(deck.blob);
+    if (stored) return stored;
+    const duration = Number.isFinite(deck.element.duration) ? deck.element.duration : 0;
+    return { start: 0, end: duration };
   }
   /** Playback rate that matches a deck to `bpm`, inside the stretch window. */
   stretchFor(blob: Blob | undefined, bpm: number) {
@@ -301,8 +322,21 @@ export class MixAudio {
     this.attachGraph(deck);
   }
   private report() {
-    this.callbacks.time(Number.isFinite(this.element.currentTime) ? this.element.currentTime : 0);
-    this.callbacks.duration(Number.isFinite(this.element.duration) ? this.element.duration : 0);
+    const bounds = this.boundsOf(this.active);
+    const position = Number.isFinite(this.element.currentTime) ? this.element.currentTime : 0;
+    this.callbacks.time(position);
+    this.callbacks.duration(
+      bounds.end > 0 && Number.isFinite(bounds.end) ? bounds.end : this.element.duration || 0,
+    );
+    // The music has ended; the rest of the file is a fade into nothing. This is
+    // the same handover the element's own `ended` event performs, reached a few
+    // seconds early because the listener asked for that.
+    if (!this.fading && bounds.end > 0 && position >= bounds.end - 0.02 && !this.element.ended) {
+      this.element.pause();
+      this.cancelTransition();
+      this.callbacks.ended();
+      return;
+    }
     if (this.fading && this.fading.outgoing.blob && this.fading.incoming.blob) {
       const p = Math.max(
         0,
@@ -345,7 +379,11 @@ export class MixAudio {
       // the audio context start. Routing first means the graph is attached and
       // running before a single sample is played.
       if (this.mixEnabled) await this.route();
-      if (this.element.ended) this.element.currentTime = 0;
+      const bounds = this.boundsOf(this.active);
+      const atStart = deck.element.currentTime < 0.2 || deck.element.ended;
+      if (deck.element.ended) deck.element.currentTime = 0;
+      // A song whose silent opening was removed starts where the music starts.
+      if (atStart && bounds.start > 0) deck.element.currentTime = bounds.start;
       await this.element.play();
     } catch (error) {
       if (intent !== this.playIntent || deck !== this.active || !this.playing) return;

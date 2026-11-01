@@ -16,6 +16,10 @@ import {
   toggleTrackFavorite,
   editTrackMetadata,
   restoreTrackMetadata,
+  recordTrackSilence,
+  trimTrackSilence,
+  restoreTrackSilence,
+  keepTrackSilence,
 } from '../data/library';
 import {
   contentIdentity,
@@ -254,6 +258,32 @@ export function useLibrary() {
       /* A removed track or blocked storage cannot interrupt listening. */
     }
   }, []);
+  /** Silent edges: measured, removed, restored or kept, never re-encoded. */
+  const silence = useCallback(
+    async (
+      id: string,
+      action: 'record' | 'trim' | 'restore' | 'keep',
+      bounds?: { start: number; end: number },
+    ) => {
+      const apply = () =>
+        action === 'record' && bounds
+          ? recordTrackSilence(id, bounds)
+          : action === 'trim' && bounds
+            ? trimTrackSilence(id, bounds)
+            : action === 'restore'
+              ? restoreTrackSilence(id)
+              : keepTrackSilence(id);
+      try {
+        const updated = await apply();
+        setTracks((current) =>
+          current.map((track) => (track.id === id ? { ...updated, blob: track.blob } : track)),
+        );
+      } catch {
+        /* A removed track or blocked storage cannot interrupt listening. */
+      }
+    },
+    [],
+  );
   const acceptLyrics = useCallback(async (id: string, result: LyricsResult) => {
     const updated = await saveLyricsResult(id, result);
     setTracks((current) =>
@@ -291,6 +321,7 @@ export function useLibrary() {
     applyDetails,
     acceptLyrics,
     acceptDuration,
+    silence,
     saveLyrics,
     tracks,
     loading,

@@ -177,7 +177,22 @@ function WaveApp({
   const [addingQueue, setAddingQueue] = useState(false);
   const animation = useWaveMotion();
   useInteractionRipples();
-  const player = usePlayer(library.tracks, !library.loading);
+  /**
+   * How the player asks about the dead air at the edges of a file. The library
+   * owns the record; the player only reports and requests.
+   */
+  const silenceAction = library.silence;
+  const silenceStore = useMemo(
+    () => ({
+      record: (id: string, bounds: { start: number; end: number }) =>
+        void silenceAction(id, 'record', bounds),
+      trim: (id: string, bounds: { start: number; end: number }) =>
+        void silenceAction(id, 'trim', bounds),
+      keep: (id: string) => void silenceAction(id, 'keep'),
+    }),
+    [silenceAction],
+  );
+  const player = usePlayer(library.tracks, !library.loading, silenceStore);
   useAppPalette(
     player.state.playing ? player.current?.artwork : undefined,
     player.state.playing ? player.blend : null,
@@ -1635,6 +1650,7 @@ function WaveApp({
             onClose={() => setEditingTrack(null)}
             onSave={library.editMetadata}
             onRestore={library.restoreMetadata}
+            onRestoreSilence={(id) => library.silence(id, 'restore')}
           />
         )}
         {playlistForm && (

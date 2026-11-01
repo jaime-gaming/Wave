@@ -10,11 +10,14 @@ export function TrackEditor({
   onClose,
   onSave,
   onRestore,
+  onRestoreSilence,
 }: {
   track: Track;
   onClose: () => void;
   onSave: (id: string, metadata: TrackMetadata) => Promise<boolean>;
   onRestore: (id: string) => Promise<boolean>;
+  /** Gives the silent edges back, leaving every byte of the file as it was. */
+  onRestoreSilence?: (id: string) => Promise<void>;
 }) {
   const [metadata, setMetadata] = useState<TrackMetadata>({
     title: track.title,
@@ -71,6 +74,26 @@ export function TrackEditor({
           </label>
         ))}
         <ClipSection track={track} />
+        {/*
+         * Silent edges, offered once they have been measured. The original file
+         * is never altered: skipping silence is a pair of bounds, and undoing it
+         * gives the song back exactly as it arrived.
+         */}
+        {track.trim && (
+          <button
+            type="button"
+            className="text-button silence-editor-restore"
+            disabled={busy}
+            onClick={async () => {
+              setSaving(true);
+              await onRestoreSilence?.(track.id);
+              setSaving(false);
+            }}
+          >
+            <RotateCcw size={18} />
+            Play the whole file again
+          </button>
+        )}
         {error && (
           <p className="form-error" role="alert">
             {error}

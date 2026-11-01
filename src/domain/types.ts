@@ -38,6 +38,23 @@ export interface Track {
   discNumber?: number;
   originalMetadata?: TrackMetadata;
   editedAt?: number;
+  /**
+   * Where the music actually starts and stops, as measured from the file.
+   *
+   * Recorded once so the player can ask about the dead air without analysing the
+   * song again, and so a trim can be explained after the fact.
+   */
+  silence?: { start: number; end: number };
+  /**
+   * Bounds the player obeys, in seconds from the start of the file.
+   *
+   * Never a change to the audio: the recording keeps every sample it came with
+   * and the library simply stops before the silence. Removing a trim restores
+   * the song exactly.
+   */
+  trim?: { start: number; end: number };
+  /** The listener saw the silence and chose to keep it, so do not ask again. */
+  silenceKept?: boolean;
 }
 
 export type RepeatMode = 'off' | 'all' | 'one';

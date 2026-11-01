@@ -1628,3 +1628,63 @@
   color: var(--muted);
   max-width: 40ch;
 }
+
+/*
+ * The silence question.
+ *
+ * It sits above the player bar, left aligned with it, and is never wider than a
+ * sentence. It does not cover the bar, it does not push it, and it leaves as
+ * soon as it is answered.
+ */
+.silence-notice {
+  position: fixed;
+  left: calc(var(--rail-width, 0px) + 16px);
+  right: 24px;
+  bottom: calc(16px + 88px + 10px);
+  z-index: 21;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 12px 10px 16px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--surface, #1b1f27) 92%, var(--primary, #b0c7ff));
+  border: 1px solid color-mix(in srgb, var(--primary, #b0c7ff) 18%, transparent);
+  box-shadow: 0 12px 30px rgb(0 0 0 / 22%);
+  font-size: 13px;
+  color: var(--text, #eef1f7);
+  max-width: 520px;
+  margin-left: auto;
+}
+.silence-notice-text {
+  color: var(--muted, #a5adbb);
+  line-height: 1.4;
+}
+.silence-notice-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+.silence-notice .tonal-button {
+  padding: 6px 12px;
+  font-size: 13px;
+  border-radius: 12px;
+}
+.silence-notice .text-button {
+  padding: 6px 8px;
+  font-size: 13px;
+}
+@media (max-width: 760px) {
+  .silence-notice {
+    left: 12px;
+    right: 12px;
+    bottom: calc(12px + 76px + 8px);
+    max-width: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .silence-notice {
+    transition: none;
+  }
+}

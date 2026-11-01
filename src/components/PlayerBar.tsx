@@ -3,6 +3,7 @@ import { VideoBackdrop } from './VideoBackdrop';
 import { YouTubeStage } from './YouTubeStage';
 import { MixVisual } from './MixVisual';
 import { MixCueLabel, MixCueVisual } from './MixCueVisual';
+import { SilenceNotice } from './SilenceNotice';
 import { cueForTrack, useMixCue, type MixCue } from '../ui/mixCue';
 import { WaveSeek } from './WaveSeek';
 import { LyricsPanel } from './LyricsPanel';
@@ -398,6 +399,13 @@ export function PlayerBar(props: PlayerProps) {
   }, [expanded, player.current?.id]);
   return (
     <>
+      {!showing && (
+        <SilenceNotice
+          text={player.silenceNotice?.text ?? null}
+          onRemove={player.removeSilence}
+          onKeep={player.keepSilence}
+        />
+      )}
       <footer
         className="player-bar"
         data-track-id={player.current?.id}

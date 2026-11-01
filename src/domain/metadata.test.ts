@@ -1,4 +1,4 @@
-import { it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { cleanTag, describeIssues, metadataIssues } from './metadata';
 import { makeTrack } from '../test/fixtures';
 it('normalizes broken controls and identifies missing fields without inventing metadata', () => {
