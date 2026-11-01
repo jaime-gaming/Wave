@@ -1,6 +1,6 @@
 # Wave Internal API Reference
 
-**Version: 0.1.1 · Release date: 27 October 2026.**
+**Version: 0.1.1 · Release date: 2 November 2026.**
 
 This document describes the implemented TypeScript modules. Wave has no HTTP API or backend. These interfaces are internal and may change during `0.x` development.
 
@@ -133,6 +133,52 @@ readTrack(file: File, id: string): Promise<Track>
 - `readTrack` reads local tags and optional cover art. Missing or malformed metadata falls back to the filename, `Unknown artist`, and `Unknown album`. It does not write to the database.
 
 For the complete validated, duplicate-aware workflow, use `useLibrary().importFiles` rather than calling `readTrack` alone.
+
+## Folder API
+
+Defined in `src/data/folders.ts`:
+
+```ts
+supportsFolderPicker(scope?): boolean
+supportsDirectoryInput(doc?): boolean
+pickFolder(scope?): Promise<DirectoryHandleLike | null>
+readFolder(handle, { depth?, limit? }): Promise<File[]>
+folderAccess(folder): Promise<'granted' | 'prompt' | 'denied'>
+requestFolderAccess(folder): Promise<boolean>
+rememberFolder(handle): Promise<RememberedFolder>
+rememberedFolders(): Promise<RememberedFolder[]>
+markFolderScanned(id): Promise<void>
+forgetFolder(id): Promise<void>
+isAudioFile(name): boolean
+MAX_FOLDER_FILES // 20 000
+MAX_FOLDER_DEPTH // 12
+```
+
+- `readFolder` walks depth-first, keeps audio files only and skips a subdirectory it cannot read instead of failing the whole import.
+- `requestFolderAccess` must be called from a user gesture; browsers refuse a silent permission request.
+- A handle that the browser cannot store is dropped and the folder is remembered by name only, so the sheet asks for it again rather than claiming access it does not have.
+- Nothing here reads audio data; the returned `File` objects go through the ordinary importer.
+
+## Playlist migration API
+
+Defined in `src/domain/importFile.ts`, `playlistImport.ts` and `linkImport.ts`:
+
+```ts
+parsePlaylistText(raw: string, limit?): ParsedList // source: 'm3u' | 'csv' | 'text'
+parseExtendedLine(line: string): { duration?; title; album? }
+readCsv(text: string): string[][]
+splitArtistTitle(text: string): { artist; title }
+isLink(raw: string): boolean
+matchEntries(entries, candidates, options?): ImportReport
+DEFAULT_MATCH_OPTIONS // { durationTolerance: 5, acceptScore: 0.82, reportScore: 0.45 }
+suggestedPlaylistName(raw, provider): string
+parseImportLink(raw: string): LinkParse
+PROVIDER_LIMITS: Record<LinkProvider, ProviderLimits>
+```
+
+- `parsePlaylistText` reads an exported `.m3u` (with or without file paths between the tags), a `.csv` whose header names its columns and whose durations may be milliseconds, or plain text. A link produces no entries; `MigrationSheet` then explains why, using `parseImportLink` and `PROVIDER_LIMITS`.
+- `matchEntries` writes nothing. It returns matched, ambiguous and missing entries with a score each; `ImportReport.trackIds` is the ordered, unique set of local songs the user can accept.
+- The confirmed ids go through `createPlaylist`, which keeps only ids that still exist. Songs already in the library are reused and never reassigned twice.
 
 ## Storage API
 

@@ -1,6 +1,6 @@
 # Wave Architecture
 
-**Version: 0.1.1 · Release date: 27 October 2026.**
+**Version: 0.1.1 · Release date: 2 November 2026.**
 
 ## Scope and platform decision
 
@@ -187,6 +187,30 @@ The stage treats the embed as the master clock, so there is no drift to correct 
 Clips are discovered, not pasted. The backdrop searches once per song, shows what it is doing ("Looking for this song on YouTube…"), opens the match by itself, and only falls back to the manual link form when no provider answers or nothing matches. Search failures are shown as temporary, never as an error about the song.
 
 Sync now distinguishes three magnitudes of drift. Below 0.15 s nothing happens. Between 0.15 s and 1.1 s the muted clip is played slightly faster or slower, which closes the gap without a visible jump; because the clip has no audible role, a temporary rate change costs nothing. At 1.1 s or more — or when the clip is not playing at all — Wave seeks, then waits out a cooldown. After a seek the rate always returns to 1.
+
+## Bringing a library across
+
+Two ways in, both of them deliberate and neither of them silent.
+
+**A folder.** Add Music offers it beside the file picker, and the copy changes with the browser:
+where a directory handle can be kept, the choice promises the folder will be remembered and read
+again later; where it cannot, it says the folder will have to be chosen again and does not pretend
+otherwise. Reading shows the folder's name where the button was, so a large folder never looks like
+a dead click. Remembered folders are a short list of rows — name, the date it was last read, and
+two text actions, _Allow and read again_ and _Forget_. The browser's own permission prompt is the
+only thing that ever asks for access, and it is always behind a click.
+
+**A playlist.** The sheet is a paste field, a _Choose a file_ button and one line saying what a file
+may be, because that is the whole job. Reading it produces a preview rather than a result: the count
+"12 of 18" in large type, three statuses to the right of it, then a dense list of at most sixty rows.
+A matched row names the local song it became, an ambiguous one says the closest song needs a listen,
+a missing one is simply dimmed and left out. The playlist name is prefilled from the file. The
+confirm button states the number it will write, and the done state says what is now in the library
+and that nothing was moved. Links are answered honestly and immediately — the list behind a Spotify
+or YouTube link lives behind an account Wave does not have — instead of a spinner that ends nowhere.
+
+The list rises once on arrival with the reveal fade; rows do not animate individually, because a
+hundred staggered rows is a performance problem dressed as a mood.
 
 ## Motion language
 

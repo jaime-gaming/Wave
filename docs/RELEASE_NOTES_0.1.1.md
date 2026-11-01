@@ -1,8 +1,10 @@
 # Wave 0.1.1
 
-**Release date: 27 October 2026.** This release turns the crossfade into a Mix, finds a real music
-video for every song, links two devices with a QR code, and makes the web client installable and
-usable offline. Published assets and the exact tagged revision are listed on the
+**Release date: 2 November 2026.** The web client is published at
+[wave.jaime-gaming.com](https://wave.jaime-gaming.com). This release turns the crossfade into a Mix
+that survives real DJ material, reads whole folders, brings playlists over from other apps, finds a
+real music video for every song, links two devices with a QR code, and makes the web client
+installable and usable offline. Published assets and the exact tagged revision are listed on the
 [GitHub Release](https://github.com/jaime-gaming/Wave/releases/tag/v0.1.1). Native debug and
 unsigned CI packages remain test artifacts, not official signed installers.
 
@@ -22,6 +24,29 @@ unsigned CI packages remain test artifacts, not official signed installers.
   reverted when the overlap ends.
 - A small grey **Mixing** appears eight seconds before the blend and stays for the whole handover.
   The light moves across the letters themselves, and reduced motion keeps the word still.
+
+## Mix against real material
+
+- Tempo is compared in the range where two records are actually the same speed. 174 BPM against
+  87 BPM is a double-time relation, not a doubling of the song: the incoming song plays at its own
+  rate and the cue says so.
+- A song that drifts instead of holding a grid — a live drummer, a rubato piano intro — is not
+  forced onto a beat. Below half the expected steadiness the handover becomes a long equal-power
+  blend of twelve seconds, and the beat grid only decides where it starts.
+- Long intros are entered rather than skipped: when the first body of the incoming song begins
+  well after its grid does, the Mix starts on that first kick instead of on the top of the file.
+- A genuine tempo gap is never stretched into a wobble. Wave leaves the tempo alone, still lines
+  the bars up when the grid is trustworthy, and says in a word what it did.
+
+## Folders and playlists
+
+- Add Music takes a whole folder. It is read at any depth, the browser asks once for permission,
+  and the folder is remembered so the same records can be read again with one click. Where the
+  browser cannot hand over a directory at all, the choice says so rather than doing nothing.
+- Playlists come over from another app without an account: paste the list, or choose the `.m3u` or
+  `.csv` it exported. Wave answers how many songs are already here, which ones need a listen and
+  which ones it does not have, and only the confirmed matches become a playlist — in the list's
+  order, reusing songs that were already in the library, and never removing anything.
 
 ## Video clips
 
@@ -75,6 +100,6 @@ unsigned CI packages remain test artifacts, not official signed installers.
 ## Checks
 
 `npx tsc -b`, `npx eslint .`, `npx prettier --check .`, `npm run build`, `npm run build:pages`,
-`npm run release:check` and `npm test` (500 tests across 81 files) pass. The Playwright suite,
+`npm run release:check` and `npm test` (573 tests across 93 files) pass. The Playwright suite,
 audible playback, real embeds and both native apps were not exercised in the preparation
 workspace; see [VALIDATION](VALIDATION.md) for exactly what remains unverified.

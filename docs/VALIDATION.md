@@ -235,7 +235,7 @@ Release 0.1.1 · 28 October 2026. Historical run dates are retained below.
 - `npm test`: **500 tests passed across 81 files** (latest run; 200 tests across 42 files at the 0.1.0 release).
 - `npm run test:e2e`: **89 Chromium browser tests passed** in the final complete run (7.6 minutes).
 - `npm run build`: passed. Vite reports its advisory 500 KB chunk-size warning (main chunk approximately 547 KB, gzip 172 KB); this is not a build failure.
-- `npm run build -- --base=/Wave/`: passed; a production static-server smoke test verified Home, Settings, fonts/assets, `/Wave/wave.svg`, the privacy page and its return link under the repository path without HTTP/page errors.
+- `npm run build -- --base=/Wave/`: passed (the same relative-asset build the custom domain at `wave.jaime-gaming.com` serves); a production static-server smoke test verified Home, Settings, fonts/assets, `/Wave/wave.svg`, the privacy page and its return link under the repository path without HTTP/page errors.
 - `npm audit --omit=dev`: zero reported vulnerabilities at review time; this is not a security certification.
 - `git diff --check`: passed.
 

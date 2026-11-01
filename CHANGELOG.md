@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.1 — 2 November 2026
 
 ### The mix, the sleeve, and the two native builds
 
@@ -75,8 +75,6 @@
 - The README opens on the whole wordmark and closes with the mark alone, and both the README and
   [Platforms](docs/PLATFORMS.md) say plainly that the iOS build is next, with the native builds'
   remaining gap — YouTube songs and clips — written down in the [roadmap](docs/ROADMAP.md).
-
-### Home, Remix and the phone
 
 ### Home, Remix and the phone
 
@@ -222,8 +220,6 @@
   them, and the playback service itself, is declared in the manifest — which had lost the lot
   and has been put back.
 
-## 0.1.1 — 27 October 2026
-
 ### Mix
 
 - Mix replaces the old crossfade. Both songs are analysed off the main thread (tempo, beat grid
@@ -243,6 +239,14 @@
 - A blend that playback reaches late moves forward by whole bars, and is abandoned rather than
   started crooked if too little of it is left.
 - A song with no analysis (a YouTube song) still gets a timed handover instead of a bare fade.
+- Real DJ material no longer breaks it. Tempo is folded into the range where two records are
+  actually the same speed, so 174 BPM against 87 BPM reads as the same tempo at double time
+  instead of a 100 % stretch; a genuine gap is left alone and a short note says so.
+- A song that drifts instead of holding a grid — a live drummer, a rubato piano intro — is no
+  longer forced onto a beat. Below half the expected steadiness the handover becomes a long
+  equal-power blend, twelve seconds wide, and the grid only decides where to begin.
+- Long intros are entered, not skipped. When the first body of the incoming song starts well
+  after its beat grid does, the cue moves to that first kick rather than to the top of the file.
 
 ### The announcement
 
@@ -330,6 +334,21 @@
   again. Settings → About can open the same sheet on purpose.
 - The Windows app is a native C#/WPF shell with the web's layout. It remains an unsigned test
   build.
+
+### Folders, playlists, and the place Wave lives
+
+- A whole folder can be handed to Wave. It is read at any depth, the browser is asked once for
+  permission, and the folder is remembered so the same records can be read again another day
+  with one click. Firefox and Safari cannot remember a folder, so the choice says so instead of
+  promising something it cannot keep.
+- A playlist from another app can be brought over without an account. Paste the list, or choose
+  the `.m3u` or `.csv` that app exported; Wave answers how many songs are already here, which
+  ones need a listen and which ones it does not have, and only the confirmed matches become a
+  playlist. Songs already in the library are reused, in the order the list had them, and nothing
+  is removed.
+- The web client is served from `wave.jaime-gaming.com`. Relative asset paths mean the same
+  build still works from a subpath, so the repository Pages copy and the domain are one site.
+- The release is dated 2 November 2026.
 
 ## 0.1.0 — 17 October 2026
 

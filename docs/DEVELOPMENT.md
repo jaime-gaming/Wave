@@ -1,6 +1,6 @@
 # Wave Development Guide
 
-**Version: 0.1.1 · Release date: 27 October 2026.**
+**Version: 0.1.1 · Release date: 2 November 2026.**
 
 ## Requirements
 
@@ -289,7 +289,7 @@ Run `release-010.spec.ts` for offline daily genre groups and native queue cohere
 
 ## Merge-time publication
 
-Release 0.1.1 is dated 27 October 2026. Publication requires maintainer authorization and successful checks on the exact candidate. Keep its description to Highlights; detailed QA belongs in this document and `VALIDATION.md`.
+Release 0.1.1 is dated 2 November 2026. Publication requires maintainer authorization and successful checks on the exact candidate. Keep its description to Highlights; detailed QA belongs in this document and `VALIDATION.md`.
 
 When proceeding with the approved merge:
 
@@ -299,7 +299,7 @@ When proceeding with the approved merge:
 4. Prepare/update the draft GitHub Release with the reviewed `RELEASE_NOTES_0.1.1.md`. Verify its target and dereferenced tag match the merge commit before publishing. A draft does not publish a tag. After creating the tag, manually dispatch `Release assets` with that tag to populate and verify the draft assets before publishing. It also runs on release publication. The workflow builds that exact tag and attaches the relative-base web ZIP, the existing product film and `SHA256SUMS.txt`. Its ZIP includes source-commit metadata and the unchanged notices. If attachment upload fails, rerun the workflow with the same tag using its manual dispatch; never move the tag to retry. The build must be on main ancestry. `python3 -m unittest discover -s scripts -p test_package_release.py` checks deterministic packaging and input boundaries.
 5. Native debug/unsigned CI artifacts are test builds, not signed installers. Do not silently relabel or attach them as production-ready packages.
 
-PR preparation alone does not authorize publication. GitHub Releases and Pages are separate: verify the Pages branch configuration/deployment rather than treating a successful tag operation as proof of hosting. Pages uses the committed `/docs` site: run `npm run build:pages` after web changes and select Deploy from a branch → main → /docs in repository Settings → Pages. No custom Pages deployment Action is required. Do not change repository visibility as a side effect of release preparation. Successful compilation does not establish Android/Windows UI or playback parity with the web client.
+PR preparation alone does not authorize publication. GitHub Releases and Pages are separate: verify the Pages branch configuration/deployment rather than treating a successful tag operation as proof of hosting. Pages uses the committed `/docs` site, served at https://wave.jaime-gaming.com: run `npm run build:pages` after web changes, keep `docs/CNAME` with the domain, and select Deploy from a branch → main → /docs in repository Settings → Pages. The build uses relative asset paths (`--base=./`) so the same output also works under the repository subpath. No custom Pages deployment Action is required. Do not change repository visibility as a side effect of release preparation. Successful compilation does not establish Android/Windows UI or playback parity with the web client.
 
 ## Documentation images
 

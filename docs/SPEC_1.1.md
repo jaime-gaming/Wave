@@ -1,7 +1,7 @@
 # Wave 1.1 — Device sync, YouTube links and playlist import
 
 Status: **technical foundation implemented; not yet connected to the interface.**
-Scope decisions recorded on 27 October 2026. Release 0.1.1 is the published version.
+Scope decisions recorded on 2 November 2026. Release 0.1.1 is the published version.
 
 This document is the contract for Wave 1.1. It records what was decided, what is
 implemented in the source tree, what still has to be built, and which parts of the

@@ -1,6 +1,6 @@
 <p align="center"><img src="public/wave-wordmark.svg" alt="Wave" width="270" /></p>
 <p align="center"><strong>Your music files, played properly.</strong></p>
-<p align="center">Version <strong>0.1.1</strong> · <a href="#get-started">Get started</a> · <a href="docs/WHY_WAVE.md">Why Wave</a> · <a href="docs/media/wave-promo.mp4">Watch the demo</a> · <a href="docs/RELEASE_NOTES_0.1.1.md">What's new</a></p>
+<p align="center"><a href="https://wave.jaime-gaming.com">wave.jaime-gaming.com</a> · Version <strong>0.1.1</strong> · <a href="#get-started">Get started</a> · <a href="docs/WHY_WAVE.md">Why Wave</a> · <a href="docs/media/wave-promo.mp4">Watch the demo</a> · <a href="docs/RELEASE_NOTES_0.1.1.md">What's new</a></p>
 
 ![Wave Home on the web: a local collection, album artwork and daily mixes](docs/media/home-desktop.png)
 
@@ -20,7 +20,8 @@ npm run dev
 ```
 
 Open the address the terminal prints, press **Add music**, pick your files, and press play.
-Nothing else needs setting up.
+Nothing else needs setting up. The same build is published at
+[wave.jaime-gaming.com](https://wave.jaime-gaming.com).
 
 Windows and Android builds are on the [Releases](https://github.com/jaime-gaming/Wave/releases)
 page, and neither asks you to install anything else or type a command. The Windows zip carries its
@@ -31,6 +32,8 @@ builds, so Windows may show a SmartScreen warning and Android asks you to allow 
 
 - **Plays your files.** MP3, WAV, M4A, OGG and FLAC, up to 200 MB each, at their original
   quality.
+- **Takes a whole folder.** Point Wave at a folder and it reads every song inside it, at any
+  depth, once you have said yes; it remembers the folder so the next read is one click.
 - **Browses and searches** songs, albums, artists, playlists and favourites from your own
   collection.
 - **Daily mixes** from the genre tags your files already carry: play one, shuffle it, or save it
@@ -44,6 +47,8 @@ builds, so Windows may show a SmartScreen warning and Android asks you to allow 
 - **Real video clips** behind the player, muted and full screen with no YouTube interface
   showing.
 - **YouTube songs** by link, for the ones you do not own yet.
+- **Brings playlists over** from another app: paste a list or choose its exported `.m3u` or
+  `.csv`, see which songs you already have, and turn the confirmed ones into a playlist.
 - **Device linking** with a QR code and no server, so two of your devices can share a song by
   transfer. Nothing already saved is ever deleted.
 

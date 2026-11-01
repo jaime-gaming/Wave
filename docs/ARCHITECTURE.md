@@ -1,6 +1,6 @@
 # Wave Architecture
 
-**Version: 0.1.1 · Release date: 27 October 2026.**
+**Version: 0.1.1 · Release date: 2 November 2026.**
 
 ## Scope and platform decision
 
@@ -39,6 +39,7 @@ src/
 │   ├── TrackEditor.tsx
 │   ├── PlaylistDialog.tsx
 │   ├── PlaylistCollection.tsx
+│   ├── MigrationSheet.tsx
 │   ├── AnimatedListItem.tsx
 │   ├── LibraryContent.tsx
 │   ├── Navigation.tsx
@@ -46,9 +47,13 @@ src/
 │   └── PlayerBar.tsx
 ├── data/
 │   ├── artwork.ts
+│   ├── folders.ts
 │   ├── import.ts
 │   └── library.ts
 ├── domain/
+│   ├── importFile.ts
+│   ├── linkImport.ts
+│   ├── playlistImport.ts
 │   ├── playlists.ts
 │   ├── player.ts
 │   └── types.ts
@@ -80,7 +85,7 @@ Import is sequential to limit concurrent parsing and storage pressure. Successfu
 
 `Track` includes an ID, title, artist, album, duration in seconds, filename, size, import timestamp, favorite flag, audio Blob, and optional artwork data URL. See the [API reference](API_REFERENCE.md) for exact fields.
 
-The `wave-library` IndexedDB database is at schema version 3. `tracks`, `playlists`, and `albumOrders` are keyed by `id`; `artists` is keyed by exact `name`. The conditional upgrade adds `playlists` when migrating version 1, leaving existing tracks and favorites intact. Version 3 conditionally adds artist profiles and album orders to version-1/2 libraries; no audio record is recreated. Connections close on blocking/version changes so later upgrades can proceed. New IDs and optional `contentHash` are full-file SHA-256 digests. Renamed/redated exact byte copies are skipped; different file tags or encodings produce different hashes. Legacy IDs remain unchanged to preserve playlists. Same-size legacy candidates are hashed lazily and their hashes saved before deduplication. Hashing reads one complete file into memory, bounded by the 200 MB import limit; very large libraries still need worker profiling.
+The `wave-library` IndexedDB database is at schema version 5. Version 4 added the `plays` history store and version 5 the `folders` store that holds a remembered directory handle; each upgrade is additive and conditional on `oldVersion`, and a migration test opens a version-4 database to prove its rows survive. Version 3 added artist profiles and album orders. `tracks`, `playlists`, and `albumOrders` are keyed by `id`; `artists` is keyed by exact `name`. The conditional upgrade adds `playlists` when migrating version 1, leaving existing tracks and favorites intact. Version 3 conditionally adds artist profiles and album orders to version-1/2 libraries; no audio record is recreated. Connections close on blocking/version changes so later upgrades can proceed. New IDs and optional `contentHash` are full-file SHA-256 digests. Renamed/redated exact byte copies are skipped; different file tags or encodings produce different hashes. Legacy IDs remain unchanged to preserve playlists. Same-size legacy candidates are hashed lazily and their hashes saved before deduplication. Hashing reads one complete file into memory, bounded by the 200 MB import limit; very large libraries still need worker profiling.
 
 Audio Blobs are copied into storage so tracks survive reloads without asking for file access again. Embedded artwork is limited to 2 MB and JPEG, PNG, or WebP images. User-selected artwork is limited to 5 MB and 40 million decoded pixels, then center-cropped/downsampled to a JPEG of at most 512 square pixels per side, quality 0.8, without upscaling. Temporary image URLs are revoked on success and failure. The original audio file is never modified. Favorites are stored alongside each track. Theme, editor opt-in (default off), and animation preference (default on) use localStorage; settings remain usable for the current session if localStorage is unavailable.
 
@@ -93,6 +98,25 @@ A `Playlist` has a UUID, name, description, optional artwork, ordered unique tra
 `Track.originalMetadata` captures title, artist, album, and artwork at the first edit; subsequent edits retain that snapshot. `editedAt` records the last edit. Restore reapplies the snapshot and removes both fields. Favorites and metadata updates read fresh database records atomically, preventing a stale favorite click from overwriting saved edits. The hook merges returned records while retaining the existing audio Blob reference so these updates do not restart playback.
 
 Playlist name/membership management is always available. Song edits and custom playlist descriptions/covers require the Settings opt-in. Disabling it retains saved values; no file tags are rewritten and no export is implemented. Changes become visible only after successful writes. Failed saves leave the form and stored data available for retry.
+
+### Folders and playlist migration
+
+`data/folders.ts` owns every way a folder can arrive. `showDirectoryPicker()` is preferred: the
+folder is walked depth-first, non-audio files are skipped, a subdirectory that cannot be read is
+passed over instead of failing the import, and the directory handle is stored so the same folder
+can be read again — `queryPermission` reports what the browser currently thinks and
+`requestPermission` is only ever called from a click. Browsers without the picker fall back to
+`<input webkitdirectory>`, which still hands over the whole folder but cannot be remembered, and
+the interface says which of the two it is doing. A limit of 20 000 files and twelve levels keeps a
+mistaken `/` from locking the page.
+
+`domain/importFile.ts` reads a playlist that another app exported: an `.m3u` (including tags written
+without file paths between them), a `.csv` whose header names its columns and whose durations may be
+milliseconds, or plain text with one song per line. `domain/playlistImport.ts` then matches those
+entries against the local library and returns a proposal — matched, ambiguous or missing, with a
+score for each — and `domain/linkImport.ts` explains why a Spotify or YouTube link cannot be read on
+its own. Only the confirmed matches are written, through the ordinary `createPlaylist` path, in the
+order the list had them. Nothing in this pipeline reads, rewrites or re-encodes audio.
 
 ## Playback state
 

@@ -1,6 +1,6 @@
 # Wave Roadmap
 
-**Version: 0.1.1 · Release date: 27 October 2026.**
+**Version: 0.1.1 · Release date: 2 November 2026.**
 
 Wave 1.1 scope (device sync, YouTube links and playlist import) is specified in
 [SPEC_1.1](SPEC_1.1.md); its foundation is implemented but not user-facing yet.
@@ -54,7 +54,8 @@ High priority after the initial player:
 - [ ] Library/playlist backup and restore with clear file ownership.
 - [ ] Storage usage, quota information, and persistence requests.
 - [ ] Import cancellation and metadata work in a worker.
-- [ ] Folder import with explicit permission and browser fallbacks.
+- [x] Folder import with explicit permission and browser fallbacks: directory picker first,
+      directory input next, remembered handles stored locally and re-requested only from a click.
 - [ ] Additional filters and sorting options.
 - [x] Remember volume and last audible level, including mute/reload/unmute.
 - [ ] Optionally restore the queue/position.
@@ -122,7 +123,7 @@ Local smart mixes and advanced search may be explored after library and playback
 
 Use the [issue tracker](https://github.com/jaime-gaming/Wave/issues) to propose or discuss work. Include the user benefit, browser constraints, privacy impact, and a test plan. See [CONTRIBUTING.md](../CONTRIBUTING.md).
 
-Release 0.1.1 is dated 27 October 2026; published assets and tag identity are recorded on the GitHub Release. There is no released 1.0.0 or completed Android parity.
+Release 0.1.1 is dated 2 November 2026; published assets and tag identity are recorded on the GitHub Release. There is no released 1.0.0 or completed Android parity.
 
 Immediate import persistence, exact-byte renamed-file deduplication, compact covers/lyrics and browser-controlled eviction protection are implemented. Portable backup/export and lossless reduction of original audio storage are not implemented; original bytes necessarily occupy their original size.
 
@@ -167,7 +168,7 @@ Separate native Android (Kotlin/Compose) and Windows (C#/WPF) source implementat
 
 ## Milestone 5 — Wave 1.1: sync, YouTube and playlist import
 
-Planned scope agreed on 27 October 2026 and specified in
+Planned scope agreed on 2 November 2026 and specified in
 [SPEC_1.1](SPEC_1.1.md). Foundation modules, protocol and tests are implemented;
 no interface, provider client or Android port exists yet.
 
@@ -217,19 +218,24 @@ no interface, provider client or Android port exists yet.
 - [x] Spotify and YouTube link parsing, including URIs, locale prefixes and short-link refusal.
 - [x] Deterministic title/artist/duration matching with ambiguity, ties, manual reassignment and gap reporting.
 - [ ] Spotify PKCE client with `playlist-read-private`/`playlist-read-collaborative` (own or collaborative playlists only) and YouTube Data API playlist reads with a restricted key.
-- [ ] Review screen that writes nothing until the user confirms.
+- [x] Review screen that writes nothing until the user confirms: folder import, `.m3u`/`.csv`/text
+      reading and the staged matched/ambiguous/missing preview, all local.
 - [ ] Provider privacy text, consent and quota/backoff handling.
 
 Provider limits are part of the scope, not an implementation detail: new Spotify
 applications cannot read playlists owned by other accounts, and Wave never
 downloads Spotify audio. YouTube audio is never extracted.
 
-## Release 0.1.1 · 27 October 2026
+## Release 0.1.1 · 2 November 2026
 
 - [x] Match the screen to the music: one accent colour taken from the cover, applied to the mark and the browser tab.
 - [x] Mix announced a few seconds ahead, with the cue timed to the actual blend instead of a fixed countdown.
 - [x] Video clips fitted to the song's own length, and discovery restricted to real music videos.
 - [x] QR device linking, with nothing saved removed to make room.
+- [x] Mix against real material: folded tempo comparison, a gentle blend for rubato songs, and a cue
+      that enters a long intro instead of skipping it.
+- [x] Whole-folder import and a playlist migration sheet that only writes the confirmed matches.
+- [x] The web client published at wave.jaime-gaming.com.
 - [ ] Real-device pass on the clip backdrop, the blend and the animation timings.
 
 ## Release 0.1.0 · 17 October 2026

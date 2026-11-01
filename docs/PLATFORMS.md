@@ -2,24 +2,26 @@
 
 **Release date: 28 October 2026.** Wave has three independent implementations, not WebView/Electron wrappers. The web client is the most complete; Windows follows its structure with native C#/WPF controls, while Android uses Kotlin/Compose. Libraries are separate and never synchronized or silently migrated.
 
-| Capability                                | Web                                     | Windows                                           | Android                                        |
-| ----------------------------------------- | --------------------------------------- | ------------------------------------------------- | ---------------------------------------------- |
-| Home, local library, favorites            | Yes                                     | Yes                                               | Yes                                            |
-| Dedicated Search                          | Ranked, five kinds, recent searches     | Ranked, with artists/albums/playlists found first | Ranked, five kinds, recent searches            |
-| Albums/artists                            | Profiles and artwork                    | Native group/details views                        | Group/details views                            |
-| Browsable daily mixes and saved snapshots | Genre/artist tags                       | Genre/artist tags                                 | Genre tags, browsable                          |
-| Ordered playlists                         | Yes                                     | Create/edit/membership/order                      | Create/edit/membership/order                   |
-| Queue editing                             | Drag/buttons/keyboard                   | Native queue dialog; move/remove                  | Queue sheet; move/remove                       |
-| Restored paused position                  | Yes                                     | Yes                                               | Yes                                            |
-| Automatic Mix / local Autoplay            | Analyzed pair timing / weighted variety | Bounded duration timing / local variety           | Two players, same staged gains, constant power |
-| Lyrics                                    | Enhanced LRC, fill, optional lookup     | Line LRC/fill, sung line scrolled into view       | Line LRC, word stamps, optional lookup         |
-| Settings                                  | Seven menus                             | Six menus                                         | Six menus                                      |
-| Appearance                                | Dark/light/system, artwork palettes     | Dark/light, larger text, motion                   | Dark/light/system                              |
-| Cover editing                             | Song/playlist/artist                    | Song covers                                       | Embedded artwork only                          |
-| System media controls                     | Browser-dependent                       | Not yet                                           | Media session, focus, widget, tile, shortcuts  |
-| YouTube songs, video clips                | Yes                                     | Not yet                                           | Not yet                                        |
-| Device linking (Settings → Devices)       | Yes                                     | Not yet                                           | Not yet                                        |
-| Hosted build checks                       | Passed                                  | Passed + contracts + WPF layout smoke             | Passed unit/lint/debug build                   |
+| Capability                                | Web                                      | Windows                                           | Android                                        |
+| ----------------------------------------- | ---------------------------------------- | ------------------------------------------------- | ---------------------------------------------- |
+| Home, local library, favorites            | Yes                                      | Yes                                               | Yes                                            |
+| Dedicated Search                          | Ranked, five kinds, recent searches      | Ranked, with artists/albums/playlists found first | Ranked, five kinds, recent searches            |
+| Albums/artists                            | Profiles and artwork                     | Native group/details views                        | Group/details views                            |
+| Browsable daily mixes and saved snapshots | Genre/artist tags                        | Genre/artist tags                                 | Genre tags, browsable                          |
+| Ordered playlists                         | Yes                                      | Create/edit/membership/order                      | Create/edit/membership/order                   |
+| Queue editing                             | Drag/buttons/keyboard                    | Native queue dialog; move/remove                  | Queue sheet; move/remove                       |
+| Restored paused position                  | Yes                                      | Yes                                               | Yes                                            |
+| Automatic Mix / local Autoplay            | Analyzed pair timing / weighted variety  | Bounded duration timing / local variety           | Two players, same staged gains, constant power |
+| Lyrics                                    | Enhanced LRC, fill, optional lookup      | Line LRC/fill, sung line scrolled into view       | Line LRC, word stamps, optional lookup         |
+| Settings                                  | Seven menus                              | Six menus                                         | Six menus                                      |
+| Appearance                                | Dark/light/system, artwork palettes      | Dark/light, larger text, motion                   | Dark/light/system                              |
+| Cover editing                             | Song/playlist/artist                     | Song covers                                       | Embedded artwork only                          |
+| System media controls                     | Browser-dependent                        | Not yet                                           | Media session, focus, widget, tile, shortcuts  |
+| YouTube songs, video clips                | Yes                                      | Not yet                                           | Not yet                                        |
+| Device linking (Settings → Devices)       | Yes                                      | Not yet                                           | Not yet                                        |
+| Whole-folder import                       | Yes; remembered where the browser allows | Not yet                                           | Yes; document tree, any depth                  |
+| Playlist migration (.m3u/.csv/text)       | Yes                                      | Not yet                                           | Not yet                                        |
+| Hosted build checks                       | Passed                                   | Passed + contracts + WPF layout smoke             | Passed unit/lint/debug build                   |
 
 The rows marked "Not yet" are the honest remainder: they need an embedded player inside WPF and an Android
 WebView, a signed release asset, or a camera reader and transport, and none of them is started. Everything
@@ -28,7 +30,7 @@ the same job, not a missing feature.
 
 ## Browser and GitHub Pages
 
-Use Node.js 22.12+ or 24 and `npm ci && npm run dev`. Production: `npm run build`. For a repository path, use `WAVE_BASE_PATH=/Wave/ npm run build` and serve it below `/Wave/`.
+The published web client is https://wave.jaime-gaming.com, and `docs/CNAME` holds that host so a rebuild cannot lose it. Use Node.js 22.12+ or 24 and `npm ci && npm run dev`. Production: `npm run build`. For a repository path, use `WAVE_BASE_PATH=/Wave/ npm run build` and serve it below `/Wave/`.
 
 To deploy **without a custom Actions workflow**, select **Settings → Pages → Build and deployment → Source: Deploy from a branch**, then **Branch: main**, **Folder: /docs**, and Save after merging the PR. The compiled site is committed in `docs/index.html` and `docs/site-assets/`; `.nojekyll` disables Jekyll processing. Do not select the repository root: its index is Vite source, not the production site. GitHub may show its built-in Pages deployment job; no Wave deployment workflow or `PAGES_ENABLED` variable is needed.
 
