@@ -1,6 +1,6 @@
 # Wave Internal API Reference
 
-**Version: 0.2.0 · Release date: 1 November 2026.**
+**Version: 0.2.1 · Release date: 1 November 2026.**
 
 This document describes the implemented TypeScript modules. Wave has no HTTP API or backend. These interfaces are internal and may change during `0.x` development.
 

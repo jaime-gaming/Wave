@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.2.1 — 1 November 2026
+
+### Wave's own line, and fewer wrong claims
+
+- Every icon in the app is drawn in one file against one grid, and the icon pack is gone from the
+  dependencies. The library is a stack of covers, settings a mixer, pause two capsules.
+- The `v` in the wordmark is rebuilt on the W's own trough: both arms the same weight, standing on
+  the baseline instead of leaning into a hinge.
+- With a clip playing, each part of the player has a cell of its own in a three-column grid, so
+  nothing overlaps anything; the picture keeps almost all of itself, and the note about a missing
+  clip sits beside the transport rather than across the middle.
+- During a mix the arriving song's clip fades in on the same progress number as its sound.
+- A title containing "Take", "Mix", "Copy" or "Final" is no longer called a filename; a swapped
+  artist and title is only reported when the file name proves it; a slash no longer names two
+  artists, so `AC/DC` stays one; silence must reach three seconds at the front or four at the back
+  to be mentioned; a missing year or genre is no longer treated as a gap.
+
 ## 0.2.0 — 1 November 2026
 
 ### The mix, the edges of a file, and a name for every artist

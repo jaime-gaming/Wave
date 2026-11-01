@@ -1,6 +1,6 @@
 # Validation record
 
-Release 0.2.0 · 1 November 2026. Historical run dates are retained below.
+Release 0.2.1 · 1 November 2026. Historical run dates are retained below.
 
 ## Web
 
@@ -641,3 +641,14 @@ record and the certificate remain dashboard settings that only the maintainer ca
   that the first one leaves as soon as it is on.
 - **Native and browser passes**: the clip column layout, the stereo spread and the break card are
   reasoned and unit-checked, not judged on devices. The real-device pass is still outstanding.
+
+## 0.2.1 checks (latest run)
+
+- The icon module is drawn, not imported: the whole suite runs against it, and the packed
+  icon dependency is removed from `package.json` and the lockfile.
+- False-positive rules are covered by tests that fail on the old behaviour: a self-titled
+  song is no longer reported as a swap, a title containing "Take" is not a filename, a
+  slash does not name two artists, and two and a half seconds of silence is not mentioned.
+- No pixel screenshots were taken for this release: the sandbox has no browser that can
+  run (no system Chromium and no allowed download for one), so layout changes were verified
+  by reading the grid rules and by component tests, not by eye.

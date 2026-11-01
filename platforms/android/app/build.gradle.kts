@@ -2,7 +2,7 @@ plugins { id("com.android.application"); id("org.jetbrains.kotlin.android"); id(
 android {
     namespace = "io.github.jaimegaming.wave"
     compileSdk = 36
-    defaultConfig { applicationId = "io.github.jaimegaming.wave"; minSdk = 26; targetSdk = 36; versionCode = 3; versionName = "0.2.0" }
+    defaultConfig { applicationId = "io.github.jaimegaming.wave"; minSdk = 26; targetSdk = 36; versionCode = 4; versionName = "0.2.1" }
     buildFeatures { compose = true }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     testOptions { unitTests.isIncludeAndroidResources = true }

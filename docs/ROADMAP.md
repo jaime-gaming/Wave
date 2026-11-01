@@ -1,6 +1,6 @@
 # Wave Roadmap
 
-**Version: 0.2.0 · Release date: 1 November 2026.**
+**Version: 0.2.1 · Release date: 1 November 2026.**
 
 Wave 1.1 scope (device sync, YouTube links and playlist import) is specified in
 [SPEC_1.1](SPEC_1.1.md); its foundation is implemented but not user-facing yet.
@@ -123,7 +123,7 @@ Local smart mixes and advanced search may be explored after library and playback
 
 Use the [issue tracker](https://github.com/jaime-gaming/Wave/issues) to propose or discuss work. Include the user benefit, browser constraints, privacy impact, and a test plan. See [CONTRIBUTING.md](../CONTRIBUTING.md).
 
-Release 0.2.0 is dated 1 November 2026; published assets and tag identity are recorded on the GitHub Release. There is no released 1.0.0 or completed Android parity.
+Release 0.2.1 is dated 1 November 2026; published assets and tag identity are recorded on the GitHub Release. There is no released 1.0.0 or completed Android parity.
 
 Immediate import persistence, exact-byte renamed-file deduplication, compact covers/lyrics and browser-controlled eviction protection are implemented. Portable backup/export and lossless reduction of original audio storage are not implemented; original bytes necessarily occupy their original size.
 
@@ -225,6 +225,19 @@ no interface, provider client or Android port exists yet.
 Provider limits are part of the scope, not an implementation detail: new Spotify
 applications cannot read playlists owned by other accounts, and Wave never
 downloads Spotify audio. YouTube audio is never extracted.
+
+## Release 0.2.1 · 1 November 2026
+
+- [x] Every icon drawn by Wave's own hand, and the icon pack removed from the dependencies.
+- [x] The wordmark's v rebuilt on the W's own trough: both arms carry the same weight.
+- [x] A clip-mode grid where every part of the player has a cell of its own.
+- [x] The picture keeps almost all of itself, and the note about a missing clip sits beside
+      the transport instead of across the middle.
+- [x] A mix's clips change hands on the same progress number as the songs.
+- [x] Fewer claims: no swapped-tag warning without a file name to prove it, no filename
+      verdict for titles that merely contain a word, no artist invented from a slash, and
+      silence has to be three seconds at the front or four at the back to be mentioned.
+- [ ] Linking Android and Windows to each other and to the web.
 
 ## Release 0.2.0 · 1 November 2026
 

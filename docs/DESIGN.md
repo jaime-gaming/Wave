@@ -1,6 +1,6 @@
 # Wave Architecture
 
-**Version: 0.2.0 · Release date: 1 November 2026.**
+**Version: 0.2.1 · Release date: 1 November 2026.**
 
 ## Scope and platform decision
 
@@ -265,8 +265,7 @@ The decoder reports duration with its source track ID, so late metadata cannot o
 
 ### Icons, the clip stage and the two cards
 
-Every icon in the rail and the transport is drawn in `src/components/Glyphs.tsx` with the same pen as
-the wordmark — one stroke weight, round caps, shapes that lean off the grid — instead of being taken
+Every icon in the app is drawn in `src/components/Glyphs.tsx` with the same pen as the wordmark — one stroke weight, round caps, shapes that lean off the grid — instead of being taken
 from an icon pack, because a screen of grid-perfect glyphs reads as a template. With a clip playing,
 `.player-normal-view.clip-live` turns the player into a small column at the left (a 92 px sleeve, the
 title and artist under it, the transport directly below) and puts the words in a 260 px column at the
