@@ -553,12 +553,12 @@ public partial class MainWindow
                 var row = new Grid { Margin = new Thickness(0, 0, 0, 2) };
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                var copy = new StackPanel();
-                copy.Children.Add(Label(Listening.WeekRange(week.Start, week.End), 13));
-                var count = Label($"{Listening.Time(week.Seconds)}  \u00b7  {NativeCollections.Count(week.Plays, "play")}", 12.5);
-                count.SetResourceReference(TextBlock.ForegroundProperty, "MutedBrush");
-                copy.Children.Add(count);
-                row.Children.Add(copy);
+                var pastCopy = new StackPanel();
+                pastCopy.Children.Add(Label(Listening.WeekRange(week.Start, week.End), 13));
+                var playsLabel = Label($"{Listening.Time(week.Seconds)}  \u00b7  {NativeCollections.Count(week.Plays, "play")}", 12.5);
+                playsLabel.SetResourceReference(TextBlock.ForegroundProperty, "MutedBrush");
+                pastCopy.Children.Add(playsLabel);
+                row.Children.Add(pastCopy);
                 if (week.Songs.Count > 0) {
                     var again = ActionButton("Play that week", () => PlayCollection(week.Songs, week.Songs[0].Id));
                     again.Style = (Style)FindResource("TextButton");
