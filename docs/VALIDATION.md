@@ -22,6 +22,18 @@ Release 0.2.0 · 3 November 2026. Historical run dates are retained below.
   for the letters `RIFF` in sealed frames, which is base64 text, where that four-letter sequence
   turns up by chance about a third of the time over a megabyte. It now decodes each frame and looks
   for the four bytes, which is what it always meant.
+- **Every screen draws the same icons.** The phone's bottom bar used to carry a typed glyph per
+  destination (`⌂ ⌕ ♫ ≋ ⚙`) in a field nothing read, and three Windows placeholders drew `♪` as text.
+  A font glyph is whatever the machine has: one Android build draws a box where the music note
+  should be, and the browser had already been drawing its own path for a year. The dead field is
+  gone, the phone keeps using `WaveIcons`, and Windows gained `IconSong` in the same 24-unit
+  dictionary with round caps, so missing artwork is the same drawing on all three.
+- **The join is the same length on every screen.** `automaticBlendSeconds` on Android and
+  `MixWindow` on Windows now apply the web client's rule — a fifth of the shorter song, twelve
+  seconds at the floor and twenty-four at the ceiling, never more than half of it — instead of a
+  fixed sixteen seconds scaled by duration. Both are covered by the contract tests the native jobs
+  run (`ContractsTest.kt`, `Wave.Contracts.Tests`). Neither platform analyses beats, so a join
+  there is placed by seconds; that is stated in the release notes rather than glossed over.
 - **The film was reviewed frame by frame.** Frames decoded from the rendered MP4 were inspected at
   the release: the title card, the version card, the collection, the typo search, the playlist
   order, the join, the lyrics, the silence offer, appearance, the two phone viewports and the

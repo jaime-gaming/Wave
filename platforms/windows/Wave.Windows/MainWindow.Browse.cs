@@ -281,7 +281,7 @@ public partial class MainWindow
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var art = new Border { Width = 48, Height = 48, CornerRadius = new CornerRadius(14), Background = ArtworkBrush(artwork) };
-        if (artwork == null) art.Child = new TextBlock { Text = "♪", FontSize = 20, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Foreground = (Brush)Application.Current.Resources["AccentBrush"] };
+        if (artwork == null) art.Child = Iconography.Draw("song", 20, brush: (Brush)Application.Current.Resources["AccentBrush"]);
         row.Children.Add(art);
         var words = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(14, 0, 0, 0) };
         words.Children.Add(new TextBlock { Text = title, FontWeight = FontWeights.SemiBold, FontSize = 15 });
@@ -357,7 +357,7 @@ public partial class MainWindow
             BorderThickness = new Thickness(1),
             BorderBrush = (Brush)Application.Current.Resources["TonalBrush"],
         };
-        if (artwork == null) art.Child = new TextBlock { Text = "♪", FontSize = 40, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Foreground = (Brush)Application.Current.Resources["AccentBrush"] };
+        if (artwork == null) art.Child = Iconography.Draw("song", 40, brush: (Brush)Application.Current.Resources["AccentBrush"]);
         body.Children.Add(art);
         body.Children.Add(new TextBlock { Text = title, FontSize = 15, FontWeight = FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(1, 9, 1, 2), ToolTip = title });
         body.Children.Add(new TextBlock { Text = subtitle, FontSize = 12.5, Foreground = (Brush)Application.Current.Resources["MutedBrush"], TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(1, 0, 1, 0), ToolTip = subtitle });

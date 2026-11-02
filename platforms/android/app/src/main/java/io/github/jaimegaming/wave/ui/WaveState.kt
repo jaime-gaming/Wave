@@ -36,13 +36,19 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/** Where the bottom bar can take you. */
-enum class Destination(val label: String, val glyph: String) {
-    Home("Home", "⌂"),
-    Search("Search", "⌕"),
-    Library("Library", "♫"),
-    Remix("Remix", "≋"),
-    Settings("Settings", "⚙"),
+/**
+ * Where the bottom bar can take you.
+ *
+ * The label is the name; the drawing comes from `WaveIcons`, which holds Wave's
+ * own paths. A typed symbol here would be whatever the device font happens to
+ * have, which is how one phone ends up with a box where the music should be.
+ */
+enum class Destination(val label: String) {
+    Home("Home"),
+    Search("Search"),
+    Library("Library"),
+    Remix("Remix"),
+    Settings("Settings"),
 }
 
 /** The ways into the collection from the Library screen. */

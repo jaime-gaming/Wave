@@ -114,7 +114,7 @@
                         <Grid.ColumnDefinitions><ColumnDefinition Width="52"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                         <Border Background="{DynamicResource TonalBrush}" CornerRadius="12" Width="44" Height="44" Tag="{Binding}" Cursor="Hand" MouseLeftButtonUp="ArtworkPlayClick">
                           <Grid>
-                            <TextBlock Text="♪" FontSize="21" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource AccentBrush}"/>
+                            <Path Data="{DynamicResource IconSong}" Stroke="{DynamicResource AccentBrush}" StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Width="21" Height="21" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             <Border CornerRadius="12"><Border.Background><ImageBrush ImageSource="{Binding Artwork}" Stretch="UniformToFill"/></Border.Background></Border>
                           </Grid>
                         </Border>
@@ -168,7 +168,7 @@
                 <Grid Margin="16" SizeChanged="ArtHostChanged">
                   <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                   <Border x:Name="NowArt" MouseLeftButtonUp="ToggleArtwork" Cursor="Hand" MaxWidth="430" MaxHeight="430" CornerRadius="32" Background="{DynamicResource TonalBrush}" HorizontalAlignment="Center">
-                    <TextBlock x:Name="ArtPlaceholder" Text="♪" FontSize="96" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource AccentBrush}"/>
+                    <Path x:Name="ArtPlaceholder" Data="{DynamicResource IconSong}" Stroke="{DynamicResource AccentBrush}" StrokeThickness="1.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Width="96" Height="96" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                   </Border>
                   <StackPanel Grid.Row="1" Margin="0,16,0,0">
                     <TextBlock x:Name="NowTitle" FontSize="26" FontWeight="Bold" TextTrimming="CharacterEllipsis" TextAlignment="Center"/>
@@ -233,7 +233,7 @@
           <Grid>
             <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
             <Border x:Name="MiniArt" Width="40" Height="40" CornerRadius="12" Background="{DynamicResource SurfaceBrush}">
-              <TextBlock Text="♪" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource MutedBrush}"/>
+              <Path Data="{DynamicResource IconSong}" Stroke="{DynamicResource MutedBrush}" StrokeThickness="1.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Width="18" Height="18" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
             <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
               <TextBlock x:Name="MiniTitle" FontWeight="Bold" FontSize="14.5" TextTrimming="CharacterEllipsis"/>

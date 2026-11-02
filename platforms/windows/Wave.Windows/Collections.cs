@@ -29,10 +29,23 @@ public static class NativeCollections
         return ids.Distinct().Where(known.ContainsKey).Select(id => known[id]).ToList();
     }
     /// <summary>A blend long enough to be a mix rather than a fade, in seconds.</summary>
-    public const double BlendSeconds = 16;
+    public const double BlendSeconds = 24;
+    /// <summary>The shortest blend on material long enough to have one.</summary>
+    public const double MixFloorSeconds = 12;
+    /// <summary>
+    /// How long two songs overlap, in seconds.
+    ///
+    /// The same rule the web client uses: a fifth of the shorter song, no less
+    /// than twelve seconds and no more than twenty-four, never more than half of
+    /// it. Windows has no beat analysis, so the two are lined up on the seconds
+    /// rather than on the bar; the length and the curve are the same ones, which
+    /// is what makes the join sound like the same feature on both screens. Files
+    /// too short to hold a real blend are left alone.
+    /// </summary>
     public static double MixWindow(double outgoing, double incoming) =>
-        double.IsFinite(outgoing) && double.IsFinite(incoming) && Math.Min(outgoing, incoming) >= 24
-            ? Math.Clamp(Math.Min(outgoing, incoming) * .2, 6, BlendSeconds) : 0;
+        double.IsFinite(outgoing) && double.IsFinite(incoming) && outgoing > 0 && incoming > 0 && Math.Min(outgoing, incoming) >= 24
+            ? Math.Min(BlendSeconds, Math.Max(Math.Min(MixFloorSeconds, Math.Min(outgoing, incoming) / 4), Math.Min(outgoing, incoming) * .12))
+            : 0;
     /// <summary>
     /// Staged handover, kept in step with the web build: the incoming song is at
     /// level by a quarter of the blend and holds, the outgoing song only leaves in

@@ -57,7 +57,23 @@ fun shouldPublishTime(last: Double, next: Double, fading: Boolean) =
     fading || kotlin.math.abs(next - last) >= .1 - 1e-9
 fun powerGains(progress: Double): Pair<Float,Float> { val angle=progress.coerceIn(0.0,1.0)*Math.PI/2; return cos(angle).toFloat() to sin(angle).toFloat() }
 /** A blend long enough to be a mix: an arrival, a passage together and a departure. */
-const val BLEND_SECONDS = 16.0
+const val BLEND_SECONDS = 24.0
+/** The shortest a blend gets on material that is long enough to have one. */
+const val MIX_FLOOR_SECONDS = 12.0
+/**
+ * How long two songs overlap, in seconds.
+ *
+ * The same rule the web client uses: the shorter song gets a fifth of itself, no
+ * less than twelve seconds and no more than twenty-four, and never more than half
+ * of it. The phone has no beat analysis, so it lines the two up on the seconds
+ * rather than on the bar — but the length and the curve are the same ones, which
+ * is what makes a mix sound like the same feature on both screens.
+ */
+fun automaticBlendSeconds(outgoing: Double, incoming: Double): Double {
+    if (!outgoing.isFinite() || !incoming.isFinite() || outgoing <= 0 || incoming <= 0) return 0.0
+    val shortest = minOf(outgoing, incoming)
+    return minOf(BLEND_SECONDS, maxOf(minOf(MIX_FLOOR_SECONDS, shortest / 4), shortest * 0.12), shortest / 2)
+}
 /** Smooth 0..1 ramp; the handover uses it so no level ever steps. */
 fun smoothstep(value: Double): Double { val t=value.coerceIn(0.0,1.0);return t*t*(3-2*t) }
 /**

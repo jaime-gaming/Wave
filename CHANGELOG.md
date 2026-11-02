@@ -32,8 +32,10 @@ the same interface, and every version links to every other.
   painted with that same floor instead of near-black. Opening any dialog now locks the page behind
   it, so the scrollbar can no longer leave a strip of page down one side of the player, and the
   dialog's own hairline border no longer insets the picture by a pixel.
-- This is the web client's blend. Android and Windows still join two songs with a plain overlap;
-  closing that gap is on the roadmap, not in this release.
+- Android and Windows now choose the same twelve-to-twenty-four-second window and follow the same
+  hand-over curve, so a join lasts as long and arrives as early on every screen. They still line the
+  two songs up on the seconds rather than on the bar: the beat analysis stays in the web client, and
+  saying otherwise would be a claim the phone cannot keep.
 
 ### The edges of a file
 

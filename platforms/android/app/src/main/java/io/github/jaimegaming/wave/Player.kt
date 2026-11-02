@@ -121,9 +121,14 @@ class Player(private val context: Context) {
         if (crossfade > 0 && spareReady && index + 1 < queue.size) {
             val remaining = (player.duration - player.currentPosition) / 1000.0
             val next = spare ?: return
-            val window = minOf(crossfade, player.duration / 2000.0)
+            // The same window the web client chooses for this pair, never longer
+            // than what is left of the song that is leaving.
+            val window = minOf(
+                crossfade,
+                automaticBlendSeconds(player.duration / 1000.0, next.duration / 1000.0),
+            )
             if (remaining <= 0 || remaining > window) return
-            fadeLength = minOf(crossfade, remaining, next.duration / 2000.0)
+            fadeLength = minOf(window, remaining, next.duration / 2000.0)
             if (fadeLength <= .1) return
             outgoing = player
             active = next

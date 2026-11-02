@@ -264,6 +264,12 @@ downloads Spotify audio. YouTube audio is never extracted.
 - [x] Served by Cloudflare Pages with `_redirects` and `_headers` in the build.
 - [x] The product film for this version, recorded from the app by a workflow instead of assembled by
       hand: the join, the search that forgives a wrong letter and the offer to skip dead air.
+- [x] Android and Windows use the same twelve-to-twenty-four-second window and the same hand-over
+      curve as the web client, so a join lasts as long and arrives as early on every screen.
+- [x] Missing artwork is drawn, not typed: the phone, the desktop window and the browser show the
+      same note instead of a font character that some devices render as an empty box.
+- [ ] The offer to skip dead air exists on the web only; the phone and the Windows window still play
+      a lead-in in silence. Their players have no analysis of their own yet.
 - [ ] Real-device pass on the blend, the overhead clip layout and the break card on a phone.
 - [ ] A film that shows the phone and the Windows window, once those builds have the same blend.
 

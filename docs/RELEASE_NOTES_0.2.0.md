@@ -72,9 +72,10 @@ player, and accepting it only changes where playback starts and stops — the fi
 ## What this release is not
 
 - No iOS application.
-- The blend described above is the web client's. The phone and the desktop still join two songs with
-  a plain overlap; bringing them the same engine is the next piece of work, not a claim of this
-  release.
+- The bar-by-bar planning described above is the web client's. The phone and the Windows window use
+  the same twelve-to-twenty-four-second window and the same hand-over curve, and start the join at
+  the point that window asks for; what they do not do is listen for beats, so a join there is placed
+  by seconds rather than by bars.
 - No account, no upload, no listening profile leaving the device.
 - No signed installers: the native packages produced by CI are debug builds for testing.
 

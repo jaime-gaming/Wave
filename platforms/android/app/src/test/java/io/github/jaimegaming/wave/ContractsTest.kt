@@ -48,4 +48,14 @@ class ContractsTest {
   assertTrue("the outgoing song keeps leaving through the middle",handoverGains(.5).first>handoverGains(.75).first)
   assertTrue("the outgoing song leaves at the end",late.first<.6&&late.second>.8)
  }
+ @Test fun blendWindowMatchesTheWebClient() {
+  // Twelve seconds is the floor for a pair of ordinary songs; the shortest file
+  // still only gives up half of itself; nothing runs past twenty-four.
+  assertEquals(21.6,automaticBlendSeconds(180.0,180.0),.0001)
+  assertEquals(12.0,automaticBlendSeconds(60.0,180.0),.0001)
+  assertEquals(24.0,automaticBlendSeconds(400.0,400.0),.0001)
+  assertEquals(2.0,automaticBlendSeconds(8.0,8.0),.0001)
+  assertEquals(0.0,automaticBlendSeconds(Double.NaN,90.0),.0001)
+  assertEquals(0.0,automaticBlendSeconds(0.0,90.0),.0001)
+ }
 }
