@@ -35,6 +35,16 @@ class LibraryContractsTest {
     }
 
     @Test
+    fun aQueryWithALetterInTheWrongPlaceStillFindsTheSong() {
+        val nightcall = song("1", title = "Nightcall")
+        assertEquals(7, searchRank(nightcall, "nightclal"))
+        // Everything spelled correctly outranks a near miss.
+        assertTrue(searchRank(nightcall, "night")!! < searchRank(nightcall, "nightclal")!!)
+        assertNull(searchRank(nightcall, "zzzz"))
+        assertEquals(listOf("Midnight City"), rankNames(listOf("Nightcall", "Midnight City"), "midnigth"))
+    }
+
+    @Test
     fun namesAreRankedTheNameTypedFirst() {
         val names = listOf("Nightcall (Deluxe)", "Midnight City", "Nightcall", "Nights")
         assertEquals(listOf("Nights", "Nightcall", "Nightcall (Deluxe)", "Midnight City"), rankNames(names, "night"))

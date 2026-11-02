@@ -146,3 +146,21 @@ describe('ranking names', () => {
     expect(rankNames(names, 'midnight', (name) => name)).toEqual(['Midnight City']);
   });
 });
+
+describe('a query with a letter in the wrong place', () => {
+  it('still finds the song, below everything spelled correctly', () => {
+    expect(rankMatch(library[1], 'nightclal')).toBe('near');
+    expect(rankMatch(library[2], 'midngiht city')).toBe('near');
+    expect(rankTracks(library, 'nightclal').map((track) => track.id)[0]).toBe('b');
+    // A correctly spelled query never needs the tolerance, so it keeps its rank.
+    expect(rankMatch(library[1], 'nightcall')).toBe('exact');
+    expect(rankMatch(library[1], 'night')).toBe('prefix');
+  });
+
+  it('does not turn noise into results', () => {
+    expect(rankMatch(library[0], 'qqqq')).toBeNull();
+    expect(rankTracks(library, 'zzzz')).toEqual([]);
+    const names = ['Midnight City', 'Nightcall', 'Tonight'];
+    expect(rankNames(names, 'midnigth', (name) => name)).toEqual(['Midnight City']);
+  });
+});

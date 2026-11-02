@@ -79,6 +79,28 @@ export const albumIdentity = (value: string) =>
       .replace(/\s*[([](?:\d{4} )?remaster(?:ed)?(?: \d{4})?[)\]]\s*/giu, ' ')
       .replace(/\s+-\s+(?:deluxe|expanded|special|anniversary)(?: edition| version)?\s*$/giu, ''),
   );
+/**
+ * The words a rightsholder adds to a title without making it another recording.
+ *
+ * Lyrics services hold what *they* call the song: "Radio Edit", "Single
+ * Version", "Remastered 2011", a bare "Explicit". The library holds what the
+ * file says. Those two titles differ by a phrase and describe the same take, so
+ * refusing the match on the difference is how a correct answer gets thrown away.
+ */
+const EDITION_WORDS =
+  /^(?:radio edit|single version|single edit|album version|original (?:mix|version)|explicit(?: version)?|clean(?: version)?|mono|stereo|remaster(?:ed)?(?: \d{4})?)$/u;
+
+/** The same song, allowing a tail of edition words on either title. */
+export function sameRecordingTitle(local: string, remote: string) {
+  const a = canonical(cleanTitle(local)),
+    b = canonical(cleanTitle(remote));
+  if (!a || !b) return a === b;
+  if (a === b) return true;
+  const [longer, shorter] = a.length >= b.length ? [a, b] : [b, a];
+  if (!longer.startsWith(`${shorter} `)) return false;
+  return EDITION_WORDS.test(longer.slice(shorter.length + 1));
+}
+
 function albumEdition(value: string) {
   return /\blive (?:at|in|from)\b|\((?:live|acoustic|instrumental|remix)[^)]*\)|^(?:live|acoustic|instrumental|remixes)$/iu.test(
     value,
@@ -102,7 +124,7 @@ export function recordingMatch(value: unknown, track: Track) {
   if (typeof record.trackName !== 'string' || typeof record.artistName !== 'string' || !meta.artist)
     return;
   if (
-    canonical(cleanTitle(record.trackName)) !== canonical(meta.title) ||
+    !sameRecordingTitle(record.trackName, meta.title) ||
     !artistMatch(track.artist === 'Unknown artist' ? meta.artist : track.artist, record.artistName)
   )
     return;

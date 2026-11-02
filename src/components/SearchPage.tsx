@@ -3,7 +3,6 @@ import { Search, X, Music2, Disc3, Users, ListMusic, ArrowUpRight } from './Glyp
 import { motion } from 'motion/react';
 import type { Track, Playlist, LibraryView } from '../domain/types';
 import { collectAlbums, collectArtists, initials } from '../domain/collections';
-import { matchesSearch } from '../domain/musicIdentity';
 import {
   clearRecentSearches,
   loadRecentSearches,
@@ -92,12 +91,12 @@ export const SearchPage = memo(function SearchPage({
     () => rankNames(collectArtists(tracks), deferredQuery, (artist) => artist.name),
     [tracks, deferredQuery],
   );
+  // The ranking already drops what does not answer, including the near miss, so
+  // filtering first only removed results twice.
   const playlists = useMemo(
     () =>
       rankNames(
-        allPlaylists.filter((list) =>
-          matchesSearch(`${list.name} ${list.description}`, deferredQuery),
-        ),
+        allPlaylists,
         deferredQuery,
         (list) => list.name,
         (list) => list.description,

@@ -19,6 +19,12 @@ Release 0.2.0 · 1 November 2026. Historical run dates are retained below.
   a moving picture or none.
 - The silence offer was only rendered when the player was collapsed. It is rendered in the open
   player too, and the thresholds moved to two seconds at the start and three at the end.
+- Search gained one more rung at the bottom of the same ladder — every word of the
+  query one letter away from a word of the text, with a floor of three letters so
+  noise stays noise — on the site, in Kotlin and in C#. `searchRank.test.ts` and
+  `LibraryContractsTest` cover a near miss, a near miss losing to a correct match,
+  and a query that should still find nothing. Lyrics matching accepts a tail of
+  edition words on either title, with live and acoustic takes still refused.
 - Daily mixes sat against the phone's link card because that card is a button and the home page only
   spaced section after section; the card now carries the same gap.
 

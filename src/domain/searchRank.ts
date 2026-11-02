@@ -14,9 +14,55 @@ import type { Track } from './types';
  * then the album, then anything else that contains every word. Ties keep
  * library order, so the list does not shuffle between keystrokes.
  */
-export type MatchKind = 'exact' | 'prefix' | 'word' | 'letters' | 'artist' | 'album' | 'other';
+export type MatchKind =
+  'exact' | 'prefix' | 'word' | 'letters' | 'artist' | 'album' | 'other' | 'near';
 
 const WORD = /\s+/u;
+
+/**
+ * One typo is still the song you meant.
+ *
+ * A search that returns nothing because a letter landed in the wrong place is
+ * read as the library not having the song, which is the worst thing a search can
+ * say. Every word of the query is allowed to be one letter away from a word of
+ * the text — typed too quickly, spelled the way it sounds, or with two letters
+ * the wrong way round. This sits at the bottom of the ladder: a near hit never
+ * outranks something that actually contains what was typed.
+ */
+function oneEditApart(a: string, b: string) {
+  if (a === b) return true;
+  const [longer, shorter] = a.length >= b.length ? [a, b] : [b, a];
+  if (longer.length - shorter.length > 1) return false;
+  let at = 0;
+  while (at < shorter.length && longer[at] === shorter[at]) at++;
+  if (longer.length === shorter.length)
+    return (
+      longer.slice(at + 1) === shorter.slice(at + 1) ||
+      (longer[at] === shorter[at + 1] &&
+        longer[at + 1] === shorter[at] &&
+        longer.slice(at + 2) === shorter.slice(at + 2))
+    );
+  return longer.slice(at + 1) === shorter.slice(at);
+}
+
+/**
+ * Every word of the query accounted for: either the text already has it, or it is
+ * a word of at least six letters one letter away. The floor is what keeps the
+ * tolerance from swallowing the library — *light* and *night* are one letter
+ * apart and have nothing to do with each other.
+ */
+function nearWords(haystack: string, query: string) {
+  const parts = query.split(WORD).filter(Boolean);
+  if (!parts.length) return false;
+  const words = haystack.split(WORD).filter(Boolean);
+  let forgiven = 0;
+  for (const part of parts) {
+    if (words.some((word) => word === part || word.startsWith(part))) continue;
+    if (part.length < 6 || !words.some((word) => oneEditApart(word, part))) return false;
+    forgiven++;
+  }
+  return forgiven > 0;
+}
 
 function containsWords(haystack: string, query: string) {
   const parts = query.split(WORD).filter(Boolean);
@@ -44,8 +90,9 @@ export function rankMatch(track: Track, rawQuery: string): MatchKind | null {
   const title = searchText(track.title);
   const artist = searchText(track.artist);
   const album = searchText(track.album);
+  const haystack = searchText(`${track.title} ${track.artist} ${track.album} ${track.fileName}`);
   if (!matchesSearch(`${track.title} ${track.artist} ${track.album} ${track.fileName}`, rawQuery))
-    return null;
+    return nearWords(haystack, query) ? 'near' : null;
   if (title === query) return 'exact';
   if (title.startsWith(query)) return 'prefix';
   // Every word of the query beginning a word of the title is a real answer —
@@ -71,6 +118,7 @@ const WEIGHT: Record<MatchKind, number> = {
   artist: 4,
   album: 5,
   other: 6,
+  near: 7,
 };
 
 /**
@@ -113,9 +161,15 @@ export function rankNames<T>(
     const name = searchText(nameOf(item));
     const detail = detailOf ? searchText(detailOf(item)) : '';
     const haystack = `${name} ${detail}`;
-    if (!needle.split(WORD).every((part) => haystack.includes(part))) continue;
-    const weight =
-      name === needle
+    // A name one letter away from what was typed is still that name; it sorts
+    // under everything that was actually spelled that way.
+    const near = !needle.split(WORD).every((part) => haystack.includes(part))
+      ? nearWords(haystack, needle)
+      : false;
+    if (!needle.split(WORD).every((part) => haystack.includes(part)) && !near) continue;
+    const weight = near
+      ? 5
+      : name === needle
         ? 0
         : name.startsWith(needle)
           ? 1

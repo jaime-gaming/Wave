@@ -17,6 +17,13 @@
   where a ripper's lead-in and a long fade actually begin.
 - Bringing a library over is in Settings → Library, named for what it does,
   instead of only behind the playlists shelf.
+- Search forgives a letter in the wrong place. "Nightclal" finds _Nightcall_,
+  "midnigth" finds _Midnight City_, on the site, the phone and the desktop, and a
+  near miss always sorts under anything that was spelled correctly. Noise still
+  finds nothing.
+- Lyrics are found for a title the service spells with an edition word the file
+  left out — _Signal (Radio Edit)_ for _Signal_ — while a live take or an acoustic
+  version stays a different recording.
 - The arriving song of a mix no longer plays at full volume for a moment. The
   gain loop wrote a level of one into both decks whenever a blend had not been
   set up yet, and there are a few frames between the deck starting and the blend

@@ -81,6 +81,43 @@ fun canonical(value:String) = Normalizer.normalize(value,Normalizer.Form.NFKD).r
  * then names that merely contain the letters, and only then the artist, the album
  * and the file name. `null` means no match at all.
  */
+/**
+ * One letter away: typed too quickly, spelled by ear, or two letters the wrong
+ * way round. Never lets noise in, because every word of the query has to land.
+ */
+private fun oneEditApart(a: String, b: String): Boolean {
+    if (a == b) return true
+    val longer = if (a.length >= b.length) a else b
+    val shorter = if (a.length >= b.length) b else a
+    if (longer.length - shorter.length > 1) return false
+    var at = 0
+    while (at < shorter.length && longer[at] == shorter[at]) at++
+    if (longer.length == shorter.length) {
+        if (longer.substring(at + 1) == shorter.substring(at + 1)) return true
+        return at + 2 <= shorter.length && longer[at] == shorter[at + 1] &&
+            longer[at + 1] == shorter[at] && longer.substring(at + 2) == shorter.substring(at + 2)
+    }
+    return longer.substring(at + 1) == shorter.substring(at)
+}
+
+/**
+ * Every word of the query accounted for: the text already has it, or it is a word
+ * of at least six letters one letter away. The floor keeps the tolerance from
+ * swallowing the library — "light" and "night" are one letter apart and have
+ * nothing to do with each other.
+ */
+private fun nearWords(text: String, parts: List<String>): Boolean {
+    if (parts.isEmpty()) return false
+    val words = text.split(' ').filter { it.isNotEmpty() }
+    var forgiven = 0
+    for (part in parts) {
+        if (words.any { word -> word == part || word.startsWith(part) }) continue
+        if (part.length < 6 || words.none { word -> oneEditApart(word, part) }) return false
+        forgiven++
+    }
+    return forgiven > 0
+}
+
 fun searchRank(song: Song, query: String): Int? {
     val needle = canonical(query)
     if (needle.isEmpty()) return 0
@@ -106,7 +143,10 @@ fun searchRank(song: Song, query: String): Int? {
         starts(album) -> 5
         album.contains(needle) -> 5
         file.contains(needle) -> 6
-        else -> null
+        // A search that answers with nothing because a letter moved is read as
+        // the library not holding the song, so one typo still finds it — under
+        // everything that was actually spelled that way.
+        else -> if (nearWords("$title $artist $album $file", needle.split(' ').filter { it.isNotEmpty() })) 7 else null
     }
 }
 
@@ -124,8 +164,10 @@ fun rankNames(values: List<String>, query: String): List<String> {
     return values
         .mapNotNull { value ->
             val text = canonical(value)
-            if (!parts.all { text.contains(it) }) return@mapNotNull null
+            val contained = parts.all { text.contains(it) }
+            if (!contained && !nearWords(text, parts)) return@mapNotNull null
             val weight = when {
+                !contained -> 5
                 text == needle -> 0
                 text.startsWith(needle) -> 1
                 text.split(' ').any { it.startsWith(needle) } -> 2
