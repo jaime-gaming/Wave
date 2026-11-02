@@ -1,0 +1,131 @@
+name: Promo film
+
+# The product film is real pixels of the app in this release, so it is rendered
+# here rather than on someone's laptop: the runner serves the built site, records
+# the scenes with a disposable demo library, writes the score from the same
+# recorded piano samples, and renders the film from those recordings. A reviewer
+# can therefore compare the film with the commit that produced it.
+#
+# Not part of any release gate: a film is documentation, and a failed render must
+# not stand between a fix and a merge.
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Commit the rendered film to this branch'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  film:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Install the browser that records the app
+        run: npx playwright install --with-deps chromium ffmpeg
+      - run: npm run build
+      - name: Serve the build
+        run: |
+          npx vite preview --host 127.0.0.1 --port 5173 --strictPort &
+          for attempt in $(seq 1 40); do
+            curl -fsS http://127.0.0.1:5173/ > /dev/null && exit 0
+            sleep 1
+          done
+          echo "The preview server never answered." && exit 1
+      - name: Record the scenes
+        run: node --experimental-strip-types scripts/capture-promo-scenes.ts
+        env:
+          WAVE_URL: http://127.0.0.1:5173
+      - name: Keep the recordings
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: promo-recordings
+          path: |
+            .cache/promo-v2/captures.json
+            .cache/promo-v2/raw/*.webm
+          retention-days: 7
+          if-no-files-found: warn
+      - name: Install the renderer
+        run: |
+          python3 -m pip install --quiet --break-system-packages \
+            av numpy pillow scipy soundfile fonttools brotli
+      - name: Fetch the recorded piano samples
+        run: python3 scripts/fetch-promo-piano.py
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Write the score
+        run: python3 scripts/score-promo.py
+      - name: Render the film
+        run: python3 scripts/render-promo.py --ffmpeg /usr/bin/ffmpeg
+      - name: Check the film before it is published
+        run: |
+          python3 - <<'PY'
+          import os, sys
+          import av
+          path = ".cache/promo-v2/promo-master.mp4"
+          size = os.path.getsize(path)
+          with av.open(path) as container:
+              video = container.streams.video[0]
+              audio = container.streams.audio[0]
+              duration = float(container.duration) / av.time_base
+              facts = {
+                  "duration": round(duration, 2),
+                  "video": video.codec_context.name,
+                  "pixels": f"{video.codec_context.width}x{video.codec_context.height}",
+                  "format": video.codec_context.pix_fmt,
+                  "fps": str(video.average_rate),
+                  "audio": audio.codec_context.name,
+                  "rate": audio.codec_context.sample_rate,
+              }
+          print(facts)
+          problems = []
+          if not 59.5 <= duration <= 60.5:
+              problems.append("duration is not the 60 seconds the storyboard uses")
+          if facts["video"] != "h264" or facts["format"] != "yuv420p":
+              problems.append("video is not H.264 in yuv420p")
+          if facts["pixels"] != "1920x1080":
+              problems.append("the film is not 1920x1080")
+          if facts["audio"] != "aac":
+              problems.append("audio is not AAC")
+          if size > 60 * 1024 * 1024:
+              problems.append(f"the file is {size / 1024 / 1024:.1f} MB, too large to commit")
+          if problems:
+              print("\n".join(problems))
+              sys.exit(1)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wave-promo
+          path: .cache/promo-v2/promo-master.mp4
+          retention-days: 30
+      - name: Publish the film to the branch
+        if: inputs.publish
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp .cache/promo-v2/promo-master.mp4 docs/media/wave-promo.mp4
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/media/wave-promo.mp4
+          if git diff --cached --quiet; then
+            echo "The film is unchanged."
+            exit 0
+          fi
+          git commit -m 'Render the product film from the current app [skip ci]'
+          # The screenshot and native jobs publish to this same branch.
+          for attempt in 1 2 3 4; do
+            git checkout -- . || true
+            if git pull --rebase --quiet origin "$GITHUB_REF_NAME" && git push --quiet origin "HEAD:$GITHUB_REF_NAME"; then exit 0; fi
+            git rebase --abort || true
+          done
+          echo "Could not publish the film." && exit 1

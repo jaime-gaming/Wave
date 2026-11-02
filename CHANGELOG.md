@@ -97,6 +97,9 @@ the same interface, and every version links to every other.
   written down in `docs/PAIRING.md`.
 - The error screen is for a person: a stopped waveform, one sentence and the two honest ways out.
 - After an hour and a half of actual playing the music stops and Wave asks whether to take a break.
+- The product film for this version is rendered by the `Promo film` workflow from the app itself:
+  the join between two songs, the search that forgives a wrong letter and the offer to skip dead air
+  are recorded while they happen, not described afterwards.
 - `wave.jaime-gaming.com` is served by Cloudflare Pages; `public/_redirects` and `public/_headers`
   travel with the build, and the Playwright mirror under `docs/` is only a mirror.
 

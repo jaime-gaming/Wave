@@ -325,6 +325,6 @@ Both jobs commit what they produced when the run is a push to a branch, so `docs
 
 The README's PNGs and `docs/media/wave-promo.mp4` are the intentional exception to the generated-artifact rule. The current film is 60 seconds, 1920×1080, H.264/yuv420p at 30 fps, with stereo AAC acoustic-piano music and fast-start metadata. It uses English captions and actual web/mobile-viewport interactions in an isolated demo library. It does not establish native feature parity or live-provider availability.
 
-See [promo production](media/PROMO_PRODUCTION.md) for the approved storyboard, reproducible capture/composition commands, sample provenance and validation procedure. Keep raw recordings, piano samples, tool binaries and temporary renders under ignored `.cache/`. The earlier `scripts/create-promo.ts` creates the superseded short silent version, not the current film. No script posts to social media.
+See [promo production](media/PROMO_PRODUCTION.md) for the approved storyboard, reproducible capture/composition commands, sample provenance and validation procedure. Keep raw recordings, piano samples, tool binaries and temporary renders under ignored `.cache/`. The film is rendered by the `Promo film` workflow, which records the built app on a runner and commits the result; the same commands run on a machine with the tooling below. No script posts to social media.
 
 Windows release signing and security-scan limitations are in `WINDOWS_RELEASE.md`. Never store signing keys in the repository, create protection exclusions or mislabel an unsigned artifact.

@@ -247,6 +247,8 @@ await record(
     await sleep(p, 1100);
   },
 );
+// Letters in the wrong place: the demo library has no artist called "Nothbound",
+// and this release is about that not being a dead end.
 await record(
   'search',
   async (p) => {
@@ -254,12 +256,11 @@ await record(
   },
   async (p) => {
     const search = p.getByRole('searchbox', { name: 'Search library' });
-    await search.pressSequentially('Northbound', { delay: 75 });
-    await sleep(p, 1100);
-    await click(p, p.getByRole('button', { name: 'Options for After hours', exact: true }));
-    await click(p, p.getByRole('button', { name: 'Edit song', exact: true }));
-    await sleep(p, 1100);
-    await click(p, p.getByRole('button', { name: 'Save changes', exact: true }));
+    await search.pressSequentially('Nothbound', { delay: 95 });
+    await sleep(p, 1600);
+    const result = p.locator('.group-card').filter({ hasText: 'Northbound' }).first();
+    if (await result.isVisible()) await click(p, result);
+    await sleep(p, 1200);
   },
 );
 await record('ordering', playlist, async (p) => {
@@ -272,50 +273,77 @@ await record('ordering', playlist, async (p) => {
   await click(p, p.getByRole('button', { name: 'Save order', exact: true }));
   await sleep(p, 600);
 });
-await record(
-  'playback',
-  async (p) => {
-    await playlist(p);
-    await p.locator('.song-title-button').first().click();
-    await p.getByRole('button', { name: 'Open now playing', exact: true }).click();
-  },
-  async (p) => {
-    await sleep(p, 4400);
-    await click(
-      p,
-      p
-        .getByRole('dialog', { name: 'Now playing', exact: true })
-        .getByRole('button', { name: 'Next track', exact: true }),
+
+/*
+ * The join, recorded where it is really heard.
+ *
+ * Mix and autoplay are switched on in Settings before the clock starts — the
+ * switch is a setting, not the subject of the scene. Then the song is taken to
+ * ten seconds before its end and left alone: what follows is the app's own
+ * overlap, with its own cue, its own entry point and its own hand-over.
+ */
+const seek = (p: Page, seconds: number) =>
+  p.evaluate((value) => {
+    const input = document.querySelector<HTMLInputElement>(
+      'input[type="range"][aria-label="Seek"]',
     );
-    await sleep(p, 1300);
-  },
-);
+    if (!input) throw new Error('The transport has no seek control');
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+    setter?.call(input, String(value));
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  }, seconds);
 await record(
-  'queue',
-  async (p) => {
-    await playlist(p);
-    await p.locator('.song-title-button').first().click();
-    await p.getByRole('button', { name: 'Show queue', exact: true }).click();
-  },
-  async (p) => {
-    await click(p, p.getByRole('button', { name: 'Reorder queue', exact: true }));
-    const up = p.getByRole('button', { name: 'Move After hours up', exact: true });
-    if (await up.isEnabled()) await click(p, up);
-    else await click(p, p.getByRole('button', { name: 'Move Slow motion up', exact: true }));
-    await sleep(p, 1400);
-  },
-);
-await record(
-  'mix',
+  'blend',
   async (p) => {
     await p.getByRole('button', { name: 'Open settings', exact: true }).click();
     await p.getByRole('button', { name: 'Playback', exact: true }).click();
+    for (const name of ['Mix', 'Autoplay']) {
+      const control = p.getByRole('switch', { name, exact: true });
+      if ((await control.getAttribute('aria-checked')) !== 'true') await control.click();
+      await sleep(p, 250);
+    }
+    await p.keyboard.press('Escape');
+    await playlist(p);
+    await p.locator('.song-title-button').first().click();
+    await p.getByRole('button', { name: 'Open now playing', exact: true }).click();
+    await p.getByRole('dialog', { name: 'Now playing', exact: true }).waitFor();
   },
   async (p) => {
-    await click(p, p.getByRole('switch', { name: 'Mix', exact: true }));
-    await sleep(p, 600);
-    await click(p, p.getByRole('switch', { name: 'Autoplay', exact: true }));
-    await sleep(p, 1000);
+    await sleep(p, 2600);
+    await seek(p, 100);
+    // About fourteen seconds of overlap on a two-minute song: the recording
+    // follows it from the first cue to past the hand-over.
+    await sleep(p, 18_000);
+  },
+);
+/*
+ * Dead air at the start of a file.
+ *
+ * The fixture is the only made-up part: six silent seconds on each side of the
+ * tone. The notice, its wording and its two answers are the app's.
+ */
+await record(
+  'silence',
+  async (p) => {
+    await p.getByLabel('Import audio files').setInputFiles({
+      name: 'Tidewater.wav',
+      mimeType: 'audio/wav',
+      buffer: wav('Tidewater', 60, 8000, 16, 'Sunday Club', 'Soft light', 'Jazz', 6),
+    });
+    await sleep(p, 900);
+    const dismiss = p.getByRole('button', { name: 'Dismiss notification' });
+    if (await dismiss.isVisible()) await dismiss.click();
+    await p.getByRole('button', { name: 'Search', exact: true }).click();
+    await p.getByRole('searchbox', { name: 'Search library' }).fill('Tidewater');
+    await sleep(p, 700);
+    await p.locator('.song-title-button').first().click();
+  },
+  async (p) => {
+    const notice = p.getByRole('status').filter({ hasText: 'silence' }).first();
+    await notice.waitFor({ timeout: 20_000 });
+    await sleep(p, 1400);
+    await click(p, p.getByRole('button', { name: 'Remove it', exact: true }));
+    await sleep(p, 1400);
   },
 );
 await record(
@@ -327,35 +355,6 @@ await record(
   },
   async (p) => {
     await sleep(p, 7200);
-  },
-);
-await record(
-  'editor',
-  async (p) => {
-    await p.route('https://lrclib.net/api/**', (r) => {
-      const q = new URL(r.request().url()).searchParams;
-      return r.fulfill({
-        json: {
-          id: 100,
-          trackName: q.get('track_name') ?? 'After hours',
-          artistName: q.get('artist_name') ?? 'Northbound',
-          albumName: 'Night signals',
-          duration: 120,
-          syncedLyrics:
-            '[00:00]The city slows beneath the light\n[00:05]We take the long way home tonight\n[00:10]A little room to breathe again',
-        },
-      });
-    });
-    await playlist(p);
-    await p.getByRole('button', { name: 'Options for After hours', exact: true }).click();
-    await p.getByRole('button', { name: 'Edit lyrics', exact: true }).click();
-  },
-  async (p) => {
-    await click(p, p.getByRole('button', { name: 'Search online', exact: true }));
-    await p.getByRole('button', { name: 'Use found lyrics', exact: true }).waitFor();
-    await sleep(p, 800);
-    await click(p, p.getByRole('button', { name: 'Use found lyrics', exact: true }));
-    await click(p, p.getByRole('button', { name: 'Save lyrics', exact: true }));
   },
 );
 await record(
@@ -377,7 +376,12 @@ await record(
 );
 await record(
   'mobile-home',
-  async () => {},
+  async (p) => {
+    await p.evaluate(() => {
+      localStorage.setItem('wave-theme', 'dark');
+      window.dispatchEvent(new StorageEvent('storage', { key: 'wave-theme', newValue: 'dark' }));
+    });
+  },
   async (p) => {
     await sleep(p, 1400);
     await p.locator('.daily-mix-card').filter({ hasText: 'Rock' }).scrollIntoViewIfNeeded();
@@ -389,6 +393,10 @@ await record(
 await record(
   'mobile-player',
   async (p) => {
+    await p.evaluate(() => {
+      localStorage.setItem('wave-theme', 'light');
+      window.dispatchEvent(new StorageEvent('storage', { key: 'wave-theme', newValue: 'light' }));
+    });
     await playlist(p);
     await p.locator('.song-title-button').first().click();
     await p.getByRole('button', { name: 'Open now playing', exact: true }).click();

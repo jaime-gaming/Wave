@@ -182,7 +182,7 @@ def chrome(image, footer=True):
     text_layer(image, "Wave", (154, 56), 31, 750, INK, tracking=-0.7)
     if not footer:
         return
-    text_layer(image, "0.1.0", (94, 1015), 21, 550, MUTED, tracking=0)
+    text_layer(image, "0.2.0", (94, 1015), 21, 550, MUTED, tracking=0)
     right = "Web app · Demo collection"
     text_layer(
         image,
@@ -312,69 +312,61 @@ def window(
 SCENES = [
     (
         5,
-        12,
+        11,
         "collection",
         ["Bring your", "collection."],
         ["Songs. Albums. Artists.", "Favorites, all in one place."],
     ),
     (
-        12,
-        19,
+        11,
+        15.5,
         "daily",
         ["Discover it", "again."],
         ["Browse a daily mix.", "Save it as your own playlist."],
     ),
     (
-        19,
-        22.8,
+        15.5,
+        21,
         "search",
-        ["Find it."],
-        ["Search your collection.", "Edit the details."],
+        ["Find it", "anyway."],
+        ["A letter out of place", "still finds the song."],
     ),
     (
-        22.8,
-        26,
+        21,
+        24.5,
         "ordering",
         ["Make it", "yours."],
         ["Your playlists.", "Your preferred order."],
     ),
     (
-        26,
-        30,
-        "playback",
-        ["Keep the", "music", "moving."],
-        ["Full-screen listening.", "Your original audio."],
+        24.5,
+        32,
+        "blend",
+        ["One song", "into the next."],
+        ["Bar on bar, no gap.", "No song is ever stretched."],
     ),
     (
-        30,
-        33,
-        "queue",
-        ["Up next.", "Your call."],
-        ["Add songs. Move them.", "Keep listening."],
-    ),
-    (33, 35, "mix", ["Keep it", "flowing."], ["Automatic Mix.", "Local Autoplay."]),
-    (
-        35,
-        40,
+        32,
+        37,
         "lyrics",
         ["Follow", "every line."],
         ["Synchronized lyrics.", "Saved for offline listening."],
     ),
     (
-        40,
-        44,
-        "editor",
-        ["Find.", "Preview.", "Save."],
-        ["Search without playing.", "Keep the result you choose."],
+        37,
+        42,
+        "silence",
+        ["Silence at", "the edges."],
+        ["Wave offers to skip it.", "Your file keeps every sample."],
     ),
     (
-        44,
-        48,
+        42,
+        46.5,
         "appearance",
         ["Your space."],
         ["Light or dark.", "Your preferred text size."],
     ),
-    (48, 54, "mobile", ["Your way."], ["At your desk.", "Or in your hand."]),
+    (46.5, 54, "mobile", ["Your way."], ["At your desk.", "Or in your hand."]),
 ]
 
 
@@ -395,7 +387,7 @@ def intro(t):
             a,
             tracking=-5,
         )
-    label = "Wave 0.1.0"
+    label = "Wave 0.2.0"
     a = smooth((t - 2) / 0.6)
     text_layer(
         im,
@@ -420,7 +412,7 @@ def outro(t):
     text_layer(
         im, line, ((W - tw) / 2, 397 + 45 * (1 - a)), size, 850, INK, a, tracking=-5
     )
-    version = "0.1.0"
+    version = "0.2.0"
     v = smooth((t - 0.55) / 0.6)
     text_layer(
         im,
@@ -453,32 +445,39 @@ def scene(index, t):
     duration = end - start
     p = clamp(local / duration)
     im = BACKGROUND.copy()
-    chrome(im, name != "playback")
-    if name == "playback":
-        text = "Keep the music moving."
-        a = ease(local / 0.7)
-        text_layer(
+    chrome(im)
+    if name == "blend":
+        title(im, lines, sub, local, 88, 300)
+        window(
             im,
-            text,
-            ((W - text_width(text, 76, 850, -2.5)) / 2, 95 + 35 * (1 - a)),
-            76,
-            850,
-            INK,
-            a,
-            tracking=-2.5,
+            clip(name).frame(p),
+            (642, 220, 1140, 748),
+            local,
+            p,
+            crop=(420, 225, 1380, 855),
         )
-        window(im, clip(name).frame(p), (320, 222, 1280, 800), local, p)
-    elif name == "queue":
-        title(im, lines, sub, local, 80, 300)
-        camera = smooth((local - 0.4) / 1.5)
-        source = clip(name).frame(p).crop((950 * camera, 0, 1440, 900))
-        rect = (
-            530 + 640 * camera,
-            160 - 72 * camera,
-            1290 - 784 * camera,
-            806 + 124 * camera,
+    elif name == "search":
+        title(im, lines, sub, local, 88, 320)
+        window(
+            im,
+            clip(name).frame(p),
+            (700, 150, 1120, 740),
+            local,
+            p,
+            crop=(0, 0, 1440, 900),
         )
-        window(im, source, rect, local, p)
+    elif name == "silence":
+        title(im, lines, sub, local, 88, 250)
+        # The offer stands over the bar at the foot of the window, so the frame is
+        # taken from where the list, the notice and the bar all fit.
+        window(
+            im,
+            clip(name).frame(p),
+            (600, 330, 1220, 620),
+            local,
+            p,
+            crop=(0, 300, 1440, 900),
+        )
     elif name == "lyrics":
         title(im, lines, sub, local, 80, 300)
         camera = smooth((local - 0.8) / 2.6)
@@ -494,14 +493,6 @@ def scene(index, t):
         second = clip("mobile-player").frame(p)
         window(im, first, (884, 104, 406, 878), local, p, True)
         window(im, second, (1334, 145, 390, 844), max(0, local - 0.2), p, True)
-    elif name == "editor":
-        title(im, lines, sub, local, 94, 235)
-        frame = clip(name).frame(p)
-        # The original surrounding app is a quiet depth layer behind the real dialog crop.
-        ghost = frame.resize((1200, 750)).filter(ImageFilter.GaussianBlur(12))
-        ghost.putalpha(rounded_mask(1200, 750, 40).point(lambda a: round(a * 0.10)))
-        im.alpha_composite(ghost, (640, 192))
-        window(im, frame, (1115, 85, 500, 887), local, p, crop=(480, 24, 960, 876))
     elif name == "ordering":
         title(im, lines, sub, local, 88, 322)
         window(
@@ -511,16 +502,6 @@ def scene(index, t):
             local,
             p,
             crop=(350, 0, 1090, 855),
-        )
-    elif name == "mix":
-        title(im, lines, sub, local, 88, 330)
-        window(
-            im,
-            clip(name).frame(p),
-            (642, 220, 1140, 748),
-            local,
-            p,
-            crop=(420, 225, 1380, 855),
         )
     else:
         title(im, lines, sub, local, 80, 300 if len(lines) < 3 else 235)
@@ -555,7 +536,7 @@ def frame_at(t):
 
 
 if args.preview:
-    for t in [1.7, 4, 7, 14.5, 21.2, 24.6, 28, 31.4, 34, 37.5, 42, 46, 50.5, 57.5]:
+    for t in [1.7, 4, 7.5, 13, 18, 23, 27, 30, 34.5, 39.5, 44.5, 50, 53, 57.5]:
         frame_at(t).convert("RGB").save(ROOT / f"preview-{t:g}.jpg", quality=92)
     print("Preview frames saved.")
 else:
@@ -612,7 +593,7 @@ else:
         "-map_metadata",
         "-1",
         "-metadata",
-        "title=Wave — Your music. In Wave.",
+        "title=Wave 0.2.0 — Your music. In Wave.",
         "-metadata",
         "comment=Real Wave interface recordings; original acoustic-piano score using CC0 VCSL samples",
         str(output),

@@ -4,7 +4,7 @@ Release 0.2.0 · 3 November 2026. Historical run dates are retained below.
 
 ## Web
 
-### 0.2.0 at the release (2 November 2026)
+### 0.2.0 at the release (3 November 2026)
 
 - `npx tsc -b`, `npx eslint .`, `npx prettier --check .`, `npm run test:release`,
   `npm run release:check` and `npm run build:pages`: clean. `npm test`: **664 tests across 101
@@ -22,6 +22,11 @@ Release 0.2.0 · 3 November 2026. Historical run dates are retained below.
   for the letters `RIFF` in sealed frames, which is base64 text, where that four-letter sequence
   turns up by chance about a third of the time over a megabyte. It now decodes each frame and looks
   for the four bytes, which is what it always meant.
+- **The film is rendered from the app, not assembled by hand.** `Promo film` serves the built site
+  on a runner, records ten scenes with the disposable demo library, writes the score from the pinned
+  CC0 piano samples and renders the MP4, then checks it (60 s ± 0.5, H.264 High/yuv420p, 1920×1080,
+  AAC 48 kHz, under 60 MB) before it can be committed. It is documentation and is deliberately not
+  part of any release gate; a failed render cannot block a fix.
 - **The clip view is measured, not reviewed.** `clip-stage.spec.ts` puts a clip on an imported song,
   opens the player and, at 1440×900 and 1280×720 with the words open and closed, asserts that the
   sleeve is rendered larger than 110 px, that the record and the words do not touch, that both sit
