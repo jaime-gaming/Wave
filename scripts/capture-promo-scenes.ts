@@ -196,16 +196,6 @@ async function record(
   width = 1440,
   height = 900,
 ) {
-  const page = await context.newPage();
-  await page.setViewportSize({ width, height });
-  await page.goto(origin);
-  await page.getByRole('heading', { name: 'Home', exact: true }).waitFor();
-  await page.evaluate(() => document.fonts.ready);
-  await prepare(page);
-  await sleep(page, 500);
-  await cursor(page);
-  const startAt = Date.now();
-  await sleep(page, 600);
   /*
    * A scene that goes wrong costs that scene, not the film.
    *
@@ -215,17 +205,28 @@ async function record(
    * still printed, and it is written next to the manifest, because a film with a
    * missing moment must not pass for a film with all of them.
    */
+  const page = await context.newPage();
+  const startAt = Date.now();
   try {
+    await page.setViewportSize({ width, height });
+    await page.goto(origin);
+    await page.getByRole('heading', { name: 'Home', exact: true }).waitFor();
+    await page.evaluate(() => document.fonts.ready);
+    await prepare(page);
+    await sleep(page, 500);
+    await cursor(page);
+    await sleep(page, 600);
     await actions(page);
+    await sleep(page, 1800);
   } catch (error) {
-    const message = `${name}: ${(error as Error).message.split('\n')[0]}`;
+    const message = `${name}: ${error instanceof Error ? error.message.split('\n')[0] : String(error)}`;
     failures.push(message);
     console.log('::warning::' + message);
   }
-  await sleep(page, 1800);
   const endAt = Date.now();
-  const video = page.video()!;
+  const video = page.video();
   await page.close();
+  if (!video) throw new Error('The browser recorded nothing for ' + name);
   manifest[name] = { file: await video.path(), startAt, endAt, viewport: { width, height } };
   await writeFile(path.join(output, 'captures.json'), JSON.stringify(manifest, null, 2));
   console.log('Captured', name, Math.round((endAt - startAt) / 100) / 10 + 's');
@@ -426,6 +427,19 @@ await record(
 );
 await context.close();
 await browser.close();
+const expected = [
+  'collection',
+  'daily',
+  'search',
+  'ordering',
+  'blend',
+  'lyrics',
+  'silence',
+  'appearance',
+  'mobile-home',
+  'mobile-player',
+];
+for (const name of expected) if (!manifest[name]) failures.push(`${name}: never recorded`);
 await writeFile(
   path.join(output, 'capture-failures.txt'),
   failures.length ? failures.join('\n') + '\n' : '',

@@ -50,9 +50,25 @@ jobs:
           done
           echo "The preview server never answered." && exit 1
       - name: Record the scenes
-        run: node --experimental-strip-types scripts/capture-promo-scenes.ts
+        shell: bash
+        run: |
+          set -o pipefail
+          node --experimental-strip-types scripts/capture-promo-scenes.ts 2>&1 \
+            | tee .cache/promo-v2/capture.log
         env:
           WAVE_URL: http://127.0.0.1:5173
+      # A runner's log download can be unavailable to whoever is reviewing, so a
+      # failing step says why in an annotation, where it is always readable.
+      - name: Say why the recording stopped
+        if: failure()
+        shell: bash
+        run: |
+          log=.cache/promo-v2/capture.log
+          [[ -s $log ]] || { echo '::error::The recording stopped before it wrote a log.'; exit 0; }
+          grep -v '^::warning::' "$log" | tail -n 12 | while IFS= read -r line; do
+            line=${line//'%'/%25}; line=${line//$'\r'/%0D}; line=${line//$'\n'/%0A}
+            echo "::error::$line"
+          done
       - name: List the scenes that could not be driven
         if: always()
         run: |
@@ -87,7 +103,21 @@ jobs:
       - name: Write the score
         run: python3 scripts/score-promo.py
       - name: Render the film
-        run: python3 scripts/render-promo.py --ffmpeg /usr/bin/ffmpeg
+        shell: bash
+        run: |
+          set -o pipefail
+          python3 scripts/render-promo.py --ffmpeg /usr/bin/ffmpeg 2>&1 \
+            | tee .cache/promo-v2/render.log
+      - name: Say why the render stopped
+        if: failure()
+        shell: bash
+        run: |
+          log=.cache/promo-v2/render.log
+          [[ -s $log ]] || { echo '::error::The render stopped before it wrote a log.'; exit 0; }
+          tail -n 12 "$log" | while IFS= read -r line; do
+            line=${line//'%'/%25}; line=${line//$'\r'/%0D}; line=${line//$'\n'/%0A}
+            echo "::error::$line"
+          done
       - name: Check the film before it is published
         run: |
           python3 - <<'PY'
