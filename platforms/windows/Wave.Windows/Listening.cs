@@ -31,6 +31,9 @@ public static class Listening
 {
     public const int ThresholdSeconds = 30;
     public const int Keep = 2000;
+    /// <summary>Four weeks of history survive the count, so Remix can look back.</summary>
+    public const int HistoryDays = 35;
+    public const int HistoryPlays = 8000;
     private const long WeekMillis = 7L * 24 * 60 * 60 * 1000;
 
     public static int Threshold(double duration) =>
@@ -45,7 +48,13 @@ public static class Listening
     public static List<Play> Add(string folder, List<Play> plays, Play play)
     {
         var updated = plays.Append(play).OrderBy(p => p.At).ToList();
-        if (updated.Count > Keep) updated = updated.TakeLast(Keep).ToList();
+        // Four weeks are kept whatever the count, and the count caps the rest, so
+        // Remix can still compare a week with the one before it.
+        var keepFrom = DateTimeOffset.UtcNow.AddDays(-HistoryDays).ToUnixTimeMilliseconds();
+        var recent = updated.Where(p => p.At >= keepFrom).TakeLast(HistoryPlays).ToList();
+        var older = updated.Where(p => p.At < keepFrom).ToList();
+        var room = Math.Max(0, Keep - recent.Count);
+        updated = [.. (room > 0 ? older.TakeLast(room) : []), .. recent];
         NativeCollections.Save(folder, "history.json", updated);
         return updated;
     }
@@ -95,13 +104,16 @@ public static class Listening
     /// songs they earn. The week comes first; a thin week is topped up from the
     /// all-time list so the Remix is a playlist rather than a footnote.
     /// </summary>
-    public static WeekRecap Recap(List<Play> plays, List<Song> songs, long now)
+    public static WeekRecap Recap(List<Play> plays, List<Song> songs, long now, int weeksAgo = 0)
     {
         var byId = songs.DistinctBy(s => s.Id).ToDictionary(s => s.Id);
-        var end = StartOfDay(now);
+        var end = StartOfDay(now).AddDays(-7 * Math.Max(0, weeksAgo));
         var start = end.AddDays(-6).TicksToMillis();
+        var finish = end.AddDays(1).TicksToMillis();
         var previousStart = end.AddDays(-13).TicksToMillis();
-        var week = plays.Where(p => p.At >= start).ToList();
+        // Bounded on both sides: a week before this one must not swallow the
+        // plays that belong to the week after it.
+        var week = plays.Where(p => p.At >= start && p.At < finish).ToList();
         var previous = plays.Where(p => p.At >= previousStart && p.At < start).ToList();
 
         var counts = new Dictionary<string, int>();
@@ -161,6 +173,10 @@ public static class Listening
     }
 
     /// <summary>"23 – 29 Oct": the window a recap covers, in one line.</summary>
+    /// <summary>The last four weeks, newest first, quiet ones included.</summary>
+    public static List<WeekRecap> Recaps(List<Play> plays, List<Song> songs, long now, int weeks = 4) =>
+        Enumerable.Range(0, Math.Clamp(weeks, 1, 52)).Select(index => Recap(plays, songs, now, index)).ToList();
+
     public static string WeekRange(long start, long end)
     {
         var first = DateTimeOffset.FromUnixTimeMilliseconds(start).LocalDateTime;

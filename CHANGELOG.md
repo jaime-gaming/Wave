@@ -2,12 +2,32 @@
 
 ## 0.2.0 — 1 November 2026
 
+### The clip, and the weeks behind the Remix
+
+- With a clip playing the page is now three columns over one transport: the sleeve on the left with
+  its title, artist and album, the picture in the middle, the words of the song on the right, and
+  the transport underneath all of it. Everything Wave draws sits outside the video, so nothing covers
+  the picture, and on a narrow window the words drop under the sleeve while the transport stays put.
+- YouTube's own interface can never appear over a clip. The frame takes no clicks, no focus and no
+  hover, and a paused clip is dimmed and softened so the player behind it cannot surface.
+- Looking a song up online now also finds where it sits on its album, so an album saved from files
+  with no track numbers plays in the right order. The album title itself helps pick between two
+  releases of the same name.
+- The Mix is a DJ's blend: no shorter than twelve seconds and no longer than twenty-four, whatever
+  the length of the pair. Autoplay remembers the last twenty-four songs rather than the last twelve,
+  steps back from an artist it has just played, and after a track with a next track it plays that
+  next track in order.
+- Remix keeps four weeks, not one. The last seven days stay the page, and the weeks before it are
+  listed under it with their own hours and a button to play them again. History keeps every play
+  from the past five weeks before the older ones start falling away, on the website, the phone and
+  the Windows window alike.
+
 ### The picture, the pasted code
 
 - A playing clip is no longer washed out: the palette's light follows the cover only, and the veil
-  over the video is a vignette rather than a blanket. Pausing dims the picture instead of blurring
-  it, and on a phone held upright the video keeps its own band at the top instead of being cropped
-  into a slice with the player underneath.
+  over the video is a vignette rather than a blanket. Pausing dims the picture, and on a phone held
+  upright the video keeps its own band at the top instead of being cropped into a slice with the
+  player underneath.
 - The words on top of the picture sit on a scrim of their own, so every one of them is readable.
 - Devices can be paired by pasting a code, for the two computers that have no camera between them.
 - `docs/PAIRING.md` specifies the pairing exchange so Android and Windows can implement the same one.

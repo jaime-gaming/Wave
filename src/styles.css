@@ -6763,6 +6763,78 @@ h1 {
   font-weight: 500;
 }
 
+/*
+ * The weeks before this one: four lines of type, one per week, with the week's
+ * own figures on one line and a way back into it on the right. Rows rather than
+ * cards, because a history is read down, not browsed across.
+ */
+.remix-history h3 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+.remix-history ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--remix-rule);
+}
+.remix-history li {
+  display: grid;
+  grid-template-columns: minmax(0, 190px) minmax(0, 120px) minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 4px 18px;
+  padding: 11px 4px;
+  border-bottom: 1px solid var(--remix-rule);
+  font-size: 14px;
+}
+.remix-history li[data-quiet='true'] {
+  color: var(--muted);
+}
+.remix-history-when {
+  font-weight: 650;
+}
+.remix-history-time {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+.remix-history-note {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+}
+.remix-history-play {
+  font-size: 13px;
+}
+@media (max-width: 720px) {
+  .remix-history li {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'when time'
+      'note play';
+    gap: 2px 12px;
+  }
+  .remix-history-when {
+    grid-area: when;
+  }
+  .remix-history-time {
+    grid-area: time;
+    justify-self: end;
+  }
+  .remix-history-note {
+    grid-area: note;
+  }
+  .remix-history-play {
+    grid-area: play;
+    justify-self: end;
+  }
+}
+
 .remix-foot {
   border-top: 1px solid var(--remix-rule);
   padding-top: 16px;

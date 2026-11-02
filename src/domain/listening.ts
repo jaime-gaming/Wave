@@ -30,6 +30,15 @@ export interface PlayEvent {
 export const PLAY_THRESHOLD_SECONDS = 30;
 /** How many plays are kept. Older ones are dropped, newest are kept. */
 export const MAX_PLAYS = 2_000;
+/**
+ * The history Remix can look back on: four whole weeks.
+ *
+ * A play inside this window is kept whatever the count, because a week can only
+ * be compared with the one before it if the one before it still exists.
+ */
+export const HISTORY_DAYS = 35;
+/** The ceiling for that promise, so a library on repeat cannot grow without end. */
+export const HISTORY_PLAYS = 8_000;
 
 export function playThreshold(duration: number): number {
   if (!Number.isFinite(duration) || duration <= 0) return PLAY_THRESHOLD_SECONDS;
@@ -58,7 +67,7 @@ export function makePlay(
 }
 
 /** Keeps the newest plays, oldest first, and drops anything malformed. */
-export function prunePlays(plays: PlayEvent[], limit = MAX_PLAYS): PlayEvent[] {
+export function prunePlays(plays: PlayEvent[], limit = MAX_PLAYS, now = Date.now()): PlayEvent[] {
   const valid = plays.filter(
     (play) =>
       play &&
@@ -69,7 +78,13 @@ export function prunePlays(plays: PlayEvent[], limit = MAX_PLAYS): PlayEvent[] {
       play.seconds >= 0,
   );
   const ordered = [...valid].sort((a, b) => a.at - b.at);
-  return ordered.length > limit ? ordered.slice(ordered.length - limit) : ordered;
+  // Everything from the last four weeks survives; older plays share what is left
+  // of the count, oldest dropped first.
+  const keepFrom = now - HISTORY_DAYS * DAY_MS;
+  const recent = ordered.filter((play) => play.at >= keepFrom).slice(-HISTORY_PLAYS);
+  const older = ordered.filter((play) => play.at < keepFrom);
+  const room = Math.max(0, limit - recent.length);
+  return [...(room > 0 ? older.slice(-room) : []), ...recent];
 }
 
 /** Local calendar day, because listening at 23:00 belongs to that evening. */
@@ -337,12 +352,25 @@ export interface WeekRecap {
 /** How many songs "Your Remix" holds. */
 export const REMIX_LENGTH = 12;
 
-export function weeklyRecap(plays: PlayEvent[], tracks: Track[], now: number): WeekRecap {
+/**
+ * The recap of this week, or of a week before it.
+ *
+ * `weeksAgo` counts whole weeks back from today, so `weeklyRecaps` can walk the
+ * history that Remix now keeps without a second implementation.
+ */
+export function weeklyRecap(
+  plays: PlayEvent[],
+  tracks: Track[],
+  now: number,
+  weeksAgo = 0,
+): WeekRecap {
   const byId = new Map(tracks.map((track) => [track.id, track]));
-  const end = startOfDay(now);
+  const end = startOfDay(now) - Math.max(0, weeksAgo) * 7 * DAY_MS;
   const start = end - 6 * DAY_MS;
   const previousStart = start - 7 * DAY_MS;
-  const inWeek = plays.filter((play) => play.at >= start);
+  // The week ends at local midnight today, so a previous week is bounded on both
+  // sides and cannot absorb its successor's plays.
+  const inWeek = plays.filter((play) => play.at >= start && play.at < end + DAY_MS);
   const previous = plays.filter((play) => play.at >= previousStart && play.at < start);
 
   const trackTotals = new Map<string, TrackTotal>();
@@ -447,6 +475,23 @@ export function weeklyRecap(plays: PlayEvent[], tracks: Track[], now: number): W
 }
 
 /** "26 Oct – 1 Nov", the window a recap covers. */
+/**
+ * The last four weeks, newest first, including the one Remix is about.
+ *
+ * A week with no plays is still a week: it keeps its place in the list so the
+ * comparison with the week before it stays honest, and the page can say "quiet"
+ * instead of pretending the week did not happen.
+ */
+export function weeklyRecaps(
+  plays: PlayEvent[],
+  tracks: Track[],
+  now: number,
+  weeks = 4,
+): WeekRecap[] {
+  const total = Math.max(1, Math.min(52, Math.round(weeks)));
+  return Array.from({ length: total }, (_, index) => weeklyRecap(plays, tracks, now, index));
+}
+
 export function weekRange(start: number, end: number): string {
   const first = new Date(start);
   const last = new Date(end);

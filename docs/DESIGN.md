@@ -267,13 +267,15 @@ The decoder reports duration with its source track ID, so late metadata cannot o
 
 Every icon in the app is drawn in `src/components/Glyphs.tsx` with the same pen as the wordmark — one stroke weight, round caps, shapes that lean off the grid — instead of being taken
 from an icon pack, because a screen of grid-perfect glyphs reads as a template. With a clip playing,
-`.player-normal-view.clip-live` gives the picture the top of the screen and puts the player on one
-shelf at the bottom of it, arranged the way the eye reads: the words of the song on the left, and on
-the right the sleeve with everything printed on it — title, artist, album, right-aligned and compact —
-sitting just above a transport that runs the width of the shelf. Closed, the words keep only their
-toggle at the left end, so nothing jumps when they open. The shelf is one grid and a rule per width,
-never a part placed twice, and the open player itself loses its frame in this mode: smaller page
-padding, one-line heading, so the picture gets the room. Three things keep the picture honest: the palette's spectral wash is switched off at the
+`.player-normal-view.clip-live` is three columns over one transport: the sleeve on the left with
+everything printed on it — title, artist, album — the picture in the middle, and the words of the
+song on the right, with the transport running the full width underneath. Everything Wave draws
+therefore stays outside the video, so nothing is ever drawn over the picture. Closed, the words keep
+only their toggle, so nothing jumps when they open. It is one grid and a rule per width — narrower
+windows shrink the side columns, and below 820 px the words drop under the sleeve with the picture
+and the transport keeping their places. An embed of someone else's player is sound and picture only:
+the frame takes no clicks, no focus and no hover, and a paused clip is dimmed and softened so
+YouTube's own overlay cannot be read through it. Three things keep the picture honest: the palette's spectral wash is switched off at the
 root (`data-clip="live"`) because it used to paint a colour gradient over someone else's footage; the
 veil is a vignette around the edges rather than a blanket over the middle; and on a phone held upright
 the video takes a 16:9 band of its own at the top, whole and uncropped, with the player underneath,
@@ -387,7 +389,13 @@ Remix is a page, not a panel bolted onto the player. It answers one question —
 week — and stops there. The card at the top holds the time, the plays, the songs and the
 artists, plus one line comparing it with the week before. Under it, Your Remix: the songs
 played most, in the order they were played, with Play Remix and Save as playlist. Then the
-artists behind the week, and nothing else.
+artists behind the week, and finally the three weeks that came before it — a range, the time
+and plays each one held, and a line to play it again. A page about the past is worth keeping
+more than seven days of.
+
+History itself keeps every play from the last five weeks before the count starts letting older
+ones go, so a look back at four weeks is always complete. A week is bounded at both ends; the
+week before a given one is never allowed to swallow the plays of the week after it.
 
 The old page showed a fortnight of bars, a recent list and artist tiles. All three are gone.
 A recap that takes a paragraph to explain is a dashboard, and a week of listening is something

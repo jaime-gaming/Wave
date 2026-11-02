@@ -24,9 +24,11 @@ it('selects a bounded pair-specific window automatically', async () => {
   const { automaticMixSeconds } = await import('./mix');
   expect(automaticMixSeconds(240, 200)).toBeGreaterThan(automaticMixSeconds(20, 20));
   expect(automaticMixSeconds(4, 8)).toBeLessThanOrEqual(2);
-  expect(automaticMixSeconds(1000, 1000)).toBe(16);
+  expect(automaticMixSeconds(1000, 1000)).toBe(24);
   // Two full songs never hand over in a fade shorter than a phrase.
-  expect(automaticMixSeconds(180, 200)).toBe(16);
+  // Two ordinary songs get the middle of the range, not a two-second fade.
+  expect(automaticMixSeconds(180, 200)).toBeGreaterThanOrEqual(16);
+  expect(automaticMixSeconds(180, 200)).toBeLessThanOrEqual(24);
   expect(automaticMixSeconds(NaN, 20)).toBe(0);
 });
 

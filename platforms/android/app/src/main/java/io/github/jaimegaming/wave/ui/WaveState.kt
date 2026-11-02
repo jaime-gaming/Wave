@@ -22,6 +22,7 @@ import io.github.jaimegaming.wave.dailyMixes
 import io.github.jaimegaming.wave.listeningSummary
 import io.github.jaimegaming.wave.rankSongs
 import io.github.jaimegaming.wave.weekRecap
+import io.github.jaimegaming.wave.weeklyRecaps
 import io.github.jaimegaming.wave.wave
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -92,6 +93,8 @@ class WaveState(
     var summary by mutableStateOf(listeningSummary(plays, songs, System.currentTimeMillis()))
         private set
     var recap by mutableStateOf(weekRecap(plays, songs, System.currentTimeMillis()))
+    /** The last four weeks, newest first, so the page keeps a record. */
+    var recaps by mutableStateOf(weeklyRecaps(plays, songs, System.currentTimeMillis()))
         private set
 
     var destination by mutableStateOf(Destination.Home)
@@ -185,6 +188,7 @@ class WaveState(
             songs = repository.load()
             summary = listeningSummary(plays, songs, System.currentTimeMillis())
             recap = weekRecap(plays, songs, System.currentTimeMillis())
+            recaps = weeklyRecaps(plays, songs, System.currentTimeMillis())
         }
     }
 
@@ -209,6 +213,7 @@ class WaveState(
             plays = emptyList()
             summary = listeningSummary(plays, songs, System.currentTimeMillis())
             recap = weekRecap(plays, songs, System.currentTimeMillis())
+            recaps = weeklyRecaps(plays, songs, System.currentTimeMillis())
             notice = "Listening history cleared."
         }
     }
@@ -328,6 +333,7 @@ class WaveState(
             playlists = repository.loadPlaylists()
             summary = listeningSummary(plays, songs, System.currentTimeMillis())
             recap = weekRecap(plays, songs, System.currentTimeMillis())
+            recaps = weeklyRecaps(plays, songs, System.currentTimeMillis())
         }
         notice = "${song.title} removed from this device."
     }
@@ -422,6 +428,7 @@ class WaveState(
                 playlists = repository.loadPlaylists()
                 summary = listeningSummary(plays, songs, System.currentTimeMillis())
             recap = weekRecap(plays, songs, System.currentTimeMillis())
+            recaps = weeklyRecaps(plays, songs, System.currentTimeMillis())
                 notice = when (added) {
                     0 -> "Nothing new: those files are already here."
                     1 -> "One song added."

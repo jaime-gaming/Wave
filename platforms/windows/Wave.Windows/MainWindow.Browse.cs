@@ -544,6 +544,35 @@ public partial class MainWindow
             CollectionHeader.Children.Add(people);
         }
 
+        // The weeks before this one, so the page is a record and not a snapshot.
+        var earlier = Listening.Recaps(plays, tracks, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()).Skip(1).ToList();
+        if (earlier.Count > 0) {
+            var past = new StackPanel { Margin = new Thickness(2, 16, 2, 4) };
+            past.Children.Add(Label("The weeks before", 21));
+            foreach (var week in earlier) {
+                var row = new Grid { Margin = new Thickness(0, 0, 0, 2) };
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                var copy = new StackPanel();
+                copy.Children.Add(Label(Listening.WeekRange(week.Start, week.End), 13));
+                var count = Label($"{Listening.Time(week.Seconds)}  \u00b7  {NativeCollections.Count(week.Plays, "play")}", 12.5);
+                count.SetResourceReference(TextBlock.ForegroundProperty, "MutedBrush");
+                copy.Children.Add(count);
+                row.Children.Add(copy);
+                if (week.Songs.Count > 0) {
+                    var again = ActionButton("Play that week", () => PlayCollection(week.Songs, week.Songs[0].Id));
+                    again.Style = (Style)FindResource("TextButton");
+                    again.Foreground = (Brush)Application.Current.Resources["MutedBrush"];
+                    again.HorizontalAlignment = HorizontalAlignment.Right;
+                    again.VerticalAlignment = VerticalAlignment.Center;
+                    Grid.SetColumn(again, 1);
+                    row.Children.Add(again);
+                }
+                past.Children.Add(row);
+            }
+            CollectionHeader.Children.Add(past);
+        }
+
         var all = Listening.Summarise(plays, tracks, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
         var foot = Label($"{Listening.Time(all.TotalSeconds)} listened all time \u00b7 {NativeCollections.Count(all.WeekPlays, "play")} this week \u00b7 counted on this device, never uploaded.", 12.5);
         foot.SetResourceReference(TextBlock.ForegroundProperty, "MutedBrush");

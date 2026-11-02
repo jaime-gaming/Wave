@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { RemixPage } from './RemixPage';
-import { listeningSummary, weeklyRecap } from '../domain/listening';
+import { listeningSummary, weeklyRecap, weeklyRecaps } from '../domain/listening';
 import { makePlay } from '../domain/listening';
 import { makeTrack } from '../test/fixtures';
 
@@ -17,10 +17,12 @@ const plays = [
 const tracks = [signal, later];
 const summary = listeningSummary(plays, tracks, now);
 const recap = weeklyRecap(plays, tracks, now);
+const history = weeklyRecaps(plays, tracks, now);
 
 const props = {
   summary,
   recap,
+  history,
   loaded: true,
   playing: false,
   onPlay: vi.fn(),
@@ -109,5 +111,58 @@ describe('the Remix page', () => {
     render(<RemixPage {...props} summary={empty} recap={weeklyRecap([], tracks, now)} />);
     expect(screen.getByText('No week to look back on yet')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add music' })).toBeInTheDocument();
+  });
+});
+
+describe('the weeks before', () => {
+  const older = [
+    ...plays,
+    makePlay('later', now - 9 * 86_400_000, 240, true),
+    makePlay('signal', now - 10 * 86_400_000, 240, true),
+  ];
+
+  it('lists the previous weeks with their own figures', () => {
+    render(
+      <RemixPage
+        {...props}
+        summary={listeningSummary(older, tracks, now)}
+        recap={weeklyRecap(older, tracks, now)}
+        history={weeklyRecaps(older, tracks, now)}
+      />,
+    );
+    const section = screen.getByRole('region', { name: 'Weeks before this one' });
+    expect(within(section).getByText('2 plays · Later still')).toBeInTheDocument();
+    // Three weeks before this one, none of them invented.
+    expect(within(section).getAllByRole('listitem')).toHaveLength(3);
+  });
+
+  it('plays the week it is asked for', async () => {
+    const onPlay = vi.fn();
+    render(
+      <RemixPage
+        {...props}
+        onPlay={onPlay}
+        summary={listeningSummary(older, tracks, now)}
+        recap={weeklyRecap(older, tracks, now)}
+        history={weeklyRecaps(older, tracks, now)}
+      />,
+    );
+    const section = screen.getByRole('region', { name: 'Weeks before this one' });
+    await userEvent.click(within(section).getAllByRole('button', { name: 'Play that week' })[0]);
+    expect(onPlay).toHaveBeenCalled();
+    const [queue] = onPlay.mock.calls[0];
+    expect(queue.map((track: { id: string }) => track.id)).toContain('later');
+  });
+
+  it('says a quiet week was quiet instead of hiding it', () => {
+    render(
+      <RemixPage
+        {...props}
+        summary={listeningSummary(plays, tracks, now)}
+        history={weeklyRecaps(plays, tracks, now)}
+      />,
+    );
+    const section = screen.getByRole('region', { name: 'Weeks before this one' });
+    expect(within(section).getAllByText('A quiet week').length).toBeGreaterThan(0);
   });
 });

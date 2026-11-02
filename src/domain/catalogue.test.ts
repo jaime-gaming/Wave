@@ -37,8 +37,12 @@ describe('deciding what is worth asking about', () => {
       artwork: 'data:image/jpeg;base64,x',
       year: 2021,
       genres: ['Ambient'],
+      trackNumber: 3,
     });
     expect(needsDetails(complete)).toBe(false);
+    // On a real album with no position there is still something to ask: where the
+    // song sits in the running order.
+    expect(needsDetails({ ...complete, trackNumber: undefined })).toBe(true);
     expect(needsDetails({ ...complete, editedAt: Date.now() })).toBe(false);
     // A YouTube song is a reference, not a file, and has nothing to refine.
     expect(needsDetails({ ...complete, source: 'youtube' })).toBe(false);
@@ -146,5 +150,60 @@ describe('what may be written', () => {
     const { patch } = detailsPatch(bare, { ...release, album: '', genre: '' });
     expect(patch).not.toHaveProperty('album');
     expect(patch).not.toHaveProperty('genres');
+  });
+});
+
+describe('the album running order', () => {
+  const song = makeTrack({ title: 'Signal', artist: 'Wave Tests', album: 'First light' });
+
+  it('fills a missing position from the release that is this album', () => {
+    const { patch, filled } = detailsPatch(song, {
+      title: 'Signal',
+      artist: 'Wave Tests',
+      album: 'First light',
+      trackNumber: 4,
+    });
+    expect(patch.trackNumber).toBe(4);
+    expect(filled).toContain('order');
+  });
+
+  it("keeps its hands off a position on somebody else's compilation", () => {
+    const { patch, filled } = detailsPatch(song, {
+      title: 'Signal',
+      artist: 'Wave Tests',
+      album: 'Late night ambient, volume two',
+      trackNumber: 9,
+    });
+    expect(patch.trackNumber).toBeUndefined();
+    expect(filled).not.toContain('order');
+  });
+
+  it('never renumbers a song that already knows its place', () => {
+    const { patch } = detailsPatch(
+      { ...song, trackNumber: 1 },
+      { title: 'Signal', artist: 'Wave Tests', album: 'First light', trackNumber: 7 },
+    );
+    expect(patch.trackNumber).toBeUndefined();
+  });
+
+  it('carries a disc number only when the release has more than one', () => {
+    expect(
+      detailsPatch(song, {
+        title: 'Signal',
+        artist: 'Wave Tests',
+        album: 'First light',
+        trackNumber: 2,
+        discNumber: 1,
+      }).patch.discNumber,
+    ).toBeUndefined();
+    expect(
+      detailsPatch(song, {
+        title: 'Signal',
+        artist: 'Wave Tests',
+        album: 'First light',
+        trackNumber: 2,
+        discNumber: 2,
+      }).patch.discNumber,
+    ).toBe(2);
   });
 });

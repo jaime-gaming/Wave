@@ -33,6 +33,19 @@ function deliver(frame: HTMLIFrameElement, info: Record<string, unknown>) {
 }
 
 describe('YouTube song stage', () => {
+  /*
+   * The embed is sound and picture, never an interface. Anything focusable or
+   * clickable inside it can raise YouTube's own buttons over Wave's player, so the
+   * frame is kept out of both the tab order and the pointer's reach.
+   */
+  it('cannot be focused, clicked or read as a control surface', () => {
+    render(<YouTubeStage {...baseProps} playing />);
+    const frame = screen.getByTitle(/youtube video for midnight city/i) as HTMLIFrameElement;
+    expect(frame.tabIndex).toBe(-1);
+    expect(frame.getAttribute('aria-hidden')).toBe('true');
+    expect(frame.closest('.video-backdrop')?.className).toContain('video-backdrop');
+  });
+
   it('embeds the video with sound and without provider controls', () => {
     render(<YouTubeStage {...baseProps} playing={false} />);
     const frame = screen.getByTitle(/youtube video for midnight city/i) as HTMLIFrameElement;

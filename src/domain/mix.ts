@@ -39,9 +39,20 @@ export function mixWindowReached(currentTime: number, duration: number, window: 
  * the same length the planner aims for; a very short file still gets a short
  * overlap, and neither deck is ever faded for more than half its playing time.
  */
+export const MIX_FLOOR_SECONDS = 12;
+export const MIX_CEILING_SECONDS = 24;
+
 export function automaticMixSeconds(outgoing: number, incoming: number) {
   if (!Number.isFinite(outgoing) || !Number.isFinite(incoming) || outgoing <= 0 || incoming <= 0)
     return 0;
   const shortest = Math.min(outgoing, incoming);
-  return Math.min(16, Math.max(4, shortest * 0.1), shortest / 2);
+  // A real song is blended for a phrase or more: twelve seconds at the floor and
+  // twenty-four at the ceiling, which is the range a DJ would use. Two short
+  // files still meet in the middle, and nothing is ever faded for more than half
+  // of the shorter one.
+  return Math.min(
+    MIX_CEILING_SECONDS,
+    Math.max(Math.min(MIX_FLOOR_SECONDS, shortest / 4), shortest * 0.12),
+    shortest / 2,
+  );
 }

@@ -190,7 +190,12 @@ class Library(private val context: Context) {
     @Synchronized
     fun addPlay(play: Play) {
         val plays = loadPlays() + play
-        val kept = if (plays.size > 2000) plays.takeLast(2000) else plays
+        // Four weeks are kept whatever the count, and the count caps the rest, so
+        // a Remix can still compare a week with the one before it.
+        val recentFrom = System.currentTimeMillis() - HISTORY_DAYS * 24L * 60 * 60 * 1000
+        val recent = plays.filter { it.at >= recentFrom }.takeLast(HISTORY_PLAYS)
+        val room = (MAX_PLAYS - recent.size).coerceAtLeast(0)
+        val kept = plays.filter { it.at < recentFrom }.takeLast(room) + recent
         val array = JSONArray()
         kept.forEach { p ->
             array.put(

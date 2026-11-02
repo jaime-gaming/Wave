@@ -24,9 +24,17 @@ interface ItunesTrack {
   primaryGenreName?: unknown;
   trackTimeMillis?: unknown;
   artworkUrl100?: unknown;
+  trackNumber?: unknown;
+  discNumber?: unknown;
 }
 
 const text = (value: unknown): string => (typeof value === 'string' ? value.trim() : '');
+
+/** A positive whole number from a provider, or nothing: no zeroes, no strings. */
+function number(value: unknown, key: 'trackNumber' | 'discNumber'): Partial<CatalogueRelease> {
+  const parsed = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? { [key]: Math.round(parsed) } : {};
+}
 
 function year(value: unknown): number | undefined {
   const raw = text(value);
@@ -67,6 +75,8 @@ export function parseCatalogueResults(payload: unknown): CatalogueRelease[] {
         ? { duration: Math.round(milliseconds / 1000) }
         : {}),
       ...(artworkUrl ? { artworkUrl } : {}),
+      ...number(entry.trackNumber, 'trackNumber'),
+      ...number(entry.discNumber, 'discNumber'),
     });
   }
   return releases;

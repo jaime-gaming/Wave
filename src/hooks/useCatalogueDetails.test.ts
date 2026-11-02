@@ -29,8 +29,11 @@ describe('deciding which songs to ask about', () => {
       artwork: 'data:image/jpeg;base64,x',
       year: 2020,
       genres: ['Ambient'],
+      trackNumber: 2,
     });
     expect(detailsQueue([complete])).toEqual([]);
+    // A known album with no position still has one thing to ask about.
+    expect(detailsQueue([{ ...complete, trackNumber: undefined }])).toHaveLength(1);
   });
 
   it('asks most incomplete first, and never more than a batch at a time', () => {
@@ -53,6 +56,7 @@ describe('deciding which songs to ask about', () => {
       artwork: 'data:image/jpeg;base64,x',
       year: 2020,
       genres: ['Ambient'],
+      trackNumber: 1,
     });
     expect(detailsSummary([complete, bare('gap')])).toEqual({ incomplete: 1, complete: 1 });
   });

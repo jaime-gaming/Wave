@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  HISTORY_DAYS,
   MAX_PLAYS,
   countsAsPlay,
   dayKey,
@@ -12,6 +13,7 @@ import {
   timeAgo,
   weekRange,
   weeklyRecap,
+  weeklyRecaps,
   REMIX_LENGTH,
   type PlayEvent,
 } from './listening';
@@ -230,5 +232,56 @@ describe('the weekly recap', () => {
 
   it('names the window in one line', () => {
     expect(weekRange(recap.start, recap.end)).toBe('23 – 29 Oct');
+  });
+});
+
+describe('four weeks of history', () => {
+  const now = new Date(2026, 10, 2, 12).getTime();
+  const day = 86_400_000;
+  const track = (id: string) => makeTrack({ id, title: `Song ${id}` });
+
+  it('keeps three weeks back and leaves the fourth empty rather than inventing it', () => {
+    const plays = [
+      makePlay('a', now - 2 * day, 120, true),
+      makePlay('a', now - 3 * day, 120, true),
+      makePlay('a', now - 25 * day, 200, true),
+    ];
+    const weeks = weeklyRecaps(plays, [track('a')], now);
+    expect(weeks).toHaveLength(4);
+    expect(weeks[0].plays).toBe(2);
+    expect(weeks.map((week) => week.plays)).toEqual([2, 0, 0, 1]);
+    expect(weeks[0].start).toBeLessThan(weeks[0].end);
+    expect(weeks[1].start).toBe(weeks[0].start - 7 * day);
+  });
+
+  it('counts a play exactly on the boundary in the later week only', () => {
+    const weeks = weeklyRecaps([makePlay('a', now, 60, true)], [track('a')], now);
+    const start = weeks[1].start;
+    const around = weeklyRecaps(
+      [makePlay('a', start, 60, true), makePlay('a', start - 1, 60, true)],
+      [track('a')],
+      now,
+    );
+    // The play on the boundary belongs to the later week, the one just before it
+    // to the earlier: no week counts the same play twice.
+    expect(around.map((week) => week.plays)).toEqual([0, 1, 1, 0]);
+    // Nothing is counted twice anywhere in the four weeks.
+    expect(around.reduce((sum, week) => sum + week.plays, 0)).toBe(2);
+  });
+
+  it('keeps everything from the last four weeks whatever the count', () => {
+    const plays = Array.from({ length: 120 }, (_, index) =>
+      makePlay('a', now - (index % 20) * day, 30, true),
+    );
+    const kept = prunePlays(plays, 10, now);
+    expect(kept.length).toBeGreaterThan(10);
+    expect(kept.every((play) => play.at >= now - HISTORY_DAYS * day)).toBe(true);
+  });
+
+  it('still drops plays older than the history once the count is reached', () => {
+    const old = Array.from({ length: 40 }, (_, index) =>
+      makePlay('a', now - (60 + index) * day, 30, true),
+    );
+    expect(prunePlays(old, 12, now)).toHaveLength(12);
   });
 });

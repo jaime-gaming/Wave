@@ -1011,6 +1011,42 @@ fun RemixScreen(state: WaveState) {
                 }
             }
         }
+        val earlier = state.recaps.drop(1)
+        if (earlier.isNotEmpty()) {
+            item {
+                Text(
+                    "The weeks before",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(top = 18.dp, bottom = 4.dp),
+                )
+            }
+            itemsIndexed(earlier, key = { index, _ -> "earlier-" + index }) { _, week ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(weekRange(week.start, week.end), style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            listeningTime(week.seconds) + " · " + count(week.plays, "play"),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    if (week.songs.isNotEmpty()) {
+                        Text(
+                            "Play that week",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(16.dp))
+                                .clickable { state.playAll(week.songs) }
+                                .padding(horizontal = 10.dp, vertical = 8.dp),
+                        )
+                    }
+                }
+            }
+        }
         item {
             Text(
                 text = "${listeningTime(state.summary.totalSeconds)} listened all time · " +

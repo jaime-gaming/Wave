@@ -259,6 +259,10 @@ export function YouTubeStage({
         })}
         allow="autoplay; encrypted-media; picture-in-picture"
         referrerPolicy="strict-origin-when-cross-origin"
+        // The embed is the sound source, not a control: it cannot be focused,
+        // clicked or hovered, so YouTube's own chrome never appears over Wave.
+        tabIndex={-1}
+        aria-hidden="true"
       />
       {/* No second bar: the player's own transport drives this embed. */}
       <div className="video-backdrop-veil" aria-hidden="true" />

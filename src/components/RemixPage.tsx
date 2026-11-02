@@ -57,6 +57,7 @@ const dayNumber = (at: number) => new Date(at).getDate();
 export function RemixPage({
   summary,
   recap,
+  history,
   loaded,
   currentId,
   playing,
@@ -70,6 +71,8 @@ export function RemixPage({
   summary: ListeningSummary;
   /** The week and its Remix list, built where the plays and the library both are. */
   recap: WeekRecap;
+  /** This week and the three before it, newest first. */
+  history: WeekRecap[];
   loaded: boolean;
   currentId?: string;
   playing: boolean;
@@ -301,6 +304,49 @@ export function RemixPage({
                   </button>
                   {entry && <span className="remix-count">{entry.plays}×</span>}
                 </motion.li>
+              );
+            })}
+          </ol>
+        </section>
+      )}
+
+      {/*
+        The weeks before this one. Remix used to forget everything on Monday; now
+        four weeks are kept, so a quiet week can be compared with the week that
+        earned it, and any of them can be played again.
+      */}
+      {history.length > 1 && (
+        <section className="remix-history" aria-label="Weeks before this one">
+          <h3>The weeks before</h3>
+          <ol>
+            {history.slice(1).map((week) => {
+              const top = week.topTracks[0];
+              const quiet = week.plays === 0;
+              return (
+                <li key={week.start} data-quiet={quiet ? 'true' : 'false'}>
+                  <span className="remix-history-when">
+                    {weekRange(week.start, week.end).replace(/\s*–\s*/u, ' – ')}
+                  </span>
+                  <span className="remix-history-time">
+                    {quiet ? 'Nothing played' : listeningTime(week.seconds)}
+                  </span>
+                  <span className="remix-history-note">
+                    {quiet
+                      ? 'A quiet week'
+                      : `${week.plays} ${week.plays === 1 ? 'play' : 'plays'}${
+                          top ? ` · ${top.track.title}` : ''
+                        }`}
+                  </span>
+                  {!quiet && (
+                    <button
+                      className="text-button remix-history-play"
+                      onClick={() => onPlay(week.mix, week.mix[0].id)}
+                      disabled={!week.mix.length}
+                    >
+                      Play that week
+                    </button>
+                  )}
+                </li>
               );
             })}
           </ol>

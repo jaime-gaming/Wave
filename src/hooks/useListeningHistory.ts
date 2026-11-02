@@ -4,6 +4,7 @@ import {
   listeningSummary,
   makePlay,
   weeklyRecap,
+  weeklyRecaps,
   type PlayEvent,
 } from '../domain/listening';
 import type { Track } from '../domain/types';
@@ -163,5 +164,11 @@ export function useListeningHistory({
     () => weeklyRecap(plays, tracks, Math.max(today, 0)),
     [plays, tracks, today],
   );
-  return { plays, summary, recap, loaded, forget };
+  // Four weeks, newest first: Remix keeps the weeks before this one instead of
+  // forgetting them every Monday.
+  const history = useMemo(
+    () => weeklyRecaps(plays, tracks, Math.max(today, 0)),
+    [plays, tracks, today],
+  );
+  return { plays, summary, recap, history, loaded, forget };
 }

@@ -209,4 +209,28 @@ class LibraryContractsTest {
         assertEquals(recap.songs.size, recap.songs.map { it.id }.distinct().size)
         assertTrue("the week's song still leads", recap.songs.size >= 4)
     }
+
+    @Test
+    fun fourWeeksAreKeptAndEachOneIsItsOwnWindow() {
+        val a = song("a", artist = "One")
+        val now = java.util.Calendar.getInstance().apply {
+            set(2026, java.util.Calendar.OCTOBER, 29, 20, 0, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }.timeInMillis
+        val day = 24L * 60 * 60 * 1000
+        val plays = listOf(
+            Play("a", now - day, 100, true),
+            Play("a", now - 8 * day, 200, true),
+            Play("a", now - 15 * day, 300, true),
+            Play("a", now - 22 * day, 400, true),
+            Play("a", now - 40 * day, 500, true),
+        )
+        val weeks = weeklyRecaps(plays, listOf(a), now)
+        assertEquals(4, weeks.size)
+        // Newest first, one week each, and no week counts its neighbour's plays.
+        assertEquals(listOf(100, 200, 300, 400), weeks.map { it.seconds })
+        // The week before holds its own plays and none of the newer ones.
+        assertEquals(200, weeks[0].previousSeconds)
+        assertEquals(1, weeks[0].plays)
+    }
 }

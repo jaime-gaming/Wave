@@ -29,6 +29,9 @@ export interface CatalogueRelease {
   duration?: number;
   /** A remote cover URL; fetched and stored as a local image before use. */
   artworkUrl?: string;
+  /** Where the provider places the song on its album, so an album can be ordered. */
+  trackNumber?: number;
+  discNumber?: number;
 }
 
 export const UNKNOWN = { artist: 'unknown artist', album: 'unknown album' } as const;
@@ -77,7 +80,10 @@ export function needsDetails(track: Track): boolean {
     !track.artwork ||
     isPlaceholderArtist(track.artist) ||
     isPlaceholderAlbum(track.album) ||
-    looksLikeFileName(track)
+    looksLikeFileName(track) ||
+    // A song on a real album with no position has no place in it. Asking costs
+    // one request and gives the album its running order.
+    (!track.trackNumber && !isPlaceholderAlbum(track.album))
   );
 }
 
@@ -164,6 +170,13 @@ export function scoreRelease(track: Track, release: CatalogueRelease): number {
   } else {
     score += 0.2;
   }
+  // Two editions of the same album share a title and a release year closely, so
+  // the album the song already names is what separates them. It adds nothing when
+  // the song does not know its album, and it never overrides a wrong artist.
+  if (!isPlaceholderAlbum(track.album) && release.album) {
+    const albumScore = shared(tokens(track.album), tokens(release.album));
+    if (albumScore >= 0.5) score += 0.06 * albumScore;
+  }
   if (track.duration > 30 && release.duration && release.duration > 0) {
     const difference = Math.abs(release.duration - track.duration);
     // Recordings of the same song differ by seconds, not by minutes.
@@ -194,7 +207,12 @@ export function bestRelease(
 }
 
 export interface DetailsPatch {
-  patch: Partial<Pick<Track, 'title' | 'artist' | 'album' | 'year' | 'genres' | 'artwork'>>;
+  patch: Partial<
+    Pick<
+      Track,
+      'title' | 'artist' | 'album' | 'year' | 'genres' | 'artwork' | 'trackNumber' | 'discNumber'
+    >
+  >;
   /** What changed, in the interface's own words. */
   filled: string[];
 }
@@ -239,6 +257,21 @@ export function detailsPatch(track: Track, release: CatalogueRelease): DetailsPa
     patch.year = release.year;
     filled.push('year');
   }
+  // The album's running order, but only from a release that is this song's album:
+  // the position of a track on someone else's compilation is not an answer.
+  const sameAlbum =
+    !isPlaceholderAlbum(track.album) &&
+    !!release.album &&
+    bareTitle(track.album) !== '' &&
+    (bareTitle(track.album) === bareTitle(release.album) ||
+      bareTitle(release.album).includes(bareTitle(track.album)) ||
+      bareTitle(track.album).includes(bareTitle(release.album)));
+  if (sameAlbum && !track.trackNumber && release.trackNumber && release.trackNumber > 0) {
+    patch.trackNumber = Math.round(release.trackNumber);
+    if (release.discNumber && release.discNumber > 1)
+      patch.discNumber = Math.round(release.discNumber);
+    filled.push('order');
+  }
   if (!track.genres?.length && release.genre?.trim()) {
     // Providers list several styles in one string; splitting them keeps the
     // library's own genre filter useful instead of holding "Pop / Soul".
@@ -262,6 +295,7 @@ export function detailsComplete(track: Track): boolean {
     !isPlaceholderArtist(track.artist) &&
     !isPlaceholderAlbum(track.album) &&
     !!track.year &&
-    !looksLikeFileName(track)
+    !looksLikeFileName(track) &&
+    (isPlaceholderAlbum(track.album) || !!track.trackNumber)
   );
 }

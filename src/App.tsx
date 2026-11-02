@@ -1094,6 +1094,7 @@ function WaveApp({
               <RemixPage
                 summary={listening.summary}
                 recap={listening.recap}
+                history={listening.history}
                 loaded={listening.loaded}
                 currentId={player.current?.id}
                 playing={player.state.playing}

@@ -197,6 +197,13 @@ data class Play(
 /** Seconds after which a listen is counted as a play. */
 const val PLAY_THRESHOLD_SECONDS = 30
 
+/** Four weeks of history survive the count, so Remix can look back. */
+const val HISTORY_DAYS = 35
+const val HISTORY_PLAYS = 8000
+
+/** The oldest plays above this count fall away first. */
+const val MAX_PLAYS = 2000
+
 /** Half the song, at most thirty seconds, and never less than five. */
 fun playThreshold(duration: Double): Int =
     if (!duration.isFinite() || duration <= 0) PLAY_THRESHOLD_SECONDS
@@ -356,6 +363,10 @@ data class WeekRecap(
     val genres: List<GenreSlice> = emptyList(),
 )
 
+/** The last four weeks, newest first, quiet ones included. */
+fun weeklyRecaps(plays: List<Play>, songs: List<Song>, now: Long, weeks: Int = 4): List<WeekRecap> =
+    (0 until weeks.coerceIn(1, 52)).map { weekRecap(plays, songs, now, it) }
+
 /** How long a Remix list is. */
 const val REMIX_LENGTH = 12
 
@@ -369,12 +380,15 @@ private fun startOfDay(at: Long): Long {
     return calendar.timeInMillis
 }
 
-fun weekRecap(plays: List<Play>, songs: List<Song>, now: Long): WeekRecap {
+fun weekRecap(plays: List<Play>, songs: List<Song>, now: Long, weeksAgo: Int = 0): WeekRecap {
     val byId = songs.associateBy { it.id }
-    val end = startOfDay(now)
+    val end = startOfDay(now) - 7L * 24 * 60 * 60 * 1000 * weeksAgo.coerceAtLeast(0)
     val start = end - 6 * 24 * 60 * 60 * 1000L
+    val finish = end + 24 * 60 * 60 * 1000L
     val previousStart = start - 7 * 24 * 60 * 60 * 1000L
-    val week = plays.filter { it.at in start..Long.MAX_VALUE }
+    // Bounded on both sides: a week before this one must not swallow the plays
+    // that belong to the week after it.
+    val week = plays.filter { it.at >= start && it.at < finish }
     val previous = plays.filter { it.at in previousStart until start }
 
     val counts = mutableMapOf<String, Int>()
