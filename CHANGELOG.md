@@ -26,6 +26,10 @@ the same interface, and every version links to every other.
   comes in rather than the listener sitting in the nothing.
 - The two records separate slightly in the stereo field as they meet and come back to the centre.
 - **Mixing** is the word with one light travelling across it, the way it has always looked.
+- A clip now brings its own room with it. In the light theme the player used to keep its pale
+  floor while a picture played, which framed the video as a dark square inside it; while a clip is
+  live the player stays in its own dark room in either theme, and the phone's picture band is
+  painted with that same floor instead of near-black.
 - This is the web client's blend. Android and Windows still join two songs with a plain overlap;
   closing that gap is on the roadmap, not in this release.
 
@@ -96,9 +100,11 @@ the same interface, and every version links to every other.
 
 ### Verification
 
-- 663 unit and component tests in 101 files, the release-metadata check, lint, formatting and the
-  Pages build are green, and so is the Playwright suite — including the new measurement of the clip
-  view's layout, which was added because a stylesheet cascade is not something a person can review.
+- 664 unit and component tests in 101 files, the release-metadata check (which now also refuses a
+  changelog without a dated section for the version being released), lint, formatting and the Pages
+  build are green. The browser suite runs on every push and gains its first measurement of the clip
+  view's layout, added because a stylesheet cascade is not something a person can review; nine of its
+  older tests remain flaky on a loaded runner and are tracked separately.
 
 ## 0.1.1 — 2 November 2026
 

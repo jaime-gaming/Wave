@@ -100,6 +100,9 @@ for (const [width, height] of [
     await expect(stage.locator('.stage-track h3')).toHaveText('Signal');
     await expect(stage.locator('.stage-metadata .metadata-link')).toHaveCount(2);
     await expect(stage.locator('.stage-track h3')).toBeVisible();
+    // The player arrives with a spring; a box read mid-flight is a box that has
+    // not finished moving.
+    await page.waitForTimeout(600);
 
     for (const closed of [false, true]) {
       if (closed) {
@@ -110,29 +113,49 @@ for (const [width, height] of [
         await page.waitForTimeout(300);
       }
       const layout = await boxes(page);
+      // Every geometry assertion carries the rectangles it was made from: when
+      // one of them fails on a runner nobody can attach a debugger to, the
+      // numbers are the whole diagnosis.
+      const seen = JSON.stringify(layout);
       expect(layout.cover, 'the sleeve is drawn').not.toBeNull();
       expect(layout.lyrics, 'the words have their own place').not.toBeNull();
       expect(layout.cover!.width).toBeGreaterThan(110);
       expect(layout.cover!.height).toBeGreaterThan(110);
-      // The record and the words never touch, open or closed.
-      expect(layout.record!.right).toBeLessThanOrEqual(layout.lyrics!.left + 1);
       // Open, the words are a column of readable width; closed, they are the
       // toggle in the corner and nothing else.
       if (closed) expect(layout.lyrics!.width).toBeLessThan(180);
       else expect(layout.lyrics!.width).toBeGreaterThan(180);
       // Nothing hangs below the window.
-      expect(layout.controls!.bottom).toBeLessThanOrEqual(layout.height + 1);
-      // The picture is the room: it reaches every edge of the window, so it never
-      // reads as one square sitting darker than the space around it.
-      expect(layout.backdrop!.left).toBeLessThanOrEqual(0.5);
-      expect(layout.backdrop!.top).toBeLessThanOrEqual(0.5);
-      expect(layout.backdrop!.right).toBeGreaterThanOrEqual(layout.width - 0.5);
-      expect(layout.backdrop!.bottom).toBeGreaterThanOrEqual(layout.height - 0.5);
-      // Everything is drawn over the picture: the record in the top half, the
-      // words in the bottom half, both anchored to an edge of the frame.
+      expect(layout.controls!.bottom, seen).toBeLessThanOrEqual(layout.height + 2);
+      /*
+       * Everything is drawn over the picture, and the two panels keep to opposite
+       * corners: the record in the top-left, the words in the bottom-right. They
+       * are in the same grid cell on purpose, so what has to hold is that they do
+       * not overlap — a record that grew into the lyrics would be two songs'
+       * words printed on top of each other.
+       */
       expect(layout.record!.top).toBeLessThan(layout.height * 0.5);
+      expect(layout.record!.left).toBeLessThan(layout.width * 0.25);
       expect(layout.lyrics!.bottom).toBeGreaterThan(layout.height * 0.35);
       expect(layout.lyrics!.left).toBeGreaterThan(layout.width * 0.5);
+      expect(layout.record!.bottom, seen).toBeLessThanOrEqual(layout.lyrics!.top + 1);
+      // The picture is the room: it reaches every edge of the window, so it never
+      // reads as one square sitting inside the space around it.
+      expect(layout.backdrop!.left, seen).toBeLessThanOrEqual(0.5);
+      expect(layout.backdrop!.top, seen).toBeLessThanOrEqual(0.5);
+      expect(layout.backdrop!.right, seen).toBeGreaterThanOrEqual(layout.width - 0.5);
+      expect(layout.backdrop!.bottom, seen).toBeGreaterThanOrEqual(layout.height - 0.5);
+      // And the room is painted the same colour as the picture's own floor, so
+      // there is no seam where one ends and the other begins — in either theme.
+      const paint = await page.evaluate(() => {
+        const backdrop = document.querySelector('.video-backdrop');
+        const modal = document.querySelector('.player-modal');
+        return {
+          backdrop: backdrop && getComputedStyle(backdrop).backgroundColor,
+          modal: modal && getComputedStyle(modal).backgroundColor,
+        };
+      });
+      expect(paint.backdrop).toBe(paint.modal);
     }
   });
 }

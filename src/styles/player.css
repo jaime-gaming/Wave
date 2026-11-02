@@ -1963,6 +1963,29 @@
  */
 .player-modal:has(.clip-live) {
   padding: 0;
+  /*
+   * The picture is a dark room, whatever the app is wearing.
+   *
+   * A video cannot be recoloured, so a light theme around one can only frame
+   * it: a pale floor with a dark rectangle in the middle of it. While a clip is
+   * live the player keeps its own floor, ink and containers, and the picture
+   * runs into all of them, which is why the floor is a shade darker than the
+   * picture's own edges rather than a colour of its own.
+   */
+  color-scheme: dark;
+  --background: hsl(var(--wave-hue) 18% 7%);
+  --surface: hsl(var(--wave-hue) 18% 10%);
+  --container: hsl(var(--wave-hue) 19% 14%);
+  --container-high: hsl(var(--wave-hue) 20% 20%);
+  --text: hsl(var(--wave-hue) 25% 94%);
+  --muted: hsl(var(--wave-hue) 18% 74%);
+  --primary: hsl(var(--wave-hue) 58% 82%);
+  --on-primary: hsl(var(--wave-hue) 40% 18%);
+  --primary-container: hsl(var(--wave-hue) 32% 27%);
+  --player-bg: var(--background);
+  --player-ink: var(--text);
+  --player-muted: var(--muted);
+  --player-tonal: var(--container);
 }
 .player-modal:has(.clip-live) > .modal-heading {
   height: 52px;
@@ -2110,7 +2133,9 @@
     inset: 0 0 auto 0;
     height: 56.25vw;
     border-radius: 0 0 22px 22px;
-    background: #05070c;
+    /* The band's own floor, not a slab of near-black: the app is a shade darker
+       than the picture, so the gap under a slow embed is a pause, not a square. */
+    background: var(--player-bg, var(--background));
   }
   .video-backdrop-frame {
     top: 0;

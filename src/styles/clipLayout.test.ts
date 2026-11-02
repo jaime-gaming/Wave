@@ -25,6 +25,22 @@ describe('the clip view owns the layout it is responsible for', () => {
     expect(clip).toBeGreaterThan(closed);
   });
 
+  it('paints the room the picture is in, in either theme', () => {
+    // A video cannot be recoloured. If the player keeps the light theme's pale
+    // floor while a clip is live, the picture can only ever be a dark rectangle
+    // inside it, which is the defect this is here to stop.
+    const blocks = [...css.matchAll(/\.player-modal:has\(\.clip-live\)\s*\{([^}]*)\}/g)].map(
+      (match) => match[1] ?? '',
+    );
+    expect(blocks.some((body) => /color-scheme:\s*dark/.test(body))).toBe(true);
+    expect(blocks.some((body) => /--background:/.test(body))).toBe(true);
+    // And the backdrop is painted with that same floor, never with a slab colour
+    // of its own: two paints that nearly match still read as a square.
+    const backdrop = css.slice(css.indexOf('.video-backdrop {'));
+    expect(backdrop.slice(0, 400)).toContain('background: var(--player-bg, var(--background))');
+    expect(css).not.toContain('#05070c');
+  });
+
   it('places the parts again for a closed reader instead of inheriting one cell', () => {
     // The record, the words and the transport each need a position for the
     // closed state too, or the base rule puts them all in the first cell.

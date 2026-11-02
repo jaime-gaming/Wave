@@ -7,12 +7,17 @@ Release 0.2.0 · 3 November 2026. Historical run dates are retained below.
 ### 0.2.0 at the release (2 November 2026)
 
 - `npx tsc -b`, `npx eslint .`, `npx prettier --check .`, `npm run test:release`,
-  `npm run release:check` and `npm run build:pages`: clean. `npm test`: **663 tests across 101
+  `npm run release:check` and `npm run build:pages`: clean. `npm test`: **664 tests across 101
   files**, all passing — the same suite runs in CI on Node 22 against the committed tree.
-- `npm run test:e2e`: the whole Playwright suite passes at this revision, including
-  `tests/clip-stage.spec.ts`, which is new. It was green in CI for the first time since 0.1.1; the
-  long-standing red tests were stale selectors and lookups the runner cannot reach, and they are
-  fixed rather than muted.
+- `npm run test:e2e` runs on every push and is not part of the release gate: nine of its tests are
+  known to be flaky on a loaded runner (they pass alone and fail together) and are tracked
+  separately, which is why the step is `continue-on-error` and keyed on its outcome for the report.
+  `tests/clip-stage.spec.ts` is new in this release and is the one browser test that measures a
+  layout rather than looking at one: it reads the picture's own box, the sleeve, the words and the
+  transport, and it compares the room's paint with the picture's floor, so a frame around a clip
+  cannot come back unnoticed. `src/styles/clipLayout.test.ts` holds the same rule where a browser is
+  not available: while a clip is live the player declares its own dark floor, and the backdrop is
+  painted with that floor rather than a colour of its own.
 - **The clip view is measured, not reviewed.** `clip-stage.spec.ts` puts a clip on an imported song,
   opens the player and, at 1440×900 and 1280×720 with the words open and closed, asserts that the
   sleeve is rendered larger than 110 px, that the record and the words do not touch, that both sit
