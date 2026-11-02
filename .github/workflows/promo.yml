@@ -53,6 +53,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
+          mkdir -p .cache/promo-v2
           node --experimental-strip-types scripts/capture-promo-scenes.ts 2>&1 \
             | tee .cache/promo-v2/capture.log
         env:
@@ -106,6 +107,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
+          mkdir -p .cache/promo-v2
           python3 scripts/render-promo.py --ffmpeg /usr/bin/ffmpeg 2>&1 \
             | tee .cache/promo-v2/render.log
       - name: Say why the render stopped
