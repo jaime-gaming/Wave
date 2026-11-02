@@ -310,22 +310,62 @@ export function snapToBeat(time: number, beats: Beats): number {
   return Math.max(0, beats.offset + Math.round(beatsFromStart) * period);
 }
 
-/** Silence bounds from frame RMS, thresholded relative to the file peak. */
+/**
+ * Silence bounds from frame RMS.
+ *
+ * Three things were wrong with taking the first frame above two percent of the
+ * loudest frame. One loud click — a needle drop, a tag at the head of the file —
+ * raised the reference for the whole song and made a quiet intro read as silence.
+ * A single quiet frame was enough to end the silence, so a crackle halfway
+ * through a lead-in left most of it in place. And nothing bounded the answer, so
+ * a hush at the top of an ambient track could be trimmed away with the music.
+ *
+ * So: the reference is the level of the loudest tenth of the song rather than its
+ * single loudest frame, silence only ends where the music actually stays (the
+ * level has to hold for a third of a second), and no edge is ever cut past a
+ * quarter of the song or twenty seconds, whichever comes first.
+ */
 export function silenceBounds(
   frames: FrameFeatures[],
   frameSeconds: number,
   thresholdRatio = 0.02,
+  sustainSeconds = 0.35,
 ): { start: number; end: number } {
   if (!frames.length) return { start: 0, end: 0 };
-  const peak = Math.max(...frames.map((frame) => frame.rms));
-  const threshold = peak * thresholdRatio;
-  let first = 0;
-  while (first < frames.length && frames[first].rms <= threshold) first++;
-  let last = frames.length - 1;
-  while (last > first && frames[last].rms <= threshold) last--;
+  const levels = frames.map((frame) => frame.rms).sort((a, b) => a - b);
+  const loudReference = levels[Math.min(levels.length - 1, Math.floor(levels.length * 0.9))];
+  const threshold = loudReference * thresholdRatio;
+  const held = Math.max(1, Math.round(sustainSeconds / Math.max(frameSeconds, 0.001)));
+  const audible = (index: number) => (frames[index]?.rms ?? 0) > threshold;
+  /** The index where `held` audible frames in a row begin, or the end of the song. */
+  const firstHeld = () => {
+    let run = 0;
+    for (let index = 0; index < frames.length; index++) {
+      run = audible(index) ? run + 1 : 0;
+      if (run >= held) return index - run + 1;
+    }
+    return frames.length;
+  };
+  /** The index one past the last place where `held` audible frames end a row. */
+  const lastHeld = (from: number) => {
+    let run = 0;
+    for (let index = frames.length - 1; index >= from; index--) {
+      run = audible(index) ? run + 1 : 0;
+      if (run >= held) return index + run;
+    }
+    return from;
+  };
+  const total = frames.length * frameSeconds;
+  const ceiling = Math.min(20, total / 4);
+  const first = firstHeld();
+  const last = lastHeld(first);
+  if (last <= first) return { start: 0, end: total };
+  // Never cut further in than the ceiling, whatever the frames say.
+  const start = Math.min(first * frameSeconds, ceiling);
+  const end = Math.max(last * frameSeconds, total - ceiling);
   return {
-    start: first * frameSeconds,
-    end: Math.min(frames.length * frameSeconds, (last + 1) * frameSeconds),
+    start: Math.max(0, Math.round(start * 1000) / 1000),
+    end: Math.min(total, Math.round(end * 1000) / 1000),
   };
 }
 

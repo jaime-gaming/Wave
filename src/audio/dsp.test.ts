@@ -132,6 +132,36 @@ describe('structure', () => {
       expect(segments[index].start).toBeGreaterThanOrEqual(segments[index - 1].start);
   });
 
+  it('finds the edges of the music through a click and a crackle', () => {
+    const seconds = 20;
+    const frameSeconds = 0.05;
+    const frames = Array.from({ length: Math.round(seconds / frameSeconds) }, (_, index) => {
+      const time = index * frameSeconds;
+      const music = time >= 3 && time < 17;
+      // A needle drop at the head, a crackle inside the lead-in, and one at the tail.
+      const click = Math.abs(time - 0.15) < 0.001 || Math.abs(time - 6.05) < 0.001;
+      const rms = music ? 0.25 : click ? 0.5 : 0.0004;
+      return { rms, bands: { bass: 0, low: 0, mid: 0, high: 0 }, brightness: 0 };
+    });
+    const bounds = silenceBounds(frames, frameSeconds);
+    // Three seconds of lead-in, three of tail — not "wherever the click was".
+    expect(bounds.start).toBeCloseTo(3, 1);
+    expect(bounds.end).toBeCloseTo(17, 1);
+  });
+
+  it('never trims more than twenty seconds from a quiet edge', () => {
+    const frameSeconds = 0.05;
+    const frames = Array.from({ length: Math.round(400 / frameSeconds) }, (_, index) => {
+      const time = index * frameSeconds;
+      return {
+        rms: time >= 120 ? 0.3 : 0.0003,
+        bands: { bass: 0, low: 0, mid: 0, high: 0 },
+        brightness: 0,
+      };
+    });
+    expect(silenceBounds(frames, frameSeconds).start).toBe(20);
+  });
+
   it('reports empty structure for empty audio', () => {
     expect(energySegments([], 0.02)).toEqual([]);
     expect(vocalRegions([], 0.02)).toEqual([]);

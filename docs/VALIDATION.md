@@ -25,6 +25,11 @@ Release 0.2.0 · 1 November 2026. Historical run dates are retained below.
   `LibraryContractsTest` cover a near miss, a near miss losing to a correct match,
   and a query that should still find nothing. Lyrics matching accepts a tail of
   edition words on either title, with live and acoustic takes still refused.
+- Edge detection is measured against the loudest tenth of the song, requires the
+  music to hold for a third of a second before the lead-in ends, and is capped at
+  twenty seconds a side. `dsp.test.ts` builds frames with a click at the head, a
+  crackle inside the lead-in and one at the tail, and asserts the edges land on the
+  music; a second case asserts the cap. Both fail against the previous code.
 - Daily mixes sat against the phone's link card because that card is a button and the home page only
   spaced section after section; the card now carries the same gap.
 

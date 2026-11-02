@@ -15,6 +15,12 @@
 - The silence question is asked in the open player as well as over the bar, and
   the threshold drops to two seconds at the start and three at the end, which is
   where a ripper's lead-in and a long fade actually begin.
+- Finding where the music starts and stops is now steady. The reference level is
+  the loudest tenth of the song rather than its single loudest frame, so a needle
+  drop at the head of a file no longer makes the quiet intro look like silence; a
+  lone crackle no longer ends the silence early; and neither edge is ever cut past
+  twenty seconds, so a hush at the top of an ambient track is not mistaken for
+  nothing.
 - Bringing a library over is in Settings → Library, named for what it does,
   instead of only behind the playlists shelf.
 - Search forgives a letter in the wrong place. "Nightclal" finds _Nightcall_,
