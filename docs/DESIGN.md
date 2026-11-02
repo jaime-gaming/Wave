@@ -267,10 +267,11 @@ The decoder reports duration with its source track ID, so late metadata cannot o
 
 Every icon in the app is drawn in `src/components/Glyphs.tsx` with the same pen as the wordmark — one stroke weight, round caps, shapes that lean off the grid — instead of being taken
 from an icon pack, because a screen of grid-perfect glyphs reads as a template. With a clip playing,
-`.player-normal-view.clip-live` keeps the ordinary reading order with the picture behind it: the
-sleeve on the left with the title and, on one line under it, the artist and the album; the picture in
-the middle, where nothing is drawn; the words of the song on the right; and one compact transport
-under all three. Closed, the words keep only their toggle in their own column, so nothing jumps when
+`.player-normal-view.clip-live` lays everything over the picture: the sleeve and the song's text in
+the top-left corner, with the artist and the album on one line under the title; the words of the song
+in the bottom-right corner; and one compact transport along the foot. Two soft gradients, one at the
+head and one at the foot, carry the type over a bright frame, and the middle of the picture is left
+to the video. Closed, the words keep only their toggle in their own column, so nothing jumps when
 they open. It is one grid and a rule per width — narrower windows shrink the side columns, and below
 860 px the record and the words drop under the picture while the transport keeps its place. An embed
 of someone else's player is sound and picture only: the frame takes no clicks, no focus and no

@@ -6,6 +6,11 @@ Release 0.2.0 · 1 November 2026. Historical run dates are retained below.
 
 ### The clip view, the mix burst and the silence question (current work)
 
+- The clip view is now measured in a real browser. `tests/clip-stage.spec.ts` sets a
+  clip on an imported song, opens the player, and asserts at 1440×900 and 1280×720
+  — with the words open and closed — that the sleeve is over a hundred pixels, that
+  the record and the words share the row without touching, that both sit over the
+  picture, and that the transport never falls below the window.
 - The clip view had a cascade problem, not a design problem: the rules that move
   the record and the words when the lyric reader is closed also match this view,
   and they were winning. Every clip rule now names the layout as well as the

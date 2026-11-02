@@ -112,9 +112,11 @@ for (const [width, height] of [
       expect(layout.lyrics!.width).toBeGreaterThan(180);
       // Nothing hangs below the window.
       expect(layout.controls!.bottom).toBeLessThanOrEqual(layout.height + 1);
-      // The picture is still visible in the middle: the record ends early and
-      // the words begin late.
-      expect(layout.lyrics!.left).toBeGreaterThan(layout.width * 0.55);
+      // Everything is drawn over the picture: the record in the top half, the
+      // words in the bottom half, both anchored to an edge of the frame.
+      expect(layout.record!.top).toBeLessThan(layout.height * 0.5);
+      expect(layout.lyrics!.bottom).toBeGreaterThan(layout.height * 0.35);
+      expect(layout.lyrics!.left).toBeGreaterThan(layout.width * 0.5);
     }
   });
 }
@@ -127,6 +129,12 @@ test('closing the words does not shrink the sleeve or move it under the words', 
   const open = await boxes(page);
   await stage.locator('.stage-lyrics-toggle').click();
   await expect(stage.locator('.stage-lyrics')).toHaveAttribute('data-open', 'false');
+  // The disclosure animates its own position, so the boxes are read once it has
+  // arrived — measuring mid-flight is what made this flaky, not the layout.
+  await expect
+    .poll(async () => (await boxes(page)).cover!.width, { timeout: 3_000 })
+    .toBeGreaterThan(100);
+  await page.waitForTimeout(450);
   const closed = await boxes(page);
   expect(closed.cover!.width).toBeCloseTo(open.cover!.width, 0);
   expect(closed.record!.left).toBeCloseTo(open.record!.left, 0);

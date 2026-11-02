@@ -4,11 +4,11 @@
 
 ### The picture on the left, the words on the right
 
-- The clip view is now the ordinary player with the picture behind it: the sleeve
-  on the left with the title and — on one line — the artist and the album, the
-  words of the song on the right, the clip in the middle, and one compact
-  transport under all three. The middle of the screen is left empty, so the video
-  is never covered, and nothing Wave draws is inside the transport.
+- With a clip playing, everything is drawn on top of the picture: the sleeve and
+  the song's text in the top-left corner, the words of the song in the bottom-right
+  corner, and one compact transport along the foot. Two soft bands, one under the
+  sleeve and one above the lyrics, keep the type readable over a bright frame, and
+  the middle of the picture is left to the video.
 - A still is not a clip. Audio uploads, art tracks and anything that announces
   itself as cover art are skipped rather than shown, so a song either has a moving
   picture or no backdrop at all.
