@@ -8,29 +8,22 @@ import { isRubato, tempoRelation } from '../audio/tempo';
  * 1. `beatmatched` — both songs have a trusted beat grid close enough in tempo.
  *    The overlap starts on a beat (ideally a bar), is a whole number of bars
  *    chosen from the tempo so the blend lasts about `TARGET_SECONDS`, bass is
- *    swapped around the midpoint, and the incoming deck is stretched by at most
- *    ±8 % so the two grids stay locked.
- * 2. `crossfade` — no trusted grid, or a tempo gap too large to stretch. An
- *    equal-power overlap of the configured length, still inside audible audio.
+ *    swapped around the midpoint. Both songs play at their own tempo: nothing
+ *    is stretched, the entry is simply placed on a bar.
+ * 2. `crossfade` — no trusted grid, or a tempo gap too wide to join on the bar.
+ *    An equal-power overlap of the configured length, still inside audible audio.
  * 3. `cut` — nothing usable (very short files). Normal sequential playback.
- *
- * The plan is a description, never a transformation: Wave never writes audio.
- * Time-stretching is applied to the *playback* of the incoming deck with pitch
- * preserved, and only while the two songs overlap.
  */
 export const BEATS_PER_BAR = 4;
 /**
  * The widest tempo correction Mix will make, relative.
  *
- * Eight per cent kept the music safe but refused a great many real pairs —
- * half the records in a collection sit between 100 and 130 BPM, and a six per
- * cent gap is audibly nothing with pitch preserved. Sixteen per cent covers
- * those, and it is still the point where a slow song starts to lose its weight,
- * which is why the outgoing deck is only ever nudged by half of it.
+ * No song is stretched, but a tempo gap still decides *how* two songs are
+ * joined: within this much they share the full bar-aligned overlap, and past it
+ * the overlap is halved so the two pulses have less time to drift against each
+ * other.
  */
 export const MAX_STRETCH = 0.16;
-/** How far the outgoing deck may be nudged to meet the incoming one. */
-export const MAX_OUTGOING_BEND = 0.08;
 export const MIN_BARS = 4;
 /** Hard ceiling for an explicit request; Mix itself chooses far fewer bars. */
 export const MAX_BARS = 16;
@@ -91,15 +84,6 @@ export interface TransitionPlan {
   startAt: number;
   /** Position in the incoming song where it starts playing. */
   cue: number;
-  /** Playback rate for the incoming deck during the overlap. */
-  incomingRate: number;
-  /**
-   * Playback rate the outgoing deck is bent towards during the first part of
-   * the overlap. 1 when the two tempos already agree or the grid is shaky.
-   */
-  outgoingRate?: number;
-  /** True when the rate is a tempo change rather than 1.0. */
-  stretched: boolean;
   /** Fraction of the overlap after which bass is swapped to the incoming song. */
   bassSwapAt: number;
   /** Bars used, when beat matched. */
@@ -228,9 +212,6 @@ export function planTransition(
         seconds: 0,
         startAt: outgoing?.trimmed.end ?? 0,
         cue: incoming?.trimmed.start ?? 0,
-        incomingRate: 1,
-        outgoingRate: 1,
-        stretched: false,
         bassSwapAt: 0.5,
         bars: 0,
         phaseAligned: false,
@@ -244,9 +225,6 @@ export function planTransition(
       seconds: Math.round(seconds * 100) / 100,
       startAt: Math.max(outgoing.trimmed.start, outgoing.trimmed.end - seconds),
       cue: Math.max(0, incoming.trimmed.start),
-      incomingRate: 1,
-      outgoingRate: 1,
-      stretched: false,
       bassSwapAt: 0.5,
       bars: 0,
       phaseAligned: false,
@@ -285,9 +263,6 @@ export function planTransition(
       seconds: Math.round(seconds * 100) / 100,
       startAt: Math.round(start * 1000) / 1000,
       cue: Math.round(cue * 1000) / 1000,
-      incomingRate: 1,
-      outgoingRate: 1,
-      stretched: false,
       bassSwapAt: 0.5,
       bars: 0,
       phaseAligned: false,
@@ -317,42 +292,34 @@ export function planTransition(
   const stretchNeeded = relation.difference;
   // Folding already resolved the octave, so what is left of `difference` is the
   // real gap: a few per cent is a stretch, a lot of it is a different tempo.
-  const stretchable = stretchNeeded <= maxStretch;
-  /**
-   * Both decks share the correction instead of one deck doing all of it.
+  /*
+   * Neither deck is ever sped up or slowed down.
    *
-   * A correction applied entirely to the incoming song is a correction applied
-   * entirely to a song nobody has heard yet, and it is the one that colours the
-   * sound most. Meeting in the middle — the old record nudged down as it leaves,
-   * the new one brought up as it arrives — halves the deviation on each and is
-   * what a person with two turntables actually does. Ratios split in the
-   * geometric mean, so the two decks end on exactly the same pulse.
+   * Mix used to split the tempo difference across both songs and let the browser
+   * hold the pitch. Held pitch is not a free lunch: the stretching smears
+   * transients, thins the low end of the deck that is slowed and makes the one
+   * that is quickened sound like it is catching its breath, and two records a few
+   * per cent apart beat against each other for the whole overlap. It was the one
+   * thing in a blend that sounded wrong.
+   *
+   * So the songs meet on the bar instead, each at the tempo it was recorded at,
+   * and a mix keeps the parts that do work: a bar-aligned entry, the bass
+   * changing hands once, and the old song filtered out as it leaves. Close
+   * tempos still earn the full overlap; a wide gap simply gets a shorter one.
    */
-  const meeting = Math.sqrt(relation.ratio);
-  const bendable = 1 + Math.min(MAX_OUTGOING_BEND, maxStretch);
-  const incomingRate =
-    stretchable && Math.abs(relation.ratio - 1) > 0.004
-      ? Math.round(clamp(meeting, 1 / bendable, bendable) * 1000) / 1000
-      : 1;
-  const outgoingRate =
-    stretchable && Math.abs(relation.ratio - 1) > 0.004
-      ? Math.round(clamp(1 / meeting, 1 / bendable, bendable) * 1000) / 1000
-      : 1;
-  if (stretchable && octave)
+  const stretchable = stretchNeeded <= maxStretch;
+
+  if (octave)
     notes.push(
-      `Half-time relation: ${bpmB.toFixed(1)} and ${bpmA.toFixed(1)} BPM are the same pulse at twice the speed, so they are blended without stretching.`,
+      `Half-time relation: ${bpmB.toFixed(1)} and ${bpmA.toFixed(1)} BPM are the same pulse at twice the speed; both play at their own tempo.`,
     );
   else if (stretchable && stretchNeeded > 0.004)
     notes.push(
-      `Tempo matched: ${bpmB.toFixed(1)} → ${(bpmB * incomingRate).toFixed(1)} BPM while the old song bends from ${bpmA.toFixed(1)} to ${(bpmA * outgoingRate).toFixed(1)} (${((incomingRate - 1) * 100).toFixed(1)} % and ${((outgoingRate - 1) * 100).toFixed(1)} %, pitch preserved).`,
+      `Close tempos: ${bpmB.toFixed(1)} and ${bpmA.toFixed(1)} BPM; neither song is stretched, the entry is on the bar.`,
     );
-  else if (octave)
+  else
     notes.push(
-      `Half-time relation: ${bpmB.toFixed(1)} and ${bpmA.toFixed(1)} BPM are the same pulse at twice the speed, so they are blended without stretching.`,
-    );
-  else if (!stretchable)
-    notes.push(
-      `Tempo gap of ${(stretchNeeded * 100).toFixed(1)} % is too wide to stretch; the overlap is shortened.`,
+      `Tempo gap of ${(stretchNeeded * 100).toFixed(1)} %: both songs keep their own tempo and the overlap is shortened.`,
     );
 
   // Overlap is a whole number of bars at the outgoing tempo, chosen so the blend
@@ -410,9 +377,6 @@ export function planTransition(
     seconds: Math.round(seconds * 100) / 100,
     startAt: Math.round(startAt * 1000) / 1000,
     cue: Math.round(cue * 1000) / 1000,
-    incomingRate,
-    outgoingRate,
-    stretched: stretchable && stretchNeeded > 0.004,
     bassSwapAt: 0.5,
     bars,
     phaseAligned,

@@ -18,8 +18,10 @@ describe('dead air at the edges of a file', () => {
     // A second and a half in, two and a half out: part of the recording.
     expect(silenceReport(analysis(1.4, 197.5))!.worth).toBe(false);
     expect(silenceReport(analysis(1.2, 197.5))!.worth).toBe(false);
-    // Either side alone is enough to mention it.
-    expect(silenceReport(analysis(2.4, 197))!.worth).toBe(true);
+    // Three seconds of nothing at the end is still how a song breathes.
+    expect(silenceReport(analysis(0.2, 197))!.worth).toBe(false);
+    // Either side alone is enough to mention it once it is unmistakable.
+    expect(silenceReport(analysis(2.6, 197))!.worth).toBe(true);
     expect(silenceReport(analysis(0.2, 195))!.worth).toBe(true);
   });
 

@@ -7,9 +7,7 @@ import {
   filterOutHz,
   MixGraph,
   OPEN_AIR_HZ,
-  stretchRate,
 } from './mixGraph';
-import type { TrackAnalysis } from './dsp';
 
 /** Minimal AudioContext double: enough to verify wiring and automation. */
 class FakeParam {
@@ -154,25 +152,6 @@ describe('bass swap and stretch', () => {
     expect(middle).toBeLessThan(-5);
     expect(middle).toBeGreaterThan(BASS_CUT_DB);
     expect(bassShelfDb('outgoing', -1)).toBe(0);
-  });
-
-  it('only stretches inside the 8 % window', () => {
-    const analysis = (bpm: number, confidence = 0.8): TrackAnalysis => ({
-      duration: 200,
-      frameSeconds: 0.02,
-      beats: { bpm, offset: 0, confidence },
-      trimmed: { start: 0, end: 200 },
-      segments: [],
-      vocals: [],
-      profile: { bass: 0.3, low: 0.2, mid: 0.3, high: 0.2 },
-      peak: 0.9,
-    });
-    expect(stretchRate(analysis(126), 120)).toBeCloseTo(0.952, 3);
-    expect(stretchRate(analysis(120), 120)).toBe(1);
-    expect(stretchRate(analysis(150), 120)).toBe(1);
-    expect(stretchRate(analysis(126, 0.1), 120)).toBe(1);
-    expect(stretchRate(undefined, 120)).toBe(1);
-    expect(stretchRate(analysis(126), 0)).toBe(1);
   });
 });
 

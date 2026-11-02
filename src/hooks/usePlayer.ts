@@ -397,6 +397,21 @@ export function usePlayer(tracks: Track[], libraryReady = true, silenceStore?: S
           return !!latest && latest.id === next.id && latest.blob === next.blob;
         };
         const onStarted = () => dispatch({ type: 'jump', id: next.id });
+        /*
+         * A record can run out of music before it runs out of file.
+         *
+         * Ten seconds from the end is the last chance to notice that there is
+         * nothing left to hear — a fade that has already reached the floor, the
+         * gap before a hidden track, the room after the last chord. Waiting for
+         * the clock leaves the listener sitting in that nothing. When the
+         * analysed end of the audio is already at hand, the next song comes in
+         * now instead.
+         */
+        const tail = duration - element.currentTime;
+        if (tail > 0.2 && tail <= 10 && remaining <= 2.5) {
+          player.transition(next.blob, Math.min(4, Math.max(2.5, tail)), stillTarget, onStarted);
+          return;
+        }
         // A handover belongs in the last seconds of the file. Whatever the
         // analysis believes about the end of the song, this is the rule that
         // keeps a mix from quietly turning into a skip.

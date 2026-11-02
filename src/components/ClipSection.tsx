@@ -105,11 +105,16 @@ export function ClipSection({ track }: { track: Track }) {
             <span>Clip starts at</span>
             <input
               type="number"
-              min={0}
+              // Either side of zero: positive when the upload has an intro before
+              // the music, negative when the picture begins before the song does.
+              min={-3600}
               max={3600}
               step={1}
               value={offset}
-              onChange={(event) => setOffset(Math.max(0, Number(event.target.value) || 0))}
+              onChange={(event) => {
+                const next = Number(event.target.value);
+                setOffset(Number.isFinite(next) ? Math.max(-3600, Math.min(3600, next)) : 0);
+              }}
               onBlur={() =>
                 pick(
                   { videoId: clip.videoId, title: '', author: '', duration: clip.duration ?? 0 },

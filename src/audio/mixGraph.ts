@@ -1,5 +1,3 @@
-import type { TrackAnalysis } from './dsp';
-
 /**
  * Web Audio routing for Mix.
  *
@@ -209,24 +207,6 @@ export function bassShelfDb(role: 'outgoing' | 'incoming', progress: number): nu
   const value = role === 'outgoing' ? BASS_CUT_DB * smooth : BASS_CUT_DB * (1 - smooth);
   // Normalise -0 so setBass and tests see a plain zero.
   return value === 0 ? 0 : value;
-}
-
-/**
- * Playback rate for the incoming deck while it is being beat matched. Pitch is
- * preserved by the browser, so this is a small tempo adjustment, not a chipmunk
- * effect, and it is reverted as soon as the transition ends.
- */
-export const STRETCH_LIMIT = 0.16;
-
-export function stretchRate(analysis: TrackAnalysis | undefined, targetBpm: number): number {
-  if (!analysis || analysis.beats.confidence < 0.35) return 1;
-  if (!Number.isFinite(targetBpm) || targetBpm <= 0) return 1;
-  const rate = targetBpm / analysis.beats.bpm;
-  // Sixteen per cent, not eight: a broader window matches far more real pairs,
-  // and the browser preserves pitch, so this is a tempo change and not a
-  // chipmunk. The fallback above still refuses anything wilder.
-  if (!Number.isFinite(rate) || Math.abs(rate - 1) > STRETCH_LIMIT) return 1;
-  return Math.round(rate * 1000) / 1000;
 }
 
 /**

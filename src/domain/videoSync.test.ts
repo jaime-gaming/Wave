@@ -28,6 +28,23 @@ describe('video clip sync', () => {
     });
   });
 
+  it('lets the clip start before the song, and holds the frame until it catches up', () => {
+    // The picture begins four seconds before the music does.
+    expect(planVideoSync({ position: 10, playing: true }, ready(6), { startAt: -4 })).toEqual({
+      type: 'none',
+    });
+    // At the very beginning there is no frame before zero, so the picture waits
+    // there while the song plays into it.
+    expect(planVideoSync({ position: 0.5, playing: true }, ready(0), { startAt: -4 })).toEqual({
+      type: 'none',
+    });
+    // A positive start is the usual case: the upload has an intro.
+    expect(planVideoSync({ position: 10, playing: true }, ready(10), { startAt: 30 })).toEqual({
+      type: 'seek',
+      to: 40,
+    });
+  });
+
   it('seeks when the picture drifts visibly', () => {
     expect(planVideoSync({ position: 40, playing: true }, ready(38))).toEqual({
       type: 'seek',

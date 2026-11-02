@@ -311,6 +311,13 @@ export function snapToBeat(time: number, beats: Beats): number {
 }
 
 /**
+ * The level below which a frame is nothing at all, on the same scale as a PCM
+ * sample: about minus forty-eight decibels. Room noise and a digital gap sit
+ * under it; a fade-out and a quiet coda sit above it and are kept.
+ */
+export const SILENCE_FLOOR = 0.004;
+
+/**
  * Silence bounds from frame RMS.
  *
  * Three things were wrong with taking the first frame above two percent of the
@@ -334,7 +341,10 @@ export function silenceBounds(
   if (!frames.length) return { start: 0, end: 0 };
   const levels = frames.map((frame) => frame.rms).sort((a, b) => a - b);
   const loudReference = levels[Math.min(levels.length - 1, Math.floor(levels.length * 0.9))];
-  const threshold = loudReference * thresholdRatio;
+  // Relative alone calls a long fade "silence": the tail of a song that is
+  // already forty decibels down still has music in it. The absolute floor is
+  // what a fade never falls through, so a fade keeps its last seconds.
+  const threshold = Math.max(loudReference * thresholdRatio, SILENCE_FLOOR);
   const held = Math.max(1, Math.round(sustainSeconds / Math.max(frameSeconds, 0.001)));
   const audible = (index: number) => (frames[index]?.rms ?? 0) > threshold;
   /** The index where `held` audible frames in a row begin, or the end of the song. */

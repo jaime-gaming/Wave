@@ -71,7 +71,8 @@ describe('video clips', () => {
     );
     const clips = loadClips(store as unknown as Storage);
     expect(Object.keys(clips).sort()).toEqual(['good', 'negative']);
-    expect(clips.negative.startAt).toBe(0);
+    // A negative placement is a real setting now: the clip may start before the song.
+    expect(clips.negative.startAt).toBe(-5);
     expect(clips.negative.addedAt).toBe(0);
     store.setItem(CLIP_STORAGE_KEY, '{not json');
     expect(loadClips(store as unknown as Storage)).toEqual({});

@@ -33,13 +33,13 @@ export interface SilenceReport extends SilenceBounds {
 /**
  * How much dead air has to be there before it is worth a word.
  *
- * Two seconds at the front and three at the back: below that it is how plenty of
- * recordings breathe, and a question about half a second of nothing costs the
- * listener attention for no gain. Above it, a ripper's lead-in or a long fade is
- * almost always worth skipping, and the offer is one line.
+ * Two and a half seconds at the front and four at the back. Asking about edges
+ * that are nearly there is the way this feature becomes noise: every recording
+ * breathes for a second, and being offered a trim for it teaches the listener to
+ * ignore the offer. Long enough to be unmistakably dead air, and it is one line.
  */
-export const SILENCE_MIN_START = 2;
-export const SILENCE_MIN_END = 3;
+export const SILENCE_MIN_START = 2.5;
+export const SILENCE_MIN_END = 4;
 /** Kept on each side so a trim never shaves the first attack or the last tail. */
 export const SILENCE_MARGIN = 0.25;
 

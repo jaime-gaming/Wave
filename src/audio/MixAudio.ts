@@ -7,7 +7,7 @@ import {
   smoothstep,
   type TransitionPlan,
 } from '../domain/mixPlanner';
-import { bassShelfDb, filterOutHz, MixGraph, OPEN_AIR_HZ, stretchRate } from './mixGraph';
+import { bassShelfDb, filterOutHz, MixGraph, OPEN_AIR_HZ } from './mixGraph';
 import type { TrackAnalysis } from './dsp';
 import { sourceEnvelope } from './sourceEnvelope';
 interface Deck {
@@ -50,7 +50,6 @@ export class MixAudio {
     /** Level match between the two records, applied only for the overlap. */
     trim: { outgoing: number; incoming: number };
     /** Playback rate the outgoing deck is bent towards, and by when. */
-    outgoingRate: number;
   };
   /**
    * The few seconds after a handover where the new song's level match is given
@@ -149,10 +148,6 @@ export class MixAudio {
     if (stored) return stored;
     const duration = Number.isFinite(deck.element.duration) ? deck.element.duration : 0;
     return { start: 0, end: duration };
-  }
-  /** Playback rate that matches a deck to `bpm`, inside the stretch window. */
-  stretchFor(blob: Blob | undefined, bpm: number) {
-    return stretchRate(blob ? this.analyses.get(blob) : undefined, bpm);
   }
   get bassSwapAvailable() {
     return !!this.graph?.available;
@@ -446,10 +441,10 @@ export class MixAudio {
     onStarted: () => void,
   ) {
     if (plan.mode === 'cut' || plan.seconds < 0.5) return;
+    // Each song plays at the tempo it was recorded at; the plan only decides
+    // where the new one enters and how long the two overlap.
     this.startTransition(blob, plan.seconds, guard, onStarted, {
       cue: plan.cue,
-      rate: plan.incomingRate,
-      outgoingRate: plan.outgoingRate,
       bassSwapAt: plan.bassSwapAt,
     });
   }
@@ -467,8 +462,6 @@ export class MixAudio {
     onStarted: () => void,
     options: {
       cue?: number;
-      rate?: number;
-      outgoingRate?: number;
       bassSwap?: boolean;
       bassSwapAt?: number;
       filterOut?: boolean;
@@ -495,9 +488,8 @@ export class MixAudio {
     this.pending = true;
     const generation = this.generation;
     incoming.element.currentTime = cue;
-    const rate = options.rate ?? 1;
-    incoming.element.preservesPitch = true;
-    incoming.element.playbackRate = rate;
+    // Never a rate change: speed and pitch are the listener's, not the mix's.
+    incoming.element.playbackRate = 1;
     this.applyDeckGain(incoming, 0);
     void incoming.element
       .play()
@@ -523,7 +515,6 @@ export class MixAudio {
               incoming: cue,
             },
           ),
-          outgoingRate: options.outgoingRate ?? 1,
           outgoing,
           incoming,
           start: performance.now(),
@@ -668,12 +659,6 @@ export class MixAudio {
       this.graph.setPan(this.fading.outgoing.element, panSpread(progress, 'outgoing'));
       this.graph.setPan(this.fading.incoming.element, panSpread(progress, 'incoming'));
     }
-    // The old song eases towards the new one's tempo over the first half of the
-    // overlap instead of the new one doing all the travelling.
-    if (this.fading.mixed && this.fading.outgoingRate !== 1) {
-      const bend = smoothstep(Math.min(1, progress / 0.45));
-      this.fading.outgoing.element.playbackRate = 1 + (this.fading.outgoingRate - 1) * bend;
-    }
     if (this.fading.bassSwap && this.graph) {
       // A's lows close as B's open, so the kick never disappears between the two
       // songs and the low end clearly changes hands once.
@@ -688,7 +673,6 @@ export class MixAudio {
     if (progress >= 1) {
       const finished = this.fading;
       this.release(finished.outgoing);
-      finished.incoming.element.playbackRate = 1;
       if (this.graph) {
         this.graph.setBass(finished.incoming.element, 0);
         this.graph.setAir(finished.incoming.element, OPEN_AIR_HZ);

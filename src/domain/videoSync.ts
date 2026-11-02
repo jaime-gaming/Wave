@@ -91,11 +91,21 @@ export function planVideoSync(
   const now = options.now ?? 0;
   const hard = options.hardDrift ?? VIDEO_HARD_DRIFT_SECONDS;
   const soft = options.softDrift ?? VIDEO_SOFT_DRIFT_SECONDS;
+  /*
+   * A clip can sit on either side of the song. Positive means the upload has an
+   * intro before the music starts; negative means the picture starts *before* the
+   * song does — a live cut with a count-in, a video whose music is a bar early —
+   * and the frame is held at the top until the song catches up.
+   */
   const startAt =
     typeof options.startAt === 'number' && Number.isFinite(options.startAt)
-      ? Math.max(0, options.startAt)
+      ? Math.max(-86_400, Math.min(86_400, options.startAt))
       : 0;
-  const wanted = fitClipTime(target.position + startAt + offset, startAt, options.clipLength);
+  const wanted = fitClipTime(
+    target.position + startAt + offset,
+    Math.max(0, startAt),
+    options.clipLength,
+  );
 
   if (!target.playing) return video.playing ? { type: 'pause' } : { type: 'none' };
   if (target.position > duration + 0.5) return video.playing ? { type: 'pause' } : { type: 'none' };
@@ -132,7 +142,9 @@ export function planVideoSync(
  */
 export function fitClipTime(time: number, startAt = 0, clipLength?: number): number {
   if (!Number.isFinite(time)) return 0;
-  const from = Math.max(0, Number.isFinite(startAt) ? startAt : 0);
+  // Placement, not a seek: a negative start simply means the video is already a
+  // little way in by the time the song reaches its own beginning.
+  const from = Number.isFinite(startAt) ? startAt : 0;
   const length = Number.isFinite(clipLength) ? (clipLength as number) : 0;
   const span = length - from;
   if (length <= 0 || span <= 5 || time < length) return Math.max(0, time);

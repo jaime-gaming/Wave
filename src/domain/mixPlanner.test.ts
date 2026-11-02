@@ -7,7 +7,6 @@ import {
   levelTrim,
   MAX_CUE_LEAD,
   MAX_ENTRY,
-  MAX_STRETCH,
   PAN_SPREAD,
   panSpread,
   planGains,
@@ -89,49 +88,35 @@ describe('Mix transition planning', () => {
     const beats = (plan.startAt - 0.05) / period;
     expect(Math.abs(beats - Math.round(beats))).toBeLessThan(0.01);
     expect(plan.startAt + plan.seconds).toBeLessThanOrEqual(238 + 0.05);
-    expect(plan.incomingRate).toBe(1);
-    expect(plan.stretched).toBe(false);
     expect(plan.phaseAligned).toBe(true);
   });
 
-  it('meets in the middle when the two tempos are close', () => {
+  it('never changes the tempo of either song', () => {
     const plan = planTransition(
       analysis(),
       analysis({ beats: { bpm: 126, offset: 0.02, confidence: 0.8 } }),
     );
     expect(plan.mode).toBe('beatmatched');
-    expect(plan.stretched).toBe(true);
-    // Neither deck takes the whole correction: the new song rises a little and
-    // the old one eases down a little, so both end on exactly the same pulse.
-    expect(plan.incomingRate).toBeCloseTo(Math.sqrt(120 / 126), 3);
-    expect(plan.outgoingRate).toBeCloseTo(Math.sqrt(126 / 120), 3);
-    // Both decks land on the same pulse (rounding to 3 dp costs a hair).
-    expect(plan.outgoingRate! * 120).toBeCloseTo(plan.incomingRate * 126, 1);
-    expect(Math.abs(plan.incomingRate - 1)).toBeLessThanOrEqual(MAX_STRETCH);
-    expect(plan.notes.join(' ')).toMatch(/pitch preserved/i);
+    // Six per cent apart, and both records still play exactly as recorded.
+    expect(plan.notes.join(' ')).toMatch(/neither song is stretched/i);
+    expect(JSON.stringify(plan)).not.toMatch(/Rate"/);
   });
 
-  it('stretches further than the old eight per cent, and only refuses a real gap', () => {
-    // 140 against 120 is a 16 % gap: inside the widened window, so it is mixed.
+  it('keeps the full overlap for close tempos and shortens a real gap', () => {
+    // 140 against 120 is a 16 % gap: close enough to share a bar-aligned blend.
     const close = planTransition(
       analysis(),
       analysis({ beats: { bpm: 140, offset: 0, confidence: 0.9 } }),
     );
     expect(close.mode).toBe('beatmatched');
-    expect(close.stretched).toBe(true);
-    // The faster incoming song is eased down; the slower outgoing one eased up.
-    expect(close.incomingRate).toBeLessThan(1);
-    expect(close.outgoingRate).toBeGreaterThan(1);
-    // 140 against 112 is 25 %: still refused, and shortened instead.
+    expect(close.bars).toBeGreaterThan(4);
+    // 140 against 112 is 25 %: the two pulses would drift, so the overlap halves.
     const wide = planTransition(
       analysis({ beats: { bpm: 112, offset: 0.05, confidence: 0.85 } }),
       analysis({ beats: { bpm: 140, offset: 0, confidence: 0.9 } }),
     );
-    expect(wide.incomingRate).toBe(1);
-    expect(wide.outgoingRate).toBe(1);
-    expect(wide.stretched).toBe(false);
     expect(wide.bars).toBeLessThanOrEqual(4);
-    expect(wide.notes.join(' ')).toMatch(/too wide to stretch/i);
+    expect(wide.notes.join(' ')).toMatch(/keep their own tempo/i);
   });
 
   it('falls back to an equal-power crossfade without a trusted grid', () => {
@@ -380,8 +365,6 @@ describe('Mix against real material', () => {
       club({ beats: { bpm: 87, offset: 0.02, confidence: 0.79, stability: 0.95 } }),
     );
     expect(plan.mode).toBe('beatmatched');
-    expect(plan.stretched).toBe(false);
-    expect(plan.incomingRate).toBe(1);
     expect(plan.notes.join(' ')).toMatch(/half-time/i);
   });
 
@@ -389,7 +372,6 @@ describe('Mix against real material', () => {
     const live = club({ beats: { bpm: 118, offset: 0.1, confidence: 0.8, stability: 0.2 } });
     const plan = planTransition(club(), live);
     expect(plan.mode).toBe('crossfade');
-    expect(plan.stretched).toBe(false);
     expect(plan.seconds).toBeGreaterThan(6);
     expect(plan.notes.join(' ')).toMatch(/not steady|gently/i);
   });
@@ -413,14 +395,14 @@ describe('Mix against real material', () => {
     expect(plan.cue).toBeLessThanOrEqual(MAX_ENTRY + 1);
   });
 
-  it('still refuses a genuinely different tempo', () => {
+  it('still joins a genuinely different tempo without touching either speed', () => {
     const plan = planTransition(
       analysis(),
       analysis({ beats: { bpm: 168, offset: 0, confidence: 0.8 } }),
     );
-    expect(plan.stretched).toBe(false);
-    expect(plan.incomingRate).toBe(1);
-    expect(plan.outgoingRate).toBe(1);
+    // No pitch, no rate: only the placement of the entry and the length change.
+    expect(JSON.stringify(plan)).not.toMatch(/Rate"/);
+    expect(plan.mode === 'beatmatched' || plan.mode === 'crossfade').toBe(true);
   });
 });
 

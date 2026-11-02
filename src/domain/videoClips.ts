@@ -41,9 +41,10 @@ function sanitize(value: unknown): ClipMap {
     if (!trackId || typeof raw !== 'object' || !raw) continue;
     const entry = raw as Record<string, unknown>;
     if (typeof entry.videoId !== 'string' || !/^[A-Za-z0-9_-]{11}$/u.test(entry.videoId)) continue;
+    // The offset may be negative: a clip can begin before the song does.
     const start =
-      typeof entry.startAt === 'number' && Number.isFinite(entry.startAt) && entry.startAt > 0
-        ? Math.min(86_400, Math.floor(entry.startAt))
+      typeof entry.startAt === 'number' && Number.isFinite(entry.startAt) && entry.startAt !== 0
+        ? Math.max(-86_400, Math.min(86_400, Math.round(entry.startAt)))
         : 0;
     const addedAt =
       typeof entry.addedAt === 'number' && Number.isFinite(entry.addedAt) ? entry.addedAt : 0;
@@ -118,7 +119,10 @@ export function storeClip(
   if (!trackId || !/^[A-Za-z0-9_-]{11}$/u.test(videoId)) return null;
   const clip: StoredClip = {
     videoId,
-    startAt: Number.isFinite(startAt) && startAt > 0 ? Math.floor(startAt) : 0,
+    startAt:
+      Number.isFinite(startAt) && startAt !== 0
+        ? Math.max(-86_400, Math.min(86_400, Math.round(startAt)))
+        : 0,
     addedAt: Date.now(),
     duration: Number.isFinite(duration) && duration > 0 ? Math.floor(duration) : 0,
   };

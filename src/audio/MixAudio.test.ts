@@ -337,7 +337,7 @@ it('mixes from conservative cue points with the unshifted recording clock and or
   expect(engine.mixRemaining).toBeCloseTo(17.85);
 });
 
-it('executes a beat-matched plan with cue, stretch and equal-power gains', async () => {
+it('executes a beat-matched plan at the tempo the song was recorded at', async () => {
   const events = { ...callbacks(), blend: vi.fn() };
   vi.mocked(sourceEnvelope).mockResolvedValue(undefined);
   engine = new MixAudio(events);
@@ -360,8 +360,6 @@ it('executes a beat-matched plan with cue, stretch and equal-power gains', async
       seconds: 4,
       startAt: 26,
       cue: 12.5,
-      incomingRate: 0.96,
-      stretched: true,
       bassSwapAt: 0.5,
       bars: 8,
       phaseAligned: true,
@@ -371,11 +369,10 @@ it('executes a beat-matched plan with cue, stretch and equal-power gains', async
     () => {},
   );
   await Promise.resolve();
-  // The incoming deck starts at the planned cue with a gentle tempo match that
-  // preserves pitch, and its gain starts from silence.
+  // The incoming deck starts at the planned cue, at its own speed, silent until
+  // the blend owns it.
   expect(elements[1].currentTime).toBeCloseTo(12.5);
-  expect(elements[1].playbackRate).toBeCloseTo(0.96);
-  expect(elements[1].preservesPitch).toBe(true);
+  expect(elements[1].playbackRate).toBe(1);
   expect(elements[1].volume).toBeCloseTo(0);
 
   // Halfway through, both decks sit at equal power.
@@ -386,7 +383,8 @@ it('executes a beat-matched plan with cue, stretch and equal-power gains', async
     expect.objectContaining({ incoming: b, outgoing: a }),
   );
 
-  // After the overlap the outgoing file is released and the rate returns to 1.
+  // After the overlap the outgoing file is released and the rate is still 1:
+  // nothing in a blend ever touches it.
   elements[1].currentTime = 16.5;
   vi.advanceTimersByTime(100);
   expect(elements[1].playbackRate).toBe(1);
@@ -410,8 +408,6 @@ it('ignores a cut plan instead of joining two songs abruptly', async () => {
       seconds: 0,
       startAt: 0,
       cue: 0,
-      incomingRate: 1,
-      stretched: false,
       bassSwapAt: 0.5,
       bars: 0,
       phaseAligned: false,
@@ -424,7 +420,7 @@ it('ignores a cut plan instead of joining two songs abruptly', async () => {
   expect(engine.transitioning).toBe(false);
 });
 
-it('reports analysed tempo so the planner can stretch a deck', () => {
+it("reports analysed tempo without ever changing a deck's speed", () => {
   engine = new MixAudio(callbacks());
   const blob = new Blob(['x']);
   engine.setAnalysis(blob, {
@@ -438,8 +434,6 @@ it('reports analysed tempo so the planner can stretch a deck', () => {
     peak: 0.9,
   });
   expect(engine.analysisFor(blob)?.beats.bpm).toBe(126);
-  expect(engine.stretchFor(blob, 120)).toBeCloseTo(0.952, 3);
-  expect(engine.stretchFor(blob, 160)).toBe(1);
   expect(engine.analysisFor(undefined)).toBeUndefined();
 });
 
