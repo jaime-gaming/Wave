@@ -44,6 +44,10 @@ describe('the clip view owns the layout it is responsible for', () => {
     // scrollbar and the full-screen player stops one scrollbar short of the
     // window's edge — a strip of page beside the picture.
     expect(app).toMatch(/html:has\(dialog\[open\]\)\s*\{\s*overflow:\s*hidden;/);
+    // And the dialog itself has no border: a dialog draws one, and a hairline
+    // around the window is a frame around the picture.
+    const dialog = css.slice(css.indexOf('.player-modal {'), css.indexOf('.player-modal >'));
+    expect(dialog).toContain('border: 0');
   });
 
   it('places the parts again for a closed reader instead of inheriting one cell', () => {

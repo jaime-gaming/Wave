@@ -30,7 +30,8 @@ the same interface, and every version links to every other.
   floor while a picture played, which framed the video as a dark square inside it; while a clip is
   live the player stays in its own dark room in either theme, and the phone's picture band is
   painted with that same floor instead of near-black. Opening any dialog now locks the page behind
-  it, so the scrollbar can no longer leave a strip of page down one side of the player.
+  it, so the scrollbar can no longer leave a strip of page down one side of the player, and the
+  dialog's own hairline border no longer insets the picture by a pixel.
 - This is the web client's blend. Android and Windows still join two songs with a plain overlap;
   closing that gap is on the roadmap, not in this release.
 
