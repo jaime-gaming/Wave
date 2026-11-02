@@ -267,15 +267,16 @@ The decoder reports duration with its source track ID, so late metadata cannot o
 
 Every icon in the app is drawn in `src/components/Glyphs.tsx` with the same pen as the wordmark — one stroke weight, round caps, shapes that lean off the grid — instead of being taken
 from an icon pack, because a screen of grid-perfect glyphs reads as a template. With a clip playing,
-`.player-normal-view.clip-live` is three columns over one transport: the sleeve on the left with
-everything printed on it — title, artist, album — the picture in the middle, and the words of the
-song on the right, with the transport running the full width underneath. Everything Wave draws
-therefore stays outside the video, so nothing is ever drawn over the picture. Closed, the words keep
-only their toggle, so nothing jumps when they open. It is one grid and a rule per width — narrower
-windows shrink the side columns, and below 820 px the words drop under the sleeve with the picture
-and the transport keeping their places. An embed of someone else's player is sound and picture only:
-the frame takes no clicks, no focus and no hover, and a paused clip is dimmed and softened so
-YouTube's own overlay cannot be read through it. Three things keep the picture honest: the palette's spectral wash is switched off at the
+`.player-normal-view.clip-live` keeps the ordinary reading order with the picture behind it: the
+sleeve on the left with the title and, on one line under it, the artist and the album; the picture in
+the middle, where nothing is drawn; the words of the song on the right; and one compact transport
+under all three. Closed, the words keep only their toggle in their own column, so nothing jumps when
+they open. It is one grid and a rule per width — narrower windows shrink the side columns, and below
+860 px the record and the words drop under the picture while the transport keeps its place. An embed
+of someone else's player is sound and picture only: the frame takes no clicks, no focus and no
+hover, a paused clip is dimmed and softened so YouTube's own overlay cannot be read through it, and
+a still — an audio upload, an art track, a cover-art video — is skipped rather than shown, because
+Wave's sleeve is already on screen. Three things keep the picture honest: the palette's spectral wash is switched off at the
 root (`data-clip="live"`) because it used to paint a colour gradient over someone else's footage; the
 veil is a vignette around the edges rather than a blanket over the middle; and on a phone held upright
 the video takes a 16:9 band of its own at the top, whole and uncropped, with the player underneath,

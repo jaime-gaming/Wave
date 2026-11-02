@@ -2,6 +2,26 @@
 
 ## 0.2.0 — 1 November 2026
 
+### The picture on the left, the words on the right
+
+- The clip view is now the ordinary player with the picture behind it: the sleeve
+  on the left with the title and — on one line — the artist and the album, the
+  words of the song on the right, the clip in the middle, and one compact
+  transport under all three. The middle of the screen is left empty, so the video
+  is never covered, and nothing Wave draws is inside the transport.
+- A still is not a clip. Audio uploads, art tracks and anything that announces
+  itself as cover art are skipped rather than shown, so a song either has a moving
+  picture or no backdrop at all.
+- The silence question is asked in the open player as well as over the bar, and
+  the threshold drops to two seconds at the start and three at the end, which is
+  where a ripper's lead-in and a long fade actually begin.
+- Bringing a library over is in Settings → Library, named for what it does,
+  instead of only behind the playlists shelf.
+- The arriving song of a mix no longer plays at full volume for a moment. The
+  gain loop wrote a level of one into both decks whenever a blend had not been
+  set up yet, and there are a few frames between the deck starting and the blend
+  existing: that gap was the burst.
+
 ### The clip, and the weeks behind the Remix
 
 - With a clip playing the page is now three columns over one transport: the sleeve on the left with

@@ -75,6 +75,12 @@ const AUDIO_ONLY_WORDS = [
   'auto-generated',
   'audio only',
   'static image',
+  'cover art',
+  'album art',
+  'album artwork',
+  'artwork video',
+  'still image',
+  'static video',
 ];
 /**
  * Uploads that put the words on screen instead of the song's own picture.
@@ -283,6 +289,10 @@ export function scoreClip(candidate: ClipCandidate, source: ClipSource): number 
   // A lyric video is the song's words over a still, and Wave draws its own
   // lyrics. Never worth a frame, whatever else the search returned.
   if (isLyricVideo(candidate)) return 0;
+  // A still is not a clip either. A sleeve held for four minutes, next to a
+  // player that already shows the same sleeve, is worse than no backdrop; if it
+  // is all the search found, the song simply has no clip.
+  if (isAudioOnly(candidate)) return 0;
 
   const titleScore = titleOverlap(
     tokens(source.title).filter((token) => !NOISE.includes(token)),

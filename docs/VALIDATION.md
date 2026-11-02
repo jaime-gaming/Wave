@@ -4,7 +4,25 @@ Release 0.2.0 · 1 November 2026. Historical run dates are retained below.
 
 ## Web
 
-### The clip view, the Mixing word, and the cascade that broke them (current work)
+### The clip view, the mix burst and the silence question (current work)
+
+- `npx tsc -b`, `npx eslint . --max-warnings=0`, `npx prettier --check .` and `npm run build:pages`:
+  clean. `npm test`: **657 tests across 101 files**, all passing.
+- The burst at the start of a blend was the twenty-millisecond gain loop, not the curve: with no
+  blend object yet it wrote a level of one into both decks, and there are a few frames between the
+  arriving deck starting and the blend being set up. The arriving deck is now held at zero for as
+  long as it is pending, in the loop and in `attachGraph`. `MixAudio.test.ts` holds a deck's play
+  promise open and asserts the level stays at zero through two hundred milliseconds of ticks; the
+  test fails against the previous code.
+- A still is no longer treated as a clip: `scoreClip` rejects audio-only uploads and art tracks
+  outright, and the extra "official video" query is spent when nothing passed, so a song either has
+  a moving picture or none.
+- The silence offer was only rendered when the player was collapsed. It is rendered in the open
+  player too, and the thresholds moved to two seconds at the start and three at the end.
+- Daily mixes sat against the phone's link card because that card is a button and the home page only
+  spaced section after section; the card now carries the same gap.
+
+### The clip view, the Mixing word, and the cascade that broke them
 
 - `npx tsc -b`, `npx eslint . --max-warnings=0`, `npx prettier --check .` and `npm run build:pages`:
   clean. `npm test`: **656 tests across 101 files**, all passing.

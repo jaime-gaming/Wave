@@ -13,17 +13,20 @@ export function SilenceNotice({
   text,
   onRemove,
   onKeep,
+  className,
 }: {
   text: string | null;
   onRemove: () => void;
   onKeep: () => void;
+  /** Where it is standing: over the bar, or over the open player. */
+  className?: string;
 }) {
   const animation = useWaveMotion();
   return (
     <AnimatePresence initial={false}>
       {text && (
         <motion.div
-          className="silence-notice"
+          className={`silence-notice${className ? ` ${className}` : ''}`}
           role="status"
           initial={animation.enabled ? { opacity: 0, y: 10 } : false}
           animate={{ opacity: 1, y: 0 }}

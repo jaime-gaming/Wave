@@ -519,3 +519,74 @@ it('moves the low end and closes the outgoing top when a mix is possible', async
   expect(inAir.frequency.value).toBe(20_000);
   expect(inShelf.gain.value).toBe(0);
 });
+
+it('keeps the arriving song silent while the blend is still being set up', async () => {
+  // The gain loop runs every 20 ms whatever the engine is doing. It used to write
+  // a level of one into both decks whenever no blend existed yet, which is what
+  // made the next song arrive at full volume for a few frames and then drop.
+  const gains: { value: number }[] = [];
+  const context = {
+    state: 'suspended',
+    currentTime: 0,
+    destination: { connect: vi.fn(), disconnect: vi.fn() },
+    createMediaElementSource: vi.fn(() => ({ connect: vi.fn(), disconnect: vi.fn() })),
+    createBiquadFilter: vi.fn(() => ({
+      type: 'lowshelf',
+      frequency: { value: 0 },
+      gain: { value: 0, setTargetAtTime: vi.fn() },
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    })),
+    createGain: vi.fn(() => {
+      const gain = { value: 1, setTargetAtTime: vi.fn() };
+      gains.push(gain);
+      return { gain, connect: vi.fn(), disconnect: vi.fn() };
+    }),
+    createStereoPanner: vi.fn(() => ({
+      pan: { value: 0, setTargetAtTime: vi.fn() },
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    })),
+    resume: vi.fn(async () => {
+      context.state = 'running';
+    }),
+    close: vi.fn(async () => undefined),
+  };
+  vi.stubGlobal('AudioContext', function AudioContext() {
+    return context;
+  });
+  engine = new MixAudio(callbacks());
+  engine.setMixEnabled(true);
+  const a = new Blob(['a']),
+    b = new Blob(['b']);
+  engine.load(a);
+  await engine.play();
+  engine.prepare(b);
+  // The arriving deck does not report that it is playing for a while, so the
+  // blend is not set up yet: exactly the gap the burst came from.
+  let release: () => void = () => {};
+  elements[1].play = vi.fn(
+    () =>
+      new Promise<void>((resolve) => {
+        release = resolve;
+      }),
+  );
+  elements[0].currentTime = 2;
+  engine.transition(
+    b,
+    2,
+    () => true,
+    () => {},
+  );
+  await Promise.resolve();
+  vi.advanceTimersByTime(200);
+  // Two decks, one gain node each; the second one is the song coming in.
+  expect(gains.length).toBeGreaterThanOrEqual(2);
+  // The deck's own volume is the master; the graph carries the mix level.
+  expect(gains[gains.length - 1].value).toBe(0);
+  expect(elements[1].volume).toBe(1);
+  release();
+  await Promise.resolve();
+  await Promise.resolve();
+  expect(engine.transitioning).toBe(true);
+});

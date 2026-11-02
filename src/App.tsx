@@ -51,6 +51,7 @@ import {
   Check,
   ChevronDown,
   FolderOpen,
+  FolderInput,
   ListMusic,
   Heart,
   Pencil,
@@ -1021,6 +1022,27 @@ function WaveApp({
                         filling={catalogue.filling}
                         completed={catalogue.completed}
                       />
+                      {/*
+                        Bringing a library from somewhere else used to live only
+                        behind the playlists shelf, which is not where a person
+                        looks for it. It is here too, named for what it does.
+                      */}
+                      <div className="settings-switch-row">
+                        <div>
+                          <strong>Bring your playlists over</strong>
+                          <span className="settings-row-note">
+                            Paste a link from another service and Wave finds those songs here.
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          className="tonal-button"
+                          onClick={() => setMigrationOpen(true)}
+                        >
+                          <FolderInput size={18} />
+                          Open
+                        </button>
+                      </div>
                     </>
                   }
                   devices={

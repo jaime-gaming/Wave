@@ -358,7 +358,7 @@ export async function findClip(
   // answer really is a song, or when nothing matched but the front-end did
   // return results: a neutral title from the artist's own channel is not a
   // reason to double the search.
-  const worthAsking = best ? isAudioOnly(best) : fetched.candidates.length > 0;
+  const worthAsking = !best && fetched.candidates.length > 0;
   if (fetched.answered && worthAsking) {
     const asked = await askProviders(videoClipQuery(source), options);
     if (asked.status === 'answered') {

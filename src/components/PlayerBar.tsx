@@ -716,6 +716,14 @@ export function PlayerBar(props: PlayerProps) {
                 </>
               )
             )}
+            {/* The same question, in the open player: a long silence at the
+                edge of a file is not a fact about the bar. */}
+            <SilenceNotice
+              className="silence-notice--stage"
+              text={player.silenceNotice?.text ?? null}
+              onRemove={player.removeSilence}
+              onKeep={player.keepSilence}
+            />
             <MusicLighting className="stage-aura" />
             <div
               data-track-id={player.current?.id}

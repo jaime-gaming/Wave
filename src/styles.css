@@ -2088,6 +2088,19 @@ kbd {
 .home-content > section + section {
   margin-top: 36px;
 }
+/* The link card on a phone is not a section, so it had no gap under it and the
+   daily mixes sat against it. It keeps the same air as the sections do. */
+.home-link-card {
+  margin-bottom: 36px;
+}
+.settings-row-note {
+  display: block;
+  margin-top: 3px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--muted);
+  max-width: 42ch;
+}
 .home-shortcuts {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));

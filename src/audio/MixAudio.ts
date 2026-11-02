@@ -237,8 +237,21 @@ export class MixAudio {
     if (!chain) return;
     this.attached.add(deck.element);
     // The element keeps only the master volume; the mix curve lives in the graph.
-    this.graph.setGain(deck.element, 1);
+    this.graph.setGain(deck.element, this.silenced(deck) ? 0 : 1);
     this.graph.setBass(deck.element, 0);
+  }
+  /**
+   * Whether a deck is being brought in and has to stay silent until the blend
+   * owns it.
+   *
+   * The gain loop below runs every twenty milliseconds, whatever the engine is
+   * doing. It used to write a level of one into both decks whenever there was no
+   * blend yet — and there is a gap of a few frames between the arriving deck
+   * starting and the blend being set up. That gap is what was heard: the next
+   * song at full volume for a moment, then corrected.
+   */
+  private silenced(deck: Deck) {
+    return this.pending && deck === this.spare;
   }
   /**
    * Sets a deck's share of the mix.
@@ -619,7 +632,7 @@ export class MixAudio {
           for (const deck of [this.active, this.spare]) {
             if (deck && deck !== settle.deck && this.graph) {
               this.graph.setBass(deck.element, 0);
-              this.graph.setGain(deck.element, 1);
+              this.graph.setGain(deck.element, this.silenced(deck) ? 0 : 1);
             }
           }
           return;
@@ -628,7 +641,7 @@ export class MixAudio {
       for (const deck of [this.active, this.spare]) {
         if (deck && this.graph) {
           this.graph.setBass(deck.element, 0);
-          this.graph.setGain(deck.element, 1);
+          this.graph.setGain(deck.element, this.silenced(deck) ? 0 : 1);
         }
       }
       this.active.element.volume = master;

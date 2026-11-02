@@ -15,11 +15,11 @@ describe('dead air at the edges of a file', () => {
   });
 
   it('leaves short gaps alone, because they are how recordings breathe', () => {
-    // Two and a half seconds in, three seconds out: part of the recording.
-    expect(silenceReport(analysis(2.4, 197))!.worth).toBe(false);
-    expect(silenceReport(analysis(1.2, 197))!.worth).toBe(false);
+    // A second and a half in, two and a half out: part of the recording.
+    expect(silenceReport(analysis(1.4, 197.5))!.worth).toBe(false);
+    expect(silenceReport(analysis(1.2, 197.5))!.worth).toBe(false);
     // Either side alone is enough to mention it.
-    expect(silenceReport(analysis(3.4, 197))!.worth).toBe(true);
+    expect(silenceReport(analysis(2.4, 197))!.worth).toBe(true);
     expect(silenceReport(analysis(0.2, 195))!.worth).toBe(true);
   });
 

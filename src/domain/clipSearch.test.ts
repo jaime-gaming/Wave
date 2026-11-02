@@ -166,9 +166,11 @@ describe('a clip is a video, not the song with a still picture', () => {
     expect(pickClip([audio, official], song)?.videoId).toBe(official.videoId);
   });
 
-  it('still accepts the audio upload when it is the only thing there is', () => {
-    // Nothing better exists: a muted sleeve beats no picture at all.
-    expect(pickClip([audio], song)?.videoId).toBe(audio.videoId);
+  it('skips a still rather than showing the sleeve again', () => {
+    // Nothing better exists, so there is no clip: a four-minute sleeve is not a
+    // picture, and Wave's own cover is already on screen.
+    expect(scoreClip(audio, song)).toBe(0);
+    expect(pickClip([audio], song)).toBeNull();
   });
 
   it('never shows a lyric video, even when it is all there is', () => {
