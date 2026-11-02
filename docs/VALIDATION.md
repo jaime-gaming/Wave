@@ -22,12 +22,15 @@ Release 0.2.0 · 3 November 2026. Historical run dates are retained below.
   for the letters `RIFF` in sealed frames, which is base64 text, where that four-letter sequence
   turns up by chance about a third of the time over a megabyte. It now decodes each frame and looks
   for the four bytes, which is what it always meant.
-- **The film was reviewed frame by frame.** Twelve frames decoded from the rendered MP4 were
-  inspected at the release: the title and the version card, the collection, the typo search, the
-  playlist order, the join, the lyrics, the silence offer, appearance, the two phone viewports and
-  the closing card. Two defects were found that way and fixed before publication — the join was
-  cropped so tightly that only half of the leading sleeve was in frame, and the cut ran past the
-  point where the hand-over happens, so the scene showed lyrics instead of a mix.
+- **The film was reviewed frame by frame.** Frames decoded from the rendered MP4 were inspected at
+  the release: the title card, the version card, the collection, the typo search, the playlist
+  order, the join, the lyrics, the silence offer, appearance, the two phone viewports and the
+  closing card. Three defects were found that way and fixed before publication — the join was cut
+  past the hand-over, so the scene showed lyrics instead of a mix; every take began with the page
+  still loading; and the join was played from a search result, which is a queue of one and therefore
+  cannot mix at all. A tighter crop of the join was tried afterwards and reverted: it read as a
+  screenshot of a lyric sheet, and the sleeve, the word and both hands of the transport belong in
+  the same frame.
 - **The film is rendered from the app, not assembled by hand.** `Promo film` serves the built site
   on a runner, records ten scenes with the disposable demo library, writes the score from the pinned
   CC0 piano samples and renders the MP4, then checks it (60 s ± 0.5, H.264 High/yuv420p, 1920×1080,

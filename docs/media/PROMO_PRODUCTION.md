@@ -12,19 +12,19 @@ release gate.
 
 ## Storyboard
 
-| Time      | Real interface / presentation                                       |
-| --------- | ------------------------------------------------------------------- |
-| 0–5 s     | Wave mark stroke animation; “Your music. In Wave.”, “Wave 0.2.0”    |
-| 5–11 s    | Import, collection, albums, artists and favourites                  |
-| 11–15.5 s | Daily mix browsing, Shuffle and Save as playlist                    |
-| 15.5–21 s | Search with letters out of place: “Nothbound” finds _Northbound_    |
-| 21–24.5 s | Playlist ordering                                                   |
-| 24.5–32 s | Mix: a song taken to ten seconds before its end, joined to the next |
-| 32–37 s   | Synchronized lyrics in the expanded player                          |
-| 37–42 s   | Dead air at the edge of a file, the offer to skip it, Keep it       |
-| 42–46.5 s | Light/dark appearance and larger text                               |
-| 46.5–54 s | Two phone viewports, one in each theme                              |
-| 54–60 s   | Wave 0.2.0 and the repository address; soft musical resolution      |
+| Time        | Real interface / presentation                                    |
+| ----------- | ---------------------------------------------------------------- |
+| 0–5 s       | Wave mark stroke animation; “Your music. In Wave.”, “Wave 0.2.0” |
+| 5–10.5 s    | Import, collection, albums, artists and favourites               |
+| 10.5–15 s   | Daily mix browsing, Shuffle and Save as playlist                 |
+| 15–20 s     | Search with letters out of place: “Nothbound” finds _Northbound_ |
+| 20–23.5 s   | Playlist ordering                                                |
+| 23.5–34.5 s | Mix: the collection playing in order, joined to the next song    |
+| 34.5–39 s   | Synchronized lyrics in the expanded player                       |
+| 39–44 s     | Dead air at the edge of a file, the offer to skip it, Keep it    |
+| 44–48.5 s   | Light/dark appearance and larger text                            |
+| 48.5–54 s   | Two phone viewports, one in each theme                           |
+| 54–60 s     | Wave 0.2.0 and the repository address; soft musical resolution   |
 
 Presentation uses animated typography, perspective entrances, soft shadows, moving crops and paired
 phone compositions. Screens are real captured pixels, not reconstructed controls. Cropping, resizing

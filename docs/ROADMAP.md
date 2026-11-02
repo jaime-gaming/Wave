@@ -262,7 +262,10 @@ downloads Spotify audio. YouTube audio is never extracted.
 - [x] A clip placed before the song as well as after the start of its intro.
 - [x] Bringing a library over reachable from Settings → Library as well as the playlists shelf.
 - [x] Served by Cloudflare Pages with `_redirects` and `_headers` in the build.
+- [x] The product film for this version, recorded from the app by a workflow instead of assembled by
+      hand: the join, the search that forgives a wrong letter and the offer to skip dead air.
 - [ ] Real-device pass on the blend, the overhead clip layout and the break card on a phone.
+- [ ] A film that shows the phone and the Windows window, once those builds have the same blend.
 
 ## Release 0.1.1 · 2 November 2026
 

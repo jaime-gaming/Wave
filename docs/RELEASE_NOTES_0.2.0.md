@@ -64,6 +64,10 @@ player, and accepting it only changes where playback starts and stops — the fi
 - The phone card and the daily mixes on the home page share one spacing rhythm instead of sitting
   against the heading above them.
 - Every platform links to every other by QR code or by a pasted code.
+- There is a short film of this version, recorded from the app itself rather than assembled
+  afterwards: the join between two songs, a search with a letter in the wrong place and the offer to
+  skip dead air are all shown happening.
+- Opening any dialog now locks the page behind it, so a full-screen player has no scrollbar beside it.
 
 ## What this release is not
 
