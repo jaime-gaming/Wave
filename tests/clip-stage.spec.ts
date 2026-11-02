@@ -82,8 +82,16 @@ const boxes = (page: Page) =>
       lyrics: rect('.stage-lyrics'),
       controls: rect('.stage-controls'),
       backdrop: rect('.video-backdrop'),
-      width: innerWidth,
-      height: innerHeight,
+      modal: rect('.player-modal'),
+      track: rect('.stage-track'),
+      /*
+       * The window as the layout sees it, not `innerWidth`: a classic scrollbar
+       * is part of `innerWidth` and is not part of the box a fixed element is
+       * measured against, so the two disagree by its width and a picture that
+       * reaches the edge reads as one that stops short of it.
+       */
+      width: document.documentElement.clientWidth,
+      height: document.documentElement.clientHeight,
     };
   });
 
@@ -113,10 +121,13 @@ for (const [width, height] of [
         await page.waitForTimeout(300);
       }
       const layout = await boxes(page);
-      // Every geometry assertion carries the rectangles it was made from: when
-      // one of them fails on a runner nobody can attach a debugger to, the
-      // numbers are the whole diagnosis.
-      const seen = JSON.stringify(layout);
+      // Every geometry assertion carries the boxes it was made from: when one of
+      // them fails on a runner nobody can attach a debugger to, the numbers are
+      // the whole diagnosis. Kept short — GitHub cuts an annotation at 250
+      // characters, and the expected/received text comes after this.
+      const corners = (box: { left: number; top: number; right: number; bottom: number } | null) =>
+        box ? [box.left, box.top, box.right, box.bottom].map(Math.round).join(',') : 'none';
+      const seen = `backdrop ${corners(layout.backdrop)} room ${corners(layout.modal)} window ${layout.width}x${layout.height}`;
       expect(layout.cover, 'the sleeve is drawn').not.toBeNull();
       expect(layout.lyrics, 'the words have their own place').not.toBeNull();
       expect(layout.cover!.width).toBeGreaterThan(110);
@@ -139,6 +150,9 @@ for (const [width, height] of [
       expect(layout.lyrics!.bottom).toBeGreaterThan(layout.height * 0.35);
       expect(layout.lyrics!.left).toBeGreaterThan(layout.width * 0.5);
       expect(layout.record!.bottom, seen).toBeLessThanOrEqual(layout.lyrics!.top + 1);
+      // The sleeve's text stays with the sleeve: the words of the next song start
+      // below both of them.
+      expect(layout.track!.bottom, seen).toBeLessThanOrEqual(layout.lyrics!.top + 1);
       // The picture is the room: it reaches every edge of the window, so it never
       // reads as one square sitting inside the space around it.
       expect(layout.backdrop!.left, seen).toBeLessThanOrEqual(0.5);

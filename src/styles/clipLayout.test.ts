@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest';
  * cheap guard against that coming back — not a stylesheet parser.
  */
 const css = readFileSync(resolve(process.cwd(), 'src/styles/player.css'), 'utf8');
+const app = readFileSync(resolve(process.cwd(), 'src/styles.css'), 'utf8');
 
 /** Where the last rule for a selector fragment starts. */
 const lastIndexOfSelector = (fragment: string) => {
@@ -39,6 +40,10 @@ describe('the clip view owns the layout it is responsible for', () => {
     const backdrop = css.slice(css.indexOf('.video-backdrop {'));
     expect(backdrop.slice(0, 400)).toContain('background: var(--player-bg, var(--background))');
     expect(css).not.toContain('#05070c');
+    // An open dialog locks the page behind it. Without that, the page keeps its
+    // scrollbar and the full-screen player stops one scrollbar short of the
+    // window's edge — a strip of page beside the picture.
+    expect(app).toMatch(/html:has\(dialog\[open\]\)\s*\{\s*overflow:\s*hidden;/);
   });
 
   it('places the parts again for a closed reader instead of inheriting one cell', () => {

@@ -804,6 +804,14 @@ h1 {
   margin-top: auto;
   padding-top: 24px;
 }
+/*
+ * A dialog is somewhere you are, not a layer over a page you can keep scrolling.
+ * Locking the page also takes away the scrollbar strip that would otherwise sit
+ * beside a full-screen player and stop its picture short of the window's edge.
+ */
+html:has(dialog[open]) {
+  overflow: hidden;
+}
 .modal {
   width: min(480px, calc(100vw - 32px));
   max-height: calc(100dvh - 48px);

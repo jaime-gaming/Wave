@@ -16,8 +16,9 @@ Release 0.2.0 · 3 November 2026. Historical run dates are retained below.
   layout rather than looking at one: it reads the picture's own box, the sleeve, the words and the
   transport, and it compares the room's paint with the picture's floor, so a frame around a clip
   cannot come back unnoticed. `src/styles/clipLayout.test.ts` holds the same rule where a browser is
-  not available: while a clip is live the player declares its own dark floor, and the backdrop is
-  painted with that floor rather than a colour of its own.
+  not available: while a clip is live the player declares its own dark floor, the backdrop is
+  painted with that floor rather than a colour of its own, and an open dialog locks the page behind
+  it so no scrollbar can sit beside the picture.
 - **The clip view is measured, not reviewed.** `clip-stage.spec.ts` puts a clip on an imported song,
   opens the player and, at 1440×900 and 1280×720 with the words open and closed, asserts that the
   sleeve is rendered larger than 110 px, that the record and the words do not touch, that both sit
