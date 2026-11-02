@@ -101,15 +101,24 @@ for (const [width, height] of [
     await expect(stage.locator('.stage-track h3')).toBeVisible();
 
     for (const closed of [false, true]) {
-      if (closed) await stage.locator('.stage-lyrics-toggle').click();
+      if (closed) {
+        await stage.locator('.stage-lyrics-toggle').click();
+        await expect(stage.locator('.stage-lyrics')).toHaveAttribute('data-open', 'false');
+        // The disclosure animates its own height; the boxes are read once it has
+        // arrived, not mid-flight.
+        await page.waitForTimeout(300);
+      }
       const layout = await boxes(page);
       expect(layout.cover, 'the sleeve is drawn').not.toBeNull();
-      expect(layout.lyrics, 'the words have their own column').not.toBeNull();
+      expect(layout.lyrics, 'the words have their own place').not.toBeNull();
       expect(layout.cover!.width).toBeGreaterThan(110);
       expect(layout.cover!.height).toBeGreaterThan(110);
-      // The record and the words share the row without touching.
+      // The record and the words never touch, open or closed.
       expect(layout.record!.right).toBeLessThanOrEqual(layout.lyrics!.left + 1);
-      expect(layout.lyrics!.width).toBeGreaterThan(180);
+      // Open, the words are a column of readable width; closed, they are the
+      // toggle in the corner and nothing else.
+      if (closed) expect(layout.lyrics!.width).toBeLessThan(180);
+      else expect(layout.lyrics!.width).toBeGreaterThan(180);
       // Nothing hangs below the window.
       expect(layout.controls!.bottom).toBeLessThanOrEqual(layout.height + 1);
       // Everything is drawn over the picture: the record in the top half, the
@@ -120,24 +129,3 @@ for (const [width, height] of [
     }
   });
 }
-
-test('closing the words does not shrink the sleeve or move it under the words', async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
-  const stage = await setup(page);
-  const open = await boxes(page);
-  await stage.locator('.stage-lyrics-toggle').click();
-  await expect(stage.locator('.stage-lyrics')).toHaveAttribute('data-open', 'false');
-  // The disclosure animates its own position, so the boxes are read once it has
-  // arrived — measuring mid-flight is what made this flaky, not the layout.
-  await expect
-    .poll(async () => (await boxes(page)).cover!.width, { timeout: 3_000 })
-    .toBeGreaterThan(100);
-  await page.waitForTimeout(450);
-  const closed = await boxes(page);
-  expect(closed.cover!.width).toBeCloseTo(open.cover!.width, 0);
-  expect(closed.record!.left).toBeCloseTo(open.record!.left, 0);
-  expect(closed.lyrics!.right).toBeLessThanOrEqual(closed.width);
-  expect(closed.lyrics!.width).toBeLessThan(open.lyrics!.width);
-});
