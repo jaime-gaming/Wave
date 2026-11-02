@@ -190,6 +190,14 @@ async function click(page: Page, target: Locator) {
   await target.click({ timeout: 8000 });
   await sleep(page, 350);
 }
+/** Opens Search, finds a song and plays it. */
+async function play(page: Page, text: string) {
+  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  await page.getByRole('searchbox', { name: 'Search library' }).fill(text);
+  await sleep(page, 700);
+  await page.locator('.song-title-button').first().click();
+}
+
 async function playlist(page: Page) {
   await page.locator('.home-shortcut').filter({ hasText: 'Playlists' }).click();
   await page.locator('.playlist-card').filter({ hasText: 'Evening collection' }).click();
@@ -253,6 +261,10 @@ await record(
       buffer: wav('Harbor light', 120, 8000, 16, 'Sunday Club', 'Soft light', 'Jazz'),
     });
     await sleep(p, 850);
+    // The import sheet stands over the page until it is dismissed; the notice
+    // that follows lives behind it.
+    await p.keyboard.press('Escape');
+    await sleep(p, 400);
     const dismiss = p.getByRole('button', { name: 'Dismiss notification' });
     if (await dismiss.isVisible()) await dismiss.click();
     await click(p, p.locator('.home-shortcut').filter({ hasText: 'Albums' }));
@@ -331,8 +343,8 @@ await record(
       await sleep(p, 250);
     }
     await p.keyboard.press('Escape');
-    await playlist(p);
-    await p.locator('.song-title-button').first().click();
+    await sleep(p, 500);
+    await play(p, 'After hours');
     await p.getByRole('button', { name: 'Open now playing', exact: true }).click();
     await p.getByRole('dialog', { name: 'Now playing', exact: true }).waitFor();
   },
@@ -377,8 +389,7 @@ await record(
 await record(
   'lyrics',
   async (p) => {
-    await playlist(p);
-    await p.locator('.song-title-button').first().click();
+    await play(p, 'After hours');
     await p.getByRole('button', { name: 'Open now playing', exact: true }).click();
   },
   async (p) => {
@@ -425,8 +436,7 @@ await record(
       localStorage.setItem('wave-theme', 'light');
       window.dispatchEvent(new StorageEvent('storage', { key: 'wave-theme', newValue: 'light' }));
     });
-    await playlist(p);
-    await p.locator('.song-title-button').first().click();
+    await play(p, 'After hours');
     await p.getByRole('button', { name: 'Open now playing', exact: true }).click();
   },
   async (p) => {
