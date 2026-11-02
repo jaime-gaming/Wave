@@ -6,8 +6,12 @@
 
 - With a clip playing the page is now three columns over one transport: the sleeve on the left with
   its title, artist and album, the picture in the middle, the words of the song on the right, and
-  the transport underneath all of it. Everything Wave draws sits outside the video, so nothing covers
-  the picture, and on a narrow window the words drop under the sleeve while the transport stays put.
+  the transport underneath all of it. The middle of the screen is left empty, so the clip is never
+  covered, and on a narrow window the record and the words drop under the picture while the transport
+  keeps its place. With the words closed, the toggle stays in their column instead of landing on the
+  sleeve, which is what had been squeezing the cover and the text into one narrow strip.
+- The "Mixing" note is the word again: one light travelling across the letters, the way it has
+  always looked, rather than each letter lighting on its own.
 - YouTube's own interface can never appear over a clip. The frame takes no clicks, no focus and no
   hover, and a paused clip is dimmed and softened so the player behind it cannot surface.
 - Looking a song up online now also finds where it sits on its album, so an album saved from files

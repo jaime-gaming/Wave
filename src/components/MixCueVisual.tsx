@@ -44,43 +44,24 @@ export function MixCueVisual({
 /**
  * The word itself: small, quiet, and the only place Wave says "Mixing".
  *
- * The animation is the word doing what a blend does. Each letter lights in turn
- * — a highlight that travels left to right and never restarts in the middle of
- * the lead-in — and as the handover gets closer the letters tighten by a hair
- * and the glow behind them grows, so the announcement is *approaching*
- * something instead of looping until the song happens to end.
+ * One light travels across the letters of the word and rests, then goes round
+ * again. The whole word is one element, so the light crosses it like a lamp
+ * passing over a sign — the effect Wave has always had — rather than each letter
+ * lighting on its own schedule.
  *
- * Every letter is its own span so the light can be a per-letter delay rather
- * than a sliding gradient: a gradient across a whole word can only cross it at
- * one constant speed, while letters can wait, hurry and settle. The word is
- * still one string for a screen reader, which hears the sentence and not the
- * parts.
- *
- * Reduced motion keeps the word still and readable: no sweep, no tightening.
+ * The sweep is a `background-clip: text` gradient over a grey of its own, so a
+ * browser that cannot clip to text still shows the word instead of a hole.
+ * Reduced motion stops it on the first frame.
  */
 export function MixCueLabel({ cue }: { cue: MixCue }) {
-  const progress = Math.max(0, Math.min(1, cue.progress));
-  const word = 'Mixing';
   return (
     <span
       className="mix-cue-label"
       role="status"
       aria-label={`Mixing into ${cue.to.title} by ${cue.to.artist}`}
     >
-      <span
-        className="mix-cue-word"
-        aria-hidden="true"
-        style={{ '--cue-progress': progress } as CSSProperties}
-      >
-        {[...word].map((letter, index) => (
-          <span
-            className="mix-cue-letter"
-            key={`${letter}-${index}`}
-            style={{ '--letter-index': index, '--letters': word.length } as CSSProperties}
-          >
-            {letter}
-          </span>
-        ))}
+      <span className="mix-cue-word" aria-hidden="true">
+        Mixing
       </span>
     </span>
   );

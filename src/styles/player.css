@@ -1305,79 +1305,49 @@
   white-space: nowrap;
 }
 /*
- * The light lives in the letters.
+ * The light travels across the word.
  *
- * Each letter carries its own highlight layer, offset in time by its position in
- * the word, so the light travels across the word as a wave instead of a single
- * gradient sliding over it. Two things are driven by the cue's own progress: the
- * letters tighten very slightly as the blend approaches, and the glow under them
- * grows, so the word is heading somewhere rather than looping.
+ * One highlight crosses "MIXING" from left to right and rests, then goes round
+ * again: the sweep is a single gradient over the whole word, so the letters are
+ * lit in passing rather than each on a timer of its own. The word is uppercase
+ * with wide tracking, which is what makes a passing light read as a sign.
  */
 .mix-cue-word {
-  display: inline-flex;
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: calc(0.14em + var(--cue-progress, 0) * 0.05em);
-  text-transform: uppercase;
-  color: var(--muted, #9aa2b1);
-  transition: letter-spacing 0.6s linear;
-  filter: drop-shadow(
-    0 0 calc(2px + var(--cue-progress, 0) * 7px)
-      color-mix(in srgb, var(--primary, #b0c7ff) calc(var(--cue-progress, 0) * 38%), transparent)
-  );
-}
-.mix-cue-letter {
   display: inline-block;
-  color: transparent;
-  /* The grey the letters sit at, painted underneath the highlight layer. */
-  background-image:
-    linear-gradient(var(--muted, #9aa2b1), var(--muted, #9aa2b1)),
-    linear-gradient(
-      100deg,
-      transparent 0%,
-      transparent 42%,
-      color-mix(in srgb, var(--text, #fff) 70%, var(--primary, #b0c7ff)) 50%,
-      transparent 58%,
-      transparent 100%
-    );
-  background-size:
-    100% 100%,
-    900% 100%;
-  background-position:
-    0 0,
-    100% 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  background-image: linear-gradient(
+    100deg,
+    currentColor 0%,
+    currentColor 34%,
+    color-mix(in srgb, var(--text, #fff) 55%, currentColor) 43%,
+    var(--text, #fff) 50%,
+    color-mix(in srgb, var(--text, #fff) 55%, currentColor) 57%,
+    currentColor 66%,
+    currentColor 100%
+  );
+  background-size: 220% 100%;
+  background-position: 100% 50%;
   background-repeat: no-repeat;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation: mix-cue-travel 5.2s cubic-bezier(0.45, 0, 0.25, 1) infinite;
-  animation-delay: calc(var(--letter-index, 0) * -0.16s);
+  animation: mix-cue-shimmer 4.4s cubic-bezier(0.4, 0, 0.3, 1) infinite;
 }
-@keyframes mix-cue-travel {
+@keyframes mix-cue-shimmer {
   0%,
-  52% {
-    background-position:
-      0 0,
-      100% 0;
+  16% {
+    background-position: 100% 50%;
   }
-  78%,
+  62%,
   100% {
-    background-position:
-      0 0,
-      -20% 0;
+    background-position: 0% 50%;
   }
 }
-/*
- * When the blend begins, the word steps back: it has announced itself and the
- * music is now the announcement. The label is removed by the player itself, so
- * this only has to stop the light from looping brightly through the handover.
- */
 @media (prefers-reduced-motion: reduce) {
   .mix-cue-word {
-    transition: none;
-    filter: none;
-  }
-  .mix-cue-letter {
     animation: none;
     background-image: none;
     -webkit-text-fill-color: currentColor;
@@ -1750,249 +1720,301 @@
 /*
  * With a clip playing, the picture is the room.
  *
- * Three things and nothing else sit over it: the record on the left — the sleeve
- * with its title, artist and album under it, exactly where they are in the normal
- * player — the words on the right, and one compact transport across the bottom.
- * None of them is inside the transport, and none of them covers the middle of the
- * screen, where the clip is. Each island carries its own soft shadow so the type
- * stays readable over any frame without a panel big enough to dim the picture.
+ * Three columns over one transport: the sleeve on the left with everything
+ * printed on it — title, artist, album — the picture in the middle, the words of
+ * the song on the right, and the transport running underneath all of it, on a
+ * surface of its own. The middle of the screen is left empty so the picture is
+ * never covered; the sleeve and the words keep their own soft shadow so they can
+ * be read over any frame.
+ *
+ * Each selector names the layout as well as the player, because the rules for a
+ * closed lyric reader further up also match this view; without that they pull the
+ * record, the words and the transport into a single cell and the picture is left
+ * with a squeezed column of text on top of it. One grid, one rule per width, no
+ * part placed twice.
  */
-.player-normal-view.clip-live .stage-layout {
-  grid-template-columns: minmax(0, 288px) minmax(0, 1fr) minmax(0, 320px);
+.player-normal-view.clip-live .stage-layout,
+.player-normal-view.clip-live .stage-layout:has(.stage-lyrics[data-open='false']) {
+  grid-template-columns: minmax(0, 300px) minmax(0, 1fr) minmax(0, 340px);
   grid-template-rows: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 0 clamp(12px, 2vw, 32px);
+  gap: 0 clamp(16px, 2.4vw, 40px);
 }
+/* No shelf, no panel, no wash: the picture is already the surface. */
 .player-normal-view.clip-live .stage-layout::before {
   display: none;
 }
-/* The record, at the left, as it is everywhere else. */
-.player-normal-view.clip-live .stage-record {
+
+/* The record, on the left. */
+.player-normal-view.clip-live .stage-layout .stage-record {
   grid-area: 1 / 1 / 2 / 2;
-  align-self: center;
-  justify-self: start;
+  width: 100%;
+  max-width: 300px;
   flex-direction: column;
   align-items: flex-start;
   justify-content: center;
-  gap: 14px;
-  max-width: 288px;
+  gap: 16px;
   padding: 0;
   text-align: left;
 }
-.player-normal-view.clip-live .stage-cover {
+/*
+ * The sleeve is sized in pixels, not in a percentage of a column that is itself
+ * sized by its contents: a percentage there can resolve against a width of
+ * almost nothing, which is how the cover ends up invisible.
+ */
+.player-normal-view.clip-live .stage-layout .stage-cover {
   order: 0;
-  width: min(74%, 168px);
+  width: clamp(132px, 22vh, 200px);
   flex: 0 0 auto;
   align-self: flex-start;
   margin: 0;
-  border-radius: 20px;
-  box-shadow: 0 22px 44px -22px #000e;
+  border-radius: 18px;
+  box-shadow: 0 24px 48px -26px #000e;
   transition:
     width 0.4s cubic-bezier(0.32, 0, 0.24, 1),
     border-radius 0.4s ease;
 }
-.player-normal-view.clip-live .stage-track {
+.player-normal-view.clip-live .stage-layout .stage-track {
   order: 1;
   align-items: flex-start;
   text-align: left;
-  gap: 3px;
-  flex: 0 1 auto;
+  gap: 4px;
+  flex: 0 0 auto;
   width: 100%;
   min-width: 0;
 }
-.player-normal-view.clip-live .stage-track h3 {
-  font-size: 19px;
-  line-height: 1.22;
-  letter-spacing: -0.2px;
+.player-normal-view.clip-live .stage-layout .stage-track h3 {
+  font-size: 21px;
+  line-height: 1.2;
+  letter-spacing: -0.3px;
   max-width: 100%;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  /* Over footage, a shadow is what keeps a title readable; a panel would dim the
-     picture it is standing on. */
-  text-shadow: 0 1px 12px rgb(0 0 0 / 62%);
+  overflow-wrap: anywhere;
+  text-shadow: 0 1px 14px rgb(0 0 0 / 55%);
 }
-.player-normal-view.clip-live .stage-metadata {
-  flex-wrap: wrap;
-  justify-content: flex-start;
-  gap: 0 10px;
+.player-normal-view.clip-live .stage-layout .stage-metadata {
+  flex-direction: column;
+  align-items: flex-start;
+  flex-wrap: nowrap;
+  gap: 3px;
   max-width: 100%;
-  text-shadow: 0 1px 10px rgb(0 0 0 / 60%);
+  margin-top: 4px;
+  text-shadow: 0 1px 12px rgb(0 0 0 / 55%);
 }
-.player-normal-view.clip-live .stage-metadata .metadata-link {
-  font-size: 13px;
+.player-normal-view.clip-live .stage-layout .stage-metadata .metadata-link {
+  font-size: 13.5px;
   max-width: 100%;
-  color: color-mix(in srgb, var(--text) 92%, transparent);
+  color: color-mix(in srgb, var(--text) 86%, transparent);
 }
-.player-normal-view.clip-live .stage-metadata .stage-album {
-  font-size: 12px;
-  opacity: 0.86;
+.player-normal-view.clip-live .stage-layout .stage-metadata .stage-album {
+  font-size: 12.5px;
+  opacity: 0.82;
 }
-/* The words, at the right, with their own toggle and nothing else. */
-.player-normal-view.clip-live .stage-lyrics {
+.player-normal-view.clip-live .stage-layout .stage-cue .mix-cue-label {
+  margin-top: 6px;
+}
+
+/* The words, on the right, with their own toggle. */
+.player-normal-view.clip-live .stage-layout .stage-lyrics {
   grid-area: 1 / 3 / 2 / 4;
   align-self: center;
   justify-self: end;
   width: 100%;
-  max-height: min(300px, 52dvh);
+  min-height: 0;
+  max-height: min(340px, 56dvh);
   padding: 0;
   text-align: left;
-  text-shadow: 0 1px 12px rgb(0 0 0 / 60%);
+  text-shadow: 0 1px 14px rgb(0 0 0 / 55%);
 }
-.player-normal-view.clip-live .stage-lyrics .lyrics-panel {
-  font-size: 14px;
+.player-normal-view.clip-live .stage-layout .stage-lyrics .lyrics-panel {
+  font-size: 14.5px;
+  line-height: 1.55;
 }
-.player-normal-view.clip-live .stage-lyrics .lyrics-tools,
-.player-normal-view.clip-live .stage-lyrics .lyrics-timing {
-  display: none;
+/* The tools stay: they are the way into the words, and hiding them over the
+   picture left the reader with no way to correct anything. */
+.player-normal-view.clip-live .stage-layout .stage-lyrics .lyrics-heading {
+  height: 32px;
+  min-height: 32px;
 }
-.player-normal-view.clip-live .stage-lyrics-toggle {
+.player-normal-view.clip-live .stage-layout .stage-lyrics .lyrics-tools {
+  gap: 2px;
+}
+.player-normal-view.clip-live .stage-layout .stage-lyrics .lyrics-tools .text-button {
+  min-width: 30px;
+  padding: 6px;
+}
+.player-normal-view.clip-live .stage-layout .stage-lyrics-toggle {
   height: 28px;
   flex: 0 0 28px;
   font-size: 12px;
   justify-content: flex-start;
-  opacity: 0.78;
+  opacity: 0.8;
 }
-.player-normal-view.clip-live .stage-lyrics-toggle svg:last-child {
+.player-normal-view.clip-live .stage-layout .stage-lyrics-toggle svg:last-child {
   margin-left: auto;
 }
-/* One compact bar under everything: it is the player, and it is the only part
-   that is not standing on the picture. */
-.player-normal-view.clip-live .stage-controls {
+/* Closed, the words keep only their toggle, and it stays where the words were. */
+.player-normal-view.clip-live .stage-layout:has(.stage-lyrics[data-open='false']) .stage-lyrics {
+  grid-area: 1 / 3 / 2 / 4;
+  align-self: start;
+  justify-self: end;
+  width: auto;
+  max-height: 40px;
+  padding: 0;
+  z-index: 0;
+}
+
+/* The transport, under everything, and the only part with a surface of its own. */
+.player-normal-view.clip-live .stage-layout .stage-controls {
   grid-area: 2 / 1 / 3 / -1;
   width: 100%;
-  max-width: 780px;
+  max-width: 820px;
   justify-self: center;
-  padding: 6px 0 10px;
+  padding: 8px 0 10px;
 }
-.player-normal-view.clip-live .stage-transport {
+.player-normal-view.clip-live .stage-layout .stage-transport {
   padding: 6px 14px 8px;
   border-radius: 24px;
-  background: color-mix(in srgb, var(--surface) 78%, transparent);
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
   backdrop-filter: blur(18px) saturate(1.1);
   box-shadow: 0 18px 40px -26px #000d;
 }
-.player-normal-view.clip-live .stage-play {
+.player-normal-view.clip-live .stage-layout .stage-play {
   width: 54px;
   min-width: 54px;
   height: 42px;
   border-radius: 17px;
 }
-.player-normal-view.clip-live .stage-skip svg {
+.player-normal-view.clip-live .stage-layout .stage-skip svg {
   width: 20px;
   height: 20px;
 }
-.player-normal-view.clip-live .stage-modes,
-.player-normal-view.clip-live .stage-volume {
-  transform: scale(0.88);
+.player-normal-view.clip-live .stage-layout .stage-modes,
+.player-normal-view.clip-live .stage-layout .stage-volume {
+  transform: scale(0.9);
   transform-origin: left center;
 }
 
-/* Medium windows: narrower columns, same three places. */
+/* The open player gives the picture its room: less frame, one-line heading. */
+.player-modal:has(.clip-live) {
+  padding: 10px clamp(12px, 2.4vw, 40px) 8px;
+}
+.player-modal:has(.clip-live) > .modal-heading {
+  height: 38px;
+  min-height: 38px;
+  flex-basis: 38px;
+  margin-bottom: 8px;
+}
+.player-modal:has(.clip-live) > .modal-heading h2 {
+  font-size: 17px;
+}
+
+/* Medium windows: narrower side columns, same three places. */
 @media (max-width: 1180px) {
-  .player-normal-view.clip-live .stage-layout {
-    grid-template-columns: minmax(0, 240px) minmax(0, 1fr) minmax(0, 260px);
+  .player-normal-view.clip-live .stage-layout,
+  .player-normal-view.clip-live .stage-layout:has(.stage-lyrics[data-open='false']) {
+    grid-template-columns: minmax(0, 240px) minmax(0, 1fr) minmax(0, 270px);
   }
-  .player-normal-view.clip-live .stage-cover {
-    width: min(70%, 148px);
+  .player-normal-view.clip-live .stage-layout .stage-record {
+    max-width: 240px;
   }
-  .player-normal-view.clip-live .stage-track h3 {
-    font-size: 17px;
+  .player-normal-view.clip-live .stage-layout .stage-cover {
+    width: clamp(120px, 18vh, 160px);
   }
-  .player-normal-view.clip-live .stage-lyrics {
-    max-height: min(240px, 44dvh);
+  .player-normal-view.clip-live .stage-layout .stage-track h3 {
+    font-size: 18px;
+  }
+  .player-normal-view.clip-live .stage-layout .stage-lyrics {
+    max-height: min(280px, 48dvh);
   }
 }
 
 /* Short windows: less type, more picture. */
 @media (max-height: 560px) {
-  .player-normal-view.clip-live .stage-cover {
-    width: min(58%, 104px);
+  .player-normal-view.clip-live .stage-layout .stage-cover {
+    width: clamp(92px, 22vh, 132px);
   }
-  .player-normal-view.clip-live .stage-record {
-    gap: 8px;
+  .player-normal-view.clip-live .stage-layout .stage-record {
+    gap: 10px;
   }
-  .player-normal-view.clip-live .stage-track h3 {
+  .player-normal-view.clip-live .stage-layout .stage-track h3 {
     font-size: 16px;
   }
-  .player-normal-view.clip-live .stage-lyrics {
-    max-height: 132px;
-    font-size: 12px;
+  .player-normal-view.clip-live .stage-layout .stage-lyrics {
+    max-height: 150px;
   }
-  .player-normal-view.clip-live .stage-controls {
-    padding-bottom: 4px;
+  .player-normal-view.clip-live .stage-layout .stage-lyrics .lyrics-panel {
+    font-size: 13px;
+  }
+  .player-normal-view.clip-live .stage-layout .stage-controls {
+    padding: 4px 0 6px;
   }
 }
 
 /*
- * Narrow: the picture on top, then the record, then the transport, then the
- * words. On a phone the picture keeps a band of its own at the top rather than
- * being cropped into a slice, and the three islands sit under it.
+ * Narrow: the picture keeps the top of the screen, then the record, then the
+ * transport, then the words. One column, so nothing can land on anything else.
  */
-@media (max-width: 820px) {
+@media (max-width: 860px) {
   .player-normal-view.clip-live .stage-layout,
   .player-normal-view.clip-live .stage-layout:has(.stage-lyrics[data-open='false']) {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr) auto auto auto;
-    align-items: stretch;
     gap: 0;
   }
-  .player-normal-view.clip-live .stage-record,
-  .player-normal-view.clip-live .stage-layout:has(.stage-lyrics[data-open='false']) .stage-record {
+  .player-normal-view.clip-live .stage-layout .stage-record {
     grid-area: 2 / 1 / 3 / 2;
+    max-width: none;
     flex-direction: row;
     align-items: center;
     justify-content: flex-start;
-    gap: 13px;
-    max-width: none;
-    padding: 4px 12px 8px;
+    gap: 14px;
+    padding: 4px 14px 8px;
   }
-  .player-normal-view.clip-live .stage-cover,
-  .player-normal-view.clip-live .stage-layout:has(.stage-lyrics[data-open='false']) .stage-cover {
-    width: 58px;
+  .player-normal-view.clip-live .stage-layout .stage-cover {
+    width: 62px;
     align-self: center;
+    border-radius: 12px;
   }
-  .player-normal-view.clip-live .stage-track,
-  .player-normal-view.clip-live .stage-layout:has(.stage-lyrics[data-open='false']) .stage-track {
-    flex: 1;
+  .player-normal-view.clip-live .stage-layout .stage-track {
+    flex: 1 1 auto;
     width: auto;
     text-align: left;
   }
-  .player-normal-view.clip-live .stage-track h3 {
-    font-size: 16px;
+  .player-normal-view.clip-live .stage-layout .stage-track h3 {
+    font-size: 16.5px;
     text-shadow: none;
   }
-  .player-normal-view.clip-live .stage-metadata,
-  .player-normal-view.clip-live
-    .stage-layout:has(.stage-lyrics[data-open='false'])
-    .stage-metadata {
+  .player-normal-view.clip-live .stage-layout .stage-metadata {
+    flex-direction: column;
     align-items: flex-start;
-    margin-top: 0;
+    margin-top: 2px;
     text-shadow: none;
   }
-  .player-normal-view.clip-live .stage-controls,
-  .player-normal-view.clip-live
-    .stage-layout:has(.stage-lyrics[data-open='false'])
-    .stage-controls {
+  .player-normal-view.clip-live .stage-layout .stage-controls {
     grid-area: 3 / 1 / 4 / 2;
     max-width: none;
-    padding: 0 8px 4px;
+    padding: 0 10px 4px;
   }
-  .player-normal-view.clip-live .stage-play {
+  .player-normal-view.clip-live .stage-layout .stage-play {
     width: 62px;
     min-width: 62px;
     height: 46px;
   }
-  .player-normal-view.clip-live .stage-lyrics {
+  .player-normal-view.clip-live .stage-layout .stage-lyrics,
+  .player-normal-view.clip-live .stage-layout:has(.stage-lyrics[data-open='false']) .stage-lyrics {
     grid-area: 4 / 1 / 5 / 2;
     align-self: stretch;
     justify-self: stretch;
-    max-height: min(150px, 21dvh);
-    padding: 2px 12px 12px;
+    width: auto;
+    max-height: min(160px, 22dvh);
+    padding: 2px 14px 12px;
     text-shadow: none;
   }
-  .player-normal-view.clip-live .stage-lyrics .lyrics-panel {
+  .player-normal-view.clip-live .stage-layout .stage-lyrics .lyrics-panel {
     font-size: 13px;
   }
 }
@@ -2038,8 +2060,7 @@
   .player-normal-view.clip-live {
     margin-top: 56.25vw;
   }
-  .player-normal-view.clip-live .stage-record,
-  .player-normal-view.clip-live .stage-layout:has(.stage-lyrics[data-open='false']) .stage-record {
-    padding: 4px 12px 6px;
+  .player-normal-view.clip-live .stage-layout .stage-record {
+    padding: 4px 14px 6px;
   }
 }
