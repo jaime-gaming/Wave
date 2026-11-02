@@ -4,7 +4,27 @@ Release 0.2.0 · 1 November 2026. Historical run dates are retained below.
 
 ## Web
 
-### The pass after the round: idle, clips, downloads, workflows (current work)
+### The clip view, the Mixing word, and the cascade that broke them (current work)
+
+- `npx tsc -b`, `npx eslint . --max-warnings=0`, `npx prettier --check .` and `npm run build:pages`:
+  clean. `npm test`: **656 tests across 101 files**, all passing.
+- The clip view regressed in the round before this one and the cause was the cascade, not the
+  markup: the small-window rules that match a _closed_ lyric reader (`.stage-layout:has(...)`) are
+  as specific as the clip rules that replaced the layout, and the closed reader is the default, so
+  the clip view collapsed to one column — the record padded away inside it, the sleeve reduced to a
+  percentage of what was left, and the words laid on top of both. Every clip rule now names the
+  layout as well as the player, which outranks those rules without `!important`, and the closed
+  state is placed again for the three columns.
+- `src/styles/clipLayout.test.ts` reads `player.css` and fails if the clip block stops coming after
+  those rules, or if it stops placing the record, the words and the transport again for a closed
+  reader. It fails against the previous stylesheet.
+- The "Mixing" note is back to the word with one light travelling across its letters
+  (`024021c`), replacing the per-letter version added for 0.2.0. The mixer, the cue timing and the
+  blend itself are unchanged.
+- The sleeve in clip view is sized in pixels now (`clamp(132px, 22vh, 200px)`), not as a percentage
+  of a column that is sized by its own contents, which is how it could resolve to nearly nothing.
+
+### The pass after the round: idle, clips, downloads, workflows
 
 - `npx tsc -b`, `npx eslint . --max-warnings=0`, `npx prettier --check .` and `npm run build:pages`:
   clean. `npm test`: **539 tests across 86 files**, all passing.
