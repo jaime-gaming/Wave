@@ -11,6 +11,28 @@ import { DEFAULT_LOAN_POLICY } from './loan';
  * ticks rather than one: under a full parallel run the crypto promises can take
  * longer than a single macrotask, which made this suite flaky.
  */
+/**
+ * Whether a sealed payload still carries the audio's own bytes.
+ *
+ * The frames are sealed and then base64-encoded, and in base64 a four-letter
+ * coincidence like `RIFF` turns up often enough over a megabyte of text that a
+ * plain substring search fails about a third of the time. Decoding first makes
+ * the search what it was meant to be: four specific bytes, not four specific
+ * characters.
+ */
+const carriesAudio = (payload: string) => {
+  for (const run of payload.match(/[A-Za-z0-9+/]{32,}/g) ?? []) {
+    let decoded: string;
+    try {
+      decoded = atob(run.slice(0, run.length - (run.length % 4)));
+    } catch {
+      continue;
+    }
+    if (decoded.includes('RIFF')) return true;
+  }
+  return false;
+};
+
 const settle = async () => {
   for (let i = 0; i < 6; i += 1) await new Promise((resolve) => setTimeout(resolve, 10));
 };
@@ -153,7 +175,7 @@ describe('sync sessions carry audio without leaking it', () => {
     expect(guestReceived.at(-1)).toMatchObject({ complete: true });
 
     // Nothing readable leaves the device: audio bytes are never in a frame.
-    expect(frames.some((frame) => frame.includes('RIFF'))).toBe(false);
+    expect(frames.filter(carriesAudio)).toEqual([]);
     const audio = wrapWav24(44100, 24, 1, 1);
     const digest = await sha256Hex(audio);
     const meta = planTransfer('loan-x', 'track-x', audio.byteLength, digest);

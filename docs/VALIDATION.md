@@ -18,7 +18,10 @@ Release 0.2.0 · 3 November 2026. Historical run dates are retained below.
   cannot come back unnoticed. `src/styles/clipLayout.test.ts` holds the same rule where a browser is
   not available: while a clip is live the player declares its own dark floor, the backdrop is
   painted with that floor rather than a colour of its own, and an open dialog locks the page behind
-  it so no scrollbar can sit beside the picture.
+  it so no scrollbar can sit beside the picture. One sync test was repaired on the way: it looked
+  for the letters `RIFF` in sealed frames, which is base64 text, where that four-letter sequence
+  turns up by chance about a third of the time over a megabyte. It now decodes each frame and looks
+  for the four bytes, which is what it always meant.
 - **The clip view is measured, not reviewed.** `clip-stage.spec.ts` puts a clip on an imported song,
   opens the player and, at 1440×900 and 1280×720 with the words open and closed, asserts that the
   sleeve is rendered larger than 110 px, that the record and the words do not touch, that both sit
