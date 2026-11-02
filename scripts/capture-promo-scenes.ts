@@ -147,6 +147,8 @@ await seed.evaluate(async () => {
   db.close();
 });
 await seed.close();
+/** Scenes whose real controls could not be driven; reported, never silent. */
+const failures: string[] = [];
 const manifest: Record<
   string,
   { file: string; startAt: number; endAt: number; viewport: { width: number; height: number } }
@@ -204,7 +206,22 @@ async function record(
   await cursor(page);
   const startAt = Date.now();
   await sleep(page, 600);
-  await actions(page);
+  /*
+   * A scene that goes wrong costs that scene, not the film.
+   *
+   * The selectors below are the app's real controls, so a rename or a moved
+   * button shows up here first; failing the whole recording would then take the
+   * other nine scenes down with it and leave nothing to review. The failure is
+   * still printed, and it is written next to the manifest, because a film with a
+   * missing moment must not pass for a film with all of them.
+   */
+  try {
+    await actions(page);
+  } catch (error) {
+    const message = `${name}: ${(error as Error).message.split('\n')[0]}`;
+    failures.push(message);
+    console.log('::warning::' + message);
+  }
   await sleep(page, 1800);
   const endAt = Date.now();
   const video = page.video()!;
@@ -409,5 +426,14 @@ await record(
 );
 await context.close();
 await browser.close();
+await writeFile(
+  path.join(output, 'capture-failures.txt'),
+  failures.length ? failures.join('\n') + '\n' : '',
+);
+// A page error is a real defect in the app under the camera, not a lost take.
 if (errors.length || sourceErrors.length) throw new Error([...errors, ...sourceErrors].join('\n'));
-console.log('All real UI scenes captured.');
+console.log(
+  failures.length
+    ? `Captured every scene; ${failures.length} could not be driven: ${failures.join('; ')}`
+    : 'All real UI scenes captured.',
+);

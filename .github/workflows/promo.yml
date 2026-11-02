@@ -9,6 +9,14 @@ name: Promo film
 # Not part of any release gate: a film is documentation, and a failed render must
 # not stand between a fix and a merge.
 on:
+  # The film shows the app, so it is re-recorded whenever the thing that makes it
+  # changes: the storyboard, the capture, the score or the renderer.
+  push:
+    paths:
+      - '.github/workflows/promo.yml'
+      - 'scripts/capture-promo-scenes.ts'
+      - 'scripts/render-promo.py'
+      - 'scripts/score-promo.py'
   workflow_dispatch:
     inputs:
       publish:
@@ -45,6 +53,19 @@ jobs:
         run: node --experimental-strip-types scripts/capture-promo-scenes.ts
         env:
           WAVE_URL: http://127.0.0.1:5173
+      - name: List the scenes that could not be driven
+        if: always()
+        run: |
+          if [[ -s .cache/promo-v2/capture-failures.txt ]]; then
+            {
+              echo '### Scenes that could not be driven'
+              echo ''
+              sed 's/^/- /' .cache/promo-v2/capture-failures.txt
+              echo ''
+              echo 'The film was still rendered; check those moments before publishing.'
+            } >> "$GITHUB_STEP_SUMMARY"
+            while IFS= read -r line; do echo "::warning::$line"; done < .cache/promo-v2/capture-failures.txt
+          fi
       - name: Keep the recordings
         if: always()
         uses: actions/upload-artifact@v4
