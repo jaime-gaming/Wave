@@ -30,6 +30,22 @@
 - Lyrics are found for a title the service spells with an edition word the file
   left out — _Signal (Radio Edit)_ for _Signal_ — while a live take or an acoustic
   version stays a different recording.
+- A mix never changes a song's speed. Splitting the tempo difference across both
+  decks and letting the browser hold the pitch sounded wrong — smeared transients,
+  a thin low end on whichever song was slowed — so the two records now meet on the
+  bar and each plays exactly as recorded. Close tempos still get the full overlap;
+  a wide gap just gets a shorter one.
+- A mix can end a song early. In its last ten seconds, when the analysed end of
+  the audio has already arrived — a fade that has reached the floor, the gap
+  before a hidden track — the next song comes in instead of the listener waiting
+  out the nothing.
+- A clip can be placed before the song. The offset field takes negative seconds
+  for a video whose music starts earlier than the file's, and the frame waits at
+  the top of the picture until the song catches up.
+- The silence question is rarer now: the end of a song needs four seconds of real
+  dead air, the start two and a half, and nothing quieter than the floor counts as
+  a fade. A trim that cut into a quiet ending was the worst thing the offer could
+  do, so the detection errs on keeping the music.
 - The arriving song of a mix no longer plays at full volume for a moment. The
   gain loop wrote a level of one into both decks whenever a blend had not been
   set up yet, and there are a few frames between the deck starting and the blend

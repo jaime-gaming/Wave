@@ -6,6 +6,17 @@ Release 0.2.0 · 1 November 2026. Historical run dates are retained below.
 
 ### The clip view, the mix burst and the silence question (current work)
 
+- The clip view had a cascade problem, not a design problem: the rules that move
+  the record and the words when the lyric reader is closed also match this view,
+  and they were winning. Every clip rule now names the layout as well as the
+  player, and the closed state is restated inside the clip block. `tests/clip-stage.spec.ts`
+  measures the result in a real browser — sleeve above a hundred and ten pixels on
+  both sides, record and words sharing the row without touching, nothing below
+  the window — with the words open and closed.
+- No deck is ever given a playback rate any more: `mixPlanner` has no rate fields,
+  `MixAudio` writes `playbackRate = 1`, and the old `stretchRate` and its tests
+  are gone. `mixPlanner.test.ts` asserts the plan carries no rate at all.
+
 - `npx tsc -b`, `npx eslint . --max-warnings=0`, `npx prettier --check .` and `npm run build:pages`:
   clean. `npm test`: **657 tests across 101 files**, all passing.
 - The burst at the start of a blend was the twenty-millisecond gain loop, not the curve: with no
