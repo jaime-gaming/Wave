@@ -448,10 +448,17 @@ def scene(index, t):
     chrome(im)
     if name == "blend":
         title(im, lines, sub, local, 76, 300)
-        # The whole window, uncropped: the cue, the sleeve it belongs to and the
-        # two hands of the mix are all in it, and the picture's own edges are the
-        # frame's edges.
-        window(im, clip(name).frame(p), (660, 168, 1160, 724), local, p)
+        # Close enough to read: the word that announces the mix, the sleeve it
+        # belongs to and both hands of the overlap are small things in a window
+        # shown whole. The crop keeps the frame's own corners and its transport.
+        window(
+            im,
+            clip(name).frame(p),
+            (660, 175, 1100, 733),
+            local,
+            p,
+            crop=(520, 130, 1420, 730),
+        )
     elif name == "silence":
         title(im, lines, sub, local, 88, 250)
         # The offer stands over the bar at the foot of the window, so the frame is
