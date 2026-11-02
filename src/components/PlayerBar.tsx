@@ -308,7 +308,14 @@ function PlayerDetails({
           )}
         </div>
         {current && (
-          <section className="stage-lyrics" data-open={lyricsOpen ? 'true' : 'false'}>
+          // The reader travels with the record when the picture takes the stage,
+          // so entering a clip is a move rather than a jump.
+          <motion.section
+            className="stage-lyrics"
+            data-open={lyricsOpen ? 'true' : 'false'}
+            layout={animation.enabled ? 'position' : false}
+            transition={animation.spatial}
+          >
             <button
               className="stage-lyrics-toggle"
               aria-expanded={lyricsOpen}
@@ -347,7 +354,7 @@ function PlayerDetails({
                 </motion.div>
               )}
             </AnimatePresence>
-          </section>
+          </motion.section>
         )}
       </div>
     </>
