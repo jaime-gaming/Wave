@@ -340,33 +340,33 @@ SCENES = [
     ),
     (
         24.5,
-        32,
+        34,
         "blend",
         ["One song", "into the next."],
         ["Bar on bar, no gap.", "No song is ever stretched."],
     ),
     (
-        32,
-        37,
+        34,
+        39,
         "lyrics",
         ["Follow", "every line."],
         ["Synchronized lyrics.", "Saved for offline listening."],
     ),
     (
-        37,
-        42,
+        39,
+        44,
         "silence",
         ["Silence at", "the edges."],
         ["Wave offers to skip it.", "Your file keeps every sample."],
     ),
     (
-        42,
-        46.5,
+        44,
+        48.5,
         "appearance",
         ["Your space."],
         ["Light or dark.", "Your preferred text size."],
     ),
-    (46.5, 54, "mobile", ["Your way."], ["At your desk.", "Or in your hand."]),
+    (48.5, 54, "mobile", ["Your way."], ["At your desk.", "Or in your hand."]),
 ]
 
 
@@ -447,25 +447,11 @@ def scene(index, t):
     im = BACKGROUND.copy()
     chrome(im)
     if name == "blend":
-        title(im, lines, sub, local, 88, 300)
-        window(
-            im,
-            clip(name).frame(p),
-            (642, 220, 1140, 748),
-            local,
-            p,
-            crop=(420, 225, 1380, 855),
-        )
-    elif name == "search":
-        title(im, lines, sub, local, 88, 320)
-        window(
-            im,
-            clip(name).frame(p),
-            (700, 150, 1120, 740),
-            local,
-            p,
-            crop=(0, 0, 1440, 900),
-        )
+        title(im, lines, sub, local, 76, 300)
+        # The whole window, uncropped: the cue, the sleeve it belongs to and the
+        # two hands of the mix are all in it, and the picture's own edges are the
+        # frame's edges.
+        window(im, clip(name).frame(p), (660, 168, 1160, 724), local, p)
     elif name == "silence":
         title(im, lines, sub, local, 88, 250)
         # The offer stands over the bar at the foot of the window, so the frame is
@@ -508,6 +494,8 @@ def scene(index, t):
         rect = (530, 160, 1290, 806)
         if name == "appearance":
             rect = (590, 160, 1230, 769)
+        if name == "search":
+            rect = (700, 150, 1120, 740)
         window(im, clip(name).frame(p), rect, local, p)
     return im
 
@@ -536,7 +524,7 @@ def frame_at(t):
 
 
 if args.preview:
-    for t in [1.7, 4, 7.5, 13, 18, 23, 27, 30, 34.5, 39.5, 44.5, 50, 53, 57.5]:
+    for t in [1.7, 4, 7.5, 13, 18, 23, 27, 31, 36, 41.5, 46, 51, 53, 57.5]:
         frame_at(t).convert("RGB").save(ROOT / f"preview-{t:g}.jpg", quality=92)
     print("Preview frames saved.")
 else:

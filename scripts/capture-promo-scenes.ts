@@ -349,11 +349,11 @@ await record(
     await p.getByRole('dialog', { name: 'Now playing', exact: true }).waitFor();
   },
   async (p) => {
-    await sleep(p, 2600);
+    await sleep(p, 2200);
+    // Twenty seconds before the end: far enough out that the cue appears while
+    // the camera runs, close enough that the hand-over is in the same take.
     await seek(p, 100);
-    // About fourteen seconds of overlap on a two-minute song: the recording
-    // follows it from the first cue to past the hand-over.
-    await sleep(p, 18_000);
+    await sleep(p, 11_000);
   },
 );
 /*
