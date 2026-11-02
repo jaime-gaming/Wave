@@ -2060,7 +2060,24 @@
   .player-normal-view.clip-live {
     margin-top: 56.25vw;
   }
+  /*
+   * Under the band there is no picture left to save room for, so the record sits
+   * straight under it, the transport stays at the bottom where the thumb is, and
+   * the words close the column. Nothing is left empty between them.
+   */
+  .player-normal-view.clip-live .stage-layout,
+  .player-normal-view.clip-live .stage-layout:has(.stage-lyrics[data-open='false']) {
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
+  }
   .player-normal-view.clip-live .stage-layout .stage-record {
-    padding: 4px 14px 6px;
+    grid-area: 1 / 1 / 2 / 2;
+    padding: 10px 14px 6px;
+  }
+  .player-normal-view.clip-live .stage-layout .stage-controls {
+    grid-area: 3 / 1 / 4 / 2;
+  }
+  .player-normal-view.clip-live .stage-layout .stage-lyrics {
+    grid-area: 4 / 1 / 5 / 2;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
   }
 }
