@@ -448,17 +448,11 @@ def scene(index, t):
     chrome(im)
     if name == "blend":
         title(im, lines, sub, local, 76, 300)
-        # Close enough to read: the word that announces the mix, the sleeve it
-        # belongs to and both hands of the overlap are small things in a window
-        # shown whole. The crop keeps the frame's own corners and its transport.
-        window(
-            im,
-            clip(name).frame(p),
-            (660, 175, 1100, 733),
-            local,
-            p,
-            crop=(520, 130, 1420, 730),
-        )
+        # The whole window, uncropped. The overlap is a sleeve, a word in the
+        # margin and both hands of the transport; cropping to any one of them
+        # loses the other two, and the frame's own corners are what shows that
+        # this is the app and not a diagram.
+        window(im, clip(name).frame(p), (660, 168, 1160, 724), local, p)
     elif name == "silence":
         title(im, lines, sub, local, 88, 250)
         # The offer stands over the bar at the foot of the window, so the frame is
