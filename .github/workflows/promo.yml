@@ -166,8 +166,10 @@ jobs:
           name: wave-promo
           path: .cache/promo-v2/promo-master.mp4
           retention-days: 30
+      # A pushed change to the film's own code publishes; a dispatch decides for
+      # itself, because someone may be trying a variant they do not want kept.
       - name: Publish the film to the branch
-        if: inputs.publish
+        if: github.event_name == 'push' || inputs.publish
         shell: bash
         run: |
           set -euo pipefail
