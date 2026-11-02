@@ -76,7 +76,7 @@ Subject to feasibility and performance testing:
 - [x] Embedded/local LRC and plain lyrics, native-clock line highlighting, seeking, timing offsets and a friendly missing-lyrics state.
 - [ ] Equalizer and playback speed through browser audio APIs.
 - [ ] Volume normalization.
-- [x] Configurable 0–12-second native dual-decoder crossfade with cancellation/fallback.
+- [x] A dual-decoder overlap of twelve to twenty-four seconds, chosen per pair and cancelled back to the plain next song when a deck will not start; nothing about its length is configurable.
 - [x] One automatic Mix switch, per-pair bounded timing and silence-safe cues; no manual overlap duration or mode selector and no beat/tempo matching.
 - [x] Local patterned Autoplay continuation with repeat/pause priority and recent-song alternatives.
 - [x] Local import metadata validation with worker parsing and paged local review; no external catalogue or cover requests.
@@ -176,7 +176,7 @@ no interface, provider client or Android port exists yet.
 
 **Listening, lyrics and clips (Wave 1.1 UI)**
 
-- [x] **Mix** (formerly crossfade): background DSP analysis, an adaptive beat/frase-aligned planner, equal-power gains, a mid-transition bass swap and playback-only time-stretching inside ±8 %.
+- [x] **Mix** (formerly crossfade): background DSP analysis, an adaptive beat/frase-aligned planner, equal-power gains, a mid-transition bass swap and a stereo spread; since 0.2.0 no deck is ever re-rated.
 - [x] Word-by-word lyric highlighting built in (no toggle), from provider word stamps or a deterministic, labelled estimate; the line-level view remains as the fallback.
 - [x] Automatic clip discovery (Piped/Invidious), ranked by title, channel and length; muted embed with hidden chrome, rate-based drift correction and local per-song storage. Manual link entry stays as a fallback.
 - [x] Import MP3, WAV, M4A, OGG and FLAC; FLAC is stored and played untouched.

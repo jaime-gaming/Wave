@@ -337,7 +337,7 @@ player.duration; // Browser-reported seconds, or zero
 player.volume; // Persisted number from 0 to 1, default 1
 player.buffering; // Browser waiting state
 player.mixEnabled; // Single persisted Mix switch, fresh default true
-player.setMixEnabled(enabled); // Analysis, planning, bass swap and time-stretch
+player.setMixEnabled(enabled); // Analysis, planning, bass swap and pan; no deck is ever re-rated
 // There is no overlap length to configure: the planner chooses the bar count.
 player.youTube; // {seek, time, onTime, onDuration, onEnded, onError} or null
 player.autoplay; // Persisted, default true; repeat takes priority
