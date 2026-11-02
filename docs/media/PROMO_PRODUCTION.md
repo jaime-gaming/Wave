@@ -32,7 +32,10 @@ and accelerated footage are editorial presentation, not performance benchmarks. 
 **web client**, including narrow viewports; the phone-shaped frames are presentation devices, not
 evidence of native Android or Windows parity.
 
-Ten scenes are recorded and ten are used: nothing in the film is a mock-up. The blend scene is the
+Ten scenes are recorded and ten are used: nothing in the film is a mock-up. A scene whose controls
+cannot be driven is recorded anyway, named in `capture-failures.txt` and annotated on the run; the
+film still renders so the remaining scenes can be reviewed, and the note is the reason to look again.
+A page error under the camera is annotated as well. The blend scene is the
 app's own overlap — it is started from the real transport, and the cue, entry point and hand-over are
 whatever the planner chose while the camera was rolling. The silence scene imports a fixture with six
 silent seconds on each side of the tone; the notice, its wording and its two answers are the app's.

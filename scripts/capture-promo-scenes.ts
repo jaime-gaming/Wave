@@ -219,7 +219,10 @@ async function record(
    * missing moment must not pass for a film with all of them.
    */
   const page = await context.newPage();
-  const startAt = Date.now();
+  // The clock starts when the app is on screen and ready, not when the browser
+  // has opened: the first seconds of a take are page load, and the film should
+  // not spend its first beat on that.
+  let startAt = Date.now();
   try {
     await page.setViewportSize({ width, height });
     await page.goto(origin);
@@ -228,6 +231,7 @@ async function record(
     await prepare(page);
     await sleep(page, 500);
     await cursor(page);
+    startAt = Date.now();
     await sleep(page, 600);
     await actions(page);
     await sleep(page, 1800);
@@ -344,16 +348,24 @@ await record(
     }
     await p.keyboard.press('Escape');
     await sleep(p, 500);
-    await play(p, 'After hours');
+    // The whole library, in order: a mix needs a next song, and a single result
+    // from a search is a queue of one.
+    await p
+      .getByRole('navigation', { name: 'Main navigation' })
+      .getByRole('button', { name: 'Library', exact: true })
+      .click();
+    await p.getByRole('combobox', { name: 'Sort tracks' }).selectOption('title');
+    await p.getByRole('button', { name: 'Play all songs', exact: true }).click();
     await p.getByRole('button', { name: 'Open now playing', exact: true }).click();
     await p.getByRole('dialog', { name: 'Now playing', exact: true }).waitFor();
+    await sleep(p, 600);
   },
   async (p) => {
-    await sleep(p, 2200);
-    // Twenty seconds before the end: far enough out that the cue appears while
-    // the camera runs, close enough that the hand-over is in the same take.
-    await seek(p, 100);
-    await sleep(p, 11_000);
+    // Two minutes of song, a join of about fourteen seconds that starts sixteen
+    // seconds before the end. Fifteen seconds out, the take holds the cue, the
+    // two decks together and the hand-over, at the speed they happen.
+    await seek(p, 105);
+    await sleep(p, 14_000);
   },
 );
 /*

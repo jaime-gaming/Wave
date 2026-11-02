@@ -22,6 +22,12 @@ Release 0.2.0 · 3 November 2026. Historical run dates are retained below.
   for the letters `RIFF` in sealed frames, which is base64 text, where that four-letter sequence
   turns up by chance about a third of the time over a megabyte. It now decodes each frame and looks
   for the four bytes, which is what it always meant.
+- **The film was reviewed frame by frame.** Twelve frames decoded from the rendered MP4 were
+  inspected at the release: the title and the version card, the collection, the typo search, the
+  playlist order, the join, the lyrics, the silence offer, appearance, the two phone viewports and
+  the closing card. Two defects were found that way and fixed before publication — the join was
+  cropped so tightly that only half of the leading sleeve was in frame, and the cut ran past the
+  point where the hand-over happens, so the scene showed lyrics instead of a mix.
 - **The film is rendered from the app, not assembled by hand.** `Promo film` serves the built site
   on a runner, records ten scenes with the disposable demo library, writes the score from the pinned
   CC0 piano samples and renders the MP4, then checks it (60 s ± 0.5, H.264 High/yuv420p, 1920×1080,

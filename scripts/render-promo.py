@@ -312,41 +312,41 @@ def window(
 SCENES = [
     (
         5,
-        11,
+        10.5,
         "collection",
         ["Bring your", "collection."],
         ["Songs. Albums. Artists.", "Favorites, all in one place."],
     ),
     (
-        11,
-        15.5,
+        10.5,
+        15,
         "daily",
         ["Discover it", "again."],
         ["Browse a daily mix.", "Save it as your own playlist."],
     ),
     (
-        15.5,
-        21,
+        15,
+        20,
         "search",
         ["Find it", "anyway."],
         ["A letter out of place", "still finds the song."],
     ),
     (
-        21,
-        24.5,
+        20,
+        23.5,
         "ordering",
         ["Make it", "yours."],
         ["Your playlists.", "Your preferred order."],
     ),
     (
-        24.5,
-        34,
+        23.5,
+        34.5,
         "blend",
         ["One song", "into the next."],
         ["Bar on bar, no gap.", "No song is ever stretched."],
     ),
     (
-        34,
+        34.5,
         39,
         "lyrics",
         ["Follow", "every line."],
@@ -524,7 +524,7 @@ def frame_at(t):
 
 
 if args.preview:
-    for t in [1.7, 4, 7.5, 13, 18, 23, 27, 31, 36, 41.5, 46, 51, 53, 57.5]:
+    for t in [1.7, 4, 7.5, 13, 18, 21.5, 26, 31, 36, 41, 46, 51, 53, 57.5]:
         frame_at(t).convert("RGB").save(ROOT / f"preview-{t:g}.jpg", quality=92)
     print("Preview frames saved.")
 else:
