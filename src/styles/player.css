@@ -881,7 +881,11 @@
   inset: 0;
   z-index: -1;
   overflow: hidden;
-  background: #05070c;
+  /* The player's own floor, not a near-black slab: while nothing is painting —
+     a slow embed, a clip that never arrives — there must not be a rectangle
+     darker than the room around it. */
+  background: var(--background);
+  background: var(--player-bg, var(--background));
   container-type: size;
 }
 /* The picture is decoration and never a control surface: no hover, no click, no
@@ -1785,23 +1789,6 @@
   align-items: stretch;
   gap: 0;
 }
-/*
- * A floor and a ceiling under the type.
- *
- * The panels sit on the picture, and a video can be white exactly where the words
- * are. Two soft bands, one at the head and one at the foot, keep the sleeve's text
- * and the lyrics readable without putting a box around either of them.
- */
-.player-normal-view.clip-live .stage-layout::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background:
-    linear-gradient(to top, rgb(4 6 11 / 76%) 0%, rgb(4 6 11 / 26%) 32%, transparent 56%),
-    linear-gradient(to bottom, rgb(4 6 11 / 58%) 0%, transparent 28%);
-}
 /* No shelf and no panel: the picture is already the surface. */
 .player-normal-view.clip-live .stage-layout::before {
   display: none;
@@ -1832,7 +1819,7 @@
   align-self: flex-start;
   margin: 0;
   border-radius: 16px;
-  box-shadow: 0 22px 54px -26px #000e;
+  box-shadow: 0 18px 44px -32px #000d;
   transition:
     width 0.4s cubic-bezier(0.32, 0, 0.24, 1),
     border-radius 0.4s ease;
@@ -1939,10 +1926,12 @@
 .player-normal-view.clip-live .stage-layout .stage-transport {
   padding: 6px 16px 8px;
   border-radius: 24px;
-  background: var(--surface);
-  background: color-mix(in srgb, var(--surface) 74%, transparent);
-  backdrop-filter: blur(22px) saturate(1.12);
-  box-shadow: 0 20px 46px -26px #000e;
+  /* Glass, not a slab: a light scrim that lets the picture through, so the
+     transport reads as part of the frame instead of a dark box on top of it. */
+  background: rgb(255 255 255 / 9%);
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+  backdrop-filter: blur(26px) saturate(1.2);
+  box-shadow: 0 16px 40px -30px #000a;
 }
 .player-normal-view.clip-live .stage-layout .stage-play {
   width: 54px;
@@ -1963,15 +1952,27 @@
   transform-origin: right center;
 }
 
-/* The open player gives the picture its room: less frame, one-line heading. */
+/*
+ * The picture takes the whole player.
+ *
+ * The backdrop is absolutely positioned inside the dialog, which means its box is
+ * the dialog's *padding* box: any padding at all leaves a frame of the app around
+ * the video, and a frame around a picture reads as one square that is darker than
+ * the room. So the modal gives its padding up while a clip is live, the heading
+ * and the stage carry their own, and the video runs to all four edges.
+ */
 .player-modal:has(.clip-live) {
-  padding: 10px clamp(12px, 2.4vw, 40px) 8px;
+  padding: 0;
 }
 .player-modal:has(.clip-live) > .modal-heading {
-  height: 38px;
-  min-height: 38px;
-  flex-basis: 38px;
-  margin-bottom: 8px;
+  height: 52px;
+  min-height: 52px;
+  flex-basis: 52px;
+  margin-bottom: 0;
+  padding: 0 clamp(16px, 2.6vw, 44px);
+}
+.player-normal-view.clip-live {
+  padding: 0 clamp(14px, 2.6vw, 44px) 10px;
 }
 .player-modal:has(.clip-live) > .modal-heading h2 {
   font-size: 17px;
@@ -2032,14 +2033,6 @@
     grid-template-rows: auto minmax(0, 1fr) auto auto;
     align-items: stretch;
     gap: 0;
-  }
-  .player-normal-view.clip-live .stage-layout::after {
-    background: linear-gradient(
-      to top,
-      rgb(4 6 11 / 82%) 0%,
-      rgb(4 6 11 / 24%) 46%,
-      transparent 70%
-    );
   }
   .player-normal-view.clip-live .stage-layout .stage-record {
     grid-area: 1 / 1 / 2 / 2;

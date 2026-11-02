@@ -81,6 +81,7 @@ const boxes = (page: Page) =>
       record: rect('.stage-record'),
       lyrics: rect('.stage-lyrics'),
       controls: rect('.stage-controls'),
+      backdrop: rect('.video-backdrop'),
       width: innerWidth,
       height: innerHeight,
     };
@@ -121,6 +122,12 @@ for (const [width, height] of [
       else expect(layout.lyrics!.width).toBeGreaterThan(180);
       // Nothing hangs below the window.
       expect(layout.controls!.bottom).toBeLessThanOrEqual(layout.height + 1);
+      // The picture is the room: it reaches every edge of the window, so it never
+      // reads as one square sitting darker than the space around it.
+      expect(layout.backdrop!.left).toBeLessThanOrEqual(0.5);
+      expect(layout.backdrop!.top).toBeLessThanOrEqual(0.5);
+      expect(layout.backdrop!.right).toBeGreaterThanOrEqual(layout.width - 0.5);
+      expect(layout.backdrop!.bottom).toBeGreaterThanOrEqual(layout.height - 0.5);
       // Everything is drawn over the picture: the record in the top half, the
       // words in the bottom half, both anchored to an edge of the frame.
       expect(layout.record!.top).toBeLessThan(layout.height * 0.5);

@@ -35,19 +35,20 @@ builds, so Windows may show a SmartScreen warning and Android asks you to allow 
 - **Takes a whole folder.** Point Wave at a folder and it reads every song inside it, at any
   depth, once you have said yes; it remembers the folder so the next read is one click.
 - **Browses and searches** songs, albums, artists, playlists and favourites from your own
-  collection.
+  collection, ranked by how well they answer, and forgiving a letter in the wrong place.
 - **Fills in the gaps.** Songs that know nothing but their filename get their artist, album, year,
   genre and cover looked up while you listen — never over something you typed.
 - **Daily mixes** from the genre tags your files already carry: play one, shuffle it, or save it
   as an ordinary playlist.
 - **Lyrics that follow the song**, word by word when the file carries timings. Saved lyrics work
   offline.
-- **Mix** joins two songs on a bar with a 16 to 24 second overlap, beat-matched and level-matched
-  on the fly. The files on disk are untouched.
+- **Mix** joins two songs on a bar with a twelve to twenty-four second overlap, level-matched on the
+  fly, each record at the tempo it was recorded at. The files on disk are untouched.
 - **Remix**: the week you just had. One number, the songs you played most, and a list you can
   play or save as a playlist.
-- **Real video clips** behind the player, muted and full screen with no YouTube interface
-  showing.
+- **Real video clips** behind the player, muted, full screen, drawn under the player's own text and
+  with no YouTube interface showing. A still picture is not a clip, so a song either has a moving
+  one or none.
 - **YouTube songs** by link, for the ones you do not own yet.
 - **Brings playlists over** from another app: paste a list or choose its exported `.m3u` or
   `.csv`, see which songs you already have, and turn the confirmed ones into a playlist.

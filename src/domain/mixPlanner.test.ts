@@ -6,6 +6,7 @@ import {
   isUsablePlan,
   levelTrim,
   MAX_CUE_LEAD,
+  DRIFT_BEATS,
   MAX_ENTRY,
   PAN_SPREAD,
   panSpread,
@@ -102,21 +103,50 @@ describe('Mix transition planning', () => {
     expect(JSON.stringify(plan)).not.toMatch(/Rate"/);
   });
 
-  it('keeps the full overlap for close tempos and shortens a real gap', () => {
-    // 140 against 120 is a 16 % gap: close enough to share a bar-aligned blend.
+  it('keeps the full overlap for close tempos and shortens a gap that would drift', () => {
+    // Four per cent apart at this speed never drifts more than half a beat inside
+    // the full twelve to twenty-four second overlap.
     const close = planTransition(
+      analysis(),
+      analysis({ beats: { bpm: 125, offset: 0, confidence: 0.9 } }),
+    );
+    expect(close.mode).toBe('beatmatched');
+    expect(close.seconds).toBeGreaterThanOrEqual(12);
+    expect(close.notes.join(' ')).toMatch(/neither song is stretched/i);
+    // 140 against 120 is seventeen per cent: at that gap the two pulses would be
+    // trading places well before the end, so the overlap is cut to what fits.
+    const gap = planTransition(
       analysis(),
       analysis({ beats: { bpm: 140, offset: 0, confidence: 0.9 } }),
     );
-    expect(close.mode).toBe('beatmatched');
-    expect(close.bars).toBeGreaterThan(4);
-    // 140 against 112 is 25 %: the two pulses would drift, so the overlap halves.
+    expect(gap.mode).toBe('beatmatched');
+    const drift = gap.seconds * Math.abs(1 - 140 / 120);
+    expect(drift).toBeLessThanOrEqual(DRIFT_BEATS + 0.01);
+    expect(gap.bars).toBeLessThan(close.bars);
+    // 140 against 112 is a wider gap than Mix will join at all.
     const wide = planTransition(
       analysis({ beats: { bpm: 112, offset: 0.05, confidence: 0.85 } }),
       analysis({ beats: { bpm: 140, offset: 0, confidence: 0.9 } }),
     );
-    expect(wide.bars).toBeLessThanOrEqual(4);
     expect(wide.notes.join(' ')).toMatch(/keep their own tempo/i);
+  });
+
+  it('enters where the new record is already sounding, not in a breakdown', () => {
+    const breakdown = analysis({
+      trimmed: { start: 0, end: 238 },
+      segments: [
+        { start: 0, end: 8, level: 0.7, kind: 'intro' as const },
+        { start: 8, end: 20, level: 0.08, kind: 'breakdown' as const },
+        { start: 20, end: 210, level: 0.9, kind: 'body' as const },
+        { start: 210, end: 238, level: 0.2, kind: 'outro' as const },
+      ],
+      beats: { bpm: 120, offset: 0, confidence: 0.85 },
+    });
+    const plan = planTransition(analysis(), breakdown);
+    expect(plan.mode).toBe('beatmatched');
+    // Past the held pad, on a bar of the part that is actually playing.
+    expect(plan.cue).toBeGreaterThanOrEqual(20);
+    expect(Number.isInteger((plan.cue - 0) / (60 / 120) / 4)).toBe(true);
   });
 
   it('falls back to an equal-power crossfade without a trusted grid', () => {

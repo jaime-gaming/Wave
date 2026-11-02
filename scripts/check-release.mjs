@@ -70,6 +70,14 @@ export function checkRelease(root, tag) {
   }
   const notes = read(`docs/RELEASE_NOTES_${pkg.version}.md`);
   assert.ok(notes.startsWith(`# Wave ${pkg.version}\n`), 'Release notes version differs');
+  // The changelog and the notes are read together by anyone asking what changed, and a
+  // release whose section is missing — or still dated for another day — is the easiest
+  // mistake to make the night before. The date is required, not just the heading.
+  const dated = new RegExp(
+    `^## ${pkg.version.replaceAll('.', '\\.')} — \\d{1,2} [A-Z][a-z]+ \\d{4}$`,
+    'm',
+  );
+  assert.ok(dated.test(read('CHANGELOG.md')), `Changelog has no dated ${pkg.version} section`);
   return { version: pkg.version, tag: `v${pkg.version}` };
 }
 

@@ -1,6 +1,6 @@
 # Wave Roadmap
 
-**Version: 0.2.0 · Release date: 1 November 2026.**
+**Version: 0.2.0 · Release date: 3 November 2026.**
 
 Wave 1.1 scope (device sync, YouTube links and playlist import) is specified in
 [SPEC_1.1](SPEC_1.1.md); its foundation is implemented but not user-facing yet.
@@ -123,7 +123,7 @@ Local smart mixes and advanced search may be explored after library and playback
 
 Use the [issue tracker](https://github.com/jaime-gaming/Wave/issues) to propose or discuss work. Include the user benefit, browser constraints, privacy impact, and a test plan. See [CONTRIBUTING.md](../CONTRIBUTING.md).
 
-Release 0.2.0 is dated 1 November 2026; published assets and tag identity are recorded on the GitHub Release. There is no released 1.0.0 or completed Android parity.
+Release 0.2.0 is dated 3 November 2026; published assets and tag identity are recorded on the GitHub Release. There is no released 1.0.0 or completed Android parity.
 
 Immediate import persistence, exact-byte renamed-file deduplication, compact covers/lyrics and browser-controlled eviction protection are implemented. Portable backup/export and lossless reduction of original audio storage are not implemented; original bytes necessarily occupy their original size.
 
@@ -228,34 +228,41 @@ Provider limits are part of the scope, not an implementation detail: new Spotify
 applications cannot read playlists owned by other accounts, and Wave never
 downloads Spotify audio. YouTube audio is never extracted.
 
-## Release 0.2.0 · 1 November 2026
+## Release 0.2.0 · 3 November 2026
 
 - [x] A mix whose level arrives with the file, is measured at the join and is released over four
       seconds instead of a frame.
-- [x] Both decks share the tempo correction, inside a sixteen per cent window, and the two records
-      separate in the stereo field while they meet without touching the level.
-- [x] **Mixing** drawn as letters, each one lit in turn as the handover approaches.
-- [x] Silent edges measured on playback, mentioned once, removable as playback bounds — the file
-      keeps every sample and the editor gives the whole thing back.
+- [x] **No deck is ever given a playback rate.** The old tempo split is gone: the songs meet on the
+      bar and each plays as recorded, and the overlap is cut to however long the two pulses can share
+      a room.
+- [x] The new song enters on a bar where it is already playing, never in the held chord an intro ends
+      on, and the two records separate in the stereo field while they meet without touching the level.
+- [x] A song can end when the music does: in its last ten seconds, nothing left to hear means the
+      next song comes in.
+- [x] **Mixing** drawn as one light travelling across the word.
+- [x] Silent edges measured against the loudest tenth of the song, holding for a third of a second,
+      capped at twenty seconds a side, offered from two and a half seconds at the front and four at
+      the back, over the bar and inside the open player.
 - [x] An artist tag naming two acts gives each act a profile; names with a real comma stay whole.
 - [x] Titles holding the whole line give up their artist, album positions leave the name, and song
       details say what is missing in words.
-- [x] Online lookups off until switched on, and better at what they accept when they are on.
+- [x] Online lookups off until switched on, and better at what they accept when they are on, down to
+      finding where a song sits on its album.
+- [x] Search ranked everywhere: exact, prefix, word, letters, artist, album, file name — plus one
+      letter in the wrong place still finding the song, on the web, the phone and the Windows window.
+- [x] Lyrics matched across edition words a file did not keep, with live and acoustic takes still
+      refused.
 - [x] An error screen written for a person, with the exception kept in the console.
 - [x] A break offered after an hour and a half of actual listening.
 - [x] Linking another device is the first card on a phone.
-- [ ] Real-device pass on the new clip layout, the stereo spread and the break card.
-- [x] Wave's own icons, drawn with the wordmark's pen, and a clip mode that keeps the picture.
+- [x] Wave's own icons, drawn with the wordmark's pen, and the same paths on Android and Windows.
+- [x] The clip view drawn **over** the picture: sleeve and text top-left, words bottom-right, one
+      glass transport at the foot, and the video reaching every edge of the window.
+- [x] A still is not a clip: audio uploads, art tracks, lyric videos and cover-art uploads skipped.
+- [x] A clip placed before the song as well as after the start of its intro.
+- [x] Bringing a library over reachable from Settings → Library as well as the playlists shelf.
 - [x] Served by Cloudflare Pages with `_redirects` and `_headers` in the build.
-- [x] Every icon drawn by Wave's own hand, and the icon pack removed from the dependencies.
-- [x] The wordmark's v rebuilt on the W's own trough: both arms carry the same weight.
-- [x] A clip-mode grid where every part of the player has a cell of its own.
-- [x] The picture keeps almost all of itself, and the note about a missing clip sits beside the
-      transport instead of across the middle.
-- [x] A mix's clips change hands on the same progress number as the songs.
-- [x] Fewer claims: no swapped-tag warning without a file name to prove it, no filename verdict
-      for a title that merely contains a word, no artist invented from a slash, and silence must
-      reach three seconds at the front or four at the back to be mentioned.
+- [ ] Real-device pass on the blend, the overhead clip layout and the break card on a phone.
 
 ## Release 0.1.1 · 2 November 2026
 

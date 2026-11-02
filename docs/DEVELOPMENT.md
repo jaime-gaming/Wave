@@ -1,6 +1,6 @@
 # Wave Development Guide
 
-**Version: 0.2.0 · Release date: 1 November 2026.**
+**Version: 0.2.0 · Release date: 3 November 2026.**
 
 ## Requirements
 
@@ -289,14 +289,14 @@ Run `release-010.spec.ts` for offline daily genre groups and native queue cohere
 
 ## Merge-time publication
 
-Release 0.2.0 is dated 1 November 2026. Publication requires maintainer authorization and successful checks on the exact candidate. Keep its description to Highlights; detailed QA belongs in this document and `VALIDATION.md`.
+Release 0.2.0 is dated 3 November 2026. Publication requires maintainer authorization and successful checks on the exact candidate. Keep its description to Highlights; detailed QA belongs in this document and `VALIDATION.md`.
 
 When proceeding with the approved merge:
 
 1. Run `npm run test:release` and `npm run release:check -- v0.2.0`. They reject inconsistent web/native versions, a wrong tag name or missing/mismatched release notes without publishing anything. Require successful web and native checks on the latest PR revision and review the remaining device/runtime limitations.
-2. Mark PR #1 ready, then merge with `gh pr merge 1 --squash --subject "Wave 0.1.1 Release" --body "" --match-head-commit <validated-head-sha>`. Use the exact squash commit title `Wave 0.2.0 Release`. Preserve the feature branch as a recovery reference. Do not bypass failing checks or create a release from an unmerged candidate SHA.
+2. Mark the release PR ready, then merge it with `gh pr merge <number> --squash --subject "Wave 0.2.0 Release" --body ""`. Use the exact squash commit title `Wave 0.2.0 Release`. Preserve the feature branch as a recovery reference. Do not bypass failing checks or create a release from an unmerged candidate SHA.
 3. Read the actual merge commit from the merged PR and confirm it matches the final `main` revision. Create the annotated `v0.2.0` tag at that commit through GitHub. Never force-update an existing tag; inspect it first if retrying a partially completed publication.
-4. Prepare/update the draft GitHub Release with the reviewed `RELEASE_NOTES_0.1.1.md`. Verify its target and dereferenced tag match the merge commit before publishing. A draft does not publish a tag. After creating the tag, manually dispatch `Release assets` with that tag to populate and verify the draft assets before publishing. It also runs on release publication. The workflow builds that exact tag and attaches the relative-base web ZIP, the existing product film and `SHA256SUMS.txt`. Its ZIP includes source-commit metadata and the unchanged notices. If attachment upload fails, rerun the workflow with the same tag using its manual dispatch; never move the tag to retry. The build must be on main ancestry. `python3 -m unittest discover -s scripts -p test_package_release.py` checks deterministic packaging and input boundaries.
+4. Prepare/update the draft GitHub Release with the reviewed `RELEASE_NOTES_0.2.0.md`. Verify its target and dereferenced tag match the merge commit before publishing. A draft does not publish a tag. After creating the tag, manually dispatch `Release assets` with that tag to populate and verify the draft assets before publishing. It also runs on release publication. The workflow builds that exact tag and attaches the relative-base web ZIP, the existing product film and `SHA256SUMS.txt`. Its ZIP includes source-commit metadata and the unchanged notices. If attachment upload fails, rerun the workflow with the same tag using its manual dispatch; never move the tag to retry. The build must be on main ancestry. `python3 -m unittest discover -s scripts -p test_package_release.py` checks deterministic packaging and input boundaries.
 5. Native debug/unsigned CI artifacts are test builds, not signed installers. Do not silently relabel or attach them as production-ready packages.
 
 PR preparation alone does not authorize publication. Releases and the website are separate: verify the Cloudflare Pages deployment of the merge commit rather than treating a successful tag as proof of hosting. The site is https://wave.jaime-gaming.com, built by Cloudflare Pages from `npm run build` with `dist` as its output directory; the domain is configured in the Pages project, not in a committed `CNAME`. `public/_redirects` keeps one page reachable at any path and `public/_headers` sets caching and security headers. The build uses relative asset paths (`--base=./`) so the same output also works from a subpath. `npm run build:pages` refreshes the committed `docs/` mirror, which Cloudflare does not use. No custom deployment Action is required. Do not change repository visibility as a side effect of release preparation. Successful compilation does not establish Android/Windows UI or playback parity with the web client.

@@ -1,114 +1,81 @@
 # Wave 0.2.0
 
-**Release date: 1 November 2026.** The web client is published at
-[wave.jaime-gaming.com](https://wave.jaime-gaming.com), now served by Cloudflare Pages. This release
-finishes the Mix, gives a file's silent edges somewhere to go, stops guessing about people's tags and
-draws Wave's icons with Wave's own pen. Published assets and the exact tagged revision are listed on
-the [GitHub Release](https://github.com/jaime-gaming/Wave/releases/tag/v0.2.0). Native debug and
-unsigned CI packages remain test artifacts, not official signed installers.
+**Release date: 3 November 2026.** The web client is published at
+[wave.jaime-gaming.com](https://wave.jaime-gaming.com), served by Cloudflare Pages. Android and
+Windows are built from the same interface and the same assets; their CI packages are debug builds,
+not signed installers. The exact tagged revision and the published assets are listed on the
+[GitHub Release](https://github.com/jaime-gaming/Wave/releases/tag/v0.2.0).
 
-## Mix
+This release is mostly about three things people kept noticing: the join between two songs, the
+picture behind the player, and the box you type into when you are looking for something.
 
-- A song arriving in a mix used to play a second at full volume before its level match landed. The
-  match now reaches the deck the moment the file does, is measured where the two songs are actually
-  heard together — the outgoing tail against the incoming opening — and is released over four
-  seconds instead of a frame.
-- Both decks share the tempo correction and the window is sixteen per cent instead of eight, so many
-  more real pairs meet on the beat. The two records separate in the stereo field during the blend and
-  return to the centre; no level is touched by that, so the overlap keeps exactly the power the curve
-  asks for.
-- **Mixing** is letters now, not a sliding gradient: each letter lights in turn, the word tightens a
-  hair and its glow grows as the handover approaches.
+## The Mix
 
-## Files and tags
+Two songs now meet the way a person with two turntables would join them: the new record comes in on a
+bar, both play for a few bars, and the old one leaves with its bass closing and its top rolling off.
+The overlap lasts twelve to twenty-four seconds when the tempos are close, and gets shorter when they
+are far enough apart that the two pulses would drift — no song is ever sped up, slowed down, or bent
+to fit another.
 
-- Silent edges are measured when a song plays, mentioned once beside the player and removable. A trim
-  is a pair of playback bounds — the file keeps every sample, and the editor gives the whole thing
-  back. The question is never asked twice.
-- An artist tag that names a duet gives each act a profile, and the song appears under both. Names
-  that genuinely contain a comma stay whole.
-- A title tag holding the whole line ("Artist - Song") gives up its artist when nothing was tagged;
-  a zero-padded album position leaves the name; the song details panel says what a song needs in
-  words, including when the artist and title look swapped.
+- The new song enters where it is already playing. An intro that ends in a held chord or a filtered
+  beat is not an arrival, so Wave waits for the first bar that sounds like the record.
+- The two decks are matched on the point where they are actually heard together, not on the average
+  of both songs, and the arriving deck is silent until the blend takes it over. The half-second of
+  full volume at the start of a blend is gone.
+- In its last ten seconds a song can end when the music ends: if there is nothing left to hear, the
+  next one comes in instead of the room going quiet.
+- The letters of **Mixing** carry one light, travelling across the word.
 
-## Lookups
+## The videoclip
 
-- Online detail lookups are off until they are switched on, and the panel says so.
-- With them on, a title the provider decorated with a featured artist still matches, a filename is
-  repaired even when the album is unknown, and several styles in one string become separate genres.
+- Everything Wave draws is on top of the picture: the sleeve and the song's text in the top-left
+  corner, the words of the song in the bottom-right, one compact transport along the foot. The video
+  reaches every edge of the window — no panel, no frame, no square sitting darker than the rest.
+- A still is not a clip. Official audio, art tracks, lyric videos and "cover art" uploads are skipped,
+  because Wave already shows the sleeve and reading a second set of lyrics over a frozen frame is
+  worse than no picture.
+- A clip can be placed before the song as well as after its start: the offset takes negative seconds.
+- YouTube's own interface can never appear over the picture, and a paused clip is softened so its
+  player cannot be read through it.
 
-## Wave's own line
+## Search
 
-- The icon pack is gone. Navigation, transport, rows, cards and dialogs are drawn in one file
-  against one grid, with one stroke weight and round caps, the way the mark is drawn: the library
-  is a stack of covers, settings is a mixer, pause is two capsules rather than two outlined boxes
-  that smudged at small sizes.
-- The `v` in **Wave** is rebuilt on the W's own trough: both arms carry the same weight and the
-  letter stands on the baseline instead of leaning into a hinge.
-- Android and Windows draw those same paths. `WaveIcons.kt` and the `PathGeometry` entries in
-  `App.xaml` hold the strings `Glyphs.tsx` produces, so the phone and the desktop stop borrowing a
-  second set of shapes, and a correction made on the web is copied to both by copying its path.
+- A letter in the wrong place no longer means "not in your library": `nightclal` finds _Nightcall_,
+  `midnigth` finds _Midnight City_, on the website, the phone and the Windows window. A near miss
+  always ranks below anything spelled correctly, and noise still finds nothing.
+- Artists, albums and playlists are ranked rather than listed, so the name you typed comes first.
+- A lyrics service that spells a title with an edition word the file left out still matches; a live
+  take or an acoustic version remains a different recording.
 
-## A player that fits the screen it is on
+## Silent edges
 
-- With a clip playing there is one shelf under the picture instead of three pieces floating over it.
-  The words of the song take the left side; the sleeve with its title, artist and album takes the
-  right, right-aligned and compact, and the transport runs underneath both.
-- Closing the words leaves their toggle in place, so the shelf does not jump, and the open player
-  loses its frame in this mode: less page padding, a one-line heading, the picture getting the rest.
-- The shelf reflows rather than being rearranged by hand. On a phone the four rows stack, with the
-  picture whole above them.
-- Search ranks what it returns, in all three clients. A query made of the starts of words matches a
-  title in any order, a name you typed comes before a longer one that begins with it, and artists,
-  albums and playlists are ranked instead of listed in whatever order the library held.
-- The phone's Now Playing puts the record on one side and the words on the other as soon as the
-  screen is wide enough for both, and the Windows window turns its rail into a column of icons in a
-  narrow window instead of squeezing the page beside it.
+Dead air is now measured against the loudest tenth of the song, has to hold for a third of a second
+before a lead-in counts as finished, and is never trimmed past twenty seconds a side. The offer needs
+two and a half seconds at the front or four at the back, it appears over the bar and inside the open
+player, and accepting it only changes where playback starts and stops — the file keeps every sample.
 
-## A clip has room
+## Smaller things worth knowing
 
-- With a video playing, each part of the player has its own place in the grid, so nothing sits on
-  top of anything else: the sleeve, the title and the transport in the left column, the words in
-  the right one, and the picture in the middle.
-- The picture keeps almost all of itself. The spectral wash that follows the cover no longer paints
-  over the video — the light belongs to the artwork, and the video brings its own — and the veil is
-  a vignette instead of a blanket.
-- On a phone held upright the video is not cropped into a slice: it keeps a band of its own at the
-  top, whole, and the player moves underneath it.
-- Pausing stoops the picture instead of smearing it, and a missing clip is mentioned in a small note
-  beside the transport rather than across the middle.
-- During a mix, the arriving song's clip fades in on the same progress number as its sound.
+- Bringing a library over is in Settings → Library as well as behind the playlists shelf.
+- Remix keeps four weeks, with the older weeks listed under the last seven days.
+- Autoplay remembers the last twenty-four songs instead of the last twelve and steps back from an
+  artist it has just played.
+- Icons are drawn in one place against one grid, and Android and Windows carry the same paths.
+- The phone card and the daily mixes on the home page share one spacing rhythm instead of sitting
+  against the heading above them.
+- Every platform links to every other by QR code or by a pasted code.
 
-## Linking
+## What this release is not
 
-- Devices can be linked without a camera: a pairing code can be pasted, which is the quickest way
-  between two computers and the path every other platform can use.
-- `docs/PAIRING.md` writes the whole exchange down — transport, keys, six digits, frames — so
-  Android and Windows can join the same network instead of inventing a second one.
+- No iOS application.
+- The blend described above is the web client's. The phone and the desktop still join two songs with
+  a plain overlap; bringing them the same engine is the next piece of work, not a claim of this
+  release.
+- No account, no upload, no listening profile leaving the device.
+- No signed installers: the native packages produced by CI are debug builds for testing.
 
-## Fewer wrong claims
+## Upgrading
 
-- A title is called a filename only when it plainly is one. Titles containing "Take", "Mix",
-  "Copy" or "Final" used to be renamed by the catalogue.
-- "The artist and the title look swapped" is only said when the file name itself holds them the
-  other way round.
-- A comma names two acts; a slash does not, so `AC/DC` is one artist again.
-- Silence has to reach three seconds at the front or four at the back before Wave mentions it,
-  and a missing year or genre is no longer treated as a gap.
-
-## The app itself
-
-- The error screen is written for a person: a small stopped waveform, one sentence, the two ways out.
-  The exception stays in the console.
-- After an hour and a half of actual playing the music stops and Wave asks whether to take a break.
-  Both answers give the next question twenty minutes more room.
-- On a phone, bringing the other device in is the first card under the collection.
-- The navigation and transport icons are drawn by the same hand as the wordmark. With a clip playing,
-  the player becomes a small column at the left and the words a narrow column at the right, leaving
-  the middle of the screen to the picture.
-
-## Hosting
-
-- Cloudflare Pages builds `npm run build` into `dist`. `public/_redirects` and `public/_headers`
-  travel with the build; the domain is set in the Pages dashboard, so no CNAME file is written. The
-  Playwright mirror under `docs/` is only a mirror.
+An existing library opens unchanged: the database is migrated forward, playlists, favourites, saved
+album orders, local lyrics and per-song clips keep their places, and nothing in your files is
+rewritten. Silence trims saved by an earlier version remain exactly as they were saved.

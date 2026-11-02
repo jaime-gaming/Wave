@@ -157,11 +157,11 @@ Manual artist profiles store separately processed raster artwork. `useCustomizat
 
 ## Mix, as a mix
 
-Mix is one switch and nothing else. There is no overlap length, no style selector and no readout: the planner picks the bar count from the outgoing tempo so the blend lasts about twenty seconds, cues the new song on the first bar that already has drums in it, and decides the tempo match and the bass swap per pair of songs. The interface never explains any of that. A mix is not a preference between two fades; it is a decision made while the songs are playing.
+Mix is one switch and nothing else. There is no overlap length, no style selector and no readout: the planner picks the bar count from the outgoing tempo so the blend lasts about twenty seconds — fewer bars when the two tempos would drift apart — cues the new song on the first bar that is already sounding, and decides the bass swap per pair of songs. Neither record is ever sped up or slowed down. The interface never explains any of that. A mix is not a preference between two fades; it is a decision made while the songs are playing.
 
 The same rule applies to every panel: the interface shows what can be played, chosen or changed, not how it works. No BPM, no basis lines, no provider notes, no captions under controls. The one exception is the warning that the optional word-level lyric sources are unofficial, because that is information the person choosing needs.
 
-Nothing in the interface promises more than the engine does. When the analysis has no trusted grid the overlap is still staged, still gets the low-end swap and the filter, and is timed like the planned one; when the tempo gap exceeds 8 % the overlap is shortened instead of stretched. Stretching is described as playback-only and pitch-preserving because that is all it is.
+Nothing in the interface promises more than the engine does. When the analysis has no trusted grid the overlap is still staged, still gets the low-end swap and the filter, and is timed like the planned one. No song is stretched in either case: the two records meet on the bar and the overlap is cut to as long as their pulses can share a room, which is why a wide tempo gap gets a short blend rather than a wobbly one.
 
 ## A mix is announced
 

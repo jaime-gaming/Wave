@@ -1,53 +1,48 @@
 # Validation record
 
-Release 0.2.0 · 1 November 2026. Historical run dates are retained below.
+Release 0.2.0 · 3 November 2026. Historical run dates are retained below.
 
 ## Web
 
-### The clip view, the mix burst and the silence question (current work)
+### 0.2.0 at the release (2 November 2026)
 
-- The clip view is now measured in a real browser. `tests/clip-stage.spec.ts` sets a
-  clip on an imported song, opens the player, and asserts at 1440×900 and 1280×720
-  — with the words open and closed — that the sleeve is over a hundred pixels, that
-  the record and the words share the row without touching, that both sit over the
-  picture, and that the transport never falls below the window.
-- The clip view had a cascade problem, not a design problem: the rules that move
-  the record and the words when the lyric reader is closed also match this view,
-  and they were winning. Every clip rule now names the layout as well as the
-  player, and the closed state is restated inside the clip block. `tests/clip-stage.spec.ts`
-  measures the result in a real browser — sleeve above a hundred and ten pixels on
-  both sides, record and words sharing the row without touching, nothing below
-  the window — with the words open and closed.
-- No deck is ever given a playback rate any more: `mixPlanner` has no rate fields,
-  `MixAudio` writes `playbackRate = 1`, and the old `stretchRate` and its tests
-  are gone. `mixPlanner.test.ts` asserts the plan carries no rate at all.
-
-- `npx tsc -b`, `npx eslint . --max-warnings=0`, `npx prettier --check .` and `npm run build:pages`:
-  clean. `npm test`: **657 tests across 101 files**, all passing.
-- The burst at the start of a blend was the twenty-millisecond gain loop, not the curve: with no
-  blend object yet it wrote a level of one into both decks, and there are a few frames between the
-  arriving deck starting and the blend being set up. The arriving deck is now held at zero for as
-  long as it is pending, in the loop and in `attachGraph`. `MixAudio.test.ts` holds a deck's play
-  promise open and asserts the level stays at zero through two hundred milliseconds of ticks; the
-  test fails against the previous code.
-- A still is no longer treated as a clip: `scoreClip` rejects audio-only uploads and art tracks
-  outright, and the extra "official video" query is spent when nothing passed, so a song either has
-  a moving picture or none.
-- The silence offer was only rendered when the player was collapsed. It is rendered in the open
-  player too, and the thresholds moved to two seconds at the start and three at the end.
-- Search gained one more rung at the bottom of the same ladder — every word of the
-  query one letter away from a word of the text, with a floor of three letters so
-  noise stays noise — on the site, in Kotlin and in C#. `searchRank.test.ts` and
-  `LibraryContractsTest` cover a near miss, a near miss losing to a correct match,
-  and a query that should still find nothing. Lyrics matching accepts a tail of
-  edition words on either title, with live and acoustic takes still refused.
-- Edge detection is measured against the loudest tenth of the song, requires the
-  music to hold for a third of a second before the lead-in ends, and is capped at
-  twenty seconds a side. `dsp.test.ts` builds frames with a click at the head, a
-  crackle inside the lead-in and one at the tail, and asserts the edges land on the
-  music; a second case asserts the cap. Both fail against the previous code.
+- `npx tsc -b`, `npx eslint .`, `npx prettier --check .`, `npm run test:release`,
+  `npm run release:check` and `npm run build:pages`: clean. `npm test`: **663 tests across 101
+  files**, all passing — the same suite runs in CI on Node 22 against the committed tree.
+- `npm run test:e2e`: the whole Playwright suite passes at this revision, including
+  `tests/clip-stage.spec.ts`, which is new. It was green in CI for the first time since 0.1.1; the
+  long-standing red tests were stale selectors and lookups the runner cannot reach, and they are
+  fixed rather than muted.
+- **The clip view is measured, not reviewed.** `clip-stage.spec.ts` puts a clip on an imported song,
+  opens the player and, at 1440×900 and 1280×720 with the words open and closed, asserts that the
+  sleeve is rendered larger than 110 px, that the record and the words do not touch, that both sit
+  over the picture, that the transport stays inside the window, and that the backdrop reaches all
+  four edges of the viewport. That last assertion is the "no darker square" guard: the backdrop is
+  absolutely positioned, so its box is the dialog's padding box, and any modal padding leaves a
+  frame of the app around the video.
+- No deck is ever given a playback rate: `mixPlanner` has no rate fields, `MixAudio` writes
+  `playbackRate = 1`, and `stretchRate` is gone with its tests. `mixPlanner.test.ts` asserts the plan
+  carries no rate at all and that a pair of close tempos keeps an overlap of at least twelve seconds.
+- The overlap now follows the tempo gap (`DRIFT_BEATS = 1.5`), and the incoming entry is moved to the
+  first bar inside `MAX_CUE_LEAD` where the record is actually sounding. Both are covered in
+  `mixPlanner.test.ts`, including a breakdown between intro and body and a 17 % tempo gap.
+- Edge detection is measured against the loudest tenth of the song, requires the music to hold for a
+  third of a second before the lead-in ends, and is capped at twenty seconds a side. `dsp.test.ts`
+  builds frames with a click at the head, a crackle inside the lead-in and one at the tail, and
+  asserts the edges land on the music; a second case asserts the cap. Both fail against the previous
+  code. `silence.test.ts` holds the offer at two and a half seconds at the front and four at the back.
+- Search forgives one letter in the wrong place, for words of six letters or more, on the site, in
+  Kotlin and in C#. `searchRank.test.ts` and `LibraryContractsTest` cover a near miss, a near miss
+  losing to a correct match, and a query that should still find nothing.
+- A still is no longer a clip: `scoreClip` rejects audio-only uploads, art tracks and cover-art
+  uploads outright, and the extra "official video" query is only spent when nothing passed.
+- A clip's offset accepts negative seconds; `videoClips.test.ts` keeps the sign, `videoSync.test.ts`
+  places a picture before the song, and the editor clamps the field to ±3600.
+- The silence offer is rendered inside the open player as well as over the bar.
 - Daily mixes sat against the phone's link card because that card is a button and the home page only
   spaced section after section; the card now carries the same gap.
+- Not verified from this workspace: a real device. The Android and Windows packages in CI are debug
+  builds and have not been driven by hand at this revision.
 
 ### The clip view, the Mixing word, and the cascade that broke them
 

@@ -45,6 +45,13 @@ export const RUBATO_SECONDS = 12;
  */
 export const TARGET_SECONDS = 20;
 /**
+ * How far the two grids may drift apart inside one blend, in beats.
+ *
+ * Under a beat and a half the two pulses are still heard as one groove with a
+ * little movement; past it the kicks are audibly trading places.
+ */
+export const DRIFT_BEATS = 1.5;
+/**
  * How far Mix may move the incoming song to land on a downbeat.
  */
 export const MAX_CUE_LEAD = 6;
@@ -168,6 +175,38 @@ function alignIncoming(analysis: TrackAnalysis): number {
   const bar = Math.ceil(beats / BEATS_PER_BAR) * BEATS_PER_BAR;
   const aligned = offset + bar * period;
   return clamp(aligned, start, Math.max(start, analysis.trimmed.end - period));
+}
+
+/**
+ * The first bar inside a short search where the new record is actually sounding.
+ *
+ * A song's intro often ends in a breakdown — a held pad, a filtered beat, a single
+ * chord — and a DJ does not bring a record in there: the arrival would be a hiss
+ * under the outgoing song, not a new record. The entry keeps its bar grid, only
+ * moves forward, and only as far as `MAX_CUE_LEAD`, so this is a nudge and never a
+ * skip into the first chorus.
+ */
+function loudEntry(analysis: TrackAnalysis, from: number, length: number): number {
+  const { bpm, offset } = analysis.beats;
+  const period = 60 / bpm;
+  const bodies = analysis.segments.filter((segment) => segment.kind === 'body');
+  if (!bodies.length) return from;
+  const loudest = Math.max(...bodies.map((segment) => segment.level));
+  if (!(loudest > 0)) return from;
+  const levelAt = (time: number) => {
+    const segment = analysis.segments.find((entry) => entry.start <= time && entry.end > time);
+    return segment ? segment.level : 0;
+  };
+  if (levelAt(from) >= loudest * 0.55) return from;
+  const cap = Math.min(from + Math.max(MAX_CUE_LEAD, period), analysis.trimmed.end - period);
+  // Whole bars only: the entry has to stay on the downbeat it was placed on.
+  const firstBar = Math.ceil((from - offset) / period / BEATS_PER_BAR);
+  for (let step = 1; step <= 8; step++) {
+    const time = offset + (firstBar + step) * BEATS_PER_BAR * period;
+    if (time > cap || time + length > analysis.trimmed.end) break;
+    if (levelAt(time) >= loudest * 0.55) return time;
+  }
+  return from;
 }
 
 /**
@@ -319,7 +358,7 @@ export function planTransition(
     );
   else
     notes.push(
-      `Tempo gap of ${(stretchNeeded * 100).toFixed(1)} %: both songs keep their own tempo and the overlap is shortened.`,
+      `Tempo gap of ${(stretchNeeded * 100).toFixed(1)} %: both songs keep their own tempo.`,
     );
 
   // Overlap is a whole number of bars at the outgoing tempo, chosen so the blend
@@ -331,7 +370,29 @@ export function planTransition(
   const audibleTail = Math.max(0, outgoing.trimmed.end - outgoing.trimmed.start);
   const maxByTail = Math.floor(audibleTail / barsToSeconds(1, bpmA));
   bars = Math.min(bars, Math.max(0, maxByTail));
-  if (!stretchable) bars = Math.min(bars, 4);
+  /*
+   * How long two records can share a room before their pulses part company.
+   *
+   * Both songs now play at their own tempo, so a pair whose tempos differ drifts:
+   * after `t` seconds the two downbeats are `t · |1 − rate|` beats apart, and once
+   * that passes a beat and a half the kicks are trading places and the blend
+   * sounds like a mistake. The length is therefore tied to the gap — close tempos
+   * keep the full twelve to twenty-four seconds, a wider pair gets a shorter,
+   * cleaner handover — instead of a fixed cut at one arbitrary threshold.
+   */
+  // A half-time pair is one pulse at two speeds: its downbeats keep meeting, so
+  // there is nothing to drift.
+  const driftPerSecond = octave ? 0 : Math.abs(1 - bpmB / bpmA);
+  if (driftPerSecond > 0) {
+    const allowed = (DRIFT_BEATS * 60) / bpmA / driftPerSecond;
+    const driftedBars = Math.max(0, Math.floor(allowed / barsToSeconds(1, bpmA)));
+    if (driftedBars < bars) {
+      bars = driftedBars;
+      notes.push(
+        `Tempo gap of ${(driftPerSecond * 100).toFixed(1)} %: the overlap is cut to ${bars} bars so the two pulses stay together.`,
+      );
+    }
+  }
   if (bars < 2)
     return fallback('The outgoing song has too little audible tail left for a bar-aligned mix.');
 
@@ -343,8 +404,9 @@ export function planTransition(
   if (startAt + seconds > outgoing.trimmed.end + 0.05)
     return fallback('The overlap would run past the end of the song.');
 
-  // Incoming entry: after its intro, on a bar, and clear of any vocal if possible.
-  let cue = alignIncoming(incoming);
+  // Incoming entry: after its intro, on a bar, where the record is already
+  // sounding, and clear of any vocal if possible.
+  let cue = loudEntry(incoming, alignIncoming(incoming), seconds);
   let phaseAligned = true;
   if (overlapsRegion(incoming.vocals, cue, cue + seconds, vocalTolerance)) {
     const clear = findClearEntry(incoming, cue, seconds);
