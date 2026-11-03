@@ -7,6 +7,7 @@ import { parseYouTubeLink, youtubeThumbnailUrl } from '../domain/youtube';
 import type { ClipCandidate } from '../domain/clipSearch';
 import type { Track } from '../domain/types';
 
+import { useT } from '../i18n';
 /**
  * The clip for this song, and a way to change your mind.
  *
@@ -16,6 +17,7 @@ import type { Track } from '../domain/types';
  * Everything is stored on this device and keyed by the song; nothing is uploaded.
  */
 export function ClipSection({ track }: { track: Track }) {
+  const t = useT();
   const [clip, setClip] = useState(() => getClip(track.id, loadClips()));
   const [status, setStatus] = useState<'idle' | 'searching' | 'empty' | 'unavailable'>('idle');
   const [candidates, setCandidates] = useState<ClipCandidate[]>([]);
@@ -68,17 +70,17 @@ export function ClipSection({ track }: { track: Track }) {
   };
 
   return (
-    <section className="clip-section" aria-label="Video clip">
+    <section className="clip-section" aria-label={t('Video clip')}>
       <header>
         <Film size={17} aria-hidden="true" />
-        <strong>Video clip</strong>
+        <strong>{t('Video clip')}</strong>
       </header>
       {clip ? (
         <>
           <div className="clip-current">
             <img src={youtubeThumbnailUrl(clip.videoId)} alt="" width={72} height={40} />
             <span>
-              <small>Playing behind this song</small>
+              <small>{t('Playing behind this song')}</small>
               <a
                 className="clip-current-link"
                 href={`https://www.youtube.com/watch?v=${clip.videoId}`}
@@ -92,7 +94,7 @@ export function ClipSection({ track }: { track: Track }) {
             <button
               type="button"
               className="icon-button"
-              aria-label="Remove video clip"
+              aria-label={t('Remove video clip')}
               onClick={() => {
                 removeClip(track.id);
                 window.dispatchEvent(new Event(CLIPS_CHANGED));
@@ -102,7 +104,7 @@ export function ClipSection({ track }: { track: Track }) {
             </button>
           </div>
           <label className="clip-offset">
-            <span>Clip starts at</span>
+            <span>{t('Clip starts at')}</span>
             <input
               type="number"
               // Either side of zero: positive when the upload has an intro before
@@ -126,7 +128,7 @@ export function ClipSection({ track }: { track: Track }) {
           </label>
         </>
       ) : (
-        <p className="clip-empty">No clip yet. Wave looks for one by itself.</p>
+        <p className="clip-empty">{t('No clip yet. Wave looks for one by itself.')}</p>
       )}
       <div className="clip-actions">
         <button
@@ -161,8 +163,8 @@ export function ClipSection({ track }: { track: Track }) {
           <input
             type="url"
             inputMode="url"
-            placeholder="youtube.com/watch?v=…"
-            aria-label="YouTube link for this clip"
+            placeholder={t('youtube.com/watch?v=…')}
+            aria-label={t('YouTube link for this clip')}
             aria-invalid={linkError || undefined}
             value={link}
             onChange={(event) => {

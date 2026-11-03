@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { useWaveMotion } from '../ui/motion';
 import { Disc3, Heart, Home, Library, ListMusic, Remix, Search, Settings, Users } from './Glyphs';
 import type { LibraryView } from '../domain/types';
+import { useT } from '../i18n';
 export type Page = 'home' | 'search' | 'library' | 'remix' | 'settings';
 export function Navigation({
   page,
@@ -19,18 +20,19 @@ export function Navigation({
   onView: (view: LibraryView) => void;
   counts: { albums: number; artists: number; playlists: number; favorites: number };
 }) {
+  const t = useT();
   const animation = useWaveMotion();
   return (
     <aside className="navigation-shell">
-      <a className="brand" href="#main" aria-label="Wave home" onClick={() => onPage('home')}>
+      <a className="brand" href="#main" aria-label={t('Wave home')} onClick={() => onPage('home')}>
         {/* The whole word when the rail is wide enough for it, the first letter
             when it is not: the same curves at both sizes, so the name never has
             to be squeezed into unreadable type to stay a word. */}
         <WaveWordmark variant="full" className="wave-wordmark wave-wordmark-full" />
         <WaveWordmark variant="mark" className="wave-wordmark wave-wordmark-mark" />
-        <span className="sr-only">Wave</span>
+        <span className="sr-only">{t('Wave')}</span>
       </a>
-      <nav className="app-navigation" aria-label="Main navigation">
+      <nav className="app-navigation" aria-label={t('Main navigation')}>
         {(
           [
             { id: 'home', name: 'Home', icon: Home },
@@ -62,16 +64,16 @@ export function Navigation({
           </motion.button>
         ))}
       </nav>
-      <div className="rail-collection" role="group" aria-label="Collection shortcuts">
-        <p>Collection</p>
+      <div className="rail-collection" role="group" aria-label={t('Collection shortcuts')}>
+        <p>{t('Collection')}</p>
         {(
           [
-            { id: 'albums', label: 'Albums', name: 'Browse albums', icon: Disc3 },
-            { id: 'artists', label: 'Artists', name: 'Browse artists', icon: Users },
-            { id: 'playlists', label: 'Playlists', name: 'Browse playlists', icon: ListMusic },
+            { id: 'albums', label: t('Albums'), name: 'Browse albums', icon: Disc3 },
+            { id: 'artists', label: t('Artists'), name: 'Browse artists', icon: Users },
+            { id: 'playlists', label: t('Playlists'), name: 'Browse playlists', icon: ListMusic },
             {
               id: 'favorites',
-              label: 'Favorites',
+              label: t('Favorites'),
               name: 'Browse favorite songs',
               icon: Heart,
             },
@@ -89,9 +91,9 @@ export function Navigation({
           </button>
         ))}
       </div>
-      <button className="rail-settings" onClick={onSettings} aria-label="Settings">
+      <button className="rail-settings" onClick={onSettings} aria-label={t('Settings')}>
         <Settings size={21} />
-        <span>Settings</span>
+        <span>{t('Settings')}</span>
       </button>
     </aside>
   );

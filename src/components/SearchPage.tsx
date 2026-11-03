@@ -15,6 +15,7 @@ import { LibraryContent } from './LibraryContent';
 import { PlaylistCollection } from './PlaylistCollection';
 import { useWaveMotion } from '../ui/motion';
 
+import { useT } from '../i18n';
 type Props = {
   tracks: Track[];
   playlists: Playlist[];
@@ -57,6 +58,7 @@ export const SearchPage = memo(function SearchPage({
   onPlaylist,
   onCreatePlaylist,
 }: Props) {
+  const t = useT();
   const [kind, setKind] = useState('All');
   const [recent, setRecent] = useState<string[]>(loadRecentSearches);
   useEffect(() => {
@@ -114,14 +116,14 @@ export const SearchPage = memo(function SearchPage({
             ? playlists.length
             : songs.length + artists.length + albums.length + playlists.length;
   return (
-    <section className="search-destination" aria-label="Search your collection">
+    <section className="search-destination" aria-label={t('Search your collection')}>
       <div className="search-composer">
         <Search size={28} />
         <input
           ref={inputRef}
           type="search"
-          aria-label="Search library"
-          placeholder="Songs, artists, albums, playlists"
+          aria-label={t('Search library')}
+          placeholder={t('Songs, artists, albums, playlists')}
           value={query}
           onChange={(e) => onQuery(e.target.value)}
           onKeyDown={(event) => {
@@ -142,7 +144,7 @@ export const SearchPage = memo(function SearchPage({
         {query ? (
           <button
             className="icon-button"
-            aria-label="Clear search"
+            aria-label={t('Clear search')}
             onClick={() => {
               onQuery('');
               inputRef.current?.focus();
@@ -154,7 +156,7 @@ export const SearchPage = memo(function SearchPage({
           <kbd>⌘ / Ctrl K</kbd>
         )}
       </div>
-      <div className="search-kinds" aria-label="Search categories">
+      <div className="search-kinds" aria-label={t('Search categories')}>
         {['All', 'Songs', 'Artists', 'Albums', 'Playlists'].map((label) => (
           <motion.button
             key={label}
@@ -169,12 +171,12 @@ export const SearchPage = memo(function SearchPage({
       </div>
       {!query.trim() ? (
         <div className="search-start">
-          <h2>Browse your collection</h2>
-          <p>Accents and word order do not matter. The closest name comes first.</p>
+          <h2>{t('Browse your collection')}</h2>
+          <p>{t('Accents and word order do not matter. The closest name comes first.')}</p>
           {!!recent.length && (
             <div className="search-recent">
               <div className="search-recent-head">
-                <span>Recent searches</span>
+                <span>{t('Recent searches')}</span>
                 <button
                   className="text-button"
                   onClick={() => {
@@ -197,20 +199,25 @@ export const SearchPage = memo(function SearchPage({
           <div className="search-shortcuts">
             {(
               [
-                { id: 'songs', label: 'Songs', icon: Music2, count: tracks.length },
+                { id: 'songs', label: t('Songs'), icon: Music2, count: tracks.length },
                 {
                   id: 'artists',
-                  label: 'Artists',
+                  label: t('Artists'),
                   icon: Users,
                   count: collectArtists(tracks).length,
                 },
                 {
                   id: 'albums',
-                  label: 'Albums',
+                  label: t('Albums'),
                   icon: Disc3,
                   count: collectAlbums(tracks).length,
                 },
-                { id: 'playlists', label: 'Playlists', icon: ListMusic, count: playlists.length },
+                {
+                  id: 'playlists',
+                  label: t('Playlists'),
+                  icon: ListMusic,
+                  count: playlists.length,
+                },
               ] as const
             ).map(({ id, label, icon: Icon, count }, i) => (
               <motion.button
@@ -234,7 +241,7 @@ export const SearchPage = memo(function SearchPage({
             {count} {count === 1 ? 'result' : 'results'} for “{query}”
           </p>
           {(kind === 'All' || kind === 'Songs') && (
-            <section className="search-results-section" aria-label="Song results">
+            <section className="search-results-section" aria-label={t('Song results')}>
               <h2>
                 Songs <span>{songs.length}</span>
               </h2>
@@ -265,7 +272,7 @@ export const SearchPage = memo(function SearchPage({
             </section>
           )}
           {(kind === 'All' || kind === 'Artists') && artists.length > 0 && (
-            <section className="search-results-section" aria-label="Artist results">
+            <section className="search-results-section" aria-label={t('Artist results')}>
               <h2>
                 Artists <span>{artists.length}</span>
               </h2>
@@ -293,7 +300,7 @@ export const SearchPage = memo(function SearchPage({
             </section>
           )}
           {(kind === 'All' || kind === 'Albums') && albums.length > 0 && (
-            <section className="search-results-section" aria-label="Album results">
+            <section className="search-results-section" aria-label={t('Album results')}>
               <h2>
                 Albums <span>{albums.length}</span>
               </h2>

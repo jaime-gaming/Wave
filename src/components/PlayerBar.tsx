@@ -31,6 +31,7 @@ import type { usePlayer } from '../hooks/usePlayer';
 import { usePlayerColors } from '../hooks/usePlayerColors';
 import { usePlaybackTime } from '../hooks/playbackClock';
 
+import { useT } from '../i18n';
 type PlayerProps = {
   player: ReturnType<typeof usePlayer>;
   onFavorite: (track: Track) => void;
@@ -98,6 +99,7 @@ function PlayerDetails({
   onToggleVideoClip,
   cue = null,
 }: PlayerProps & { readerActive?: boolean; time: number; cue?: MixCue | null }) {
+  const t = useT();
   const { current, state, duration, volume, dispatch } = player;
   const animation = useWaveMotion();
   return (
@@ -168,7 +170,7 @@ function PlayerDetails({
                 </button>
               </div>
             ) : (
-              <p>Choose a song from your library.</p>
+              <p>{t('Choose a song from your library.')}</p>
             )}
             {/*
               The cue shares the line under the title with the artist, and the
@@ -209,7 +211,7 @@ function PlayerDetails({
               <button
                 className="stage-skip"
                 onClick={player.previous}
-                aria-label="Previous track"
+                aria-label={t('Previous track')}
                 disabled={!current}
               >
                 <SkipBack size={27} />
@@ -228,7 +230,7 @@ function PlayerDetails({
               <button
                 className="stage-skip"
                 onClick={() => dispatch({ type: 'next' })}
-                aria-label="Next track"
+                aria-label={t('Next track')}
                 disabled={!current}
               >
                 <SkipForward size={27} />
@@ -238,7 +240,7 @@ function PlayerDetails({
               <button
                 className={state.shuffled ? 'active' : ''}
                 onClick={player.shuffle}
-                aria-label="Shuffle"
+                aria-label={t('Shuffle')}
                 aria-pressed={state.shuffled}
                 disabled={!current}
               >
@@ -290,7 +292,7 @@ function PlayerDetails({
                 {volume ? <Volume2 size={21} /> : <VolumeX size={21} />}
               </button>
               <input
-                aria-label="Volume"
+                aria-label={t('Volume')}
                 type="range"
                 min="0"
                 max="1"
@@ -362,6 +364,7 @@ function PlayerDetails({
 }
 
 export function PlayerBar(props: PlayerProps) {
+  const t = useT();
   const [lyricsOpen, setLyricsOpen] = useState(true);
   const {
     player,
@@ -450,7 +453,7 @@ export function PlayerBar(props: PlayerProps) {
       <footer
         className="player-bar"
         data-track-id={player.current?.id}
-        aria-label="Music player"
+        aria-label={t('Music player')}
         style={colors}
         inert={showing}
         aria-hidden={showing}
@@ -466,7 +469,7 @@ export function PlayerBar(props: PlayerProps) {
           <div className="compact-track">
             <button
               className="compact-cover-open"
-              aria-label="Expand album artwork"
+              aria-label={t('Expand album artwork')}
               disabled={!player.current}
               onClick={(event) => onOpen(event.currentTarget)}
             >
@@ -493,7 +496,7 @@ export function PlayerBar(props: PlayerProps) {
             </button>
             <button
               className="track-info compact-title-open"
-              aria-label="Open now playing"
+              aria-label={t('Open now playing')}
               disabled={!player.current}
               onClick={(event) => onOpen(event.currentTarget)}
             >
@@ -539,7 +542,7 @@ export function PlayerBar(props: PlayerProps) {
           <div className="compact-transport">
             <button
               className="mini-previous"
-              aria-label="Previous track"
+              aria-label={t('Previous track')}
               disabled={!player.current}
               onClick={player.previous}
             >
@@ -558,7 +561,7 @@ export function PlayerBar(props: PlayerProps) {
             </motion.button>
             <button
               className="mini-next"
-              aria-label="Next track"
+              aria-label={t('Next track')}
               disabled={!player.current}
               onClick={() => player.dispatch({ type: 'next' })}
             >
@@ -578,7 +581,7 @@ export function PlayerBar(props: PlayerProps) {
           </div>
           <div className="compact-modes">
             <button
-              aria-label="Shuffle"
+              aria-label={t('Shuffle')}
               aria-pressed={player.state.shuffled}
               className={player.state.shuffled ? 'active' : ''}
               disabled={!player.current}
@@ -605,7 +608,7 @@ export function PlayerBar(props: PlayerProps) {
             </button>
             <input
               type="range"
-              aria-label="Volume"
+              aria-label={t('Volume')}
               min="0"
               max="1"
               step=".01"
@@ -613,7 +616,11 @@ export function PlayerBar(props: PlayerProps) {
               onChange={(event) => player.setVolume(Number(event.target.value))}
             />
           </div>
-          <button className="icon-button compact-queue" aria-label="Show queue" onClick={onQueue}>
+          <button
+            className="icon-button compact-queue"
+            aria-label={t('Show queue')}
+            onClick={onQueue}
+          >
             <ListMusic size={22} />
           </button>
         </div>
@@ -624,7 +631,7 @@ export function PlayerBar(props: PlayerProps) {
       <AnimatePresence initial={false} onExitComplete={() => setStageGone(true)}>
         {showing && (
           <Modal
-            title="Now playing"
+            title={t('Now playing')}
             fullScreen
             // Closing folds the player back down into the bar it came from: it
             // slides towards the bottom, tightens a little, and is gone before the
@@ -647,7 +654,7 @@ export function PlayerBar(props: PlayerProps) {
               <>
                 <button
                   className={`icon-button ${props.queueOpen ? 'active' : ''}`}
-                  aria-label="Show queue"
+                  aria-label={t('Show queue')}
                   aria-expanded={props.queueOpen}
                   onClick={onQueue}
                 >

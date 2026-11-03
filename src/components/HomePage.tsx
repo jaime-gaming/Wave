@@ -13,6 +13,7 @@ import { Artwork } from './Artwork';
 import { ArtistPortrait } from './Artists';
 import { LibraryContent } from './LibraryContent';
 
+import { useT } from '../i18n';
 export const HomePage = memo(function HomePage({
   tracks,
   playlists,
@@ -51,6 +52,7 @@ export const HomePage = memo(function HomePage({
   onFavorite: (track: Track) => void;
   onMore: (track: Track) => void;
 }) {
+  const t = useT();
   const animation = useWaveMotion();
   const albums = useMemo(
     () => collectAlbums(tracks).sort((a, b) => b.addedAt - a.addedAt),
@@ -72,9 +74,9 @@ export const HomePage = memo(function HomePage({
   ] as const;
   return (
     <div className="home-content">
-      <section aria-label="Your collection" className="home-overview">
+      <section aria-label={t('Your collection')} className="home-overview">
         <div className="section-heading">
-          <h2>Your collection</h2>
+          <h2>{t('Your collection')}</h2>
           <button className="tonal-button" disabled={busy} onClick={onAdd}>
             <Plus size={18} />
             Add music
@@ -118,17 +120,17 @@ export const HomePage = memo(function HomePage({
             <Smartphone size={20} />
           </span>
           <span className="home-link-copy">
-            <strong>Bring your other device in</strong>
-            <small>Scan a code and listen to the songs on your computer from here.</small>
+            <strong>{t('Bring your other device in')}</strong>
+            <small>{t('Scan a code and listen to the songs on your computer from here.')}</small>
           </span>
           <ArrowUpRight size={18} aria-hidden="true" />
         </motion.button>
       )}
       <DailyMixes tracks={tracks} onOpen={onMix} />
       {albums.length > 0 && (
-        <section aria-label="Recently added albums" className="home-albums">
+        <section aria-label={t('Recently added albums')} className="home-albums">
           <div className="section-heading">
-            <h2>Recently added albums</h2>
+            <h2>{t('Recently added albums')}</h2>
             <button className="text-button" onClick={() => onView('albums')}>
               All albums
               <ArrowUpRight size={18} />
@@ -144,7 +146,7 @@ export const HomePage = memo(function HomePage({
       <div
         className={`home-dashboard ${playlists.length || artists.length ? 'has-secondary' : ''}`}
       >
-        <section aria-label="Recently added songs" className="home-recent-songs">
+        <section aria-label={t('Recently added songs')} className="home-recent-songs">
           <div className="section-heading">
             <h2>{tracks.length ? 'Recently added songs' : 'Your music'}</h2>
             {tracks.length > 0 && (
@@ -177,9 +179,9 @@ export const HomePage = memo(function HomePage({
         {(playlists.length > 0 || artists.length > 0) && (
           <div className="home-secondary">
             {playlists.length > 0 && (
-              <section aria-label="Your playlists">
+              <section aria-label={t('Your playlists')}>
                 <div className="section-heading">
-                  <h2>Your playlists</h2>
+                  <h2>{t('Your playlists')}</h2>
                   <button className="text-button" onClick={() => onView('playlists')}>
                     All playlists
                     <ArrowUpRight size={18} />
@@ -201,9 +203,9 @@ export const HomePage = memo(function HomePage({
               </section>
             )}
             {artists.length > 0 && (
-              <section aria-label="Artists in your library">
+              <section aria-label={t('Artists in your library')}>
                 <div className="section-heading">
-                  <h2>Artists</h2>
+                  <h2>{t('Artists')}</h2>
                   <button className="text-button" onClick={() => onView('artists')}>
                     All artists
                     <ArrowUpRight size={18} />

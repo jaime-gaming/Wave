@@ -16,6 +16,7 @@ import { formatTime, type Track } from '../domain/types';
 import type { usePlayer } from '../hooks/usePlayer';
 import { useWaveMotion } from '../ui/motion';
 import { moveId } from '../domain/order';
+import { useT } from '../i18n';
 function QueueRow({
   track,
   index,
@@ -126,6 +127,7 @@ export function QueuePanel({
   tracks: Track[];
   onAdd: () => void;
 }) {
+  const t = useT();
   const list = useRef<HTMLOListElement>(null),
     animation = useWaveMotion();
   const [editing, setEditing] = useState(false),
@@ -142,7 +144,7 @@ export function QueuePanel({
       ?.scrollIntoView({ block: 'nearest', behavior: animation.enabled ? 'smooth' : 'instant' });
   }, [player.current?.id, animation.enabled]);
   return (
-    <aside className="listening-queue" aria-label="Playback queue" data-editing={editing}>
+    <aside className="listening-queue" aria-label={t('Playback queue')} data-editing={editing}>
       <div className="listening-queue__summary">
         <span>
           {queue.length} {queue.length === 1 ? 'song' : 'songs'}
@@ -162,7 +164,9 @@ export function QueuePanel({
           Add songs to queue
         </button>
       </div>
-      {editing && <p className="queue-order-hint">Drag a handle or use the arrows to reorder.</p>}
+      {editing && (
+        <p className="queue-order-hint">{t('Drag a handle or use the arrows to reorder.')}</p>
+      )}
       <span className="sr-only" aria-live="polite">
         {announcement}
       </span>
@@ -172,7 +176,7 @@ export function QueuePanel({
           symbolClassName="listening-queue__empty-symbol"
           level={3}
           icon={<ListMusic size={40} />}
-          title="Queue is empty"
+          title={t('Queue is empty')}
           description="Choose the songs you want to hear next."
         />
       ) : (

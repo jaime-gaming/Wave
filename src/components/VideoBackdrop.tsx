@@ -13,6 +13,7 @@ import { findClip, rememberClip } from '../services/clipSearch';
 import { networkAriaLabel, networkLabel, useOnline } from '../ui/network';
 import type { Track } from '../domain/types';
 
+import { useT } from '../i18n';
 const OFFLINE: VideoState = { position: 0, playing: false, ready: false };
 /** The iframe's id; the player echoes it back in every message it sends. */
 const FRAME_ID = 'wave-clip-player';
@@ -46,6 +47,7 @@ export function VideoBackdrop({
   /** Told when the picture is on screen, so the player can step back for it. */
   onRevealed?: (shown: boolean) => void;
 }) {
+  const t = useT();
   const [clips, setClips] = useState(() => loadClips());
   const [search, setSearch] = useState<'searching' | 'empty' | 'unavailable'>('searching');
   const [attempt, setAttempt] = useState(0);
@@ -102,7 +104,7 @@ export function VideoBackdrop({
       level={3}
       announce
       icon={<Film size={18} />}
-      title="Video clip"
+      title={t('Video clip')}
       description={
         !online
           ? 'Clip search needs a connection. A saved clip still plays.'

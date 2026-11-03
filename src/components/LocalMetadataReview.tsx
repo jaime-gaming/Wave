@@ -4,6 +4,7 @@ import type { Track } from '../domain/types';
 import { describeIssues, metadataIssues } from '../domain/metadata';
 import { needsDetails } from '../domain/catalogue';
 
+import { useT } from '../i18n';
 /**
  * What the library still does not know about its own songs.
  *
@@ -27,6 +28,7 @@ export function LocalMetadataReview({
   filling?: number;
   completed?: number;
 }) {
+  const t = useT();
   const entries = useMemo(
     () =>
       tracks.flatMap((track) => {
@@ -40,11 +42,11 @@ export function LocalMetadataReview({
   const pages = Math.max(1, Math.ceil(entries.length / 8)),
     current = Math.min(page, pages - 1);
   return (
-    <section className="local-metadata" aria-label="Song details">
-      <h3>Song details</h3>
+    <section className="local-metadata" aria-label={t('Song details')}>
+      <h3>{t('Song details')}</h3>
       <div className="settings-switch-row">
         <div>
-          <strong>Fill in missing details</strong>
+          <strong>{t('Fill in missing details')}</strong>
           <span>
             Sends the names of incomplete songs to a catalogue to find the artist, album, year and
             cover. Off unless you turn it on.
@@ -55,7 +57,7 @@ export function LocalMetadataReview({
             type="button"
             className="material-switch"
             role="switch"
-            aria-label="Fill in missing details"
+            aria-label={t('Fill in missing details')}
             aria-checked={enabled ?? false}
             onClick={() => onToggle(!enabled)}
           >
@@ -92,10 +94,10 @@ export function LocalMetadataReview({
         </ul>
       )}
       {pages > 1 && (
-        <nav aria-label="Metadata pages">
+        <nav aria-label={t('Metadata pages')}>
           <button
             className="icon-button"
-            aria-label="Previous metadata page"
+            aria-label={t('Previous metadata page')}
             disabled={!current}
             onClick={() => setPage(current - 1)}
           >
@@ -106,7 +108,7 @@ export function LocalMetadataReview({
           </span>
           <button
             className="icon-button"
-            aria-label="Next metadata page"
+            aria-label={t('Next metadata page')}
             disabled={current + 1 === pages}
             onClick={() => setPage(current + 1)}
           >

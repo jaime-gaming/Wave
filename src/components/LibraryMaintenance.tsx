@@ -3,6 +3,7 @@ import type { Track } from '../domain/types';
 import { contentIdentity } from '../data/import';
 import { mergeExactDuplicates } from '../data/library';
 import { duplicateNames } from '../domain/duplicates';
+import { useT } from '../i18n';
 export function LibraryMaintenance({
   tracks,
   currentId,
@@ -12,13 +13,14 @@ export function LibraryMaintenance({
   currentId?: string;
   onMerged: () => Promise<void>;
 }) {
+  const t = useT();
   const [groups, setGroups] = useState<Track[][]>([]),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState('');
   const names = duplicateNames(tracks);
   return (
     <section className="maintenance-card">
-      <h3>Duplicate tracks</h3>
+      <h3>{t('Duplicate tracks')}</h3>
       <p>Same names can be different recordings. Only byte-identical files can be merged.</p>
       <button
         className="tonal-button"

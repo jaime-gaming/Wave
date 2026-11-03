@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import jsQR from 'jsqr';
 import { Camera, X } from './Glyphs';
 
+import { useT } from '../i18n';
 interface Detector {
   detect: (source: CanvasImageSource) => Promise<{ rawValue: string }[]>;
 }
@@ -25,6 +26,7 @@ export function QrScanner({
   onResult: (value: string) => void;
   onCancel: () => void;
 }) {
+  const t = useT();
   const video = useRef<HTMLVideoElement>(null);
   const [error, setError] = useState('');
   const [ready, setReady] = useState(false);
@@ -123,10 +125,10 @@ export function QrScanner({
   }, []);
 
   return (
-    <div className="qr-scanner" role="dialog" aria-label="Scan a Wave code">
+    <div className="qr-scanner" role="dialog" aria-label={t('Scan a Wave code')}>
       <div className="qr-scanner-frame">
-        <video ref={video} playsInline muted aria-label="Camera" />
-        {!ready && !error && <p className="qr-scanner-hint">Starting the camera…</p>}
+        <video ref={video} playsInline muted aria-label={t('Camera')} />
+        {!ready && !error && <p className="qr-scanner-hint">{t('Starting the camera…')}</p>}
         <span className="qr-scanner-corners" aria-hidden="true" />
       </div>
       {error ? (

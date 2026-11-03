@@ -12,6 +12,7 @@ import {
 } from './Glyphs';
 import { motion } from 'motion/react';
 import { useWaveMotion } from '../ui/motion';
+import { useT } from '../i18n';
 const sections = [
   { id: 'appearance', title: 'Appearance', note: 'Theme, larger text and motion', icon: Palette },
   { id: 'playback', title: 'Playback', note: 'Mix and local Autoplay', icon: SlidersHorizontal },
@@ -31,6 +32,7 @@ export function SettingsPage(
     initialSection?: Section | null;
   },
 ) {
+  const t = useT();
   const [selected, setSelected] = useState<Section | null>(props.initialSection ?? null);
   const heading = useRef<HTMLHeadingElement>(null);
   const root = useRef<HTMLElement>(null);
@@ -53,7 +55,7 @@ export function SettingsPage(
     <section
       ref={root}
       className={`settings-page settings-hub ${selected ? 'settings-detail' : ''}`}
-      aria-label="Settings"
+      aria-label={t('Settings')}
     >
       <button
         className="text-button settings-back"
@@ -74,7 +76,7 @@ export function SettingsPage(
           <header className="settings-submenu-heading">
             <section.icon size={24} />
             <h2 tabIndex={-1} ref={heading}>
-              {section.title}
+              {t(section.title)}
             </h2>
           </header>
           <div className="settings-page-options">{props[selected]}</div>
@@ -86,15 +88,15 @@ export function SettingsPage(
               key={id}
               className="settings-menu-item"
               data-settings-section={id}
-              aria-label={title}
+              aria-label={t(title)}
               onClick={() => setSelected(id)}
             >
               <span className="settings-menu-icon">
                 <Icon size={24} />
               </span>
               <span className="settings-menu-copy">
-                <strong>{title}</strong>
-                <span>{note}</span>
+                <strong>{t(title)}</strong>
+                <span>{t(note)}</span>
               </span>
               <ChevronRight size={20} />
             </button>
@@ -102,7 +104,7 @@ export function SettingsPage(
         </div>
       )}
       <footer className="settings-hub-footer">
-        <a href={`${import.meta.env.BASE_URL}privacy.html`}>Privacy &amp; rights</a>
+        <a href={`${import.meta.env.BASE_URL}privacy.html`}>{t('Privacy &amp; rights')}</a>
         <span>Wave {__WAVE_VERSION__}</span>
       </footer>
     </section>

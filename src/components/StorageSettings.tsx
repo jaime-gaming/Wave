@@ -3,7 +3,9 @@ import { HardDrive, ShieldCheck, RefreshCw } from './Glyphs';
 import type { Track } from '../domain/types';
 import { formatBytes, libraryFootprint, requestPersistentStorage } from '../data/storage';
 import { countPlays } from '../data/listening';
+import { useT } from '../i18n';
 export function StorageSettings({ tracks }: { tracks: Track[] }) {
+  const t = useT();
   const footprint = useMemo(() => libraryFootprint(tracks), [tracks]);
   const [usage, setUsage] = useState<number | undefined>(),
     [quota, setQuota] = useState<number | undefined>(),
@@ -30,27 +32,27 @@ export function StorageSettings({ tracks }: { tracks: Track[] }) {
     return () => clearTimeout(timer);
   }, []);
   return (
-    <section className="storage-settings" aria-label="Browser storage">
+    <section className="storage-settings" aria-label={t('Browser storage')}>
       <h3>
         <HardDrive size={20} />
         Browser storage
       </h3>
       <dl>
         <div>
-          <dt>Original audio</dt>
+          <dt>{t('Original audio')}</dt>
           <dd>{formatBytes(footprint.audio)}</dd>
         </div>
         <div>
-          <dt>Compact covers</dt>
+          <dt>{t('Compact covers')}</dt>
           <dd>{formatBytes(footprint.artwork)}</dd>
         </div>
         <div>
-          <dt>Saved lyrics</dt>
+          <dt>{t('Saved lyrics')}</dt>
           <dd>{formatBytes(footprint.lyrics)}</dd>
         </div>
         {plays !== undefined && (
           <div>
-            <dt>Listening history</dt>
+            <dt>{t('Listening history')}</dt>
             <dd>
               {plays} {plays === 1 ? 'play' : 'plays'}
             </dd>
@@ -58,7 +60,7 @@ export function StorageSettings({ tracks }: { tracks: Track[] }) {
         )}
         {usage !== undefined && (
           <div>
-            <dt>Space used</dt>
+            <dt>{t('Space used')}</dt>
             <dd>
               {formatBytes(usage)}
               {quota !== undefined ? ` / ${formatBytes(quota)}` : ''}
@@ -92,7 +94,7 @@ export function StorageSettings({ tracks }: { tracks: Track[] }) {
         </button>
         <button
           className="icon-button"
-          aria-label="Refresh storage estimate"
+          aria-label={t('Refresh storage estimate')}
           onClick={() => void refresh()}
         >
           <RefreshCw size={20} />

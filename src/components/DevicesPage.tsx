@@ -7,6 +7,7 @@ import { QrScanner } from './QrScanner';
 import { borrowedName } from '../sync/fileName';
 import type { Track } from '../domain/types';
 
+import { useT } from '../i18n';
 const kb = (bytes: number) => {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
@@ -46,6 +47,7 @@ export function DevicesPage({
   tracks: Track[];
   onAddLoaned: (blob: Blob, name: string) => Promise<void>;
 }) {
+  const t = useT();
   const devices = useDevices(tracks);
   const animation = useWaveMotion();
   const [scanning, setScanning] = useState<null | 'invite' | 'reply'>(null);
@@ -165,12 +167,12 @@ export function DevicesPage({
           animate={{ opacity: 1, y: 0 }}
           transition={animation.effects}
         >
-          <strong>Check both screens</strong>
+          <strong>{t('Check both screens')}</strong>
           <p>
             Both devices must show the same six digits. If they differ, close this and show a fresh
             code.
           </p>
-          <div className="devices-code" aria-label="Pairing code">
+          <div className="devices-code" aria-label={t('Pairing code')}>
             {devices.confirmCode.split('').map((digit, index) => (
               <span key={index}>{digit}</span>
             ))}
@@ -203,7 +205,7 @@ export function DevicesPage({
             <h3>
               <Camera size={18} aria-hidden="true" /> Read a code
             </h3>
-            <p>Already have a code on the other screen? Point this camera at it.</p>
+            <p>{t('Already have a code on the other screen? Point this camera at it.')}</p>
             <div className="devices-actions">
               <button
                 className="primary-button"
@@ -227,12 +229,12 @@ export function DevicesPage({
             this is the quickest way.
           </p>
           <label className="devices-paste-field">
-            <span className="sr-only">Pairing code from the other device</span>
+            <span className="sr-only">{t('Pairing code from the other device')}</span>
             <input
               value={pasted}
               spellCheck={false}
               autoComplete="off"
-              placeholder="wave1.…"
+              placeholder={t('wave1.…')}
               onChange={(event) => {
                 setPasted(event.target.value);
                 setPasteError(false);
@@ -272,7 +274,7 @@ export function DevicesPage({
               ? 'It will show a code of its own. Come back here to scan that one.'
               : 'When it has read this, the two devices will be linked.'}
           </p>
-          <img src={devices.qr} alt="Wave pairing code" className="devices-qr-image" />
+          <img src={devices.qr} alt={t('Wave pairing code')} className="devices-qr-image" />
           <div className="devices-actions">
             <button className="tonal-button" onClick={() => void copy()}>
               <Copy size={16} /> {copied ? 'Link copied' : 'Copy link'}
@@ -320,7 +322,7 @@ export function DevicesPage({
                 : 'Preparing the songs…'}
             </p>
           )}
-          {!entries.length && <p className="devices-note">Waiting for its library…</p>}
+          {!entries.length && <p className="devices-note">{t('Waiting for its library…')}</p>}
           {!!entries.length && (
             <>
               <div className="devices-list-head">
@@ -424,7 +426,7 @@ export function DevicesPage({
       </section>
 
       <section className="devices-card">
-        <h3>Borrowed songs</h3>
+        <h3>{t('Borrowed songs')}</h3>
         <p className="devices-note">
           {kb(devices.usedBytes)} of {kb(devices.capacityBytes)} used. Nothing here is ever removed
           automatically: a song that does not fit is refused, and you decide what to hand back.
@@ -434,7 +436,7 @@ export function DevicesPage({
             {loaned.text}
           </p>
         )}
-        {!devices.loans.length && <p className="devices-note">Nothing borrowed.</p>}
+        {!devices.loans.length && <p className="devices-note">{t('Nothing borrowed.')}</p>}
         {!!devices.loans.length && (
           <ul className="devices-song-loans">
             {devices.loans.map((loan) => (

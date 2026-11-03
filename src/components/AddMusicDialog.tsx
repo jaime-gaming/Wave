@@ -17,6 +17,7 @@ import {
 } from '../data/folders';
 import type { RememberedFolder } from '../data/library';
 
+import { useT } from '../i18n';
 /**
  * "Add music" now asks where the song comes from.
  *
@@ -41,6 +42,7 @@ export function AddMusicDialog({
   onAdded: (track: Track) => void;
   busy?: boolean;
 }) {
+  const t = useT();
   const [mode, setMode] = useState<'choose' | 'youtube'>('choose');
   const [link, setLink] = useState('');
   const [pending, setPending] = useState(false);
@@ -147,7 +149,7 @@ export function AddMusicDialog({
   };
 
   return (
-    <Modal title="Add music" className="add-music-modal" onClose={onClose}>
+    <Modal title={t('Add music')} className="add-music-modal" onClose={onClose}>
       {mode === 'choose' ? (
         <>
           <div className="add-music-choices">
@@ -161,15 +163,15 @@ export function AddMusicDialog({
               disabled={busy}
             >
               <FolderOpen size={24} aria-hidden="true" />
-              <strong>From this device</strong>
-              <span>MP3, WAV, M4A, OGG, FLAC.</span>
+              <strong>{t('From this device')}</strong>
+              <span>{t('MP3, WAV, M4A, OGG, FLAC.')}</span>
             </button>
             <button
               type="button"
               className="add-music-choice"
               onClick={() => void chooseFolder()}
               disabled={busy || (!canPick && !canChooseDirectory)}
-              aria-label="Add a whole folder"
+              aria-label={t('Add a whole folder')}
             >
               <FolderSearch size={24} aria-hidden="true" />
               <strong>{folderBusy ? `Reading ${folderBusy}…` : 'A whole folder'}</strong>
@@ -195,7 +197,7 @@ export function AddMusicDialog({
           </div>
           {!!folders.length && (
             <div className="folder-list">
-              <p className="folder-list-title">Folders Wave remembers</p>
+              <p className="folder-list-title">{t('Folders Wave remembers')}</p>
               {folders.map((folder) => (
                 <div className="folder-row" key={folder.id}>
                   <FolderOpen size={17} aria-hidden="true" />
@@ -260,7 +262,7 @@ export function AddMusicDialog({
           <div className="clip-link">
             <label>
               <Link2 size={16} aria-hidden="true" />
-              <span className="sr-only">YouTube link</span>
+              <span className="sr-only">{t('YouTube link')}</span>
               <input
                 ref={input}
                 type="url"

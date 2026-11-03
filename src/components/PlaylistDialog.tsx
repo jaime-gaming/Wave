@@ -7,6 +7,7 @@ import { Artwork } from './Artwork';
 import { filterTracks, type Playlist, type Track } from '../domain/types';
 import type { PlaylistDetails } from '../domain/playlists';
 
+import { useT } from '../i18n';
 export function PlaylistDialog({
   playlist,
   editorEnabled,
@@ -18,6 +19,7 @@ export function PlaylistDialog({
   onSave: (details: PlaylistDetails) => Promise<boolean>;
   onClose: () => void;
 }) {
+  const t = useT();
   const [name, setName] = useState(playlist?.name ?? '');
   const [description, setDescription] = useState(playlist?.description ?? '');
   const [artwork, setArtwork] = useState(playlist?.artwork);
@@ -61,7 +63,7 @@ export function PlaylistDialog({
             required
             maxLength={100}
             disabled={saving}
-            placeholder="Name your playlist"
+            placeholder={t('Name your playlist')}
             onChange={(event) => setName(event.target.value)}
           />
         </label>
@@ -73,7 +75,7 @@ export function PlaylistDialog({
               maxLength={1000}
               rows={3}
               disabled={saving}
-              placeholder="Optional"
+              placeholder={t('Optional')}
               onChange={(event) => setDescription(event.target.value)}
             />
           </label>
@@ -114,6 +116,7 @@ export function AddSongsDialog({
   onAdd: (ids: string[]) => Promise<boolean>;
   onClose: () => void;
 }) {
+  const t = useT();
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState(new Set<string>());
   const [saving, setSaving] = useState(false);
@@ -137,8 +140,8 @@ export function AddSongsDialog({
       <div className="search-box picker-search">
         <Search size={20} />
         <input
-          aria-label="Search songs to add"
-          placeholder="Search your library"
+          aria-label={t('Search songs to add')}
+          placeholder={t('Search your library')}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
@@ -221,11 +224,12 @@ export function AddToPlaylistDialog({
   onCreate: () => void;
   onClose: () => void;
 }) {
+  const t = useT();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   return (
     <Modal
-      title="Add to playlist"
+      title={t('Add to playlist')}
       closeDisabled={busy}
       onClose={() => {
         if (!busy) onClose();

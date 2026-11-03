@@ -21,6 +21,7 @@ import { Artwork } from './Artwork';
 import { EmptyState } from './EmptyState';
 import { formatTime, type LibraryView, type Track } from '../domain/types';
 
+import { useT } from '../i18n';
 export const LibraryContent = memo(function LibraryContent({
   loading,
   tracks,
@@ -60,6 +61,7 @@ export const LibraryContent = memo(function LibraryContent({
   onFavorite: (track: Track) => void;
   onMore: (track: Track) => void;
 }) {
+  const t = useT();
   const grouped = (view === 'albums' || view === 'artists') && !group;
   // Only the rows near the viewport exist at any moment; the rest arrive on scroll.
   const rows = useIncrementalRows(tracks.length);
@@ -75,14 +77,14 @@ export const LibraryContent = memo(function LibraryContent({
     return (
       <div className="empty-state">
         <AudioLines className="loading-icon" size={32} />
-        <h2>Loading library</h2>
+        <h2>{t('Loading library')}</h2>
       </div>
     );
   if (!total && view !== 'playlists')
     return (
       <EmptyState
         icon={<FolderOpen size={42} strokeWidth={1.4} />}
-        title="No songs yet"
+        title={t('No songs yet')}
         description="Import your own files, or add a song from YouTube by link."
         hint="MP3, WAV, M4A, OGG and FLAC"
         actions={
@@ -169,9 +171,9 @@ export const LibraryContent = memo(function LibraryContent({
       ) : (
         <>
           <div className="song-list-heading">
-            <span /> <span>Song</span>
-            <span>Album</span>
-            <span>Duration</span>
+            <span /> <span>{t('Song')}</span>
+            <span>{t('Album')}</span>
+            <span>{t('Duration')}</span>
             <span />
           </div>
           {/* Long libraries: rows outside the viewport are not laid out or

@@ -6,6 +6,7 @@ import { FileUp, Save, Trash2, Search, X } from './Glyphs';
 import { parseLyrics, MAX_LYRICS_LENGTH, type Lyrics } from '../domain/lyrics';
 import type { Track } from '../domain/types';
 import { Modal } from './Modal';
+import { useT } from '../i18n';
 export function LyricsEditor({
   track,
   onSave,
@@ -17,6 +18,7 @@ export function LyricsEditor({
   onSave: (id: string, lyrics?: Lyrics) => Promise<boolean>;
   onClose: () => void;
 }) {
+  const t = useT();
   const [raw, setRaw] = useState(track.lyrics?.raw ?? ''),
     [offset, setOffset] = useState(track.lyrics?.offsetMs ?? 0);
   const [busy, setBusy] = useState(false),
@@ -90,7 +92,7 @@ export function LyricsEditor({
   };
   return (
     <Modal
-      title="Edit lyrics"
+      title={t('Edit lyrics')}
       onClose={onClose}
       closeDisabled={busy}
       className="lyrics-editor-modal"
@@ -102,7 +104,7 @@ export function LyricsEditor({
           Import LRC timestamps like [00:12.500], or paste plain text. Your audio file stays
           unchanged. No automatic online lookup is performed.
         </p>
-        <section className="editor-lookup" aria-label="Find lyrics">
+        <section className="editor-lookup" aria-label={t('Find lyrics')}>
           <p>
             Search LRCLIB with this song’s title, artist, album and duration. Your audio is never
             sent. Playback and automatic lookup are not required. Results are saved only when you
@@ -132,7 +134,7 @@ export function LyricsEditor({
             )}
           </div>
           {!canLookup(track) && (
-            <p>Add a song title and artist in Song options before searching.</p>
+            <p>{t('Add a song title and artist in Song options before searching.')}</p>
           )}
           <p role="status" aria-live="polite">
             {searchMessage}
@@ -141,7 +143,7 @@ export function LyricsEditor({
           </p>
           {candidate && (
             <>
-              <pre className="editor-result" tabIndex={0} aria-label="Lyrics search preview">
+              <pre className="editor-result" tabIndex={0} aria-label={t('Lyrics search preview')}>
                 {candidate.raw}
               </pre>
               <button
@@ -170,7 +172,7 @@ export function LyricsEditor({
           ref={file}
           type="file"
           className="file-input"
-          aria-label="Lyrics file"
+          aria-label={t('Lyrics file')}
           accept=".lrc,.txt,text/plain"
           disabled={busy}
           onChange={async (event) => {
@@ -217,7 +219,7 @@ export function LyricsEditor({
             onChange={(event) => setOffset(Number(event.target.value))}
           />
         </label>
-        <p className="lyrics-caption">Positive values show lines later.</p>
+        <p className="lyrics-caption">{t('Positive values show lines later.')}</p>
         {error && (
           <p role="alert" className="form-error">
             {error}

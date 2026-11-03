@@ -4,6 +4,7 @@ import { Download, Smartphone, X } from './Glyphs';
 import { useWaveMotion } from '../ui/motion';
 import { ANDROID_APP_URL } from '../ui/androidApp';
 
+import { useT } from '../i18n';
 /**
  * "Wave is also an app on Android", asked once on a phone.
  *
@@ -19,6 +20,7 @@ export function AndroidAppSheet({
   /** Remembered as "keep using the web" so the sheet stops appearing. */
   onKeepWeb: () => void;
 }) {
+  const t = useT();
   const sheet = useRef<HTMLDivElement>(null);
   const animation = useWaveMotion();
 
@@ -46,7 +48,7 @@ export function AndroidAppSheet({
       <button
         type="button"
         className="icon-button android-app-close"
-        aria-label="Close"
+        aria-label={t('Close')}
         onClick={onDismiss}
       >
         <X size={18} />
@@ -55,7 +57,7 @@ export function AndroidAppSheet({
         <Smartphone size={18} />
       </span>
       <div className="android-app-text">
-        <strong id="android-app-title">Wave for Android</strong>
+        <strong id="android-app-title">{t('Wave for Android')}</strong>
         <p id="android-app-copy">
           The same music, built for your phone: faster, and it keeps playing with the screen off.
         </p>

@@ -37,6 +37,8 @@ import {
 } from './domain/collections';
 import { AnimatePresence, MotionConfig, motion } from 'motion/react';
 import { MotionPreference, useWaveMotion } from './ui/motion';
+import { I18nProvider, useI18n } from './i18n';
+import { languages } from './i18n/dictionary';
 import { usePlaylists } from './hooks/usePlaylists';
 import { PlaylistCollection, PlaylistHeader } from './components/PlaylistCollection';
 import { PlaylistDialog, AddSongsDialog, AddToPlaylistDialog } from './components/PlaylistDialog';
@@ -126,11 +128,13 @@ function readTheme(): Theme {
 export default function App() {
   const [animations, setAnimations] = useState(() => readFlag('wave-animations-enabled', true));
   return (
-    <MotionConfig reducedMotion={animations ? 'user' : 'always'}>
-      <MotionPreference.Provider value={animations}>
-        <WaveApp animations={animations} onAnimations={setAnimations} />
-      </MotionPreference.Provider>
-    </MotionConfig>
+    <I18nProvider>
+      <MotionConfig reducedMotion={animations ? 'user' : 'always'}>
+        <MotionPreference.Provider value={animations}>
+          <WaveApp animations={animations} onAnimations={setAnimations} />
+        </MotionPreference.Provider>
+      </MotionConfig>
+    </I18nProvider>
   );
 }
 
@@ -141,6 +145,7 @@ function WaveApp({
   animations: boolean;
   onAnimations: (value: boolean) => void;
 }) {
+  const { t, choice: languageChoice, setChoice: setLanguageChoice } = useI18n();
   const library = useLibrary();
   const [automaticLyrics, setAutomaticLyrics] = useState(
     () => readFlag('wave-lyrics-consent-v1') && readFlag('wave-auto-lyrics'),
@@ -450,11 +455,11 @@ function WaveApp({
    */
   const pageSummary =
     page === 'search'
-      ? 'Songs, albums and artists on this device'
+      ? t('Songs, albums and artists on this device')
       : page === 'settings'
-        ? 'Playback, appearance, lyrics and storage'
+        ? t('Playback, appearance, lyrics and storage')
         : page === 'remix'
-          ? 'The songs you played this week'
+          ? t('The songs you played this week')
           : page === 'library' && view !== 'songs'
             ? `${library.tracks.length} ${library.tracks.length === 1 ? 'song' : 'songs'} in your library`
             : `${library.tracks.length} ${library.tracks.length === 1 ? 'song' : 'songs'} · ${albums.length} ${albums.length === 1 ? 'album' : 'albums'}`;
@@ -570,7 +575,9 @@ function WaveApp({
       const saved = await collections.create(
         {
           name,
-          description: 'Brought over from another app. Songs already in your library were reused.',
+          description: t(
+            'Brought over from another app. Songs already in your library were reused.',
+          ),
         },
         trackIds,
       );
@@ -579,7 +586,7 @@ function WaveApp({
       setPlaylistId(saved.id);
       return true;
     },
-    [collections],
+    [collections, t],
   );
   const playShuffle = () => shuffleCollection(visible);
 
@@ -589,7 +596,7 @@ function WaveApp({
   const contextActions: ContextAction[] = contextTrack
     ? [
         {
-          label: 'Play song',
+          label: t('Play song'),
           icon: <Play size={18} />,
           run: () =>
             player.play(
@@ -604,48 +611,54 @@ function WaveApp({
             ),
         },
         {
-          label: player.state.queue.includes(contextTrack.id) ? 'Already in queue' : 'Add to queue',
+          label: player.state.queue.includes(contextTrack.id)
+            ? t('Already in queue')
+            : t('Add to queue'),
           icon: <Plus size={18} />,
           disabled: player.state.queue.includes(contextTrack.id),
           run: () => player.enqueue([contextTrack.id]),
         },
         {
-          label: contextTrack.favorite ? 'Remove from favorites' : 'Add to favorites',
+          label: contextTrack.favorite ? t('Remove from favorites') : t('Add to favorites'),
           icon: <Heart size={18} />,
           run: () => void library.toggleFavorite(contextTrack),
         },
         {
-          label: 'Add to playlist',
+          label: t('Add to playlist'),
           icon: <ListMusic size={18} />,
           run: () => setAddingTrack(contextTrack),
         },
         {
-          label: 'Edit lyrics',
+          label: t('Edit lyrics'),
           icon: <Pencil size={18} />,
           run: () => setEditingLyrics(contextTrack),
         },
         {
-          label: 'Song options',
+          label: t('Song options'),
           icon: <SlidersHorizontal size={18} />,
           run: () => setTrackOptions(contextTrack),
         },
       ]
     : [
         {
-          label: player.state.playing ? 'Pause' : 'Play',
+          label: player.state.playing ? t('Pause') : t('Play'),
           icon: player.state.playing ? <Pause size={18} /> : <Play size={18} />,
           disabled: !player.current,
           run: () => dispatch({ type: 'toggle' }),
         },
         {
-          label: 'Next song',
+          label: t('Next song'),
           icon: <SkipForward size={18} />,
           disabled: !player.current,
           run: () => dispatch({ type: 'next' }),
         },
-        { label: 'Playback queue', icon: <ListMusic size={18} />, run: () => setQueueOpen(true) },
-        { label: 'Import music', icon: <Plus size={18} />, disabled: busy, run: chooseFiles },
-        { label: 'Settings', icon: <Settings size={18} />, run: () => openSettings() },
+        {
+          label: t('Playback queue'),
+          icon: <ListMusic size={18} />,
+          run: () => setQueueOpen(true),
+        },
+        { label: t('Import music'), icon: <Plus size={18} />, disabled: busy, run: chooseFiles },
+        { label: t('Settings'), icon: <Settings size={18} />, run: () => openSettings() },
       ];
 
   return (
@@ -757,15 +770,15 @@ function WaveApp({
               <h1>
                 {page === 'home'
                   ? dailySelection
-                    ? 'Daily mixes'
-                    : 'Home'
+                    ? t('Daily mixes')
+                    : t('Home')
                   : page === 'search'
-                    ? 'Search'
+                    ? t('Search')
                     : page === 'settings'
-                      ? 'Settings'
+                      ? t('Settings')
                       : page === 'remix'
-                        ? 'Remix'
-                        : 'Library'}
+                        ? t('Remix')
+                        : t('Library')}
               </h1>
               <p className="library-summary">{pageSummary}</p>
             </div>
@@ -791,16 +804,16 @@ function WaveApp({
             <div ref={categoryStrip} className="library-tabs" aria-label="Browse library">
               {(
                 [
-                  { id: 'songs', label: 'Songs', icon: Music2, count: library.tracks.length },
-                  { id: 'albums', label: 'Albums', icon: Disc3, count: albums.length },
-                  { id: 'artists', label: 'Artists', icon: Users, count: artists.length },
+                  { id: 'songs', label: t('Songs'), icon: Music2, count: library.tracks.length },
+                  { id: 'albums', label: t('Albums'), icon: Disc3, count: albums.length },
+                  { id: 'artists', label: t('Artists'), icon: Users, count: artists.length },
                   {
                     id: 'playlists',
-                    label: 'Playlists',
+                    label: t('Playlists'),
                     icon: ListMusic,
                     count: collections.playlists.length,
                   },
-                  { id: 'favorites', label: 'Favorites', icon: Heart, count: favoriteCount },
+                  { id: 'favorites', label: t('Favorites'), icon: Heart, count: favoriteCount },
                 ] as const
               ).map((tab) => (
                 <motion.button
@@ -839,6 +852,7 @@ function WaveApp({
                   onBack={closeSettings}
                   appearance={
                     <>
+                      <div className="settings-label">{t('Theme')}</div>
                       <div className="theme-options">
                         {(['dark', 'light', 'system'] as const).map((option) => (
                           <button
@@ -847,8 +861,24 @@ function WaveApp({
                             aria-pressed={theme === option}
                             onClick={() => setTheme(option)}
                           >
-                            {option[0].toUpperCase() + option.slice(1)}
+                            {t(option[0].toUpperCase() + option.slice(1))}
                             {theme === option && <Check size={18} />}
+                          </button>
+                        ))}
+                      </div>
+                      {/* The language follows the device unless it is pinned
+                          here, and this row is the only place it is mentioned. */}
+                      <div className="settings-label">{t('Language')}</div>
+                      <div className="theme-options">
+                        {languages.map((option) => (
+                          <button
+                            key={option.id}
+                            className={languageChoice === option.id ? 'chosen' : ''}
+                            aria-pressed={languageChoice === option.id}
+                            onClick={() => setLanguageChoice(option.id)}
+                          >
+                            {option.id === 'system' ? t('System') : option.label}
+                            {languageChoice === option.id && <Check size={18} />}
                           </button>
                         ))}
                       </div>
@@ -1133,7 +1163,7 @@ function WaveApp({
                         day: 'numeric',
                         month: 'short',
                       })}`.slice(0, 100),
-                      description: 'Saved from Remix, the songs you played most this week.',
+                      description: t('Saved from Remix, the songs you played most this week.'),
                     },
                     songs.map((track) => track.id),
                   );
@@ -1256,7 +1286,7 @@ function WaveApp({
                 )}
                 {!group && !selectedPlaylist && (view === 'songs' || view === 'favorites') && (
                   <div className="library-list-title">
-                    <h2>{view === 'favorites' ? 'Favorite songs' : 'All songs'}</h2>
+                    <h2>{view === 'favorites' ? t('Favorite songs') : t('All songs')}</h2>
                   </div>
                 )}
                 <div className="library-toolbar">
@@ -1302,7 +1332,7 @@ function WaveApp({
                         setReordering({
                           kind: selectedPlaylist ? 'playlist' : 'album',
                           id: selectedPlaylist?.id ?? group!,
-                          name: selectedPlaylist?.name ?? album?.name ?? 'Album',
+                          name: selectedPlaylist?.name ?? album?.name ?? t('Album'),
                           tracks,
                         });
                       }}
@@ -1448,7 +1478,7 @@ function WaveApp({
               }}
             >
               <Heart size={22} />
-              {trackOptions.favorite ? 'Remove from favorites' : 'Add to favorites'}
+              {trackOptions.favorite ? t('Remove from favorites') : t('Add to favorites')}
             </button>
             <button
               className="options-action"
@@ -1469,7 +1499,9 @@ function WaveApp({
               }}
             >
               <Plus size={22} />
-              {player.state.queue.includes(trackOptions.id) ? 'Already in queue' : 'Add to queue'}
+              {player.state.queue.includes(trackOptions.id)
+                ? t('Already in queue')
+                : t('Add to queue')}
             </button>
             <button
               className="options-action"
@@ -1795,7 +1827,7 @@ function WaveApp({
       {dragging && (
         <div className="drop-overlay">
           <FolderOpen size={48} />
-          <h2>{busy ? 'Import in progress' : 'Add music'}</h2>
+          <h2>{busy ? t('Import in progress') : t('Add music')}</h2>
           <p>{busy ? 'Wait for this import to finish.' : 'Drop your audio files here.'}</p>
         </div>
       )}

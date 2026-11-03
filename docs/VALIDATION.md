@@ -47,6 +47,19 @@ Release 0.2.0 · 3 November 2026. Historical run dates are retained below.
   library._ on both the web and the Windows window. `PLATFORMS.md` no longer claims what the
   installed builds cannot do: device linking is marked half-done, the web client pairs on a phone
   and a desktop, and the two native builds do not.
+- **La app habla el idioma del dispositivo, y todavía no entero.** El cliente web resuelve el
+  idioma con `src/i18n/dictionary.ts` (`navigator.languages`, español si aparece en la lista,
+  inglés en cualquier otro caso), lo persiste en `wave-language` y lo escribe en `<html lang>`; la
+  fila «Language» de Ajustes → Apariencia permite fijar inglés o español en vez de seguir al
+  sistema, y no hay ningún aviso ni pregunta al arrancar. `src/i18n/i18n.test.tsx` cubre la
+  detección, la prioridad de la elección, el respaldo al inglés cuando falta una entrada y el
+  re-render al cambiar de idioma. El diccionario `i18n/es.json` tiene 393 frases y el barrido ha
+  conectado 163: la barra de navegación, Inicio, la portada de Ajustes, el reproductor y el marco
+  de la aplicación están traducidos; los diálogos largos, los editores, Dispositivos, la migración
+  y las pantallas de letras siguen en inglés, y Android y Windows siguen en inglés porque aún no
+  llevan la tabla. Hasta que eso termine, la fila «Interface language» de `PLATFORMS.md` dice la
+  verdad y no se publica la versión.
+
 - **The film was reviewed frame by frame.** Frames decoded from the rendered MP4 were inspected at
   the release: the title card, the version card, the collection, the typo search, the playlist
   order, the join, the lyrics, the silence offer, appearance, the two phone viewports and the

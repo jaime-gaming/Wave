@@ -27,6 +27,7 @@ import { karaokeWords, wordProgress } from '../domain/wordTiming';
 import type { Track } from '../domain/types';
 import { useWaveMotion } from '../ui/motion';
 import { networkAriaLabel, networkLabel, useOnline } from '../ui/network';
+import { useT } from '../i18n';
 const LyricRow = memo(function LyricRow({
   readOnly = false,
   line,
@@ -168,6 +169,7 @@ export function LyricsPanel({
   onRetry?: () => void;
   onOffset?: (lyrics: Lyrics) => Promise<boolean>;
 }) {
+  const t = useT();
   const [nativeTime, setNativeTime] = useState(reportedTime);
   useEffect(() => {
     if (!playing || !readTime) return;
@@ -256,7 +258,7 @@ export function LyricsPanel({
     <motion.section
       id={cinematic ? undefined : stage ? 'now-playing-lyrics' : undefined}
       className={`lyrics-panel ${stage ? 'lyrics-stage' : ''} ${cinematic ? 'lyrics-cinematic' : ''}`}
-      aria-label="Song lyrics"
+      aria-label={t('Song lyrics')}
       initial={animation.enabled ? { opacity: 0, y: 20, scale: 0.97 } : { opacity: 1 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={animation.expressive}
@@ -267,14 +269,16 @@ export function LyricsPanel({
             <Captions size={22} />
             Lyrics
           </h3>
-          <button className="icon-button" aria-label="Edit lyrics" onClick={onEdit}>
+          <button className="icon-button" aria-label={t('Edit lyrics')} onClick={onEdit}>
             <Pencil size={20} />
           </button>
         </div>
       )}
       {lyrics?.lines.length ? (
         <>
-          {!cinematic && synchronized && <p className="lyrics-caption">Tap a line to seek</p>}
+          {!cinematic && synchronized && (
+            <p className="lyrics-caption">{t('Tap a line to seek')}</p>
+          )}
           <div
             ref={pane}
             className="lyrics-scroll"
@@ -307,7 +311,7 @@ export function LyricsPanel({
           {!cinematic && (
             <div className="lyrics-tools">
               {stage && (
-                <button className="icon-button" aria-label="Edit lyrics" onClick={onEdit}>
+                <button className="icon-button" aria-label={t('Edit lyrics')} onClick={onEdit}>
                   <Pencil size={18} />
                 </button>
               )}
@@ -325,13 +329,13 @@ export function LyricsPanel({
               )}
               {synchronized && onOffset && (
                 <details className="lyrics-timing">
-                  <summary aria-label="Adjust lyric timing" title="Adjust lyric timing">
+                  <summary aria-label={t('Adjust lyric timing')} title={t('Adjust lyric timing')}>
                     <SlidersHorizontal size={18} />
                   </summary>
-                  <div className="lyrics-offset" aria-label="Lyric timing adjustment">
+                  <div className="lyrics-offset" aria-label={t('Lyric timing adjustment')}>
                     <button
                       className="icon-button"
-                      aria-label="Show lyrics 100 milliseconds earlier"
+                      aria-label={t('Show lyrics 100 milliseconds earlier')}
                       disabled={adjusting || lyrics.offsetMs <= -10000}
                       onClick={() => void adjustOffset(-100)}
                     >
@@ -343,7 +347,7 @@ export function LyricsPanel({
                     </span>
                     <button
                       className="icon-button"
-                      aria-label="Show lyrics 100 milliseconds later"
+                      aria-label={t('Show lyrics 100 milliseconds later')}
                       disabled={adjusting || lyrics.offsetMs >= 10000}
                       onClick={() => void adjustOffset(100)}
                     >
@@ -351,8 +355,8 @@ export function LyricsPanel({
                     </button>
                     <button
                       className="icon-button"
-                      aria-label="Reset lyric timing"
-                      title="Reset lyric timing"
+                      aria-label={t('Reset lyric timing')}
+                      title={t('Reset lyric timing')}
                       disabled={adjusting || lyrics.offsetMs === 0}
                       onClick={() => void adjustOffset(-lyrics.offsetMs)}
                     >

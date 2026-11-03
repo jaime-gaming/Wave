@@ -7,6 +7,7 @@ import { useArtworkColor } from '../hooks/useArtworkColor';
 import { Artwork } from './Artwork';
 import { useWaveMotion } from '../ui/motion';
 
+import { useT } from '../i18n';
 export function PlaylistCollection({
   playlists,
   tracks,
@@ -23,11 +24,12 @@ export function PlaylistCollection({
   /** Only the playlists view offers migration; search results do not. */
   onImport?: () => void;
 }) {
+  const t = useT();
   const visible = [...playlists]
     .filter((playlist) => matchesSearch(`${playlist.name} ${playlist.description}`, query))
     .sort((a, b) => b.updatedAt - a.updatedAt);
   return (
-    <section aria-label="Playlists">
+    <section aria-label={t('Playlists')}>
       <div className="collection-heading">
         <h2>
           Your playlists <span>{playlists.length}</span>
@@ -83,11 +85,16 @@ export function PlaylistHeader({
   onAdd: () => void;
   onDelete: () => void;
 }) {
+  const t = useT();
   const visual = usePlaylistVisual(playlist, tracks),
     palette = useArtworkColor(visual.artwork);
   return (
-    <section style={palette} className="playlist-detail" aria-label="Playlist details">
-      <button className="icon-button playlist-back" onClick={onBack} aria-label="Back to playlists">
+    <section style={palette} className="playlist-detail" aria-label={t('Playlist details')}>
+      <button
+        className="icon-button playlist-back"
+        onClick={onBack}
+        aria-label={t('Back to playlists')}
+      >
         <ArrowLeft size={23} />
       </button>
       <Artwork track={{ title: playlist.name, album: '', artwork: visual.artwork }} />
@@ -102,10 +109,10 @@ export function PlaylistHeader({
             <Plus size={19} />
             Add songs
           </button>
-          <button className="icon-button" onClick={onEdit} aria-label="Edit playlist">
+          <button className="icon-button" onClick={onEdit} aria-label={t('Edit playlist')}>
             <Pencil size={20} />
           </button>
-          <button className="icon-button" onClick={onDelete} aria-label="Delete playlist">
+          <button className="icon-button" onClick={onDelete} aria-label={t('Delete playlist')}>
             <Trash2 size={20} />
           </button>
         </div>

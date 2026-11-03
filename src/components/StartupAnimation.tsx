@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useWaveMotion } from '../ui/motion';
+import { useT } from '../i18n';
 const W = 'M4 7C7 7 7 23 12 23C17 23 17 7 20 7C23 7 23 23 28 23C33 23 33 7 36 7';
 const LINE = 'M4 16C7 16 7 16 12 16C17 16 17 16 20 16C23 16 23 16 28 16C33 16 33 16 36 16';
 const WAVE = 'M4 16C7 16 7 26 12 26C17 26 17 3 20 3C23 3 23 26 28 26C33 26 33 16 36 16';
 export function StartupAnimation({ loading }: { loading: boolean }) {
+  const t = useT();
   const animation = useWaveMotion();
   // The mark introduces Wave; it does not need to be introduced again every time
   // the app is reopened in the same tab.
@@ -28,7 +30,7 @@ export function StartupAnimation({ loading }: { loading: boolean }) {
         <motion.div
           className="boot-screen"
           role="progressbar"
-          aria-label="Loading Wave"
+          aria-label={t('Loading Wave')}
           initial={{ opacity: 1 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0, scale: animation.enabled ? 1.015 : 1 }}
@@ -54,7 +56,7 @@ export function StartupAnimation({ loading }: { loading: boolean }) {
               }
             />
           </svg>
-          <span>Wave</span>
+          <span>{t('Wave')}</span>
         </motion.div>
       )}
     </AnimatePresence>

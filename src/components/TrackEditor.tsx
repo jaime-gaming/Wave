@@ -5,6 +5,7 @@ import { Modal } from './Modal';
 import { ArtworkPicker } from './ArtworkPicker';
 import { ClipSection } from './ClipSection';
 
+import { useT } from '../i18n';
 export function TrackEditor({
   track,
   onClose,
@@ -19,6 +20,7 @@ export function TrackEditor({
   /** Gives the silent edges back, leaving every byte of the file as it was. */
   onRestoreSilence?: (id: string) => Promise<void>;
 }) {
+  const t = useT();
   const [metadata, setMetadata] = useState<TrackMetadata>({
     title: track.title,
     artist: track.artist,
@@ -31,7 +33,7 @@ export function TrackEditor({
   const busy = saving || imageBusy;
   return (
     <Modal
-      title="Edit song"
+      title={t('Edit song')}
       closeDisabled={busy}
       className="editor-modal"
       onClose={() => {

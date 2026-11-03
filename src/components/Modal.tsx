@@ -3,6 +3,7 @@ import { X } from './Glyphs';
 import { motion, useIsPresent, type TargetAndTransition, type Transition } from 'motion/react';
 import { useWaveMotion } from '../ui/motion';
 
+import { useT } from '../i18n';
 function outsideDialog(dialog: HTMLDialogElement, x: number, y: number) {
   const bounds = dialog.getBoundingClientRect();
   return x < bounds.left || x > bounds.right || y < bounds.top || y > bounds.bottom;
@@ -38,6 +39,7 @@ export function Modal({
   headerActions?: ReactNode;
   returnFocusRef?: RefObject<HTMLElement | null>;
 }) {
+  const t = useT();
   const ref = useRef<HTMLDialogElement>(null);
   const backdropStart = useRef(false);
   const animation = useWaveMotion();
@@ -121,7 +123,7 @@ export function Modal({
           className="icon-button"
           disabled={closeDisabled}
           onClick={onClose}
-          aria-label="Close dialog"
+          aria-label={t('Close dialog')}
         >
           {closeIcon ?? <X size={20} />}
         </button>

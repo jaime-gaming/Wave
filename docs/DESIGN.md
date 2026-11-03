@@ -454,3 +454,21 @@ level, where back had nowhere to go.
 The empty player says the same thing everywhere too: _Nothing playing_, and under it
 _Choose a song from your library._ — on the web as a paragraph, on Windows as a hint that is
 hidden again the moment a song starts.
+
+## The language, decided once and never mentioned
+
+Wave opens in the language the device is already in. There is no first-run sheet asking which
+language you would like, no banner saying it noticed, no flag in a corner: a Spanish phone gets a
+Spanish app, everything else gets English, and the only place the decision is written down is a
+row in Settings → Appearance where it can be pinned to English or Spanish instead of following
+the system.
+
+The dictionary (`i18n/es.json`) is keyed by the English sentence itself rather than by an
+invented identifier. Two things follow. A screen that has not been translated yet still reads as
+correct English instead of showing `settings.appearance.title`, and a translator never has to
+open the code to know which string they are changing. Placeholders are braces — `{count} songs`
+— so word order can move, which Spanish needs more often than English does.
+
+The same file is the source for the phone and the window: `scripts/build-i18n.mjs` turns it into
+the lookup tables those apps compile in, so the three versions cannot drift into three different
+Spanish sentences for the same button.

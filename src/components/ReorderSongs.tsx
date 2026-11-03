@@ -6,6 +6,7 @@ import { Artwork } from './Artwork';
 import { moveId } from '../domain/order';
 import type { Track } from '../domain/types';
 import { useWaveMotion } from '../ui/motion';
+import { useT } from '../i18n';
 function OrderRow({
   track,
   index,
@@ -81,11 +82,17 @@ export function ReorderSongs({
   onSave: (ids: string[]) => Promise<boolean>;
   onClose: () => void;
 }) {
+  const t = useT();
   const [ids, setIds] = useState(tracks.map((track) => track.id)),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
   return (
-    <Modal title="Reorder songs" className="reorder-modal" closeDisabled={busy} onClose={onClose}>
+    <Modal
+      title={t('Reorder songs')}
+      className="reorder-modal"
+      closeDisabled={busy}
+      onClose={onClose}
+    >
       <p className="modal-description">
         {name} · Drag the handle, use the arrow buttons, or press Alt + ↑ / ↓ on a handle. This
         changes collection order, not your current queue or original files.

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Modal } from './Modal';
 import { ArtworkPicker } from './ArtworkPicker';
 import type { ArtistProfile } from '../domain/types';
+import { useT } from '../i18n';
 export function ArtistEditor({
   profile,
   onSave,
@@ -11,12 +12,13 @@ export function ArtistEditor({
   onSave: (profile: ArtistProfile) => Promise<boolean>;
   onClose: () => void;
 }) {
+  const t = useT();
   const [artwork, setArtwork] = useState(profile.artwork),
     [busy, setBusy] = useState(false),
     [imageBusy, setImageBusy] = useState(false),
     [error, setError] = useState('');
   return (
-    <Modal title="Edit artist photo" closeDisabled={busy || imageBusy} onClose={onClose}>
+    <Modal title={t('Edit artist photo')} closeDisabled={busy || imageBusy} onClose={onClose}>
       <p className="modal-description">
         Choose a profile photo for {profile.name}. It is saved locally, separately from album
         covers. Nothing is downloaded or uploaded.

@@ -12,6 +12,7 @@ import {
   type WeekRecap,
 } from '../domain/listening';
 
+import { useT } from '../i18n';
 /**
  * A figure that walks to a new value instead of swapping.
  *
@@ -84,6 +85,7 @@ export function RemixPage({
   /** Opens Settings on the section that shows what Wave keeps on this device. */
   onManageHistory: () => void;
 }) {
+  const t = useT();
   const animation = useWaveMotion();
   const heading = useRef<HTMLHeadingElement>(null);
   const [confirming, setConfirming] = useState(false);
@@ -103,7 +105,7 @@ export function RemixPage({
         </h2>
         <EmptyState
           icon={<AudioLines size={40} strokeWidth={1.4} />}
-          title="No week to look back on yet"
+          title={t('No week to look back on yet')}
           description="Import your files or add a YouTube song, play something, and this page fills in: your week in one number, and a Remix list made from what you actually played."
           hint="Kept on this device, never uploaded"
           actions={
@@ -137,8 +139,8 @@ export function RemixPage({
       <header className="remix-head">
         <p className="remix-subtitle">{weekRange(recap.start, recap.end)}</p>
         {confirming ? (
-          <div className="remix-confirm" role="group" aria-label="Clear listening history">
-            <span>Forget all of it?</span>
+          <div className="remix-confirm" role="group" aria-label={t('Clear listening history')}>
+            <span>{t('Forget all of it?')}</span>
             <button
               className="text-button danger"
               onClick={async () => {
@@ -161,7 +163,7 @@ export function RemixPage({
 
       {/* The week in one figure, with the sleeve of the song that earned it: a
           recap page, not a stack of stat cards. */}
-      <section className="remix-lede" aria-label="This week">
+      <section className="remix-lede" aria-label={t('This week')}>
         <div className="remix-lede-copy">
           <motion.p
             className="remix-figure"
@@ -190,14 +192,14 @@ export function RemixPage({
             aria-label={`Play ${cover.title}`}
           >
             <Artwork track={cover} />
-            <span>Most played</span>
+            <span>{t('Most played')}</span>
           </button>
         )}
       </section>
 
       {/* Seven columns, one per day, under the figure they add up to. */}
-      <section className="remix-week" aria-label="Listening per day">
-        <div className="remix-bars" role="group" aria-label="Select a day">
+      <section className="remix-week" aria-label={t('Listening per day')}>
+        <div className="remix-bars" role="group" aria-label={t('Select a day')}>
           {recap.days.map((day, index) => {
             const today = index === recap.days.length - 1;
             const empty = day.seconds === 0;
@@ -243,10 +245,10 @@ export function RemixPage({
       </p>
 
       {hero.length > 0 && (
-        <section className="remix-mix" aria-label="Your Remix">
+        <section className="remix-mix" aria-label={t('Your Remix')}>
           <div className="remix-mix-head">
             <div>
-              <h3>Your Remix</h3>
+              <h3>{t('Your Remix')}</h3>
               <p>{hero.length === 1 ? '1 song' : `${hero.length} songs`} you played this week.</p>
             </div>
             <div className="remix-mix-actions">
@@ -292,7 +294,7 @@ export function RemixPage({
                   >
                     <Artwork track={track} />
                     {current && playing && (
-                      <span className="remix-playing" aria-label="Playing">
+                      <span className="remix-playing" aria-label={t('Playing')}>
                         <span />
                         <span />
                       </span>
@@ -316,8 +318,8 @@ export function RemixPage({
         earned it, and any of them can be played again.
       */}
       {history.length > 1 && (
-        <section className="remix-history" aria-label="Weeks before this one">
-          <h3>The weeks before</h3>
+        <section className="remix-history" aria-label={t('Weeks before this one')}>
+          <h3>{t('The weeks before')}</h3>
           <ol>
             {history.slice(1).map((week) => {
               const top = week.topTracks[0];
@@ -354,7 +356,7 @@ export function RemixPage({
       )}
 
       {recap.topArtists.length > 0 && (
-        <section className="remix-people" aria-label="Artists this week">
+        <section className="remix-people" aria-label={t('Artists this week')}>
           {recap.topArtists.slice(0, 6).map((artist) => (
             <button key={artist.artist} onClick={() => onArtist(artist.artist)}>
               {artist.artist}

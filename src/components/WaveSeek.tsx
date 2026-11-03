@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, useMemo } from 'react';
 import { useWaveMotion } from '../ui/motion';
+import { useT } from '../i18n';
 export function WaveSeek({
   time,
   duration,
@@ -11,6 +12,7 @@ export function WaveSeek({
   playing: boolean;
   onSeek: (time: number) => void;
 }) {
+  const t = useT();
   const ref = useRef<HTMLDivElement>(null),
     [width, setWidth] = useState(600);
   const id = useId().replace(/\W/g, '');
@@ -51,7 +53,7 @@ export function WaveSeek({
       </svg>
       <input
         type="range"
-        aria-label="Seek"
+        aria-label={t('Seek')}
         min="0"
         max={duration || 1}
         step="0.1"

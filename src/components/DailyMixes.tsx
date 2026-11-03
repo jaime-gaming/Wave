@@ -6,6 +6,7 @@ import { dailyMixes, localDayKey, type DailyMix, type FeatureMap } from '../doma
 import { cachedAnalysis, primeAnalysis } from '../audio/mixAnalysis';
 import type { Track } from '../domain/types';
 import { Artwork } from './Artwork';
+import { useT } from '../i18n';
 export function DailyMixes({
   tracks,
   onOpen,
@@ -13,6 +14,7 @@ export function DailyMixes({
   tracks: Track[];
   onOpen: (mix: DailyMix, number: number) => void;
 }) {
+  const t = useT();
   const [day, setDay] = useState(localDayKey);
   const animation = useWaveMotion();
   useEffect(() => {
@@ -59,9 +61,9 @@ export function DailyMixes({
   }, [tracks]);
   if (!mixes.length) return null;
   return (
-    <section className="daily-mixes" aria-label="Daily mixes">
+    <section className="daily-mixes" aria-label={t('Daily mixes')}>
       <div className="section-heading">
-        <h2>Daily mixes</h2>
+        <h2>{t('Daily mixes')}</h2>
       </div>
       <motion.div
         className="daily-mix-grid"

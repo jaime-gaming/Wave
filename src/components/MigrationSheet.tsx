@@ -14,6 +14,7 @@ import {
 import type { Track } from '../domain/types';
 import { useWaveMotion } from '../ui/motion';
 
+import { useT } from '../i18n';
 /**
  * Bringing playlists over from another app.
  *
@@ -31,6 +32,7 @@ export function MigrationSheet({
   onSave: (name: string, trackIds: string[]) => Promise<boolean>;
   onClose: () => void;
 }) {
+  const t = useT();
   const [text, setText] = useState('');
   const [list, setList] = useState<ParsedList | null>(null);
   const [report, setReport] = useState<ImportReport | null>(null);
@@ -104,7 +106,7 @@ export function MigrationSheet({
   };
 
   return (
-    <Modal title="Bring your playlists over" className="migration-sheet" onClose={onClose}>
+    <Modal title={t('Bring your playlists over')} className="migration-sheet" onClose={onClose}>
       {saved ? (
         <div className="migration-done">
           <Check size={28} aria-hidden="true" />
@@ -119,7 +121,9 @@ export function MigrationSheet({
         </div>
       ) : !report || !list ? (
         <div className="migration-input">
-          <p className="modal-description">Paste a playlist, or choose the file it exported.</p>
+          <p className="modal-description">
+            {t('Paste a playlist, or choose the file it exported.')}
+          </p>
           <label className="form-field">
             Playlist, song list or link
             <textarea
@@ -224,7 +228,7 @@ export function MigrationSheet({
             </p>
           )}
           {!!report.missingCount && (
-            <p className="migration-hint">Songs you do not have yet are left out.</p>
+            <p className="migration-hint">{t('Songs you do not have yet are left out.')}</p>
           )}
           <div className="migration-actions">
             <button className="tonal-button" onClick={() => setReport(null)} disabled={saving}>
