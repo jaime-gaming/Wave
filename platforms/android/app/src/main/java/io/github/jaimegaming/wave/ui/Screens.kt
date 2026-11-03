@@ -897,7 +897,7 @@ fun RemixScreen(state: WaveState) {
                     ) {
                         Cover(hero, size = 92.dp, radius = 18.dp)
                         Text(
-                            "MOST PLAYED",
+                            "Most played",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(top = 6.dp),
@@ -1220,43 +1220,46 @@ private fun RemixRow(song: Song, position: Int, plays: Int?, playing: Boolean, o
 fun SettingsScreen(state: WaveState, version: String, onAddMusic: () -> Unit, onBack: () -> Unit) {
     var selected by rememberSaveable { mutableStateOf<String?>(null) }
     val appearance = LocalAppearanceChoice.current
-    BackHandler(enabled = selected != null) { selected = null }
+    BackHandler(enabled = true) { if (selected != null) selected = null else onBack() }
     LazyColumn(
         modifier = Modifier.wavePage(),
         contentPadding = PaddingValues(start = 14.dp, end = 14.dp, bottom = 24.dp),
     ) {
         item {
             ScreenTitle("Settings", "Playback, appearance, lyrics and storage")
-            Row(
-                modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable {
-                    if (selected == null) onBack() else selected = null
-                }.padding(vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                WaveIcon("back", 18.dp, MaterialTheme.colorScheme.primary)
-                Spacer(Modifier.width(8.dp))
-                Text(if (selected == null) "Back" else "All settings", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+            if (selected != null) {
+                Row(
+                    modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { selected = null }.padding(vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    WaveIcon("back", 18.dp, MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.width(8.dp))
+                    Text("All settings", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+                }
             }
         }
         if (selected == null) {
             val sections = listOf(
-                "Appearance" to "palette",
-                "Playback" to "sliders",
-                "Lyrics" to "lyrics",
-                "Library" to "library",
-                "Storage" to "storage",
-                "About" to "info",
+                Triple("Appearance", "Theme, larger text and motion", "palette"),
+                Triple("Playback", "Mix and local Autoplay", "sliders"),
+                Triple("Lyrics", "Optional automatic lyric search", "lyrics"),
+                Triple("Library", "Song information and cover editing", "library"),
+                Triple("Storage", "Your original local files", "storage"),
+                Triple("About", "Version, source and privacy", "info"),
             )
-            items(sections, key = { it.first }) { (title, icon) ->
+            items(sections, key = { it.first }) { (title, note, icon) ->
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp).clip(RoundedCornerShape(18.dp))
                         .background(MaterialTheme.colorScheme.surfaceContainer)
-                        .clickable { selected = title }.padding(horizontal = 14.dp, vertical = 15.dp),
+                        .clickable { selected = title }.padding(horizontal = 14.dp, vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     WaveIcon(icon, 22.dp, MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.width(14.dp))
-                    Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, modifier = Modifier.weight(1f))
+                    Column(Modifier.weight(1f)) {
+                        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                        Text(note, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
                     WaveIcon("chevron", 20.dp, MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }

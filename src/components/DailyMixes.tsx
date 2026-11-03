@@ -4,7 +4,6 @@ import { motion } from 'motion/react';
 import { useWaveMotion } from '../ui/motion';
 import { dailyMixes, localDayKey, type DailyMix, type FeatureMap } from '../domain/dailyMixes';
 import { cachedAnalysis, primeAnalysis } from '../audio/mixAnalysis';
-import { playlistIcon } from '../domain/playlistVisual';
 import type { Track } from '../domain/types';
 import { Artwork } from './Artwork';
 export function DailyMixes({
@@ -85,8 +84,10 @@ export function DailyMixes({
               track={{
                 title: mix.label,
                 album: '',
-                artwork:
-                  mix.tracks.find((t) => t.artwork)?.artwork ?? playlistIcon(mix.id, mix.label),
+                // The mix has no sleeve of its own: it borrows the first track
+                // that has one, and otherwise shows the same drawn placeholder
+                // as every other cover-less song, on every platform.
+                artwork: mix.tracks.find((t) => t.artwork)?.artwork,
               }}
             />
             <span className="daily-mix-copy">

@@ -63,7 +63,10 @@ player, and accepting it only changes where playback starts and stops — the fi
 - Icons are drawn in one place against one grid, and Android and Windows carry the same paths.
 - The phone card and the daily mixes on the home page share one spacing rhythm instead of sitting
   against the heading above them.
-- Every platform links to every other by QR code or by a pasted code.
+- Two devices link to each other by QR code or by a pasted code, whichever two they are, when both
+  are the web client — which is the same client on a phone, on a desktop and in a tab. The
+  installed Android and Windows builds cannot pair yet; that is the one row of `PLATFORMS.md` that
+  still says "Not yet".
 - There is a short film of this version, recorded from the app itself rather than assembled
   afterwards: the join between two songs, a search with a letter in the wrong place and the offer to
   skip dead air are all shown happening.

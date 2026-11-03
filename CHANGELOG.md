@@ -5,7 +5,8 @@
 Wave 0.2.0 is the release where the Mix learned to behave, a videoclip became part of the player
 instead of a window inside it, and search stopped guessing. The web client is published at
 [wave.jaime-gaming.com](https://wave.jaime-gaming.com). Android and Windows are separate builds of
-the same interface, and every version links to every other.
+the same interface, and the web client, which links devices to each other, runs on phone and
+desktop as well as in a tab.
 
 ### Mix
 
@@ -94,9 +95,15 @@ the same interface, and every version links to every other.
 - The icons are drawn in one file against one grid with one stroke weight, and Android and Windows
   carry the same path data rather than drawings made to look similar.
 - The home page's phone card, the daily mixes and the section headings share one spacing rhythm
-  instead of sitting against each other.
-- Every platform can link to every other by QR code or by a pasted code, and the pairing exchange is
-  written down in `docs/PAIRING.md`.
+  instead of sitting against each other, and one heading size for the whole column: the page
+  carried four of them, and a rule written twice had quietly shrunk the gap above the mixes.
+- A daily mix with no artwork to borrow shows the same quiet placeholder on every platform.
+- Each Settings row says in a line what it holds, on the web, on the phone and in the window, and
+  the empty player says what to do next instead of only that nothing is playing.
+- Two devices link by QR code or by a pasted code, and either of them can be a phone, a desktop or
+  a tab: the pairing lives in the web client, which is the same client on all three, and the
+  exchange is written down in `docs/PAIRING.md`. The installed Android and Windows builds cannot
+  pair on their own yet, and `PLATFORMS.md` says so instead of implying otherwise.
 - The error screen is for a person: a stopped waveform, one sentence and the two honest ways out.
 - After an hour and a half of actual playing the music stops and Wave asks whether to take a break.
 - The product film for this version is rendered by the `Promo film` workflow from the app itself:

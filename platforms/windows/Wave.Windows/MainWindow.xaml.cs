@@ -119,6 +119,7 @@ public partial class MainWindow : Window
             // column that only exists when there are lyrics to show.
             NowTitle.Text = "Nothing playing";
             NowArtist.Content = "";
+            NowHint.Visibility = Visibility.Visible;
         }
         if (expanded) SetLyricsVisibility();
         UpdateDock();
@@ -382,7 +383,7 @@ public partial class MainWindow : Window
     private void UpdateCurrent()
     {
         if (Current == null) return;
-        MiniTitle.Text = NowTitle.Text = Current.Title; MiniArtist.Text = Current.Artist; NowArtist.Content = Current.Artist;
+        MiniTitle.Text = NowTitle.Text = Current.Title; MiniArtist.Text = Current.Artist; NowArtist.Content = Current.Artist; NowHint.Visibility = Visibility.Collapsed;
         NowArt.Background = ArtworkBrush(Current.Artwork); ArtPlaceholder.Visibility = Current.Artwork == null ? Visibility.Visible : Visibility.Collapsed;
         MiniArt.Background = ArtworkBrush(Current.Artwork);
         // A new song's cover arrives rather than appears; the same song's

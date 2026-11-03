@@ -426,3 +426,31 @@ it returns to where you were, and back closes what is open before it leaves.
 Adding music is an explicit choice, made once per import: files, the device's own indexed
 music, or a folder. The sheet says what each one does in a line. Nothing is scanned on launch,
 nothing is downloaded, and nothing is read without one of those taps.
+
+## One rhythm, one placeholder, one sentence per row
+
+Three defects that had survived several rounds of polish were all the same defect: a rule
+written twice, or written once per platform.
+
+**Headings on Home.** The collection, the daily mixes, the recent albums and the shelves below
+them each carried their own size — 18, 24, 22 and 20 pixels — and `.home-content > section +
+section` was declared twice, at 36 and at 24, so the later copy silently won and the daily
+mixes sat against the cards above them. One rule now sets the size and the gap for the whole
+home column, and the page reads as one page with four sections rather than four pages stacked.
+
+**The cover that had no cover.** A daily mix has no sleeve of its own, so it borrows the first
+track that has one. Where nothing in the library has artwork, the web client drew a generated
+label with initials and a spine while Android and Windows showed the quiet note that every
+other cover-less song shows. The generated label is gone from the mix cards: one placeholder,
+the same one, on all three. `playlistIcon` remains for playlists, which do have an identity of
+their own.
+
+**Settings that explained nothing.** The Windows window said what each Settings section was
+for in a line under its name ("Theme, larger text and motion"); the web page and the phone did
+not, so the same seven words meant three different things depending on the screen. All three
+now carry the same one-line description, and the phone's hub lost a "Back" strip at its top
+level, where back had nowhere to go.
+
+The empty player says the same thing everywhere too: _Nothing playing_, and under it
+_Choose a song from your library._ — on the web as a paragraph, on Windows as a hint that is
+hidden again the moment a song starts.

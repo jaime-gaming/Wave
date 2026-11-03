@@ -2096,6 +2096,16 @@ kbd {
 .home-content > section + section {
   margin-top: 36px;
 }
+/* One heading size and one gap for every section on the home column: the
+   collection, the daily mixes and the shelves below them read as one page
+   instead of four different type sizes. */
+.home-content .section-heading {
+  margin-bottom: 14px;
+}
+.home-content .section-heading h2 {
+  font-size: 21px;
+  letter-spacing: -0.3px;
+}
 /* The link card on a phone is not a section, so it had no gap under it and the
    daily mixes sat against it. It keeps the same air as the sections do. */
 .home-link-card {
@@ -2951,16 +2961,6 @@ kbd {
 .rail-settings > span {
   display: none;
 }
-.home-content > section + section {
-  margin-top: 24px;
-}
-.home-overview .section-heading {
-  margin-bottom: 14px;
-}
-.home-overview .section-heading h2 {
-  font-size: 18px;
-  font-weight: 700;
-}
 .home-shortcuts {
   gap: 10px;
 }
@@ -3048,16 +3048,6 @@ kbd {
   display: flex;
   flex-direction: column;
   gap: 28px;
-}
-.home-dashboard .section-heading {
-  margin-bottom: 16px;
-}
-.home-dashboard .section-heading h2 {
-  font-size: 22px;
-  letter-spacing: -0.35px;
-}
-.home-secondary .section-heading h2 {
-  font-size: 20px;
 }
 .home-playlist {
   padding: 10px 12px;
@@ -3223,9 +3213,6 @@ kbd {
   }
 }
 @media (max-width: 900px) {
-  .home-dashboard .section-heading h2 {
-    font-size: 21px;
-  }
   .home-shortcut {
     padding: 14px;
     min-height: 88px;
@@ -3314,9 +3301,6 @@ kbd {
   }
   .home-shortcut strong {
     font-size: 22px;
-  }
-  .home-overview .section-heading h2 {
-    font-size: 18px;
   }
   .home-overview .tonal-button {
     min-height: 40px;
@@ -4544,6 +4528,11 @@ select {
 .settings-menu-copy strong {
   font-size: 17px;
 }
+.settings-menu-copy > span {
+  font-size: 13.5px;
+  line-height: 1.35;
+  color: var(--muted);
+}
 .settings-menu-item > svg {
   flex-shrink: 0;
   color: var(--muted);
@@ -5024,6 +5013,9 @@ select {
 :root[data-text-size='large'] .daily-mix-copy strong,
 :root[data-text-size='large'] .settings-menu-copy strong {
   font-size: 18px;
+}
+:root[data-text-size='large'] .settings-menu-copy > span {
+  font-size: 15px;
 }
 :root[data-text-size='large'] .song-artist-link,
 :root[data-text-size='large'] .daily-mix-copy > span,

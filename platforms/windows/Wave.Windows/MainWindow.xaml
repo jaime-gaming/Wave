@@ -173,6 +173,7 @@
                   <StackPanel Grid.Row="1" Margin="0,16,0,0">
                     <TextBlock x:Name="NowTitle" FontSize="26" FontWeight="Bold" TextTrimming="CharacterEllipsis" TextAlignment="Center"/>
                     <Button x:Name="NowArtist" Click="NowArtistClick" Style="{StaticResource TextButton}" HorizontalAlignment="Center" Foreground="{DynamicResource MutedBrush}" Margin="0,2,0,0"/>
+                    <TextBlock x:Name="NowHint" Text="Choose a song from your library." FontSize="13" Foreground="{DynamicResource MutedBrush}" TextAlignment="Center" Margin="0,6,0,0" Visibility="Collapsed"/>
                   </StackPanel>
                 </Grid>
                 <ScrollViewer x:Name="LyricsScroll" Grid.Column="1" VerticalScrollBarVisibility="Auto" Padding="14">

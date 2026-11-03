@@ -13,13 +13,13 @@ import {
 import { motion } from 'motion/react';
 import { useWaveMotion } from '../ui/motion';
 const sections = [
-  { id: 'appearance', title: 'Appearance', icon: Palette },
-  { id: 'playback', title: 'Playback', icon: SlidersHorizontal },
-  { id: 'lyrics', title: 'Lyrics', icon: Captions },
-  { id: 'library', title: 'Library', icon: Library },
-  { id: 'devices', title: 'Devices', icon: Smartphone },
-  { id: 'storage', title: 'Storage', icon: HardDrive },
-  { id: 'about', title: 'About', icon: Info },
+  { id: 'appearance', title: 'Appearance', note: 'Theme, larger text and motion', icon: Palette },
+  { id: 'playback', title: 'Playback', note: 'Mix and local Autoplay', icon: SlidersHorizontal },
+  { id: 'lyrics', title: 'Lyrics', note: 'Optional automatic lyric search', icon: Captions },
+  { id: 'library', title: 'Library', note: 'Song information and cover editing', icon: Library },
+  { id: 'devices', title: 'Devices', note: 'Link a phone, a desktop or a tab', icon: Smartphone },
+  { id: 'storage', title: 'Storage', note: 'Your original local files', icon: HardDrive },
+  { id: 'about', title: 'About', note: 'Version, source and privacy', icon: Info },
 ] as const;
 type Section = (typeof sections)[number]['id'];
 /** The id of a Settings section, for anything that opens Settings on one. */
@@ -81,7 +81,7 @@ export function SettingsPage(
         </motion.div>
       ) : (
         <div className="settings-menu-grid">
-          {sections.map(({ id, title, icon: Icon }) => (
+          {sections.map(({ id, title, note, icon: Icon }) => (
             <button
               key={id}
               className="settings-menu-item"
@@ -94,6 +94,7 @@ export function SettingsPage(
               </span>
               <span className="settings-menu-copy">
                 <strong>{title}</strong>
+                <span>{note}</span>
               </span>
               <ChevronRight size={20} />
             </button>

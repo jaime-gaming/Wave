@@ -34,6 +34,19 @@ Release 0.2.0 · 3 November 2026. Historical run dates are retained below.
   fixed sixteen seconds scaled by duration. Both are covered by the contract tests the native jobs
   run (`ContractsTest.kt`, `Wave.Contracts.Tests`). Neither platform analyses beats, so a join
   there is placed by seconds; that is stated in the release notes rather than glossed over.
+- **One rhythm, one placeholder, one sentence per row.** The home column carried four heading
+  sizes and, because `.home-content > section + section` was declared twice (36 px and then
+  24 px), the daily mixes sat against the collection cards. The duplicate rule and the per-section
+  sizes are gone; one rule sets the size and the gap, and the Android `SectionTitle` was already
+  single-sized, so the two now agree. A daily mix with no artwork of its own showed a generated
+  label on the web and the plain note on the phone and the window; the generated label is gone
+  from that card and all three show the same placeholder (`DailyMixes.tsx`, checked against
+  `Cover.kt` and the Windows placeholder). Settings rows carry the same one-line description on
+  the web, in Compose and in WPF, and the phone's hub no longer opens with a "Back" strip that
+  had nowhere to go. The empty player says _Nothing playing_ and _Choose a song from your
+  library._ on both the web and the Windows window. `PLATFORMS.md` no longer claims what the
+  installed builds cannot do: device linking is marked half-done, the web client pairs on a phone
+  and a desktop, and the two native builds do not.
 - **The film was reviewed frame by frame.** Frames decoded from the rendered MP4 were inspected at
   the release: the title card, the version card, the collection, the typo search, the playlist
   order, the join, the lyrics, the silence offer, appearance, the two phone viewports and the
