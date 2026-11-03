@@ -63,12 +63,16 @@
 :root[data-music-active='false'] .music-lighting {
   opacity: 0;
 }
-:root[data-immersive='true'] :is(.workspace, .navigation-shell, .player-bar, .toast) {
-  visibility: hidden !important;
-  pointer-events: none;
-}
-.player-modal.is-immersive .player-normal-view * {
-  visibility: hidden !important;
+/*
+ * With a clip playing there is already a picture in the room, and a spectral
+ * wash on top of it is what made the video look faded and slightly wrong: the
+ * palette's three radial gradients, up to seven tenths opaque, were painting over
+ * someone else's footage. The light belongs to the artwork; the video brings its
+ * own.
+ */
+:root[data-clip='live'] .stage-aura {
+  opacity: 0;
+  transition: opacity 0.4s ease;
 }
 :root[data-palette-transition='mix'] .stage-aura::after {
   content: '';
@@ -281,9 +285,10 @@
   padding: 24px;
   color: var(--muted);
 }
-.listening-queue__empty svg {
-  color: var(--primary);
+.listening-queue__empty-symbol {
   margin: 0 auto 16px;
+  color: var(--primary);
+  line-height: 0;
 }
 .listening-queue__empty h3 {
   color: var(--text);
@@ -291,62 +296,14 @@
   font-size: 22px;
 }
 /* The absence view is an uninterrupted album stage, with a complete lyric focus. */
-.player-modal.is-immersive .player-normal-view {
-  visibility: hidden;
-  pointer-events: none;
-}
-
-.immersive-stage {
-  z-index: 2;
-  gap: clamp(28px, 6vw, 110px);
-  padding: 6dvh 7vw;
-}
-.immersive-art {
-  min-width: 0;
-  min-height: 0;
-  isolation: isolate;
-}
-.immersive-title {
-  top: 8%;
-  left: -3%;
-  right: -3%;
-  opacity: 0.055;
-  font-weight: 900;
-  font-size: clamp(48px, 7vw, 116px);
-}
-.immersive-record-art {
-  z-index: 1;
-  max-width: 100%;
-  flex: 0 1 auto;
-}
-.immersive-cover {
-  border-radius: clamp(22px, 3vw, 40px);
-  box-shadow: 0 16px 48px #0002;
-}
-.immersive-credit {
-  margin-top: clamp(14px, 3dvh, 30px);
-  width: min(100%, 580px);
-}
-.immersive-credit h2 {
-  font-size: clamp(20px, 2.6vw, 40px);
-  font-weight: 800;
-  letter-spacing: -0.7px;
-}
-.immersive-credit p {
-  font-size: clamp(12px, 1.2vw, 16px);
-  line-height: 1.5;
-}
-.immersive-credit p + p {
-  opacity: 0.65;
-  font-size: 12px;
-  margin-top: 2px;
-}
 .lyrics-cinematic .lyrics-scroll {
   gap: clamp(12px, 3dvh, 28px);
 }
+/* Neighbours step back so the sung line reads first; they stay legible because
+   the cinema view is also where a long listen happens. */
 .lyrics-cinematic .lyric-line:not(.active) {
-  filter: blur(2px);
-  opacity: 0.3;
+  filter: blur(1px);
+  opacity: 0.5;
 }
 .lyric-line {
   transition:
@@ -466,46 +423,8 @@ body,
   .queue-entry__time {
     font-size: 10px;
   }
-  .immersive-stage {
-    padding: 5dvh 7vw;
-    gap: 3dvh;
-  }
-  .immersive-title {
-    top: 0;
-  }
-  .immersive-credit h2 {
-    font-size: 22px;
-  }
-  .immersive-cover {
-    width: min(44vw, 25dvh);
-  }
-  .without-lyrics .immersive-cover {
-    width: min(68vw, 44dvh);
-  }
 }
 @media (min-width: 600px) and (max-height: 540px) {
-  .immersive-stage {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
-    grid-template-rows: minmax(0, 1fr);
-    padding: 5dvh 6vw;
-    gap: 6vw;
-  }
-  .immersive-stage.without-lyrics {
-    grid-template-columns: 1fr;
-  }
-  .immersive-art {
-    height: 100%;
-  }
-  .immersive-cover,
-  .without-lyrics .immersive-cover {
-    width: min(27vw, 42dvh);
-  }
-  .immersive-credit {
-    margin-top: 10px;
-  }
-  .immersive-credit h2 {
-    font-size: 20px;
-  }
   .lyrics-cinematic .lyric-line {
     font-size: 28px;
   }
@@ -566,11 +485,6 @@ body,
   display: none;
 }
 
-.queue-order-hint {
-  margin: 0 10px 10px;
-  font-size: 12px;
-  color: var(--muted);
-}
 .queue-drag {
   flex: 0 0 30px;
   width: 30px;
@@ -790,3 +704,42 @@ body,
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 14%, transparent);
   }
 }
+
+/* Reorder mode: one line that says what the handles do. */
+.queue-order-hint {
+  margin: 0 4px 10px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+/* Phones pay for every pixel of these gradients twice, so the light is smaller
+   and cheaper there instead of covering the screen at full size. */
+@media (max-width: 700px) {
+  .music-lighting i {
+    width: 62vmax;
+    height: 52vmax;
+  }
+  .music-lighting__bass {
+    left: -30vmax;
+    bottom: -30vmax;
+  }
+  .music-lighting__body {
+    right: -30vmax;
+    bottom: -22vmax;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .music-lighting {
+    display: none;
+  }
+}
+
+/*
+ * The listening screen keeps its player.
+ *
+ * A full-screen stage is not an excuse to take the controls away: the bar sits at
+ * the bottom with the sleeve, the title and the transport at full strength, the
+ * way it does everywhere else in the app.
+ */
+/* The stage leaves room for the bar instead of running under it. */

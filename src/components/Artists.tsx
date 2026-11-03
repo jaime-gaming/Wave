@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { motion } from 'motion/react';
-import { ArrowLeft, Music2, Disc3, Play, Shuffle, ImagePlus } from 'lucide-react';
-import { collectArtists, initials, type ArtistGroup } from '../domain/collections';
+import { ArrowLeft, Music2, Disc3, Play, Shuffle, ImagePlus } from './Glyphs';
+import { artistCredits, collectArtists, initials, type ArtistGroup } from '../domain/collections';
 import { filterTracks, formatTime, type Track } from '../domain/types';
 import { AlbumCard } from './CollectionCard';
 import { Artwork } from './Artwork';
@@ -40,7 +40,9 @@ export const Artists = memo(function Artists({
   photos?: Map<string, string | undefined>;
 }) {
   const animation = useWaveMotion();
-  const matches = new Set(filterTracks(tracks, query).map((track) => track.artist));
+  const matches = new Set(
+    filterTracks(tracks, query).flatMap((track) => artistCredits(track.artist)),
+  );
   const artists = collectArtists(tracks).filter((artist) => matches.has(artist.name));
   if (loading)
     return (
@@ -122,7 +124,6 @@ export function ArtistHeader({
       <section className="artist-detail" aria-label="Artist details">
         <ArtistPortrait artist={artist} photo={photo} />
         <div>
-          <p className="playlist-kicker">In your library</p>
           <h2>{artist.name}</h2>
           <div className="artist-stats">
             <span>

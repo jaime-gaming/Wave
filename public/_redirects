@@ -1,0 +1,3 @@
+# Cloudflare Pages: one page, so every unknown path is the app itself.
+# Real files (icons, fonts, privacy.html, the service worker) are matched first.
+/*    /index.html    200

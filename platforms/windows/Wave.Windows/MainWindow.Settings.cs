@@ -11,29 +11,50 @@ public partial class MainWindow
 {
     private void ApplyTheme()
     {
-        bool light = preferences.Theme == "light";
-        var values = new Dictionary<string, string> {
-            ["BackgroundBrush"] = light ? "#F5F4FA" : "#10131B", ["SurfaceBrush"] = light ? "#FFFBFF" : "#1B1F2A",
-            ["TonalBrush"] = light ? "#E5E5F2" : "#2B3042", ["InkBrush"] = light ? "#202331" : "#E5E7F0",
-            ["MutedBrush"] = light ? "#535B70" : "#B3B9CC", ["AccentBrush"] = light ? "#405C96" : "#B6C8FF"
-        };
-        foreach (var pair in values) Application.Current.Resources[pair.Key] = new SolidColorBrush((Color)ColorConverter.ConvertFromString(pair.Value));
+        App.ApplyBrushes(preferences.Theme == "light");
+        // A DynamicResource on the window is resolved once and does not follow a
+        // dictionary that had to be rebuilt, which left a light window with a dark
+        // band behind the rail. Reading the palette here is immediate and exact.
+        Background = (Brush)Application.Current.Resources["BackgroundBrush"];
+        Foreground = (Brush)Application.Current.Resources["InkBrush"];
+        // The rail sits on the window's own colour, so the root panel takes it too
+        // rather than waiting on a resource that may still hold the old palette.
+        if (Content is Panel root) root.Background = Background;
         FontSize = preferences.LargerText ? 18 : 15;
     }
     private void RenderSettings(string? section = null)
     {
         SettingsBody.Children.Clear();
-        SettingsBody.Children.Add(ActionButton(section == null ? "← Back" : "← Back to settings", () => { if (section == null) ShowPage(previousPage); else RenderSettings(); }));
         if (section == null) {
+            var back = new Button { Style = (Style)FindResource("TextButton"), Foreground = (Brush)Application.Current.Resources["MutedBrush"], Margin = new Thickness(2, 4, 2, 14) };
+            back.Content = Iconography.With("chevron-left", "Back", 16, 6);
+            back.Click += (_, _) => Safe(() => ShowPage(previousPage));
+            SettingsBody.Children.Add(back);
             foreach (var item in new[] { ("Appearance", "Theme, larger text and motion"), ("Playback", "Mix and local Autoplay"), ("Lyrics", "Optional automatic lyric search"), ("Library", "Song information and cover editing"), ("Storage", "Your original local files"), ("About", "Version, source and privacy") }) {
-                var button = ActionButton(item.Item1, () => RenderSettings(item.Item1));
-                button.HorizontalContentAlignment = HorizontalAlignment.Left; button.Padding = new Thickness(22, 18, 22, 18);
-                var content = new StackPanel(); content.Children.Add(Label(item.Item1, 21)); content.Children.Add(Label(item.Item2, 14)); button.Content = content;
+                var row = new Grid { Margin = new Thickness(0) };
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                var words = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+                words.Children.Add(Label(item.Item1, 17));
+                var detail = Label(item.Item2, 13);
+                detail.SetResourceReference(TextBlock.ForegroundProperty, "MutedBrush");
+                detail.Margin = new Thickness(2, 0, 2, 0);
+                words.Children.Add(detail);
+                row.Children.Add(words);
+                var chevron = Iconography.Draw("chevron-right", 17, 1.7, (Brush)Application.Current.Resources["MutedBrush"]);
+                Grid.SetColumn(chevron, 1);
+                row.Children.Add(chevron);
+                var button = new Button { Content = row, HorizontalContentAlignment = HorizontalAlignment.Stretch, Padding = new Thickness(18, 12, 16, 12), Margin = new Thickness(0, 3, 0, 3), ToolTip = item.Item1 };
+                button.Click += (_, _) => Safe(() => RenderSettings(item.Item1));
                 SettingsBody.Children.Add(button);
             }
             return;
         }
-        SettingsBody.Children.Add(Label(section, 30));
+        var backToAll = new Button { Style = (Style)FindResource("TextButton"), Foreground = (Brush)Application.Current.Resources["MutedBrush"], Margin = new Thickness(2, 4, 2, 10) };
+        backToAll.Content = Iconography.With("chevron-left", "Back to settings", 16, 6);
+        backToAll.Click += (_, _) => Safe(() => RenderSettings());
+        SettingsBody.Children.Add(backToAll);
+        SettingsBody.Children.Add(Label(section, 26));
         void Toggle(string text, bool value, Action<bool> changed) {
             var check = new CheckBox { Content = text, IsChecked = value };
             check.Checked += (_, _) => { changed(true); preferencesDirty = true; SaveSession(); };
@@ -62,7 +83,7 @@ public partial class MainWindow
                 SettingsBody.Children.Add(Label($"{tracks.Count} original files in {repository.Folder}. Keep your originals; deleting this folder removes this library."));
                 SettingsBody.Children.Add(ActionButton("Open local library folder", () => Process.Start(new ProcessStartInfo(repository.Folder) { UseShellExecute = true }))); break;
             case "About":
-                SettingsBody.Children.Add(Label("Wave 0.1.0 · 17 October 2026", 23));
+                SettingsBody.Children.Add(Label("Wave 0.2.0 · 1 November 2026", 23));
                 SettingsBody.Children.Add(Label("Your music. Your collection. No account required."));
                 SettingsBody.Children.Add(ActionButton("Source code", () => Process.Start(new ProcessStartInfo("https://github.com/jaime-gaming/Wave") { UseShellExecute = true })));
                 SettingsBody.Children.Add(Label("Use audio and lyrics you may lawfully access. See the repository privacy information.")); break;

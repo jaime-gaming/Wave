@@ -1,9 +1,22 @@
-import { automaticMixSeconds } from '../domain/mix';
+import { automaticMixSeconds, mixWindowReached } from '../domain/mix';
+import { isUsablePlan, planTransitionCached, realignPlan } from '../domain/mixPlanner';
+import { analyzeTrack, cachedAnalysis } from '../audio/mixAnalysis';
 import { continuationQueue } from '../domain/continuation';
 import { readPlaybackSession, writePlaybackSession } from '../domain/playbackSession';
 import { MixAudio } from '../audio/MixAudio';
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { playerReducer, shuffleQueue } from '../domain/player';
+import { resolvePlayable } from '../domain/youtubeTrack';
+import {
+  describeSilence,
+  silenceReport,
+  trimFromReport,
+  type SilenceReport,
+} from '../domain/silence';
+import { breakDue, freshBreak, heardFor, nextBreakThreshold } from '../domain/breakTime';
+import { planEdgeHandover } from '../domain/edgeMix';
+import { PlaybackClock } from './playbackClock';
+import { cueTiming, MixCueStore } from '../ui/mixCue';
 import type { Track } from '../domain/types';
 
 function savedVolume(key = 'wave-volume') {
@@ -32,16 +45,45 @@ function savedAutoplay() {
     return true;
   }
 }
-export function usePlayer(tracks: Track[], libraryReady = true) {
+/**
+ * What the listener may do about the dead air measured at the edges of a file.
+ *
+ * Passed in rather than owned here: the library is the only thing that can
+ * persist anything, and the player must not know how it does that.
+ */
+export interface SilenceStore {
+  /** Records what was measured, so the question is only asked once. */
+  record: (id: string, bounds: { start: number; end: number }) => void;
+  /** Removes the silence from the library's playback of that song. */
+  trim: (id: string, bounds: { start: number; end: number }) => void;
+  /** The listener chose to keep it. */
+  keep: (id: string) => void;
+}
+
+export function usePlayer(tracks: Track[], libraryReady = true, silenceStore?: SilenceStore) {
   const [saved] = useState(readPlaybackSession);
   const [mixEnabled, setMixEnabled] = useState(savedMix);
   const [autoplay, setAutoplay] = useState(savedAutoplay);
+  /** Bumped when a background analysis lands, so tempo readouts refresh. */
   const recent = useRef<string[]>([]);
   const positions = useRef(saved.positions);
   const resumeId = useRef<string | undefined>(saved.state.queue[saved.state.index]);
   const readyRef = useRef(libraryReady);
   const [state, dispatch] = useReducer(playerReducer, saved.state);
-  const [time, setTime] = useState(0);
+  /**
+   * Position lives in a store, not in state: see `playbackClock.ts`. The interface
+   * no longer re-renders on every playback tick.
+   */
+  const [clock] = useState(() => new PlaybackClock());
+  /** The lead-in before a handover: see `mixCue.ts`. */
+  const [mixCue] = useState(() => new MixCueStore());
+  /** The live handover, readable from the engine's 20 Hz loop. */
+  const blendRef = useRef<{
+    outgoing: Blob;
+    incoming: Blob;
+    progress: number;
+    seconds: number;
+  } | null>(null);
   const [blend, setBlend] = useState<{
     outgoing: Blob;
     incoming: Blob;
@@ -51,6 +93,30 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
   const [duration, setDuration] = useState(0);
   const [durationTrackId, setDurationTrackId] = useState<string>();
   const [volume, updateVolume] = useState(() => savedVolume());
+  /**
+   * YouTube songs are driven by the embedded player, which is the master clock.
+   * The track id is stored with the clock so a new song starts from zero without
+   * an effect that would reset state after a render.
+   */
+  const [youTubeClock, setYouTubeClock] = useState<{
+    id?: string;
+    time: number;
+    duration: number;
+  }>({ time: 0, duration: 0 });
+  const [youTubeSeek, setYouTubeSeek] = useState({ seconds: 0, nonce: 0 });
+  /**
+   * Handover state for songs that involve YouTube. `pending` is the embed that
+   * starts before the song becomes current, so the crossfade has two audible
+   * sides; `outgoingGain` lets the current embed fade out under the next file.
+   */
+  const [edge, setEdge] = useState<{
+    pending?: { track: Track; fadeSeconds: number };
+    outgoingGain: number;
+    outgoingFade: number;
+  }>({ outgoingGain: 1, outgoingFade: 0.25 });
+  const edgeRef = useRef<{ toId?: string; direction: 'into' | 'outOf'; seconds: number } | null>(
+    null,
+  );
   const lastAudible = useRef(volume || savedVolume('wave-last-audible-volume') || 1);
   const [buffering, setBuffering] = useState(false);
   const [error, setError] = useState('');
@@ -58,6 +124,59 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
   const context = useRef({ tracks, mixEnabled, autoplay });
   const stateRef = useRef(state);
   const current = tracks.find((track) => track.id === state.queue[state.index]);
+  /** A YouTube row plays from a local twin when one exists; the file always wins. */
+  const playable = resolvePlayable(current, tracks);
+  const youTube = !!playable?.fromYouTube;
+  const blob = playable?.track.blob;
+  /**
+   * A library row can outlive its audio: browser storage may have evicted the
+   * file, or an older import may never have been saved with bytes. Saying so is
+   * better than a play button that appears to do nothing.
+   */
+  const missingAudio = !!current && !blob && !youTube;
+  const youTubeTime = youTubeClock.id === current?.id ? youTubeClock.time : 0;
+  const youTubeDuration = youTubeClock.id === current?.id ? youTubeClock.duration : 0;
+  /** Read by callbacks that must not close over a stale render. */
+  const youTubeRef = useRef(youTube);
+  const youTubeTimeRef = useRef(youTubeTime);
+  const youTubeDurationRef = useRef(youTubeDuration);
+  const currentIdRef = useRef(current?.id);
+  const edgeStartedAt = useRef(0);
+  useEffect(() => {
+    youTubeRef.current = youTube;
+    youTubeTimeRef.current = youTubeTime;
+    youTubeDurationRef.current = youTubeDuration;
+    currentIdRef.current = current?.id;
+  }, [youTube, youTubeTime, youTubeDuration, current?.id]);
+  /**
+   * Mix analysis runs in a worker on a downmixed copy, so the interface keeps its
+   * frame budget. Results are cached per file, so a song is analysed at most once.
+   */
+  const prime = useCallback(
+    (blob: Blob | undefined) => {
+      if (!blob) return;
+      const note = (analysis: Parameters<typeof silenceReport>[0]) => {
+        if (!silenceStore) return;
+        const track = context.current.tracks.find((item) => item.blob === blob);
+        if (!track || track.trim || track.silenceKept || track.silence) return;
+        const report = silenceReport(analysis);
+        if (!report?.worth) return;
+        silenceStore.record(track.id, { start: report.start, end: report.end });
+      };
+      const cached = cachedAnalysis(blob);
+      if (cached) {
+        engine.current?.setAnalysis(blob, cached);
+        note(cached);
+        return;
+      }
+      void analyzeTrack(blob).then((analysis) => {
+        if (!analysis) return;
+        engine.current?.setAnalysis(blob, analysis);
+        note(analysis);
+      });
+    },
+    [silenceStore],
+  );
 
   useEffect(() => {
     readyRef.current = libraryReady;
@@ -94,9 +213,22 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
     if (!mixEnabled) {
       engine.current?.cancelTransition();
       engine.current?.prepare();
+      mixCue.clear();
     }
     engine.current?.setMixEnabled(mixEnabled);
-  }, [mixEnabled, autoplay]);
+  }, [mixEnabled, autoplay, mixCue]);
+  useEffect(() => {
+    prime(current?.blob);
+  }, [current?.blob, prime]);
+  /**
+   * A fade belongs to one handover. When the song changes without a running
+   * handover, the embed's level returns to unity so a stale zero gain can never
+   * leave a YouTube song silent.
+   */
+  useEffect(() => {
+    if (edgeRef.current) return;
+    setEdge((value) => (value.outgoingGain === 1 ? value : { ...value, outgoingGain: 1 }));
+  }, [current?.id]);
   useEffect(() => {
     if (current?.id && recent.current.at(-1) !== current.id)
       recent.current = [...recent.current.slice(-31), current.id];
@@ -164,16 +296,24 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
       return context.current.tracks.find((track) => track.id === latest.queue[index]);
     };
     const player = new MixAudio({
-      time: (value) =>
-        setTime((previous) =>
-          value === 0 || Math.abs(value - previous) >= 0.09 ? value : previous,
-        ),
-      blend: setBlend,
-      duration: (seconds) => {
-        setDuration(seconds);
-        setDurationTrackId(
-          context.current.tracks.find((track) => track.blob === player.active.blob)?.id,
+      time: (value) => clock.set(value),
+      // The blend drives a visual crossfade; a couple of dozen steps are plenty
+      // and every one of them re-renders the bar it is drawn in.
+      blend: (next) => {
+        blendRef.current = next;
+        setBlend((previous) =>
+          !next || !previous || Math.abs(next.progress - previous.progress) >= 0.02
+            ? next
+            : previous,
         );
+      },
+      // Called with the same value on every tick; returning the previous value
+      // lets React skip the render instead of rendering the app ten times a
+      // second to store the same number.
+      duration: (seconds) => {
+        setDuration((previous) => (previous === seconds ? previous : seconds));
+        const id = context.current.tracks.find((track) => track.blob === player.active.blob)?.id;
+        setDurationTrackId((previous) => (previous === id ? previous : id));
       },
       buffering: setBuffering,
       error: (message) => {
@@ -200,36 +340,105 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
         } else if (!extend(true)) dispatch({ type: 'ended' });
       },
       tick: () => {
-        if (player.mixRemaining <= 10 && !player.transitioning && extend()) return;
         const next = target();
-        player.prepare(next?.blob);
-        if (!next) return;
-        const element = player.element,
-          remaining = player.mixRemaining;
-        if (
-          Number.isFinite(element.duration) &&
-          element.duration > 0 &&
-          remaining > 0 &&
-          remaining <=
-            automaticMixSeconds(element.duration, player.preparedDuration || next.duration)
-        ) {
-          const from = stateRef.current.queue[stateRef.current.index];
-          player.transition(
-            next.blob,
-            automaticMixSeconds(element.duration, player.preparedDuration || next.duration),
-            () =>
-              stateRef.current.queue[stateRef.current.index] === from && target()?.id === next.id,
-            () => dispatch({ type: 'jump', id: next.id }),
-          );
+        const element = player.element;
+        const duration = element.duration;
+        const remaining = player.mixRemaining;
+        const hasClock = Number.isFinite(duration) && duration > 0;
+        // Both the cue and the handover are timed from the same window, so the
+        // warning can never describe a mix that starts somewhere else.
+        const window = hasClock
+          ? automaticMixSeconds(duration, player.preparedDuration || next?.duration || 0)
+          : 0;
+        const outgoingAnalysis = cachedAnalysis(player.active.blob);
+        const incomingAnalysis = next?.blob ? cachedAnalysis(next.blob) : undefined;
+        const plan =
+          outgoingAnalysis && incomingAnalysis
+            ? planTransitionCached(outgoingAnalysis, incomingAnalysis, {
+                fallbackSeconds: window,
+              })
+            : undefined;
+        // How long before the end of the file the handover begins.
+        const blendWindow = Math.max(window, plan?.seconds ?? 0);
+        const cueTrack = stateRef.current.queue.length
+          ? context.current.tracks.find(
+              (track) => track.id === stateRef.current.queue[stateRef.current.index],
+            )
+          : undefined;
+        const live = blendRef.current;
+        if (player.transitioning) {
+          // While the two songs are actually meeting, the cue stays: the word is
+          // the explanation of what the ears are hearing. The blend is the only
+          // truth about which two songs those are.
+          const fromTrack = live
+            ? context.current.tracks.find((track) => track.blob === live.outgoing)
+            : cueTrack;
+          const toTrack = live
+            ? context.current.tracks.find((track) => track.blob === live.incoming)
+            : next;
+          if (fromTrack && toTrack && fromTrack.id !== toTrack.id)
+            mixCue.set({ from: fromTrack, to: toTrack, seconds: 0, progress: 1 });
+          else mixCue.clear();
+        } else if (context.current.mixEnabled && next && cueTrack && hasClock) {
+          const timing = cueTiming(remaining, blendWindow);
+          if (timing) mixCue.set({ from: cueTrack, to: next, ...timing });
+          else mixCue.clear();
+        } else mixCue.clear();
+        // Buffering the next song well before the mix point keeps the handover gapless.
+        if (next?.blob && player.mixRemaining <= 25) player.prepare(next.blob);
+        if (next?.blob) prime(next.blob);
+        if (player.mixRemaining <= 10 && !player.transitioning && extend()) return;
+        if (!next?.blob) return;
+        if (!hasClock || remaining <= 0) return;
+        const from = stateRef.current.queue[stateRef.current.index];
+        const stillTarget = () => {
+          if (stateRef.current.queue[stateRef.current.index] !== from) return false;
+          const latest = target();
+          return !!latest && latest.id === next.id && latest.blob === next.blob;
+        };
+        const onStarted = () => dispatch({ type: 'jump', id: next.id });
+        /*
+         * A record can run out of music before it runs out of file.
+         *
+         * Ten seconds from the end is the last chance to notice that there is
+         * nothing left to hear — a fade that has already reached the floor, the
+         * gap before a hidden track, the room after the last chord. Waiting for
+         * the clock leaves the listener sitting in that nothing. When the
+         * analysed end of the audio is already at hand, the next song comes in
+         * now instead.
+         */
+        const tail = duration - element.currentTime;
+        if (tail > 0.2 && tail <= 10 && remaining <= 2.5) {
+          player.transition(next.blob, Math.min(4, Math.max(2.5, tail)), stillTarget, onStarted);
+          return;
         }
+        // A handover belongs in the last seconds of the file. Whatever the
+        // analysis believes about the end of the song, this is the rule that
+        // keeps a mix from quietly turning into a skip.
+        if (!mixWindowReached(element.currentTime, duration, blendWindow)) return;
+        // The cue is the plan's own bar line, not "one second before the end":
+        // starting anywhere else lands the new song mid-bar, which is the
+        // difference between a mix and two songs sliding past each other.
+        if (plan && isUsablePlan(plan, remaining) && element.currentTime >= plan.startAt - 0.05) {
+          const aligned = realignPlan(plan, element.currentTime);
+          if (aligned) {
+            player.transitionWithPlan(next.blob, aligned, stillTarget, onStarted);
+            return;
+          }
+        }
+        // No usable plan: an equal-power overlap timed by the two lengths.
+        if (remaining <= window) player.transition(next.blob, window, stillTarget, onStarted);
       },
     });
     engine.current = player;
     player.setMixEnabled(context.current.mixEnabled);
     return () => {
+      mixCue.clear();
       player.destroy();
       engine.current = null;
     };
+    // `prime` and the context refs are stable by design: the engine lives once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(() => {
     const outgoing = engine.current?.outgoingBlob;
@@ -239,7 +448,97 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
     )
       engine.current?.cancelTransition();
   }, [tracks, state.queue]);
-  const blob = current?.blob;
+  /**
+   * Crossfades that involve a YouTube song.
+   *
+   * A YouTube song has no local bytes, so the beat-matched path cannot run. What
+   * still works is a real equal-power overlap between the embed and a local deck:
+   * one side ramps down while the other ramps up, inside a window sized from the
+   * two durations. The local side is driven by `MixAudio.fadeOut/fadeIn`, the
+   * embed by its own volume ramp, so both ends of the handover move together.
+   */
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const player = engine.current;
+      const latest = stateRef.current;
+      const ctx = context.current;
+      if (!player) return;
+      const currentRow = ctx.tracks.find((track) => track.id === latest.queue[latest.index]);
+      const nextIndex =
+        latest.index + 1 < latest.queue.length
+          ? latest.index + 1
+          : latest.repeat === 'all'
+            ? 0
+            : -1;
+      const nextRow = ctx.tracks.find((track) => track.id === latest.queue[nextIndex]);
+
+      if (!latest.playing || latest.repeat === 'one' || !ctx.mixEnabled || !nextRow) {
+        if (edgeRef.current) {
+          edgeRef.current = null;
+          player.cancelFade();
+          setEdge({ outgoingGain: 1, outgoingFade: 0.3 });
+        }
+        return;
+      }
+
+      const from = resolvePlayable(currentRow, ctx.tracks);
+      const to = resolvePlayable(nextRow, ctx.tracks);
+      if (!from || !to) return;
+
+      const running = edgeRef.current;
+      if (running && performance.now() - edgeStartedAt.current >= running.seconds * 1000) {
+        edgeRef.current = null;
+        dispatch({ type: 'jump', id: nextRow.id });
+        // The embed that faded in is now the song; anything else returns to unity.
+        setEdge((value) => ({
+          pending: running.direction === 'into' ? value.pending : undefined,
+          outgoingGain: 1,
+          outgoingFade: 0.3,
+        }));
+        return;
+      }
+      if (running) return;
+
+      // Keep the pending embed only while it is the song being handed over.
+      setEdge((value) =>
+        value.pending && value.pending.track.id !== latest.queue[latest.index]
+          ? { ...value, pending: undefined }
+          : value,
+      );
+
+      // Both sides local: the beat-matched planner owns this handover.
+      if (!from.fromYouTube && !to.fromYouTube) return;
+
+      const outgoingDuration = from.fromYouTube
+        ? youTubeDurationRef.current || currentRow?.duration || 0
+        : player.element.duration;
+      const position = from.fromYouTube ? youTubeTimeRef.current : player.element.currentTime;
+      if (!Number.isFinite(outgoingDuration) || outgoingDuration <= 0) return;
+      const { seconds } = planEdgeHandover(outgoingDuration, to.track.duration || 0);
+      const remaining = outgoingDuration - position;
+      if (remaining > seconds || remaining <= 0.2) return;
+
+      if (to.fromYouTube) {
+        edgeRef.current = { direction: 'into', seconds };
+        edgeStartedAt.current = performance.now();
+        player.fadeOut(seconds, true);
+        setEdge({
+          pending: { track: nextRow, fadeSeconds: seconds },
+          outgoingGain: 0,
+          outgoingFade: seconds,
+        });
+        return;
+      }
+      if (!to.track.blob) return;
+      edgeRef.current = { direction: 'outOf', seconds };
+      edgeStartedAt.current = performance.now();
+      player.load(to.track.blob);
+      void player.play().catch(() => undefined);
+      player.fadeIn(seconds);
+      setEdge({ outgoingGain: 0, outgoingFade: seconds });
+    }, 150);
+    return () => clearInterval(timer);
+  }, []);
   useEffect(() => {
     const player = engine.current;
     player?.load(blob);
@@ -250,13 +549,26 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
     const restore = () => {
       if (!Number.isFinite(player.element.duration) || player.element.duration <= 0) return;
       player.seek(Math.min(position, player.element.duration));
-      setTime(Math.min(position, player.element.duration));
+      clock.set(Math.min(position, player.element.duration), true);
       resumeId.current = undefined;
     };
     element.addEventListener('loadedmetadata', restore);
     restore();
     return () => element.removeEventListener('loadedmetadata', restore);
-  }, [blob, current?.id]);
+  }, [blob, current?.id, clock]);
+  /**
+   * Browsers only start an audio context inside a gesture. Any click or key
+   * brings a suspended graph back, so the interface cannot get stuck silent.
+   */
+  useEffect(() => {
+    const resume = () => void engine.current?.resumeAudio();
+    window.addEventListener('pointerdown', resume, { passive: true });
+    window.addEventListener('keydown', resume);
+    return () => {
+      window.removeEventListener('pointerdown', resume);
+      window.removeEventListener('keydown', resume);
+    };
+  }, []);
   useEffect(() => {
     const player = engine.current;
     if (!player || !blob) return;
@@ -292,30 +604,48 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
     () => updateVolume((value) => (value > 0 ? 0 : lastAudible.current)),
     [],
   );
-  const seek = useCallback((seconds: number) => {
-    const player = engine.current;
-    if (
-      !player ||
-      !Number.isFinite(seconds) ||
-      !Number.isFinite(player.element.duration) ||
-      player.element.duration <= 0
-    )
-      return;
-    const next = Math.max(0, Math.min(seconds, player.element.duration));
-    player.seek(next);
-    setTime(next);
-  }, []);
+  const seek = useCallback(
+    (seconds: number) => {
+      if (!Number.isFinite(seconds)) return;
+      if (youTubeRef.current) {
+        const next = Math.max(0, seconds);
+        setYouTubeClock((value) => ({
+          id: currentIdRef.current,
+          time: next,
+          duration: value.duration,
+        }));
+        setYouTubeSeek((value) => ({ seconds: next, nonce: value.nonce + 1 }));
+        clock.set(next, true);
+        return;
+      }
+      const player = engine.current;
+      if (!player || !Number.isFinite(player.element.duration) || player.element.duration <= 0)
+        return;
+      const next = Math.max(0, Math.min(seconds, player.element.duration));
+      player.seek(next);
+      clock.set(next, true);
+    },
+    [clock],
+  );
   const previous = useCallback(() => {
-    if ((engine.current?.element.currentTime ?? 0) > 3) seek(0);
+    const position = youTubeRef.current
+      ? youTubeTimeRef.current
+      : (engine.current?.element.currentTime ?? 0);
+    if (position > 3) seek(0);
     else dispatch({ type: 'previous' });
   }, [seek]);
-  const play = useCallback((list: Track[], id: string) => {
-    resumeId.current = undefined;
-    positions.current[id] = 0;
-    if (stateRef.current.queue[stateRef.current.index] === id && engine.current)
-      engine.current.seek(0);
-    dispatch({ type: 'load', queue: list.map((track) => track.id), id });
-  }, []);
+  const play = useCallback(
+    (list: Track[], id: string) => {
+      resumeId.current = undefined;
+      positions.current[id] = 0;
+      if (stateRef.current.queue[stateRef.current.index] === id && engine.current) {
+        if (youTubeRef.current) seek(0);
+        else engine.current.seek(0);
+      }
+      dispatch({ type: 'load', queue: list.map((track) => track.id), id });
+    },
+    [seek],
+  );
   const shuffle = useCallback(() => {
     const latest = stateRef.current;
     const queue = latest.shuffled
@@ -373,18 +703,24 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
 
   useEffect(() => {
     if (!('mediaSession' in navigator) || !navigator.mediaSession.setPositionState) return;
-    try {
-      if (duration > 0 && Number.isFinite(duration))
-        navigator.mediaSession.setPositionState({
-          duration,
-          playbackRate: 1,
-          position: Math.max(0, Math.min(time, duration)),
-        });
-      else navigator.mediaSession.setPositionState();
-    } catch {
-      /* Position reporting is optional. */
-    }
-  }, [time, duration]);
+    const report = () => {
+      try {
+        if (duration > 0 && Number.isFinite(duration))
+          navigator.mediaSession.setPositionState({
+            duration,
+            playbackRate: 1,
+            position: Math.max(0, Math.min(clock.get(), duration)),
+          });
+        else navigator.mediaSession.setPositionState();
+      } catch {
+        /* Position reporting is optional. */
+      }
+    };
+    report();
+    // Once a second is all the OS needs; the store keeps the rest off the render path.
+    const timer = setInterval(report, 1000);
+    return () => clearInterval(timer);
+  }, [clock, duration]);
 
   const enqueue = useCallback(
     (ids: string[]) =>
@@ -394,10 +730,130 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
       }),
     [],
   );
-  const readTime = useCallback(() => engine.current?.element.currentTime ?? 0, []);
+  const readTime = useCallback(
+    () =>
+      youTubeRef.current ? youTubeTimeRef.current : (engine.current?.element.currentTime ?? 0),
+    [],
+  );
+  /** Called by the embed when the video reaches its end. */
+  const youTubeEnded = useCallback(() => {
+    const latest = stateRef.current;
+    if (!latest.playing) return;
+    if (latest.repeat === 'one') {
+      setYouTubeSeek((value) => ({ seconds: 0, nonce: value.nonce + 1 }));
+      return;
+    }
+    dispatch({ type: 'ended' });
+  }, []);
+  const showYouTubeError = useCallback((message: string) => setError(message), []);
+  /**
+   * The embed reports its own position four times a second. That goes to the
+   * clock, not into React state: only the seek bar redraws. The state copy keeps
+   * whole seconds for the props that only need a starting point.
+   */
+  const reportYouTubeTime = useCallback(
+    (seconds: number) => {
+      if (!Number.isFinite(seconds)) return;
+      const value = Math.max(0, seconds);
+      clock.set(value);
+      setYouTubeClock((current) =>
+        current.id === currentIdRef.current && Math.abs(current.time - value) < 1
+          ? current
+          : { id: currentIdRef.current, time: value, duration: current.duration },
+      );
+    },
+    [clock],
+  );
+  const reportYouTubeDuration = useCallback((seconds: number) => {
+    if (!Number.isFinite(seconds) || seconds <= 0) return;
+    const id = currentIdRef.current;
+    setYouTubeClock((value) => ({ id, time: value.id === id ? value.time : 0, duration: seconds }));
+    if (id) {
+      setDuration(seconds);
+      setDurationTrackId(id);
+    }
+  }, []);
   const reorderQueue = useCallback((ids: string[]) => dispatch({ type: 'reorder', ids }), []);
-  const readElement = useCallback(() => engine.current?.element, []);
+  const readElement = useCallback(
+    () => (youTubeRef.current ? undefined : engine.current?.element),
+    [],
+  );
+  /**
+   * The long-session question.
+   *
+   * Time is counted only while the music is running, in five-second steps, and
+   * never written to disk: a break is about this sitting, not about a lifetime.
+   * When it is due, the music stops before the question is shown — asking
+   * somebody to take a break while the bass is still going is an odd thing to do.
+   */
+  const [breakOpen, setBreakOpen] = useState(false);
+  const listened = useRef(freshBreak());
+  const breakThreshold = useRef(undefined as number | undefined);
+  useEffect(() => {
+    if (!state.playing) return;
+    const timer = setInterval(() => {
+      listened.current = heardFor(listened.current, 5);
+      if (breakDue(listened.current, breakThreshold.current)) {
+        if (stateRef.current.playing) dispatch({ type: 'pause' });
+        setBreakOpen(true);
+      }
+    }, 5_000);
+    return () => clearInterval(timer);
+  }, [state.playing]);
+  const keepListening = useCallback(() => {
+    breakThreshold.current = nextBreakThreshold(
+      breakThreshold.current ?? listened.current.listened,
+    );
+    setBreakOpen(false);
+    if (!stateRef.current.playing) dispatch({ type: 'toggle' });
+  }, []);
+  const stopForNow = useCallback(() => {
+    breakThreshold.current = nextBreakThreshold(
+      breakThreshold.current ?? listened.current.listened,
+    );
+    setBreakOpen(false);
+  }, []);
+
+  /**
+   * Dead air the listener has not answered about yet, for this song only.
+   *
+   * Measured when the song is played, never at import: analysing a library of
+   * thousands to decide whether to mention two seconds would make importing
+   * slow and the app feel busy. The question is asked once and never returns.
+   */
+  const silenceNotice: { text: string; report: SilenceReport } | null = (() => {
+    if (!current?.silence || current.trim || current.silenceKept || !silenceStore) return null;
+    const report = silenceReport({
+      duration: current.duration || current.silence.end,
+      trimmed: current.silence,
+    });
+    if (!report?.worth) return null;
+    return { text: describeSilence(report), report };
+  })();
+
+  const removeSilence = useCallback(() => {
+    if (!current || !silenceNotice || !silenceStore) return;
+    silenceStore.trim(current.id, trimFromReport(silenceNotice.report));
+  }, [current, silenceNotice, silenceStore]);
+
+  const keepSilence = useCallback(() => {
+    if (!current || !silenceStore) return;
+    silenceStore.keep(current.id);
+  }, [current, silenceStore]);
+
+  /** A trim is playback bounds, so the engine is told whenever they change. */
+  useEffect(() => {
+    for (const track of tracks) if (track.blob) engine.current?.setBounds(track.blob, track.trim);
+  }, [tracks]);
+
   return {
+    breakOpen,
+    keepListening,
+    stopForNow,
+    silenceNotice,
+    removeSilence,
+    keepSilence,
+    mixCue,
     mixEnabled,
     setMixEnabled,
     autoplay,
@@ -414,14 +870,47 @@ export function usePlayer(tracks: Track[], libraryReady = true) {
           to: tracks.find((track) => track.blob === blend.incoming),
         }
       : null,
+    /** YouTube songs: the embed is the source and the master clock. */
+    youTube: youTube
+      ? {
+          seek: youTubeSeek,
+          time: youTubeTime,
+          onTime: reportYouTubeTime,
+          onDuration: reportYouTubeDuration,
+          onEnded: youTubeEnded,
+          onError: showYouTubeError,
+        }
+      : null,
+    /**
+     * The YouTube player to mount: the song being handed over (fading in) or the
+     * current song (possibly fading out under the next file).
+     */
+    stageYouTube: edge.pending
+      ? edge.pending.track.id === current?.id
+        ? { track: edge.pending.track, gain: 1, startGain: 1, fadeSeconds: 0.25 }
+        : {
+            track: edge.pending.track,
+            gain: 1,
+            startGain: 0,
+            fadeSeconds: edge.pending.fadeSeconds,
+          }
+      : youTube && current
+        ? { track: current, gain: edge.outgoingGain, startGain: 1, fadeSeconds: edge.outgoingFade }
+        : null,
     state,
     buffering,
     toggleMute,
     current,
-    time,
-    duration,
+    clock,
+    get time() {
+      return youTube ? youTubeTime : clock.get();
+    },
+    duration: youTube ? youTubeDuration || (current?.duration ?? 0) : duration,
     volume,
-    error,
+    /** A row without stored audio explains itself instead of looking silent. */
+    error: missingAudio
+      ? 'This song has no audio stored on this device. Import the file again.'
+      : error,
     setError,
     setVolume,
     dispatch,

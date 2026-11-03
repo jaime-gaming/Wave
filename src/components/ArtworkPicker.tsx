@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { ImagePlus, X } from 'lucide-react';
+import { ImagePlus, X } from './Glyphs';
 import { Artwork } from './Artwork';
 import { ARTWORK_ACCEPT, readArtwork } from '../data/artwork';
 

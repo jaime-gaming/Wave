@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { Music2 } from 'lucide-react';
+import { Music2 } from './Glyphs';
 import type { Track } from '../domain/types';
 
 export const Artwork = memo(function Artwork({

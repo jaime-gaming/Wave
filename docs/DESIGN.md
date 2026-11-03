@@ -1,6 +1,6 @@
 # Wave Architecture
 
-**Version: 0.1.0 · Release date: 17 October 2026.**
+**Version: 0.2.0 · Release date: 3 November 2026.**
 
 ## Scope and platform decision
 
@@ -121,7 +121,7 @@ Media Session metadata and actions are registered only when supported. Supported
 
 The approved visual direction is documented in [Interface Design](DESIGN.md): Material 3-style tonal surfaces, category pills, and a compact playback bar on all screens. Now playing is a full-viewport modal with a two-column desktop layout and stacked mobile layout. Home shows collection shortcuts, recent albums/songs, playlists, artists, and local daily mixes; Search exposes collection-wide search; Library handles category browsing.
 
-CSS custom properties define dark and light palettes. Nunito Sans is self-hosted. `useArtworkColor` samples a small local canvas to derive the player hue, with fixed tonal lightness and a neutral fallback. Artwork sampling does not modify the library or send image data to a service. System theme observes `prefers-color-scheme`. Layouts adapt the navigation rail to a mobile bottom bar. The compact player opens a full-viewport dialog at every width; app-shell padding reserves scrollable space behind fixed controls, and notifications sit above playback. Controls use semantic buttons, accessible labels, and visible focus indicators. Dialogs use native modal focus handling. Motion for React provides reusable spatial springs for position, layout, selection, press feedback, and playback-control shape; short non-spring effects control opacity. `useWaveMotion` combines the Settings preference with system reduced motion. CSS playing/favorite indicators obey both preferences. Exiting list rows and dialogs are inert and hidden from accessibility queries. Dialog cleanup closes the native modal before restoring focus; the full player explicitly supplies its initiating Home/bar button. If that button has been deleted, disabled, or made inert, focus returns to the main workspace without scrolling. Full-player collapse/queue actions sit in a sticky header.
+CSS custom properties define dark and light palettes. Nunito Sans is self-hosted. Nunito Sans is shipped to Android (`res/font`) and Windows (`Assets`) as the same four static weights, and each native palette is the web token list copied verbatim, so the three builds are one design rather than three that resemble each other. `useArtworkColor` samples a small local canvas to derive the player hue, with fixed tonal lightness and a neutral fallback. Artwork sampling does not modify the library or send image data to a service. System theme observes `prefers-color-scheme`. Layouts adapt the navigation rail to a mobile bottom bar. The compact player opens a full-viewport dialog at every width; app-shell padding reserves scrollable space behind fixed controls, and notifications sit above playback. Controls use semantic buttons, accessible labels, and visible focus indicators. Dialogs use native modal focus handling. Motion for React provides reusable spatial springs for position, layout, selection, press feedback, and playback-control shape; short non-spring effects control opacity. `useWaveMotion` combines the Settings preference with system reduced motion. CSS playing/favorite indicators obey both preferences. Exiting list rows and dialogs are inert and hidden from accessibility queries. Dialog cleanup closes the native modal before restoring focus; the full player explicitly supplies its initiating Home/bar button. If that button has been deleted, disabled, or made inert, focus returns to the main workspace without scrolling. Full-player collapse/queue actions sit in a sticky header.
 
 Play/pause shortcuts avoid editable controls, buttons, and open dialogs. The search shortcut also works from focused controls and opens Search when needed. Search and library views are stateful sections rather than separate URLs in this milestone.
 
@@ -155,9 +155,95 @@ Next boundaries to extract are feature-specific screens, import workers, backup/
 
 Manual artist profiles store separately processed raster artwork. `useCustomizations` loads/saves profiles and album orders; gallery, Home and artist detail share the photo map. Album order writes validate a full permutation against current owned artist/album-pair tracks in a transaction. Stale deleted/moved IDs are ignored during derivation; new tracks append by disc/track number then import date. Playlist reorder uses the same permutation check. Reorder dialogs work from complete collections rather than filtered lists; drafts save only on confirmation. Motion Reorder handles pointer drag, with buttons and Alt-arrow keyboard alternatives.
 
+## Mix, as a mix
+
+Mix is one switch and nothing else. There is no overlap length, no style selector and no readout: the planner picks the bar count from the outgoing tempo so the blend lasts about twenty seconds — fewer bars when the two tempos would drift apart — cues the new song on the first bar that is already sounding, and decides the bass swap per pair of songs. Neither record is ever sped up or slowed down. The interface never explains any of that. A mix is not a preference between two fades; it is a decision made while the songs are playing.
+
+The same rule applies to every panel: the interface shows what can be played, chosen or changed, not how it works. No BPM, no basis lines, no provider notes, no captions under controls. The one exception is the warning that the optional word-level lyric sources are unofficial, because that is information the person choosing needs.
+
+Nothing in the interface promises more than the engine does. When the analysis has no trusted grid the overlap is still staged, still gets the low-end swap and the filter, and is timed like the planned one. No song is stretched in either case: the two records meet on the bar and the overlap is cut to as long as their pulses can share a room, which is why a wide tempo gap gets a short blend rather than a wobbly one.
+
+## A mix is announced
+
+A handover with no warning reads as a glitch, so Wave says it once. Eight seconds before the blend a small grey "Mixing" appears under the song title, in the same place as the artist, and it stays for the whole handover. The word is the entire animation: a soft highlight crosses the letters and a plain grey word stays behind it. The cover above it takes a slow breath (a slight push in, a slight dim), and the block of text below the title opens so the artist line is pushed down gently rather than jumping. In the compact bar the same word takes the artist's place and hands back to it the same way. This is the only place the interface talks about what Mix is doing.
+
+The light lives in the letters rather than beside them: a wider gradient highlight slides across a `background-clip: text` copy of the word, so each letter brightens as the highlight reaches it. A plain grey word is painted underneath, so a browser without text clipping shows a still word instead of a hole. Reduced motion stops the highlight on its first frame and keeps the word.
+
+## Pairing, told honestly
+
+Devices starts by admitting there is no server. One device shows a code, the other reads it with the camera or opens
+the same link, and the six-digit check is skipped once the two have met — a pairing that needs a sentence to explain
+is a pairing people do not finish. The camera is opened by the button, never by the page, and closes the moment a code
+is read. A song kept from the other device says so in a line that fades by itself, so the button never works in silence. The page explains what a link is (a live connection between two open windows) and what it is not (a stored login), shows the peer's library as a plain list of songs, and gives borrowed audio a visible price in megabytes that can be handed back at any time.
+
+## YouTube songs in the interface
+
+Adding music starts with a question — _From this device_ or _From YouTube_ — because the two kinds of song behave differently and the difference is not cosmetic: one is a file Wave holds, the other is a video YouTube streams. Both land in the same library rows, but a YouTube song shows `YouTube` as its album and its video is always visible behind Now Playing, with a provider link and an honest status line ("YouTube · press play" until the embed actually starts). The Film toggle is disabled for these songs, since the video is the source rather than a backdrop.
+
+The stage treats the embed as the master clock, so there is no drift to correct in both directions: Wave reads the position the player reports, interpolates between updates so the seek bar moves smoothly, and sends play/pause/seek/volume commands. If autoplay policy blocks the video, the status line says so instead of pretending.
+
+## Video clip discovery and rate nudging
+
+Clips are discovered, not pasted. The backdrop searches once per song, shows what it is doing ("Looking for this song on YouTube…"), opens the match by itself, and only falls back to the manual link form when no provider answers or nothing matches. Search failures are shown as temporary, never as an error about the song.
+
+Sync now distinguishes three magnitudes of drift. Below 0.15 s nothing happens. Between 0.15 s and 1.1 s the muted clip is played slightly faster or slower, which closes the gap without a visible jump; because the clip has no audible role, a temporary rate change costs nothing. At 1.1 s or more — or when the clip is not playing at all — Wave seeks, then waits out a cooldown. After a seek the rate always returns to 1.
+
+## Saying less
+
+Every sheet in this round lost a paragraph. Add music is three choices with a four-word line under
+each — "MP3, WAV, M4A, OGG, FLAC", "Everything inside it, at any depth", "Paste a link" — because a
+listener who has opened "Add music" has already decided to add music and does not need to be told
+what a local file is. The playlist sheet is one line of instruction, one field and two buttons; its
+footnote is a list of file types, not a policy. Song details in Settings is a switch, one sentence
+about the state of the library, and the songs themselves.
+
+The rule behind the trimming: a line stays if it changes what the listener does. "Cannot be
+undone" stays. "Your files never leave the device" moves to Privacy, where somebody reading about
+privacy will find it and somebody pressing Add will not have to skip it. Nothing technical remains
+in the interface — no "cross-origin", no "directory handle", no "provider", no file-size limits in
+the copy of a button.
+
+## Bringing a library across
+
+Two ways in, both of them deliberate and neither of them silent.
+
+**A folder.** Add Music offers it beside the file picker, and the copy changes with the browser:
+where a directory handle can be kept, the choice promises the folder will be remembered and read
+again later; where it cannot, it says the folder will have to be chosen again and does not pretend
+otherwise. Reading shows the folder's name where the button was, so a large folder never looks like
+a dead click. Remembered folders are a short list of rows — name, the date it was last read, and
+two text actions, _Allow and read again_ and _Forget_. The browser's own permission prompt is the
+only thing that ever asks for access, and it is always behind a click.
+
+**A playlist.** The sheet is a paste field, a _Choose a file_ button and one line saying what a file
+may be, because that is the whole job. Reading it produces a preview rather than a result: the count
+"12 of 18" in large type, three statuses to the right of it, then a dense list of at most sixty rows.
+A matched row names the local song it became, an ambiguous one says the closest song needs a listen,
+a missing one is simply dimmed and left out. The playlist name is prefilled from the file. The
+confirm button states the number it will write, and the done state says what is now in the library
+and that nothing was moved. Links are answered honestly and immediately — the list behind a Spotify
+or YouTube link lives behind an account Wave does not have — instead of a spinner that ends nowhere.
+
+The list rises once on arrival with the reveal fade; rows do not animate individually, because a
+hundred staggered rows is a performance problem dressed as a mood.
+
+### The same movement on Windows and Android
+
+The motion tokens are not a web-only idea. Windows keeps three shapes in `Motion.cs` — `Rise` for
+a page arriving, `Settle` for a cover that becomes a new song, and `Fade` for content that changes
+in place — each with the same short ease the site uses (`CubicEase` for the rise, a 0.12-amplitude
+`BackEase` for the settle, which is the WPF translation of the web's one-overshoot spring). Both the
+Animations preference and Windows' own "show animations" setting collapse them to nothing, and no
+code path waits on one to finish. Android's page change adds the same rise under its cross-fade on
+a non-bouncing spring, so a screen arrives from a few pixels below rather than dissolving in place.
+
+## Motion language
+
+Movement is split by purpose, not by size. Springs carry anything the user operates: cards, rows, sheets and artwork, so they settle with a little weight. Eased fades carry pure appearance changes: lyrics, veils, overlays and colour, so they never overshoot. The stage uses the slowest spring (`cinematic`) plus a short blur so a new cover resolves instead of popping; lists use one parent with staggered children so a grid arrives as a group and not as noise. Every token collapses to `{ duration: 0 }` under reduced motion, and the variants drop their blur and offsets, so the layout does not move at all.
+
 ## Native Mix engine
 
-`MixAudio` owns a primary native Audio deck and lazily creates one spare when crossfade is enabled. It preloads only the next eligible queue entry. With finite durations, a decoded incoming source and remaining time within the fade window, it starts the incoming element, validates that the playing queue target is still current, promotes its identity, and applies media-clocked equal-power gains (`cos(pπ/2)` / `sin(pπ/2)`) over at most the automatically selected pair window, remaining outgoing duration and half incoming duration. A 20 ms timer updates gains, with native-position/blend reporting approximately every 50–60 ms; volume and mute affect both decks. Blend state exposes the original outgoing/incoming Blobs, elapsed fraction and actual fade duration for opacity-only artwork fades in the full and compact players. No transition meters or banners are rendered. Cancellation/completion clears that state; the transition has no spatial cover movement, including under reduced motion. Outgoing media events cannot advance or error the new current song. Preparation/play rejection retains the outgoing song and falls back to normal transitions. Generation tokens discard stale pending starts; pause/seek/source replacement cancel overlap. Removed outgoing queue/library entries cancel their tail. Repeat-one and single-entry repeat bypass crossfade. Blob bytes are not processed or re-encoded. Browser restrictions and throttled background timers can limit ramp smoothness.
+`MixAudio` owns a primary native Audio deck and lazily creates one spare when crossfade is enabled. It preloads only the next eligible queue entry. With finite durations, a decoded incoming source and remaining time within the fade window, it starts the incoming element, validates that the playing queue target is still current, promotes its identity, and applies media-clocked staged gains (`handoverGains`: a smooth phase, then complementary `cos`/`sin`) over at most the automatically selected pair window, remaining outgoing duration and half incoming duration. A 20 ms timer updates gains, with native-position/blend reporting approximately every 50–60 ms; volume and mute affect both decks. Blend state exposes the original outgoing/incoming Blobs, elapsed fraction and actual fade duration, which the sleeve uses to draw the same two moves the audio makes: the new cover opens from its centre while it arrives, and the old one settles back once both songs are already playing. No transition meters or banners are rendered. A 180 Hz lowshelf swaps the low end once, a playback-only low-pass closes the outgoing song's top, and a level match pulls the louder of the two down by at most 6 dB so the join is not heard as a drop in volume; all three are restored when the overlap ends. Cancellation/completion clears that state; under reduced motion the sleeve keeps only the plain cross-dissolve and drops the movement. Outgoing media events cannot advance or error the new current song. Preparation/play rejection retains the outgoing song and falls back to normal transitions. Generation tokens discard stale pending starts; pause/seek/source replacement cancel overlap. Removed outgoing queue/library entries cancel their tail. Repeat-one and single-entry repeat bypass crossfade. Blob bytes are not processed or re-encoded. Browser restrictions and throttled background timers can limit ramp smoothness.
 
 ## Compact chrome and Home composition
 
@@ -167,7 +253,7 @@ Home memoizes real groups/recent tracks, uses local daily mixes and a responsive
 
 ## Three-platform update
 
-Home is the initial web page; Settings is now a full page, not a dialog. Lyrics starts open in a collapsible section each time Now Playing expands or the song changes. Redundant source/playback status text is removed. The original curved W mark replaces generic waveform bars. Online automatic lyrics is optional/off initially, while manual one-song lookup remains available. Exact/search requests validate artist/title/duration, identify the client, and honor provider cooldowns; availability cannot be guaranteed. Crossfade uses incoming media time and equal-power gains, not elapsed wall time. Duplicate cleanup merges only confirmed byte-identical records, preserving references; same-name groups are reviewed non-destructively.
+Settings contains settings only: each section card is a single word, and every row is a switch or a control. Home is the initial web page; Settings is now a full page, not a dialog. Lyrics starts open in a collapsible section each time Now Playing expands or the song changes. Redundant source/playback status text is removed. The original curved W mark replaces generic waveform bars. Online automatic lyrics is optional/off initially, while manual one-song lookup remains available. Exact/search requests validate artist/title/duration, identify the client, and honor provider cooldowns; availability cannot be guaranteed. Crossfade uses incoming media time and equal-power gains, not elapsed wall time. Duplicate cleanup merges only confirmed byte-identical records, preserving references; same-name groups are reviewed non-destructively.
 
 Separate native Android (Kotlin/Compose) and Windows (C#/WPF) source implementations exist; prior web-only scope statements apply to the web architecture, not the entire project. They are early, uncompiled in this workspace and lack full web parity. [PLATFORMS](PLATFORMS.md) is the authoritative build/status matrix. [Privacy](../PRIVACY.md) describes data flows, rights and unresolved public-release obligations.
 
@@ -177,9 +263,33 @@ Separate native Android (Kotlin/Compose) and Windows (C#/WPF) source implementat
 
 The decoder reports duration with its source track ID, so late metadata cannot overwrite another song. Significant corrections update metadata and invalidate only stale online-lyric caches, never local lyrics or the stored audio bytes. Exact lookup uses cleaned/inferred title and artist; recording editions, duration and the resulting timeline constrain synchronization.
 
-`PlayerBar` owns the open lyric disclosure and `useIdleListening` owns the 30-second activity timer. The bounded listening grid is separate from the read-only cinematic stage. Activity clears immersion without changing the player reducer or engine source. No second audio element/clock is introduced by cinema.
+### Icons, the clip stage and the two cards
 
-Lyric rows use size-container typography and whole-line clamping instead of clipping half-glyphs. The missing-lyrics state removes redundant controls/hints on short screens so import/retry remain reachable. Focused text editors outside dialogs also block immersive entry.
+Every icon in the app is drawn in `src/components/Glyphs.tsx` with the same pen as the wordmark — one stroke weight, round caps, shapes that lean off the grid — instead of being taken
+from an icon pack, because a screen of grid-perfect glyphs reads as a template. With a clip playing,
+`.player-normal-view.clip-live` lays everything over the picture: the sleeve and the song's text in
+the top-left corner, with the artist and the album on one line under the title; the words of the song
+in the bottom-right corner; and one compact transport along the foot. Two soft gradients, one at the
+head and one at the foot, carry the type over a bright frame, and the middle of the picture is left
+to the video. Closed, the words keep only their toggle in their own column, so nothing jumps when
+they open. It is one grid and a rule per width — narrower windows shrink the side columns, and below
+860 px the record and the words drop under the picture while the transport keeps its place. An embed
+of someone else's player is sound and picture only: the frame takes no clicks, no focus and no
+hover, a paused clip is dimmed and softened so YouTube's own overlay cannot be read through it, and
+a still — an audio upload, an art track, a cover-art video — is skipped rather than shown, because
+Wave's sleeve is already on screen. Three things keep the picture honest: the palette's spectral wash is switched off at the
+root (`data-clip="live"`) because it used to paint a colour gradient over someone else's footage; the
+veil is a vignette around the edges rather than a blanket over the middle; and on a phone held upright
+the video takes a 16:9 band of its own at the top, whole and uncropped, with the player underneath,
+because cover-cropping a landscape video into a portrait screen keeps the middle third and throws away
+the rest. The break
+card floats low and small over a dimmed page rather than taking the screen over, and the silence
+question is one sentence above the bar with two answers. Both are `role="dialog"`/`role="status"` with
+no technical text, and both are animated through `useWaveMotion` so reduced motion keeps them still.
+
+`PlayerBar` owns the open lyric disclosure and nothing owns an idle timer: the thirty-second scene that used to take the screen over was removed in 0.1.1, and Now Playing opens only from an explicit action. The bounded listening grid is still separate from the cinematic lyric stage, which is a reading mode inside the open player. No second audio element/clock is introduced by it.
+
+Lyric rows use size-container typography and whole-line clamping instead of clipping half-glyphs. The missing-lyrics state removes redundant controls/hints on short screens so import/retry remain reachable. Focused text editors outside dialogs do not stop the lyrics from following, because nothing opens on its own any more.
 
 ## Global tones and playlist identity
 
@@ -189,7 +299,7 @@ Lyric rows use size-container typography and whole-line clamping instead of clip
 
 ## Discovery refinement (web)
 
-`SearchPage` owns a composer, local result-category state and grouped derived song/artist/album/playlist results. The App retains query/navigation state and clears stale collection state when changing destinations. Only Search has a composer; Home, Settings and Library have no repeated search/filter field. `musicIdentity` centralizes accent/case/punctuation normalization and order-independent token matching; songs and playlist filters share it. No schema, audio-storage migration or remote search service is introduced.
+`SearchPage` owns a composer, local result-category state and grouped derived song/artist/album/playlist results; the same five kinds and the same grouping exist on Android, and Windows names the artists, albums and playlists it found above the songs, so a name typed on any of the three leads somewhere. The App retains query/navigation state and clears stale collection state when changing destinations. Only Search has a composer; Home, Settings and Library have no repeated search/filter field. `musicIdentity` centralizes accent/case/punctuation normalization and order-independent token matching; songs and playlist filters share it. No schema, audio-storage migration or remote search service is introduced.
 
 Import and lyric lookup share conservative filename identity parsing. Metadata-only inference is not acoustic fingerprinting. Existing saved metadata is not silently migrated or overwritten. Lyric query cleaning preserves numeric titles and edition descriptors while removing presentation/featured-credit decorations. Each provider candidate is parsed in isolation; malformed timing falls back to valid plain text, or is skipped so the next verified candidate can be tried. A rejected album-specific exact response retries without album, with the existing request spacing, bounds and recording guards.
 
@@ -207,7 +317,7 @@ The lyric hook now uses request generations and abort checks so a canceled reque
 
 `useMusicEnergy` samples live RMS every 40 ms, compresses dynamic range for quiet passages and smooths attack/release. Capture initialization has bounded retries; unavailable/suspended analysis can use the existing envelope fallback (24 MiB / 20-minute advertised-duration bound). Capture tracks, source/analyser connections and context are disposed on pause, source replacement, unmount or motion opt-out. Blur/visibility suspends visual analysis. Root variables drive a tonal modal light layer above its background paint and below interactive content; silence/mute/pause make it transparent. This is source-amplitude visualization, not device-output measurement or BPM detection.
 
-Lyric text stays primary. Synchronized precision is available through accessible descriptions/tooltips, plain text is labeled **Text lyrics**, and LRCLIB attribution remains linked. Editing/follow/paging use compact controls. Native details reveal timing adjustments deliberately and block idle immersion while open.
+Lyric text stays primary. Synchronized precision is available through accessible descriptions/tooltips, plain text is labeled **Text lyrics**, and LRCLIB attribution remains linked. Editing/follow/paging use compact controls. Native details reveal timing adjustments deliberately.
 
 ## Spectral listening, album verification and asynchronous ownership
 
@@ -233,7 +343,7 @@ The queue reducer validates permutations, preserves selected ID and play intent,
 
 App-level context delegation resolves `data-track-id` on song rows, Queue and player surfaces. `ContextMenu` uses a native modal dialog for top-layer placement and focus containment, viewport-clamped pointer/keyboard placement, enabled-item keyboard navigation and focus return. Selected text, edit fields, links, Shift-right-click and other editing dialogs retain native behavior. Library deletion is available only through the existing options/confirmation flow.
 
-`useAppPalette` consumes actual blend progress, caches the displayed outgoing origin until artwork is decoded and interpolates the shortest hue arc plus saturation without per-frame snapshots or storage writes. It persists the final palette and cancels stale reveals. Reduced motion applies the target directly. Root `data-immersive` hides workspace, navigation, compact player and toast while the normal-stage subtree is explicitly hidden; audio ownership and clock are unaffected.
+`useAppPalette` consumes actual blend progress, caches the displayed outgoing origin until artwork is decoded and interpolates the shortest hue arc plus saturation without per-frame snapshots or storage writes. It persists the final palette and cancels stale reveals. Reduced motion applies the target directly.
 
 ## Import verification, continuous listening and rendering budget
 
@@ -261,16 +371,58 @@ The lyric editor owns a separate abortable search and result preview. Automatic 
 
 Import-worker jobs now time out after thirty seconds, clear settled timers, dispose idle workers and handle message transport failure. Timeout fallback retains the importer's filename/source-Blob path without repeating the same potentially stuck parse on the UI thread; later imports can create a fresh worker.
 
-## 0.1.0 independent Windows structure
+## Independent Windows structure
 
 The Windows client keeps WPF and OS decoders, not the React bundle. `MainWindow` owns native playback/session state, `MainWindow.Browse` builds collections/search/playlists/queue views, and `MainWindow.Settings` owns the six settings destinations and editor. `Collections.cs` contains dependency-free playlist resolution, queue movement, bounded Mix windows, tag-based daily groups and atomic JSON helpers. A separate console contracts runner exercises these rules; an isolated WPF smoke entry point captures real native layouts without accessing the user's library. Optional lyrics remains the only provider flow.
 
 Web daily mix views retain an explicit selection snapshot, resolve it against current tracks and persist saved copies through one IndexedDB transaction. The Home card is navigation, not an implicit play action. Promotional captures use an isolated demo browser context and original assets, never a real user library.
 
-## Release 0.1.0 refinements
+## Refinements carried into the current release
 
 On phones, Home's collection shortcuts use a balanced three-plus-two grid; no category is hidden behind a horizontal shelf. Daily mixes open a playlist-like page with artwork, label, count/duration, explicit Play/Shuffle, Save as playlist and ordinary song rows. Reset scrolling on entry so a previously scrolled Home does not crop the new heading. Wrap actions at narrow widths and retain at least 44 px targets.
 
 The independent Windows UI follows the same hierarchy with native controls: rail, rounded main surface, collection cards, row metadata navigation, compact dock, artwork/lyrics stage and six Settings destinations. Its platform-specific dialogs and reduced feature set are documented rather than presented as pixel-perfect web parity. Dark/light ink, caret and selected-row colors are explicit.
 
 Provider coordination relies on the same origin and available browser capabilities. Without Web Locks, scheduling is tab-local. If storage is denied, the client retains its own spacing/cooldown in memory, but cannot promise a shared deadline across tabs. No cross-origin or other-application coordination is claimed. Existing cached lookup keys are preserved to avoid a full-library re-fetch after this change.
+
+## The Remix page
+
+Remix is a page, not a panel bolted onto the player. It answers one question — what was this
+week — and stops there. The card at the top holds the time, the plays, the songs and the
+artists, plus one line comparing it with the week before. Under it, Your Remix: the songs
+played most, in the order they were played, with Play Remix and Save as playlist. Then the
+artists behind the week, and finally the three weeks that came before it — a range, the time
+and plays each one held, and a line to play it again. A page about the past is worth keeping
+more than seven days of.
+
+History itself keeps every play from the last five weeks before the count starts letting older
+ones go, so a look back at four weeks is always complete. A week is bounded at both ends; the
+week before a given one is never allowed to swallow the plays of the week after it.
+
+The old page showed a fortnight of bars, a recent list and artist tiles. All three are gone.
+A recap that takes a paragraph to explain is a dashboard, and a week of listening is something
+people look at once and leave; fewer numbers, read faster, is the better page.
+
+The counts read as words, not as clocks: "3 min", "1 h 30 min", "less than a minute". A
+listening total is a quantity, and a quantity formatted as `0:03:00` reads like a track length
+that has been left running. Only one action sits near the numbers — clear history — because
+everything else would be a button looking for a reason.
+
+The only colour on the page belongs to the week: the sleeve of the top song, with the runner-up
+turning slowly behind it, both drawn in the song's own accent. Nothing here is a badge, a ring
+or a graph for its own sake.
+
+## Android: a phone app, not a port
+
+The phone build was rebuilt rather than transposed. Its shape comes from what a phone does
+well: five destinations across the bottom, a collection with shelves instead of one long list,
+sheets that rise from the thumb's edge instead of dialogs, and a player that is a media
+session first and a screen second.
+
+The mini player sits above the navigation, never over the content and never hiding. The full
+player is a page you open, with the cover, the position, the transport and the lyric; collapsing
+it returns to where you were, and back closes what is open before it leaves.
+
+Adding music is an explicit choice, made once per import: files, the device's own indexed
+music, or a folder. The sheet says what each one does in a line. Nothing is scanned on launch,
+nothing is downloaded, and nothing is read without one of those taps.

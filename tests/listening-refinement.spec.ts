@@ -252,50 +252,6 @@ test('album verification searches past an exact compilation and retains the corr
     full.getByRole('button', { name: 'Seek to lyric: Matched album verse' }),
   ).toBeVisible();
 });
-test('timing adjustment and reset stay linked to the reader and idle never covers the open adjustment', async ({
-  page,
-}) => {
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  await setup(page, true);
-  await page.getByRole('button', { name: 'Open now playing', exact: true }).click();
-  const full = page.getByRole('dialog', { name: 'Now playing' });
-  await page.clock.install();
-  await full.getByLabel('Adjust lyric timing').click();
-  await full.getByRole('button', { name: 'Show lyrics 100 milliseconds later' }).click();
-  await expect(full.getByText('+100 ms', { exact: true })).toBeVisible();
-  await page.clock.fastForward(30001);
-  await expect(page.locator('.immersive-stage')).toHaveCount(0);
-  await full.getByRole('button', { name: 'Reset lyric timing' }).click();
-  await expect(full.getByText('0 ms', { exact: true })).toBeVisible();
-  await full.getByLabel('Adjust lyric timing').click();
-  await page.clock.fastForward(30001);
-  await expect(page.locator('.immersive-stage')).toBeVisible();
-  await expect(page.locator('.player-normal-view')).toHaveCSS('visibility', 'hidden');
-  const source = (await native(page)).src;
-  for (const [width, height] of [
-    [1440, 900],
-    [390, 844],
-    [700, 360],
-  ]) {
-    await page.setViewportSize({ width, height });
-    await page.clock.runFor(100);
-    await expect
-      .poll(() =>
-        page.locator('.lyrics-cinematic .lyric-line.active').evaluate((el) => {
-          const r = el.getBoundingClientRect(),
-            p = el.closest('.lyrics-scroll')!.getBoundingClientRect();
-          return (
-            r.top >= p.top - 2 && r.bottom <= p.bottom + 2 && el.scrollHeight <= el.clientHeight + 2
-          );
-        }),
-      )
-      .toBe(true);
-  }
-  await page.keyboard.press('Escape');
-  await page.clock.runFor(100);
-  await expect(page.locator('.immersive-stage')).toHaveCount(0);
-  expect((await native(page)).src).toBe(source);
-});
 test('Privacy uses the exact Wave background and follows appearance changes from another tab', async ({
   page,
   context,
@@ -324,4 +280,62 @@ test('Privacy uses the exact Wave background and follows appearance changes from
     .toBe('122');
   await expect(page.getByRole('heading', { name: 'Privacy & rights', exact: true })).toBeVisible();
   await other.close();
+});
+test('a mix is announced before it happens, then the sleeve splits and the join follows', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await setup(page);
+  await page.getByRole('button', { name: 'Open now playing', exact: true }).click();
+  const full = page.getByRole('dialog', { name: 'Now playing' });
+  // Jump to twenty seconds before the end of the file: that is the lead-in.
+  await page.evaluate(() => {
+    const playing = (window as unknown as { __refineAudio: HTMLAudioElement[] }).__refineAudio.find(
+      (a) => !a.paused,
+    )!;
+    playing.currentTime = playing.duration - 19;
+  });
+  await expect(full.locator('.mix-cue')).toBeVisible();
+  await expect(full.getByText('Mixing', { exact: true })).toBeVisible();
+  await expect(full.locator('.mix-cue-next')).toHaveCount(1);
+  // The cue is not a static picture: the split opens as the join approaches.
+  const before = await full
+    .locator('.mix-cue')
+    .evaluate((el) => Number(getComputedStyle(el).getPropertyValue('--cue-open')));
+  await page.evaluate(() => {
+    const playing = (window as unknown as { __refineAudio: HTMLAudioElement[] }).__refineAudio.find(
+      (a) => !a.paused,
+    )!;
+    playing.currentTime = playing.duration - 2;
+  });
+  await expect
+    .poll(() =>
+      full
+        .locator('.mix-cue')
+        .evaluate((el) => Number(getComputedStyle(el).getPropertyValue('--cue-open'))),
+    )
+    .toBeGreaterThan(before);
+});
+
+test('the transport stays on screen while a song plays, and an idle room opens no scene', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await setup(page, true);
+  await page.getByRole('button', { name: 'Open now playing', exact: true }).click();
+  const full = page.getByRole('dialog', { name: 'Now playing' });
+  await page.clock.install();
+  await full.getByRole('button', { name: 'Play' }).click();
+  // Five still seconds with the song running: the transport does not go away.
+  await page.clock.fastForward(5000);
+  await expect(full.getByRole('button', { name: 'Pause' })).toBeVisible();
+  await expect(full.getByRole('slider', { name: 'Seek', exact: true })).toBeVisible();
+  await expect(page.locator('.player-modal')).not.toHaveClass(/controls-idle/);
+
+  // The long idle changes nothing: no scene opens over the player and the
+  // transport is still where it was.
+  await page.clock.fastForward(26000);
+  await expect(page.locator('.player-modal')).toBeVisible();
+  await expect(full.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+  await expect(full.getByRole('slider', { name: 'Seek', exact: true })).toBeVisible();
 });

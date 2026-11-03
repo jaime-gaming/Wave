@@ -182,3 +182,24 @@ it('migrates prior overlap preferences to one automatic Mix switch and enables l
   act(() => hook.result.current.setAutoplay(false));
   expect(localStorage.getItem('wave-autoplay')).toBe('false');
 });
+
+it('keeps the interface still while the song plays', async () => {
+  const track = makeTrack();
+  let renders = 0;
+  const { result } = renderHook(() => {
+    renders += 1;
+    return usePlayer([track]);
+  });
+  act(() => result.current.play([track], track.id));
+  // Let the first duration report and the first position land.
+  await new Promise((resolve) => setTimeout(resolve, 200));
+  const settled = renders;
+  // Ten more ticks of the engine: the position keeps moving, the tree does not.
+  for (let step = 1; step <= 6; step++) {
+    element.currentTime = 5 + step * 0.5;
+    element.dispatchEvent(new Event('timeupdate'));
+    await new Promise((resolve) => setTimeout(resolve, 60));
+  }
+  expect(renders).toBe(settled);
+  expect(result.current.time).toBeGreaterThan(5);
+});

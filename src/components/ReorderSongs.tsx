@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Reorder, useDragControls } from 'motion/react';
-import { GripVertical, ArrowUp, ArrowDown, Save } from 'lucide-react';
+import { GripVertical, ArrowUp, ArrowDown, Save } from './Glyphs';
 import { Modal } from './Modal';
 import { Artwork } from './Artwork';
 import { moveId } from '../domain/order';

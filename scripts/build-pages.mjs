@@ -5,7 +5,9 @@ import process from 'node:process';
 import console from 'node:console';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
-// Relative URLs support both repository Pages (/Wave/) and custom domains.
+// Relative URLs, so the same output works from a domain root, a subpath, or a
+// preview deployment — Cloudflare Pages serves both the branch previews and
+// wave.jaime-gaming.com from this build.
 execFileSync(
   process.platform === 'win32' ? 'npm.cmd' : 'npm',
   ['run', 'build', '--', '--base=./', '--assetsDir=site-assets'],
@@ -20,4 +22,6 @@ mkdirSync(docs, { recursive: true });
 rmSync(new URL('site-assets/', docs), { recursive: true, force: true });
 cpSync(new URL('../dist/', import.meta.url), docs, { recursive: true });
 writeFileSync(new URL('.nojekyll', docs), '');
-console.log('Pages ready: commit docs, then select Deploy from a branch → main → /docs.');
+console.log(
+  'Ready. Cloudflare Pages builds `npm run build` and serves `dist`; the committed docs/ copy is a static mirror for any other host.',
+);

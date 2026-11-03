@@ -1,11 +1,13 @@
 import { useEffect, useState, useMemo } from 'react';
-import { HardDrive, ShieldCheck, RefreshCw } from 'lucide-react';
+import { HardDrive, ShieldCheck, RefreshCw } from './Glyphs';
 import type { Track } from '../domain/types';
 import { formatBytes, libraryFootprint, requestPersistentStorage } from '../data/storage';
+import { countPlays } from '../data/listening';
 export function StorageSettings({ tracks }: { tracks: Track[] }) {
   const footprint = useMemo(() => libraryFootprint(tracks), [tracks]);
   const [usage, setUsage] = useState<number | undefined>(),
     [quota, setQuota] = useState<number | undefined>(),
+    [plays, setPlays] = useState<number | undefined>(),
     [persisted, setPersisted] = useState(false),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState('');
@@ -16,11 +18,15 @@ export function StorageSettings({ tracks }: { tracks: Track[] }) {
       setQuota(info?.quota);
       setPersisted((await navigator.storage?.persisted?.()) ?? false);
     } catch {
-      setMessage('Storage estimates are unavailable in this browser.');
+      setMessage('This browser cannot say how much space is left.');
     }
   };
   useEffect(() => {
     const timer = setTimeout(() => void refresh(), 0);
+    // The history is a few small rows, but it is still part of what Wave keeps.
+    void countPlays()
+      .then(setPlays)
+      .catch(() => undefined);
     return () => clearTimeout(timer);
   }, []);
   return (
@@ -42,9 +48,17 @@ export function StorageSettings({ tracks }: { tracks: Track[] }) {
           <dt>Saved lyrics</dt>
           <dd>{formatBytes(footprint.lyrics)}</dd>
         </div>
+        {plays !== undefined && (
+          <div>
+            <dt>Listening history</dt>
+            <dd>
+              {plays} {plays === 1 ? 'play' : 'plays'}
+            </dd>
+          </div>
+        )}
         {usage !== undefined && (
           <div>
-            <dt>Origin usage estimate</dt>
+            <dt>Space used</dt>
             <dd>
               {formatBytes(usage)}
               {quota !== undefined ? ` / ${formatBytes(quota)}` : ''}
@@ -53,9 +67,8 @@ export function StorageSettings({ tracks }: { tracks: Track[] }) {
         )}
       </dl>
       <p className="modal-description">
-        Files are saved when imported, even if you never play them. Exact byte duplicates are
-        skipped. Audio is stored once at original quality; covers are compact JPEGs and lyrics are
-        small text records.
+        Songs are kept from the moment you add them, even if you never play them. The same file is
+        never stored twice, and nothing is re-encoded: the audio stays exactly as it arrived.
       </p>
       <div className="storage-actions">
         <button
@@ -67,8 +80,8 @@ export function StorageSettings({ tracks }: { tracks: Track[] }) {
             setPersisted(protectedStorage);
             setMessage(
               protectedStorage
-                ? 'Browser eviction protection enabled.'
-                : 'The browser did not grant protection. Open Wave in its own tab and try again.',
+                ? 'Your files are protected: the browser will not clear them to make room.'
+                : 'The browser would not promise to keep them. Open Wave in its own tab and try again.',
             );
             await refresh();
             setBusy(false);
@@ -85,9 +98,10 @@ export function StorageSettings({ tracks }: { tracks: Track[] }) {
           <RefreshCw size={20} />
         </button>
       </div>
-      <p className="lyrics-caption">
-        {message ||
-          'Browser-managed storage can be evicted. Clearing site data or using a different browser/origin removes access; keep your originals. Protection is not a backup.'}
+      {message && <p className="storage-message">{message}</p>}
+      <p className="storage-message">
+        Clearing site data removes your library, not your original files. Keep a copy of the
+        originals.
       </p>
     </section>
   );

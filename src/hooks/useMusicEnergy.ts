@@ -28,6 +28,16 @@ export function useMusicEnergy(player: ReturnType<typeof usePlayer>) {
       attempts = 0;
     const bands = { bass: 0, body: 0, air: 0 },
       phases = { bass: 0, body: 1.7, air: 3.4 };
+    /**
+     * Writing a custom property invalidates style for the whole document, so a
+     * value that has not visibly changed is not written again.
+     */
+    const written = new Map<string, string>();
+    const write = (name: string, value: string) => {
+      if (written.get(name) === value) return;
+      written.set(name, value);
+      root.style.setProperty(name, value);
+    };
     let live: MusicAnalyzer | undefined;
     let fallbackStarted = false;
     const fallback = () => {
@@ -43,6 +53,7 @@ export function useMusicEnergy(player: ReturnType<typeof usePlayer>) {
       root.dataset.musicActive = 'false';
       for (const band of ['bass', 'body', 'air']) root.style.setProperty(`--music-${band}`, '0');
       delete root.dataset.musicAnalysis;
+      written.clear();
     };
     const visibility = () => {
       live?.setVisible(visible());
@@ -77,8 +88,10 @@ export function useMusicEnergy(player: ReturnType<typeof usePlayer>) {
           : 0;
         // Compress dynamic range for visible quiet passages, without inventing beats.
         const energy = amplitude > 0.001 ? Math.min(1, Math.sqrt(amplitude) * 1.4) : 0;
-        root.dataset.musicAnalysis =
+        const analysisState =
           liveAmplitude !== undefined ? 'live' : envelope ? 'envelope' : 'unavailable';
+        if (root.dataset.musicAnalysis !== analysisState)
+          root.dataset.musicAnalysis = analysisState;
         const measured = canRead ? live?.readBands() : undefined;
         for (const band of ['bass', 'body', 'air'] as const) {
           const target = measured
@@ -88,19 +101,14 @@ export function useMusicEnergy(player: ReturnType<typeof usePlayer>) {
           if (energy > 0.001 && bands[band] > 0.008)
             phases[band] +=
               delta * (0.12 + bands[band] * (band === 'bass' ? 0.7 : band === 'body' ? 0.95 : 1.2));
-          root.style.setProperty(`--music-${band}`, bands[band].toFixed(4));
-          root.style.setProperty(
-            `--music-${band}-x`,
-            (Math.sin(phases[band]) * 18).toFixed(3) + '%',
-          );
-          root.style.setProperty(
-            `--music-${band}-y`,
-            (Math.cos(phases[band] * 0.71) * 14).toFixed(3) + '%',
-          );
+          write(`--music-${band}`, bands[band].toFixed(3));
+          write(`--music-${band}-x`, (Math.sin(phases[band]) * 18).toFixed(2) + '%');
+          write(`--music-${band}-y`, (Math.cos(phases[band] * 0.71) * 14).toFixed(2) + '%');
         }
         smooth += (energy - smooth) * (energy > smooth ? 0.4 : 0.16);
-        root.style.setProperty('--music-energy', smooth.toFixed(4));
-        root.dataset.musicActive = String(energy > 0.001);
+        write('--music-energy', smooth.toFixed(3));
+        const active = String(energy > 0.001);
+        if (root.dataset.musicActive !== active) root.dataset.musicActive = active;
       }
       frame = visible() ? requestAnimationFrame(tick) : 0;
     };

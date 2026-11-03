@@ -38,7 +38,7 @@ it('reconciles decoder duration without changing bytes or local lyrics, and clea
   const corrected = await recordDecodedDuration(local.id, 120);
   expect(corrected.duration).toBe(120);
   expect(corrected.lyrics?.raw).toBe(local.lyrics?.raw);
-  expect(await corrected.blob.arrayBuffer()).toEqual(await blob.arrayBuffer());
+  expect(await corrected.blob?.arrayBuffer()).toEqual(await blob.arrayBuffer());
   expect(corrected.audioInfo).toEqual(local.audioInfo);
   await saveTrack(
     makeTrack({

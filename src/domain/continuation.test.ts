@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { continuationQueue } from './continuation';
 import { makeTrack } from '../test/fixtures';
 it('avoids current/recent tracks, contains unique local IDs and respects the limit', () => {
@@ -35,4 +35,38 @@ it('uses weighted context rather than an unstructured shuffle', () => {
     if (continuationQueue([current, related, distant], current, [], () => i / 100, 1)[0] === 'b')
       relatedCount++;
   expect(relatedCount).toBeGreaterThan(70);
+});
+
+describe('autoplay after the queue ends', () => {
+  it('follows on with the next song of the same album', () => {
+    const tracks = [
+      makeTrack({ id: 'one', title: 'One', artist: 'A', album: 'Record', trackNumber: 1 }),
+      makeTrack({ id: 'two', title: 'Two', artist: 'A', album: 'Record', trackNumber: 2 }),
+      makeTrack({ id: 'other', title: 'Other', artist: 'B', album: 'Elsewhere' }),
+    ];
+    const queue = continuationQueue(tracks, tracks[0], [], () => 0, 2);
+    expect(queue[0]).toBe('two');
+  });
+
+  it('does not open with a song it has just played', () => {
+    const tracks = [
+      makeTrack({ id: 'a', title: 'A', artist: 'A' }),
+      makeTrack({ id: 'b', title: 'B', artist: 'B' }),
+      makeTrack({ id: 'c', title: 'C', artist: 'C' }),
+    ];
+    const queue = continuationQueue(tracks, tracks[0], ['a', 'c', 'b'], () => 0, 2);
+    // Every song here has been heard, so the fallback opens with the one that has
+    // been away longest, never with the song that just finished.
+    expect(queue[0]).toBe('c');
+    expect(new Set(queue).size).toBe(queue.length);
+  });
+
+  it('still answers when every song has been heard recently', () => {
+    const tracks = [
+      makeTrack({ id: 'a', title: 'A', artist: 'A' }),
+      makeTrack({ id: 'b', title: 'B', artist: 'A' }),
+    ];
+    const recent = ['a', 'b', 'a', 'b'];
+    expect(continuationQueue(tracks, tracks[0], recent, () => 0.5, 1)).toHaveLength(1);
+  });
 });

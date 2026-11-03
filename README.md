@@ -1,51 +1,16 @@
-<p align="center"><img src="public/wave.svg" alt="Wave" width="100" height="80" /></p>
-<h1 align="center">Wave</h1>
-<p align="center"><strong>A home for the music you already own.</strong></p>
-<p align="center">Release <strong>0.1.0</strong> · <strong>17 October 2026</strong></p>
-<p align="center"><a href="#start-listening">Start listening</a> · <a href="docs/media/wave-0.1.0-promo.mp4">Watch the demo</a> · <a href="docs/RELEASE_NOTES_0.1.0.md">What's new</a></p>
+<p align="center"><img src="public/wave-wordmark.svg" alt="Wave" width="270" /></p>
+<p align="center"><strong>Your music files, played properly.</strong></p>
+<p align="center"><a href="https://wave.jaime-gaming.com">wave.jaime-gaming.com</a> · Version <strong>0.2.0</strong> · <a href="#get-started">Get started</a> · <a href="docs/WHY_WAVE.md">Why Wave</a> · <a href="docs/media/wave-promo.mp4">Watch the demo</a> · <a href="docs/RELEASE_NOTES_0.2.0.md">What's new</a></p>
 
-![Wave Home with a local collection, album artwork and daily mixes](docs/media/home-desktop.png)
+![Wave Home on the web: a local collection, album artwork and daily mixes](docs/media/home-desktop.png)
 
-Bring your audio files, find a favorite album, and press play. Wave keeps your collection on your device. No account. No subscription. No music uploads.
+Wave plays the music you already own: the MP3s, FLACs and WAVs in your folders. Nothing is
+uploaded, there is no account, and the files are never converted. Add them once and they play on
+the web, on Windows and on Android.
 
-## Your collection, your way
+## Get started
 
-- **Find something to play.** Browse songs, albums, artists and favorites, or search your library.
-- **Open a daily mix.** See the songs before playing. Play in order, shuffle, or save today's selection as a playlist you can edit.
-- **Make a playlist.** Add songs, choose a cover and arrange them in your preferred order.
-- **Follow the lyrics.** Add your own text/LRC, or explicitly search for a matching result. Saved lyrics work offline.
-- **Stay in the music.** Full-screen Now Playing, a compact player, editable queue, automatic Mix transitions and local Autoplay.
-- **Make it comfortable.** Light/dark themes, artwork colors, larger text and reduced motion. Phone controls are designed for touch.
-
-### A closer look
-
-![A browsable daily mix with songs, Play, Shuffle and Save as playlist](docs/media/daily-mix-desktop.png)
-
-Daily mixes use your existing genre and artist tags, not a remote recommendation service. Small libraries may show fewer than three. Saving a mix keeps an ordinary playlist; tomorrow's selection won't overwrite it.
-
-![Now Playing with artwork and synchronized lyrics](docs/media/now-playing-desktop.png)
-
-<p align="center"><img src="docs/media/home-mobile.png" alt="Wave on a phone, with all five collection shortcuts visible" width="300" /></p>
-
-[Watch the 60-second demo →](docs/media/wave-0.1.0-promo.mp4)
-
-Lyric searches reuse saved results, coordinate requests and respect provider retry times. LRCLIB can still be temporarily busy; imported LRC files and saved lyrics work offline.
-
-Screenshots and video show the web app with original demo artwork and lyric text. Your own collection starts empty.
-
-## Start listening
-
-**In a browser:** run the web app locally using the short instructions below. A hosted version can be enabled through GitHub Pages by selecting **Deploy from a branch → main → /docs** after merging (see [deployment instructions](docs/PLATFORMS.md#browser-and-github-pages)); this README does not assume a deployment is already live.
-
-**On Windows:** the native app follows the web's layout: Home, Search, collections, playlists, Settings and Now Playing. CI produces a portable **unsigned test ZIP**; install the .NET 10 Windows Desktop Runtime and run `Wave.Windows.exe`. It is a real C#/WPF application, not a website wrapper. Device/audio integration is still under review.
-
-**On Android:** an independent native app is available as an experimental debug build, with a smaller feature set. It is not yet a replacement for the web edition.
-
-Check [Releases](https://github.com/jaime-gaming/Wave/releases) for published downloads and [the platform guide](docs/PLATFORMS.md) for build instructions and current differences. Release notes and attached assets identify what is published; native CI downloads are still unsigned/test-only, not official signed installers.
-
-### Try the web app locally
-
-Install Node.js 22.12+ or Node 24, then:
+You need [Node.js](https://nodejs.org) 22.12 or newer.
 
 ```sh
 git clone https://github.com/jaime-gaming/Wave.git
@@ -54,45 +19,168 @@ npm ci
 npm run dev
 ```
 
-Open the address printed in the terminal, choose **Add music**, and select audio files. Nothing else needs configuring. For mobile development, open the server's reachable address from your phone; do not use the phone's own `localhost`.
+Open the address the terminal prints, press **Add music**, pick your files, and press play.
+Nothing else needs setting up. The same build is published at
+[wave.jaime-gaming.com](https://wave.jaime-gaming.com).
 
-MP3, FLAC, WAV, OGG, M4A, AAC, Opus, AIFF and WebM can be imported, up to 200 MB per file. Playback depends on the browser or operating system's codecs. Keep your original files: Wave is a player, not a backup service.
+Windows and Android builds are on the [Releases](https://github.com/jaime-gaming/Wave/releases)
+page, and neither asks you to install anything else or type a command. The Windows zip carries its
+own runtime; the Android download is a normal APK you tap to install. Both are unsigned test
+builds, so Windows may show a SmartScreen warning and Android asks you to allow the install.
 
-### A note about Windows warnings
+## What it does
 
-Unsigned downloads can trigger SmartScreen or antivirus warnings. Wave uses normal, unpacked .NET files, runs without administrator rights and includes checksums; the build checks run Defender when available. **None of this guarantees zero false positives or establishes publisher reputation.** Do not disable your protection. Trusted code signing requires the maintainer's real certificate; see [Windows release preparation](docs/WINDOWS_RELEASE.md).
+- **Plays your files.** MP3, WAV, M4A, OGG and FLAC, up to 200 MB each, at their original
+  quality.
+- **Takes a whole folder.** Point Wave at a folder and it reads every song inside it, at any
+  depth, once you have said yes; it remembers the folder so the next read is one click.
+- **Browses and searches** songs, albums, artists, playlists and favourites from your own
+  collection, ranked by how well they answer, and forgiving a letter in the wrong place.
+- **Fills in the gaps.** Songs that know nothing but their filename get their artist, album, year,
+  genre and cover looked up while you listen — never over something you typed.
+- **Daily mixes** from the genre tags your files already carry: play one, shuffle it, or save it
+  as an ordinary playlist.
+- **Lyrics that follow the song**, word by word when the file carries timings. Saved lyrics work
+  offline.
+- **Mix** joins two songs on a bar with a twelve to twenty-four second overlap, level-matched on the
+  fly, each record at the tempo it was recorded at. The files on disk are untouched.
+- **Remix**: the week you just had. One number, the songs you played most, and a list you can
+  play or save as a playlist.
+- **Real video clips** behind the player, muted, full screen, drawn under the player's own text and
+  with no YouTube interface showing. A still picture is not a clip, so a song either has a moving
+  one or none.
+- **YouTube songs** by link, for the ones you do not own yet.
+- **Brings playlists over** from another app: paste a list or choose its exported `.m3u` or
+  `.csv`, see which songs you already have, and turn the confirmed ones into a playlist.
+- **Device linking** with a QR code and no server, so two of your devices can share a song by
+  transfer. Nothing already saved is ever deleted.
 
-## Learn more
+## Screenshots
 
-- [Release 0.1.0 notes](docs/RELEASE_NOTES_0.1.0.md)
-- [Platforms and downloads](docs/PLATFORMS.md)
-- [Development and tests](docs/DEVELOPMENT.md)
+**Remix**, the week in one number and the playlist it earns:
+
+![Remix on the web: this week's listening and a list of most played songs](docs/media/remix-desktop.png)
+
+**A daily mix**, listed before anything plays:
+
+![A daily mix with Play, Shuffle and Save as playlist](docs/media/daily-mix-desktop.png)
+
+**Now Playing**, with the sung line following the song:
+
+![Now Playing with the cover and the lyrics following the song](docs/media/now-playing-desktop.png)
+
+<p align="center">
+  <img src="docs/media/home-mobile.png" alt="Wave on a phone" width="300" />
+  <img src="docs/media/remix-mobile.png" alt="Remix on a phone" width="300" />
+</p>
+
+**Windows**, the same library in a native window:
+
+![Wave for Windows: the collection, daily mixes and the songs underneath](docs/media/windows-home-dark.png)
+
+A search names what it found before it lists it — the artists, albums and playlists whose names
+match, each one a row that opens it:
+
+![Wave for Windows: a search naming the album it found above the songs](docs/media/windows-search.png)
+
+**Android**, from the built app itself:
+
+<p align="center">
+  <img src="docs/media/android-home.png" alt="Wave for Android: home" width="260" />
+  <img src="docs/media/android-remix.png" alt="Wave for Android: Remix" width="260" />
+  <img src="docs/media/android-library.png" alt="Wave for Android: the library" width="260" />
+  <img src="docs/media/android-search.png" alt="Wave for Android: a search that names the album it found" width="260" />
+</p>
+
+Every image is a real capture, not a mock-up. The web ones come from `npm run capture:docs`
+against a generated demo library; the Windows ones are drawn by `Wave.Windows.exe --smoke-test`
+on its own throwaway library; the Android ones are rendered by the app's `ScreenshotTest` on the
+real Compose stack. Each of those runs on CI and commits what it produced, so the pictures here
+are the current build. See [Platforms](docs/PLATFORMS.md) for the pages that are not shown.
+
+## Why Wave, next to Spotify, Apple Music or YouTube Music
+
+Those services rent you a catalogue. Wave is for the music you already have — bought, ripped from
+a CD, downloaded from a band's Bandcamp, recorded yourself — and it treats those files the way a
+service never will:
+
+- **Nothing is re-encoded.** Spotify streams a compressed copy at a fixed bitrate. Wave plays your
+  FLAC as a FLAC, and Mix changes only how two songs are joined, never the audio in the file.
+- **No subscription, no account, no ads, no telemetry.** There is nothing to sign into and nothing
+  to cancel.
+- **It works without a connection**, including the lyrics you already saved and your whole
+  library.
+- **The library is yours.** It lives in your browser, on your disk or in the app's own folder, and
+  clearing it is one button, not a support request.
+- **It is open source**, so you can read what it does with your files, and run your own copy.
+
+What it does not do: it has no catalogue to stream, so a song you do not own is not there — you
+can add it from YouTube by link, or buy the file. There is no social feed, no cloud sync between
+devices, and no recommendation engine. [Why Wave](docs/WHY_WAVE.md) has the full comparison,
+including the parts where the big services are the better choice.
+
+## Where it runs
+
+|                                       | Web | Windows | Android |
+| ------------------------------------- | --- | ------- | ------- |
+| Play a local library                  | Yes | Yes     | Yes     |
+| Mix, lyrics, daily mixes              | Yes | Yes     | Yes     |
+| Remix (weekly recap and playlist)     | Yes | Yes     | Yes     |
+| Search by song, artist, album, list   | Yes | Yes     | Yes     |
+| Link two devices with a QR code       | Yes | No      | No      |
+| Video clips, YouTube songs            | Yes | No      | No      |
+| Lock screen, headset and car controls | —   | —       | Yes     |
+| Works offline as an installed app     | Yes | Yes     | Yes     |
+
+**iOS.** The iPhone and iPad app is in progress and arrives shortly after the Android one. Until
+then, Wave installs to the Home Screen from Safari and behaves like an app there.
+
+**Browser.** The instructions above are all you need. You can install Wave to a home screen and
+it opens without a connection once loaded. The published site is built and served by
+[Cloudflare Pages](docs/PLATFORMS.md#browser-and-cloudflare-pages); to host your own copy, see the
+same page.
+
+**Windows.** A native C#/WPF app. Unzip the download, run `Wave.Windows.exe`, and add your
+folders: there is no runtime to install first. Unsigned builds can trigger SmartScreen; see
+[Windows release preparation](docs/WINDOWS_RELEASE.md).
+
+**Android.** A native Kotlin/Compose app for API 26 and newer, installed from the APK in the
+download; no cable and no developer tools. Import files, a folder or the music
+your phone already indexes, and playback continues with the screen off, from the lock screen, the
+quick settings tile or your headphones. Its interface follows the mobile website; the remaining
+feature and device-testing gaps are listed in [Platforms](docs/PLATFORMS.md#android).
+
+## Your files and your privacy
+
+- Everything stays on your device. There is no backend, no analytics, no account.
+- Lyric search is off until you turn it on. It sends the song title and artist to LRCLIB.
+- Clip discovery sends the song title and artist to public YouTube front-ends. Video and YouTube
+  songs stream from YouTube.
+- Imported audio is kept once, at its original quality. Wave is a player, not a backup: keep your
+  original files.
+- Clearing your browser's site data deletes the collection, so treat the library as a copy.
+
+Full details are in [Privacy and data flow](PRIVACY.md).
+
+## Documentation
+
+- [Why Wave](docs/WHY_WAVE.md) — how it compares with the streaming services.
+- [Platforms, downloads and build steps](docs/PLATFORMS.md)
+- [Development, tests and release checks](docs/DEVELOPMENT.md)
 - [Roadmap](docs/ROADMAP.md)
-- [Privacy and data flow](PRIVACY.md)
-- [All validation results and limits](docs/VALIDATION.md)
+- [Architecture](docs/ARCHITECTURE.md) · [Design](docs/DESIGN.md) · [API reference](docs/API_REFERENCE.md)
+- [Validation results and known limits](docs/VALIDATION.md) · [Changelog](CHANGELOG.md)
 
-## Privacy and storage
+## Contributing
 
-Wave has no backend, accounts, analytics, or remote audio services. Automatic lyrics uses the public LRCLIB API, off initially and opt-in in Settings. It sends song metadata, while the provider also sees connection information such as an IP address; downloaded text remains local. Imported files are committed immediately to this site's browser storage, without needing to play or select them. Full-file SHA-256 deduplication skips identical bytes even when filenames/dates change; legacy IDs and playlist references are preserved. Audio is retained once at original quality. Covers are compact JPEGs; lyrics persist raw text once and reconstruct parsed lines on load. Originals are never changed or deleted. Removing a track removes only Wave's stored copy and its playlist references. Playlist deletion affects no audio files. Metadata edits and custom covers are local overrides; Wave does not rewrite or export file tags.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md) first.
+Wave is licensed under the [MIT License](LICENSE); dependencies keep their own licences, listed
+in [third-party notices](THIRD_PARTY_NOTICES.md).
 
-Storage is specific to a browser profile and site origin. Clearing site data, private browsing, quota limits, or automatic storage eviction can remove the collection, playlists, and edits. **Keep your original audio files.** Wave is a player, not a backup system. A different preview URL can have a different library.
+Wave is not affiliated with Spotify, Apple, Google or YouTube. The client is free and open source;
+that says nothing about the music, lyrics or covers you add to it, which remain subject to their
+own rights.
 
-Settings → Storage → **Browser storage** reports audio, cover and lyric size estimates and origin usage/quota when supported. Import automatically requests persistent storage; **Protect stored files** can request it again. The browser may deny protection. This does not compress audio below its original size or replace a backup.
-
-Local playback and saved lyrics do not require network access once the app has loaded; optional lookup needs internet and LRCLIB availability. An installable PWA and reliable offline app startup are not implemented yet.
-
-## Reference and acknowledgments
-
-[PixelPlayer](https://github.com/PixelPlayerHQ/PixelPlayer) is a reference for local music browsing and the player experience. Wave is an independent implementation; no PixelPlayer source code, artwork, or branding is included. PixelPlayer's current proprietary license does not grant general redistribution rights.
-
-Wave is not affiliated with, sponsored by, or endorsed by PixelPlayer or Spotify AB. Wave's design uses rounded surfaces, clear hierarchy, and expressive color inspired by Material Design principles; the web client does not use Jetpack Compose or Android Material components. The independent Android client uses Compose.
-
-## Contributing and license
-
-Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md) before submitting changes.
-
-Wave is licensed under the [MIT License](LICENSE). Dependencies retain their own licenses; see [third-party notices](THIRD_PARTY_NOTICES.md).
+<p align="center"><img src="public/wave.svg" alt="" width="30" /></p>
 
 Maintained by [Jaime Gaming](https://github.com/jaime-gaming).
-
-Public/free/open-source describes the client distribution, not permission to distribute music, lyrics or covers. No deployed Pages site, signed native package or legal clearance is claimed. Accounts/Spotify/Deezer/Firebase remain deferred.

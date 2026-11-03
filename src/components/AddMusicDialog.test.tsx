@@ -1,0 +1,67 @@
+import { describe, expect, it, vi } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { AddMusicDialog } from './AddMusicDialog';
+import { makeTrack } from '../test/fixtures';
+
+const setup = (overrides: Partial<Parameters<typeof AddMusicDialog>[0]> = {}) => {
+  const onYouTube = vi.fn().mockResolvedValue({ ok: true, track: makeTrack({ id: 'yt' }) });
+  const onLocal = vi.fn();
+  const onFolderFiles = vi.fn();
+  const onAdded = vi.fn();
+  const onClose = vi.fn();
+  render(
+    <AddMusicDialog
+      onClose={onClose}
+      onLocal={onLocal}
+      onFolderFiles={onFolderFiles}
+      onYouTube={onYouTube}
+      onAdded={onAdded}
+      {...overrides}
+    />,
+  );
+  return { onYouTube, onLocal, onFolderFiles, onAdded, onClose };
+};
+
+describe('add music', () => {
+  it('offers a local file or a YouTube song', async () => {
+    const { onLocal, onClose } = setup();
+    expect(screen.getByRole('button', { name: /from this device/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /from youtube/i })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /from this device/i }));
+    expect(onClose).toHaveBeenCalled();
+    expect(onLocal).toHaveBeenCalled();
+  });
+
+  it('offers a whole folder, and says when the browser cannot hand one over', async () => {
+    setup();
+    const folder = screen.getByRole('button', { name: /add a whole folder/i });
+    // jsdom has neither a directory picker nor a directory input, so the honest
+    // answer is the third fallback rather than a button that quietly does nothing.
+    expect(folder).toHaveTextContent(/choose the files inside it instead/i);
+    expect(folder).toBeDisabled();
+  });
+
+  it('adds a pasted YouTube link and starts it', async () => {
+    const { onYouTube, onAdded, onClose } = setup();
+    await userEvent.click(screen.getByRole('button', { name: /from youtube/i }));
+    await userEvent.type(
+      screen.getByRole('textbox', { name: /youtube link/i }),
+      'https://youtu.be/dQw4w9WgXcQ',
+    );
+    await userEvent.click(screen.getByRole('button', { name: /add song/i }));
+    await waitFor(() => expect(onYouTube).toHaveBeenCalledWith('https://youtu.be/dQw4w9WgXcQ'));
+    expect(onAdded).toHaveBeenCalledWith(expect.objectContaining({ id: 'yt' }));
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('shows why a link could not be added', async () => {
+    setup({
+      onYouTube: vi.fn().mockResolvedValue({ ok: false, error: 'Playlists are not songs.' }),
+    });
+    await userEvent.click(screen.getByRole('button', { name: /from youtube/i }));
+    await userEvent.type(screen.getByRole('textbox', { name: /youtube link/i }), 'https://x.test');
+    await userEvent.click(screen.getByRole('button', { name: /add song/i }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Playlists are not songs.');
+  });
+});

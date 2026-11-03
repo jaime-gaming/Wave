@@ -1,29 +1,39 @@
 import { parseLocalMetadata } from './metadataReader';
 import { cleanTag, missingTag, metadataIssues } from '../domain/metadata';
-import { inferFileMetadata } from '../domain/musicIdentity';
+import { inferFileMetadata, splitInlineArtist, stripLeadingNumber } from '../domain/musicIdentity';
 import { canonical, cleanTitle } from '../domain/lyricsMatch';
 import { readArtwork } from './artwork';
 import { embeddedLyrics } from '../domain/lyrics';
 import type { Track } from '../domain/types';
 
-export const AUDIO_EXTENSIONS = [
-  'mp3',
-  'flac',
-  'wav',
-  'ogg',
-  'm4a',
-  'aac',
-  'opus',
-  'aiff',
-  'aif',
-  'webm',
-];
+/**
+ * Import formats: MP3, WAV, M4A, OGG and FLAC.
+ *
+ * FLAC is lossless and Wave stores it exactly as it is: no conversion, no
+ * resampling, no re-encoding. Browsers play it natively (Chrome, Edge, Firefox),
+ * and where a browser cannot decode it the existing playable-file error explains
+ * the problem instead of silently degrading the file.
+ *
+ * This list gates the import picker and drag-and-drop only; a library saved by an
+ * older Wave version keeps playing every format it already holds.
+ */
+export const AUDIO_EXTENSIONS = ['mp3', 'wav', 'm4a', 'ogg', 'flac'];
+/** Formats Wave has never imported; kept only so the message can say why. */
+export const LEGACY_AUDIO_EXTENSIONS = ['aac', 'opus', 'aiff', 'aif', 'webm'];
 export const AUDIO_ACCEPT = AUDIO_EXTENSIONS.map((ext) => `.${ext}`).join(',');
 export const MAX_FILE_SIZE = 200 * 1024 * 1024;
 
-export function isAudioFile(file: File): boolean {
-  return AUDIO_EXTENSIONS.includes(file.name.split('.').pop()?.toLowerCase() ?? '');
+export function fileExtension(name: string): string {
+  return name.split('.').pop()?.toLowerCase() ?? '';
 }
+export function isAudioFile(file: File): boolean {
+  return AUDIO_EXTENSIONS.includes(fileExtension(file.name));
+}
+/** True for a format Wave used to accept, so the message can say why it is refused. */
+export function isLegacyAudioFile(file: File): boolean {
+  return LEGACY_AUDIO_EXTENSIONS.includes(fileExtension(file.name));
+}
+export const IMPORT_FORMAT_HINT = 'MP3, WAV, M4A, OGG or FLAC';
 export async function fileIdentity(file: File): Promise<string> {
   const bytes = new TextEncoder().encode(`${file.name}\0${file.size}\0${file.lastModified}`);
   const digest = await crypto.subtle.digest('SHA-256', bytes);
@@ -71,6 +81,18 @@ export async function readTrack(file: File, id: string): Promise<Track> {
       canonical(cleanTitle(inferred.title)) === canonical(cleanTitle(track.title))
         ? inferred.artist
         : 'Unknown artist');
+    // A position in an album is not part of a song's name.
+    const numbered = stripLeadingNumber(track.title);
+    if (numbered) track.title = numbered;
+    // A title tag that holds the whole line gives up its artist, but only when
+    // there is no artist to disagree with.
+    if (missingTag(track.artist)) {
+      const split = splitInlineArtist(track.title);
+      if (split) {
+        track.artist = split.artist;
+        track.title = split.title;
+      }
+    }
     const album = cleanTag(metadata.common.album);
     if (!missingTag(album)) track.album = album;
     track.genres = [...new Set(metadata.common.genre?.map(cleanTag).filter(Boolean) ?? [])].slice(

@@ -2,7 +2,7 @@ import { lookupLyrics } from '../services/lyrics';
 import { lyricsCooldown } from '../services/lyricsCooldown';
 import { canLookup } from '../domain/lyricsLookup';
 import { useEffect, useRef, useState } from 'react';
-import { FileUp, Save, Trash2, Search, X } from 'lucide-react';
+import { FileUp, Save, Trash2, Search, X } from './Glyphs';
 import { parseLyrics, MAX_LYRICS_LENGTH, type Lyrics } from '../domain/lyrics';
 import type { Track } from '../domain/types';
 import { Modal } from './Modal';
@@ -70,13 +70,6 @@ export function LyricsEditor({
     }
   };
   const file = useRef<HTMLInputElement>(null);
-  let preview = '';
-  try {
-    const parsed = parseLyrics(raw, offset);
-    preview = `${parsed.lines.length} ${parsed.lines[0]?.time !== undefined ? 'synchronized' : 'plain-text'} lines`;
-  } catch {
-    /* Validation on save. */
-  }
   const save = async (remove = false) => {
     setError('');
     setBusy(true);
@@ -111,9 +104,9 @@ export function LyricsEditor({
         </p>
         <section className="editor-lookup" aria-label="Find lyrics">
           <p>
-            Search LRCLIB with this song’s title, artist and known album/duration — never audio.
-            Playback and automatic lookup are not required. Results are saved only when you choose
-            Save lyrics.
+            Search LRCLIB with this song’s title, artist, album and duration. Your audio is never
+            sent. Playback and automatic lookup are not required. Results are saved only when you
+            choose Save lyrics.
           </p>
           <div className="editor-lookup-actions">
             <button
@@ -212,7 +205,6 @@ export function LyricsEditor({
             placeholder={'[00:05.000]First line\n[00:12.500]Next line'}
           />
         </label>
-        <p className="lyrics-caption">{preview}</p>
         <label className="form-field">
           Timing offset (ms)
           <input
@@ -225,10 +217,7 @@ export function LyricsEditor({
             onChange={(event) => setOffset(Number(event.target.value))}
           />
         </label>
-        <p className="lyrics-caption">
-          Positive values show lines later; negative values show them earlier. Plain text is not
-          synchronized.
-        </p>
+        <p className="lyrics-caption">Positive values show lines later.</p>
         {error && (
           <p role="alert" className="form-error">
             {error}

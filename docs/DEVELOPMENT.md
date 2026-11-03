@@ -1,6 +1,6 @@
 # Wave Development Guide
 
-**Version: 0.1.0 · Release date: 17 October 2026.**
+**Version: 0.2.0 · Release date: 3 November 2026.**
 
 ## Requirements
 
@@ -177,6 +177,14 @@ Check `npm outdated` and `npm audit`, review changes, and run the complete check
 
 See [CONTRIBUTING.md](../CONTRIBUTING.md) for review and licensing expectations.
 
+## Mix, clip discovery and YouTube QA
+
+Mix is verified in layers: `dsp.test.ts` (tempo, phase, silence, segments, vocals), `mixPlanner.test.ts` (bar alignment, the ±8 % window, vocal-aware cues, bass curves), `mixGraph.test.ts` (lowshelf/gain wiring, cached sources) and `MixAudio.test.ts` (plan execution, rate reset, cancellation). The analysis is exercised on generated PCM; nothing here proves a particular real recording mixes well, so listen to actual house/hip-hop/pop pairs before claiming it does. Watch for half/double-time false positives and rubato intros.
+
+Clip discovery uses a mocked fetcher: ranking, provider fallback, caching and offline behaviour are covered, provider availability is not. YouTube songs are tested with a stubbed embed; the iframe never loads in jsdom, so autoplay policy, real oEmbed responses and actual playback need a browser. Video sync has unit coverage for nudging, seeking, cooldown and offsets; it still needs a slow-connection measurement on a real device.
+
+Import QA now includes FLAC: confirm it imports, plays and is stored byte-identically, and that a browser without FLAC support shows the existing playable-file error rather than a silent failure. Word-by-word lyrics have no toggle to test any more: verify the word view when timings exist and the line-level fallback when they do not.
+
 ## Lyrics/crossfade/reordering QA
 
 Cover LRC boundary timestamps/fractions/offsets/repeated stamps, embedded millisecond vs MPEG-frame tags, plain/missing lyrics, reload, seek/pause and native progression. Reject oversized/invalid imports without replacing saved lyrics. Validate manual photo save/remove in gallery, Home and profile; song album artwork must remain independent.
@@ -273,30 +281,52 @@ Test Autoplay from a one-song Search queue into a larger local library, with Mix
 
 Use a 150-track owned fixture at 320 px to exercise off-thread import, plain large-collection rows, viewport containment, eight-row metadata paging and reduced motion. No DOM virtualization or device-level benchmark is claimed. Root position updates are bounded near 10 Hz; lyric native clocks and mix gain timing remain independent.
 
-Settings tests must navigate through the relevant menu, not query unmounted controls. Check all six sections, Back/focus return, persisted independent switches and both themes. Mobile regression fixtures include 400–500 character unbroken title/artist/album fields and 100-character playlist names. Check actual element bounds, not only document width: ellipsis/clamps are intentional but buttons and containers must stay inside the viewport. Verify the empty player is hidden, all library categories remain reachable and last rows scroll clear of the fixed dock. Keep native audio progression tests alongside layout tests.
+Settings tests must navigate through the relevant menu, not query unmounted controls. Check all seven sections, Back/focus return, persisted independent switches and both themes. Mobile regression fixtures include 400–500 character unbroken title/artist/album fields and 100-character playlist names. Check actual element bounds, not only document width: ellipsis/clamps are intentional but buttons and containers must stay inside the viewport. Verify the empty player is hidden, all library categories remain reachable and last rows scroll clear of the fixed dock. Keep native audio progression tests alongside layout tests.
 
 ### Candidate regression checks
 
 Run `release-010.spec.ts` for offline daily genre groups and native queue coherence, explicit unplayed-song lyric preview/save, failure/cooldown/manual-draft preservation, and larger text on a 320 px viewport. Unit checks additionally cover deterministic day changes, input immutability, sparse libraries, worker timeouts/recovery and shared cooldown/oversized-body cancellation. Live lyric provider coverage and native builds require separate validation. The editor regressions also verify that dialog padding cannot discard a draft and that Close/Cancel/Remove/Save remain visible while the body scrolls at 320×360 with larger text.
 
-## Merge-time 0.1.0 publication
+## Merge-time publication
 
-Release 0.1.0 is dated 17 October 2026. Publication requires maintainer authorization and successful checks on the exact candidate. Keep its description to Highlights; detailed QA belongs in this document and `VALIDATION.md`.
+Release 0.2.0 is dated 3 November 2026. Publication requires maintainer authorization and successful checks on the exact candidate. Keep its description to Highlights; detailed QA belongs in this document and `VALIDATION.md`.
 
 When proceeding with the approved merge:
 
-1. Run `npm run test:release` and `npm run release:check -- v0.1.0`. They reject inconsistent web/native versions, a wrong tag name or missing/mismatched release notes without publishing anything. Require successful web and native checks on the latest PR revision and review the remaining device/runtime limitations.
-2. Mark PR #1 ready, then merge with `gh pr merge 1 --squash --subject "Wave 0.1.0 Release" --body "" --match-head-commit <validated-head-sha>`. Use the exact squash commit title `Wave 0.1.0 Release`. Preserve the feature branch as a recovery reference. Do not bypass failing checks or create a release from an unmerged candidate SHA.
-3. Read the actual merge commit from the merged PR and confirm it matches the final `main` revision. Create the annotated `v0.1.0` tag at that commit through GitHub. Never force-update an existing tag; inspect it first if retrying a partially completed publication.
-4. Prepare/update the draft GitHub Release with the reviewed `RELEASE_NOTES_0.1.0.md`. Verify its target and dereferenced tag match the merge commit before publishing. A draft does not publish a tag. After creating the tag, manually dispatch `Release assets` with that tag to populate and verify the draft assets before publishing. It also runs on release publication. The workflow builds that exact tag and attaches the relative-base web ZIP, the existing product film and `SHA256SUMS.txt`. Its ZIP includes source-commit metadata and the unchanged notices. If attachment upload fails, rerun the workflow with the same tag using its manual dispatch; never move the tag to retry. The build must be on main ancestry. `python3 -m unittest discover -s scripts -p test_package_release.py` checks deterministic packaging and input boundaries.
+1. Run `npm run test:release` and `npm run release:check -- v0.2.0`. They reject inconsistent web/native versions, a wrong tag name or missing/mismatched release notes without publishing anything. Require successful web and native checks on the latest PR revision and review the remaining device/runtime limitations.
+2. Mark the release PR ready, then merge it with `gh pr merge <number> --squash --subject "Wave 0.2.0 Release" --body ""`. Use the exact squash commit title `Wave 0.2.0 Release`. Preserve the feature branch as a recovery reference. Do not bypass failing checks or create a release from an unmerged candidate SHA.
+3. Read the actual merge commit from the merged PR and confirm it matches the final `main` revision. Create the annotated `v0.2.0` tag at that commit through GitHub. Never force-update an existing tag; inspect it first if retrying a partially completed publication.
+4. Prepare/update the draft GitHub Release with the reviewed `RELEASE_NOTES_0.2.0.md`. Verify its target and dereferenced tag match the merge commit before publishing. A draft does not publish a tag. After creating the tag, manually dispatch `Release assets` with that tag to populate and verify the draft assets before publishing. It also runs on release publication. The workflow builds that exact tag and attaches the relative-base web ZIP, the existing product film and `SHA256SUMS.txt`. Its ZIP includes source-commit metadata and the unchanged notices. If attachment upload fails, rerun the workflow with the same tag using its manual dispatch; never move the tag to retry. The build must be on main ancestry. `python3 -m unittest discover -s scripts -p test_package_release.py` checks deterministic packaging and input boundaries.
 5. Native debug/unsigned CI artifacts are test builds, not signed installers. Do not silently relabel or attach them as production-ready packages.
 
-PR preparation alone does not authorize publication. GitHub Releases and Pages are separate: verify the Pages branch configuration/deployment rather than treating a successful tag operation as proof of hosting. Pages uses the committed `/docs` site: run `npm run build:pages` after web changes and select Deploy from a branch → main → /docs in repository Settings → Pages. No custom Pages deployment Action is required. Do not change repository visibility as a side effect of release preparation. Successful compilation does not establish Android/Windows UI or playback parity with the web client.
+PR preparation alone does not authorize publication. Releases and the website are separate: verify the Cloudflare Pages deployment of the merge commit rather than treating a successful tag as proof of hosting. The site is https://wave.jaime-gaming.com, built by Cloudflare Pages from `npm run build` with `dist` as its output directory; the domain is configured in the Pages project, not in a committed `CNAME`. `public/_redirects` keeps one page reachable at any path and `public/_headers` sets caching and security headers. The build uses relative asset paths (`--base=./`) so the same output also works from a subpath. `npm run build:pages` refreshes the committed `docs/` mirror, which Cloudflare does not use. No custom deployment Action is required. Do not change repository visibility as a side effect of release preparation. Successful compilation does not establish Android/Windows UI or playback parity with the web client.
+
+## Documentation images
+
+The PNGs in `docs/media/` are photographs of the running app, not mockups. Recapture them after a change that alters a screen they show:
+
+```sh
+npm run dev
+npm run capture:docs
+```
+
+`scripts/capture-docs.ts` builds a disposable library in its own browser context (generated WAV files, generated covers, demo lyrics, a week of plays), imports it, and screenshots Home, Remix, a daily mix, Now Playing, and Home and Remix at phone size — 1440×900 and 390×844. `WAVE_URL` points it at another origin and `CHROMIUM_EXECUTABLE_PATH` at another Chromium. `WAVE_REVIEW=1` adds the layouts the docs do not show — the phone's Library, a phone mid-playback, the open player, and 1024 and 820 px — and prints anything wider than the viewport, which is how a phone layout is checked without a phone. Those review photographs are for looking at, not for publishing; they are not committed.
+
+The `Checks` job photographs the built site on every push and commits what it saw, so the pictures cannot describe a layout that no longer exists. The `Documentation images` workflow does the same on demand and can be given the same review pass.
+
+The native pictures are captured by the builds themselves, which is the only honest way to photograph a native app from a machine with no device:
+
+- `Wave.Windows.exe --smoke-test <folder>` renders the real window on a temporary library and writes a PNG per page. The `Native builds` job runs it and copies `artifacts/windows-ui/*.png` into `docs/media/windows-*.png`.
+- `gradle -p platforms/android testDebugUnitTest -Dwave.screenshots=app/build/wave-screenshots` runs `ScreenshotTest`, which renders the real `WaveApp` on the Robolectric graphics stack from a seeded library. Without the flag the tests are skipped, so an ordinary run stays quick. The same job copies them into `docs/media/android-*.png`.
+
+Both jobs commit what they produced when the run is a push to a branch, so `docs/media` always matches the build that made it. Neither is a mock-up and neither is retouched: what a reader sees is what the build drew. They are a layout record, not a substitute for a device pass.
 
 ## Release media
 
-The README's PNGs and `docs/media/wave-0.1.0-promo.mp4` are the intentional exception to the generated-artifact rule. The current film is 60 seconds, 1920×1080, H.264/yuv420p at 30 fps, with stereo AAC acoustic-piano music and fast-start metadata. It uses English captions and actual web/mobile-viewport interactions in an isolated demo library. It does not establish native feature parity or live-provider availability.
+The README's PNGs and `docs/media/wave-promo.mp4` are the intentional exception to the generated-artifact rule. The current film is 60 seconds, 1920×1080, H.264/yuv420p at 30 fps, with stereo AAC acoustic-piano music and fast-start metadata. It uses English captions and actual web/mobile-viewport interactions in an isolated demo library. It does not establish native feature parity or live-provider availability.
 
-See [promo production](media/PROMO_PRODUCTION.md) for the approved storyboard, reproducible capture/composition commands, sample provenance and validation procedure. Keep raw recordings, piano samples, tool binaries and temporary renders under ignored `.cache/`. The earlier `scripts/create-promo.ts` creates the superseded short silent version, not the current film. No script posts to social media.
+The film is ten scenes recorded in one take each: the collection, a daily mix, a search with a letter out of place, playlist ordering, a real Mix overlap, lyrics, the offer to skip dead air, appearance, and two phone viewports in either theme. `scripts/capture-promo-scenes.ts` writes `capture-failures.txt` beside its manifest if a scene's controls would not answer; the workflow turns that into annotations and a summary, and the film still renders, because a reviewer can judge nine scenes and a note better than nothing. A page error under the camera is annotated too; the browser suite, not the film, is what fails a build over one.
+
+See [promo production](media/PROMO_PRODUCTION.md) for the approved storyboard, reproducible capture/composition commands, sample provenance and validation procedure. Keep raw recordings, piano samples, tool binaries and temporary renders under ignored `.cache/`. The film is rendered by the `Promo film` workflow, which records the built app on a runner and commits the result; the same commands run on a machine with the tooling below. No script posts to social media.
 
 Windows release signing and security-scan limitations are in `WINDOWS_RELEASE.md`. Never store signing keys in the repository, create protection exclusions or mislabel an unsigned artifact.

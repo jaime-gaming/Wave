@@ -116,7 +116,7 @@ test('large mobile collections parse off-thread and expose bounded metadata revi
     .click();
   await expect(page.locator('.song-row')).toHaveCount(150);
   await page.getByRole('button', { name: 'Open settings' }).click();
-  await settingsMenu(page, 'Library management');
+  await settingsMenu(page, 'Library');
   const section = page.getByRole('region', { name: 'Local metadata' });
   await expect(section.locator('li')).toHaveCount(8);
   await expect(section.getByRole('button', { name: 'Next metadata page' })).toBeEnabled();

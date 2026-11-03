@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Play, Shuffle, ListPlus } from 'lucide-react';
+import { ArrowLeft, Play, Shuffle, ListPlus } from './Glyphs';
 import type { DailyMix } from '../domain/dailyMixes';
 import { formatTime, type Track } from '../domain/types';
 import { playlistIcon } from '../domain/playlistVisual';
@@ -61,21 +61,16 @@ export function DailyMixPage({
           }}
         />
         <div className="daily-mix-heading">
-          <p className="playlist-kicker">Made from your library</p>
           <h2 tabIndex={-1} ref={heading}>
             Daily mix {number}
           </h2>
           <p className="daily-mix-label">{mix.label}</p>
-          <p className="lyrics-caption">
-            {songs.length} songs · {formatTime(songs.reduce((s, t) => s + t.duration, 0))} ·{' '}
-            {mix.basis === 'genre' ? 'Genre' : 'Artist'} tags
+          <p className="daily-mix-meta">
+            {songs.length} {songs.length === 1 ? 'song' : 'songs'} ·{' '}
+            {formatTime(songs.reduce((s, t) => s + t.duration, 0))}
           </p>
         </div>
       </div>
-      <p className="daily-mix-description">
-        A daily selection of your local songs. Browse before playing, or save this selection as a
-        playlist to keep and edit it.
-      </p>
       <div className="daily-mix-actions">
         <button
           className="filled-button"
@@ -120,7 +115,7 @@ export function DailyMixPage({
         group={null}
         onGroup={() => {}}
         onClearSearch={() => {}}
-        onImport={() => {}}
+        onAdd={() => {}}
         currentId={currentId}
         playing={playing}
         onPlay={onPlay}

@@ -9,8 +9,12 @@ export function continuationQueue(
   random = Math.random,
   limit = 12,
 ): string[] {
+  // Twenty-four songs is the memory of what autoplay has just been doing: a
+  // library of thirty should not come back to the same three songs all evening.
+  const heard = new Set(recent.slice(-24));
+  const avoid = new Set(recent.slice(-6));
   const candidates = tracks.filter((t) => t.id !== current.id),
-    fresh = candidates.filter((t) => !recent.slice(-12).includes(t.id));
+    fresh = candidates.filter((t) => !heard.has(t.id));
   const pool = [...(fresh.length ? fresh : candidates)].sort(
     (a, b) => recent.lastIndexOf(a.id) - recent.lastIndexOf(b.id),
   );
@@ -31,16 +35,28 @@ export function continuationQueue(
         t.duration > 0 && anchor.duration > 0
           ? Math.min(t.duration, anchor.duration) / Math.max(t.duration, anchor.duration)
           : 0;
+      // The next song of the same album, in order, is what a person would play
+      // next after a track that has a next track.
+      const nextOnAlbum =
+        sameAlbum &&
+        !!t.trackNumber &&
+        !!anchor.trackNumber &&
+        t.trackNumber === anchor.trackNumber + 1;
+      // An artist heard a moment ago steps back, so a shuffle does not turn into
+      // five songs by the same band in a row.
+      const justHeard = avoid.has(t.id) ? 0.2 : 1;
       return {
         track: t,
         weight:
-          1 +
-          (sameArtist ? 4 : 0) +
-          (sameAlbum ? 3 : 0) +
-          (shared ? 4 : 0) +
-          (decade ? 1 : 0) +
-          duration +
-          (t.favorite ? 0.5 : 0),
+          (1 +
+            (sameArtist ? 4 : 0) +
+            (sameAlbum ? 3 : 0) +
+            (nextOnAlbum ? 5 : 0) +
+            (shared ? 4 : 0) +
+            (decade ? 1 : 0) +
+            duration +
+            (t.favorite ? 0.5 : 0)) *
+          justHeard,
       };
     });
     let ticket =

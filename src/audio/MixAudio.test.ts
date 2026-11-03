@@ -1,5 +1,5 @@
 import { sourceEnvelope } from './sourceEnvelope';
-import { mixGains } from '../domain/mix';
+import { handoverGains } from '../domain/mixPlanner';
 vi.mock('./sourceEnvelope', () => ({ sourceEnvelope: vi.fn().mockResolvedValue(undefined) }));
 import { beforeEach, afterEach, it, expect, vi } from 'vitest';
 import { MixAudio } from './MixAudio';
@@ -68,6 +68,77 @@ it('overlaps two native sources, advances their identity and applies complementa
   expect(elements[0].hasAttribute('src')).toBe(false);
   expect(elements[1].volume).toBeCloseTo(0.37);
 });
+it('keeps the song on the native element when the audio context cannot run', async () => {
+  // A suspended context would swallow the audio: a media element routed into it
+  // no longer reaches the speakers. Playback must stay unplugged instead.
+  const context = {
+    state: 'suspended',
+    currentTime: 0,
+    destination: { connect: vi.fn(), disconnect: vi.fn() },
+    createMediaElementSource: vi.fn(() => ({ connect: vi.fn(), disconnect: vi.fn() })),
+    createBiquadFilter: vi.fn(() => ({
+      type: 'lowshelf',
+      frequency: { value: 0 },
+      gain: { value: 0, setTargetAtTime: vi.fn() },
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    })),
+    createGain: vi.fn(() => ({
+      gain: { value: 1, setTargetAtTime: vi.fn() },
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    })),
+    resume: vi.fn(async () => undefined),
+    close: vi.fn(async () => undefined),
+  };
+  vi.stubGlobal('AudioContext', function AudioContext() {
+    return context;
+  });
+  engine = new MixAudio(callbacks());
+  engine.setMixEnabled(true);
+  // Creating the context at mount is what caused silence: nothing is built yet.
+  expect(context.createMediaElementSource).not.toHaveBeenCalled();
+  engine.load(new Blob(['a']));
+  await engine.play();
+  expect(context.createMediaElementSource).not.toHaveBeenCalled();
+  expect(elements[0].volume).toBe(1);
+  expect(elements[0].muted).toBe(false);
+});
+
+it('routes through the graph only once the context is running', async () => {
+  const context = {
+    state: 'suspended',
+    currentTime: 0,
+    destination: { connect: vi.fn(), disconnect: vi.fn() },
+    createMediaElementSource: vi.fn(() => ({ connect: vi.fn(), disconnect: vi.fn() })),
+    createBiquadFilter: vi.fn(() => ({
+      type: 'lowshelf',
+      frequency: { value: 0 },
+      gain: { value: 0, setTargetAtTime: vi.fn() },
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    })),
+    createGain: vi.fn(() => ({
+      gain: { value: 1, setTargetAtTime: vi.fn() },
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    })),
+    resume: vi.fn(async () => {
+      context.state = 'running';
+    }),
+    close: vi.fn(async () => undefined),
+  };
+  vi.stubGlobal('AudioContext', function AudioContext() {
+    return context;
+  });
+  engine = new MixAudio(callbacks());
+  engine.setMixEnabled(true);
+  engine.load(new Blob(['a']));
+  await engine.play();
+  expect(context.resume).toHaveBeenCalled();
+  expect(context.createMediaElementSource).toHaveBeenCalledTimes(1);
+});
+
 it('cancels the outgoing tail on seek/pause and revokes all source URLs on destruction', async () => {
   engine = new MixAudio(callbacks());
   engine.load(new Blob(['a']));
@@ -255,7 +326,7 @@ it('mixes from conservative cue points with the unshifted recording clock and or
   expect(engine.active.blob).toBe(b);
   elements[1].currentTime = 2.15;
   vi.advanceTimersByTime(100);
-  expect(elements[1].volume).toBeCloseTo(mixGains(0.15, true).incoming);
+  expect(elements[1].volume).toBeCloseTo(handoverGains(0.15).incoming);
   expect(Math.hypot(...elements.map((a) => a.volume))).toBeCloseTo(1);
   expect(events.time).toHaveBeenLastCalledWith(2.15);
   expect(events.blend).toHaveBeenLastCalledWith(
@@ -264,4 +335,252 @@ it('mixes from conservative cue points with the unshifted recording clock and or
   engine.pause();
   engine.setMixEnabled(false);
   expect(engine.mixRemaining).toBeCloseTo(17.85);
+});
+
+it('executes a beat-matched plan at the tempo the song was recorded at', async () => {
+  const events = { ...callbacks(), blend: vi.fn() };
+  vi.mocked(sourceEnvelope).mockResolvedValue(undefined);
+  engine = new MixAudio(events);
+  const a = new Blob(['song a']),
+    b = new Blob(['song b']);
+  engine.load(a);
+  Object.defineProperty(elements[0], 'duration', { value: 30 });
+  engine.setMixEnabled(true);
+  await engine.play();
+  engine.prepare(b);
+  Object.defineProperty(elements[1], 'duration', { value: 30 });
+  elements[1].dispatchEvent(new Event('loadedmetadata'));
+  await Promise.resolve();
+
+  elements[0].currentTime = 26;
+  engine.transitionWithPlan(
+    b,
+    {
+      mode: 'beatmatched',
+      seconds: 4,
+      startAt: 26,
+      cue: 12.5,
+      bassSwapAt: 0.5,
+      bars: 8,
+      phaseAligned: true,
+      notes: [],
+    },
+    () => true,
+    () => {},
+  );
+  await Promise.resolve();
+  // The incoming deck starts at the planned cue, at its own speed, silent until
+  // the blend owns it.
+  expect(elements[1].currentTime).toBeCloseTo(12.5);
+  expect(elements[1].playbackRate).toBe(1);
+  expect(elements[1].volume).toBeCloseTo(0);
+
+  // Halfway through, both decks sit at equal power.
+  elements[1].currentTime = 14.5;
+  vi.advanceTimersByTime(100);
+  expect(Math.hypot(elements[0].volume, elements[1].volume)).toBeCloseTo(1, 4);
+  expect(events.blend).toHaveBeenLastCalledWith(
+    expect.objectContaining({ incoming: b, outgoing: a }),
+  );
+
+  // After the overlap the outgoing file is released and the rate is still 1:
+  // nothing in a blend ever touches it.
+  elements[1].currentTime = 16.5;
+  vi.advanceTimersByTime(100);
+  expect(elements[1].playbackRate).toBe(1);
+});
+
+it('ignores a cut plan instead of joining two songs abruptly', async () => {
+  const events = { ...callbacks(), blend: vi.fn() };
+  engine = new MixAudio(events);
+  const a = new Blob(['a']),
+    b = new Blob(['b']);
+  engine.load(a);
+  engine.setMixEnabled(true);
+  await engine.play();
+  engine.prepare(b);
+  elements[1].dispatchEvent(new Event('loadedmetadata'));
+  await Promise.resolve();
+  engine.transitionWithPlan(
+    b,
+    {
+      mode: 'cut',
+      seconds: 0,
+      startAt: 0,
+      cue: 0,
+      bassSwapAt: 0.5,
+      bars: 0,
+      phaseAligned: false,
+      notes: [],
+    },
+    () => true,
+    () => {},
+  );
+  await Promise.resolve();
+  expect(engine.transitioning).toBe(false);
+});
+
+it("reports analysed tempo without ever changing a deck's speed", () => {
+  engine = new MixAudio(callbacks());
+  const blob = new Blob(['x']);
+  engine.setAnalysis(blob, {
+    duration: 200,
+    frameSeconds: 0.02,
+    beats: { bpm: 126, offset: 0, confidence: 0.9 },
+    trimmed: { start: 0, end: 200 },
+    segments: [],
+    vocals: [],
+    profile: { bass: 0.3, low: 0.2, mid: 0.3, high: 0.2 },
+    peak: 0.9,
+  });
+  expect(engine.analysisFor(blob)?.beats.bpm).toBe(126);
+  expect(engine.analysisFor(undefined)).toBeUndefined();
+});
+
+it('moves the low end and closes the outgoing top when a mix is possible', async () => {
+  // A minimal AudioContext with the two filters each deck needs.
+  const param = () => {
+    const value = {
+      value: 0,
+      targets: [] as number[],
+      setTargetAtTime(v: number) {
+        this.value = v;
+        this.targets.push(v);
+      },
+    };
+    return value;
+  };
+  const node = () => ({ connect: () => undefined, disconnect: () => undefined });
+  const filters: {
+    type: string;
+    frequency: ReturnType<typeof param>;
+    gain: ReturnType<typeof param>;
+  }[] = [];
+  const context = {
+    state: 'running' as AudioContextState,
+    currentTime: 0,
+    destination: node(),
+    createMediaElementSource: () => node(),
+    createBiquadFilter: () => {
+      const filter = { ...node(), type: 'lowpass', frequency: param(), gain: param() };
+      filters.push(filter);
+      return filter;
+    },
+    createGain: () => ({ ...node(), gain: param() }),
+    resume: async () => undefined,
+    close: async () => undefined,
+  };
+  vi.stubGlobal('AudioContext', function AudioContext() {
+    return context;
+  });
+  engine = new MixAudio(callbacks());
+  const a = new Blob(['first']),
+    b = new Blob(['second']);
+  engine.load(a);
+  Object.defineProperty(elements[0], 'duration', { value: 30 });
+  engine.setMixEnabled(true);
+  await engine.play();
+  engine.prepare(b);
+  Object.defineProperty(elements[1], 'duration', { value: 30 });
+  elements[1].dispatchEvent(new Event('loadedmetadata'));
+  await Promise.resolve();
+  expect(filters.length).toBeGreaterThanOrEqual(4);
+  const [outShelf, outAir, inShelf, inAir] = filters;
+  expect(outShelf.type).toBe('lowshelf');
+  expect(inAir.type).toBe('lowpass');
+
+  elements[0].currentTime = 26;
+  engine.transition(
+    b,
+    4,
+    () => true,
+    () => {},
+  );
+  await Promise.resolve();
+  elements[1].currentTime = 2;
+  vi.advanceTimersByTime(100);
+  // Halfway through the overlap the low end has changed hands...
+  expect(outShelf.gain.value).toBeLessThan(-10);
+  expect(inShelf.gain.value).toBeGreaterThan(-10);
+  // ...and the outgoing song has lost its top.
+  expect(outAir.frequency.value).toBeLessThan(20_000);
+  // The incoming song is never filtered.
+  expect(inAir.frequency.value).toBe(20_000);
+
+  // When the handover ends nothing stays filtered or shifted.
+  elements[1].currentTime = 6;
+  vi.advanceTimersByTime(100);
+  expect(inAir.frequency.value).toBe(20_000);
+  expect(inShelf.gain.value).toBe(0);
+});
+
+it('keeps the arriving song silent while the blend is still being set up', async () => {
+  // The gain loop runs every 20 ms whatever the engine is doing. It used to write
+  // a level of one into both decks whenever no blend existed yet, which is what
+  // made the next song arrive at full volume for a few frames and then drop.
+  const gains: { value: number }[] = [];
+  const context = {
+    state: 'suspended',
+    currentTime: 0,
+    destination: { connect: vi.fn(), disconnect: vi.fn() },
+    createMediaElementSource: vi.fn(() => ({ connect: vi.fn(), disconnect: vi.fn() })),
+    createBiquadFilter: vi.fn(() => ({
+      type: 'lowshelf',
+      frequency: { value: 0 },
+      gain: { value: 0, setTargetAtTime: vi.fn() },
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    })),
+    createGain: vi.fn(() => {
+      const gain = { value: 1, setTargetAtTime: vi.fn() };
+      gains.push(gain);
+      return { gain, connect: vi.fn(), disconnect: vi.fn() };
+    }),
+    createStereoPanner: vi.fn(() => ({
+      pan: { value: 0, setTargetAtTime: vi.fn() },
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    })),
+    resume: vi.fn(async () => {
+      context.state = 'running';
+    }),
+    close: vi.fn(async () => undefined),
+  };
+  vi.stubGlobal('AudioContext', function AudioContext() {
+    return context;
+  });
+  engine = new MixAudio(callbacks());
+  engine.setMixEnabled(true);
+  const a = new Blob(['a']),
+    b = new Blob(['b']);
+  engine.load(a);
+  await engine.play();
+  engine.prepare(b);
+  // The arriving deck does not report that it is playing for a while, so the
+  // blend is not set up yet: exactly the gap the burst came from.
+  let release: () => void = () => {};
+  elements[1].play = vi.fn(
+    () =>
+      new Promise<void>((resolve) => {
+        release = resolve;
+      }),
+  );
+  elements[0].currentTime = 2;
+  engine.transition(
+    b,
+    2,
+    () => true,
+    () => {},
+  );
+  await Promise.resolve();
+  vi.advanceTimersByTime(200);
+  // Two decks, one gain node each; the second one is the song coming in.
+  expect(gains.length).toBeGreaterThanOrEqual(2);
+  // The deck's own volume is the master; the graph carries the mix level.
+  expect(gains[gains.length - 1].value).toBe(0);
+  expect(elements[1].volume).toBe(1);
+  release();
+  await Promise.resolve();
+  await Promise.resolve();
+  expect(engine.transitioning).toBe(true);
 });

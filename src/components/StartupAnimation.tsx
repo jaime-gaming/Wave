@@ -6,7 +6,17 @@ const LINE = 'M4 16C7 16 7 16 12 16C17 16 17 16 20 16C23 16 23 16 28 16C33 16 33
 const WAVE = 'M4 16C7 16 7 26 12 26C17 26 17 3 20 3C23 3 23 26 28 26C33 26 33 16 36 16';
 export function StartupAnimation({ loading }: { loading: boolean }) {
   const animation = useWaveMotion();
-  const [complete, setComplete] = useState(false);
+  // The mark introduces Wave; it does not need to be introduced again every time
+  // the app is reopened in the same tab.
+  const [complete, setComplete] = useState(() => {
+    try {
+      if (sessionStorage.getItem('wave-booted')) return true;
+      sessionStorage.setItem('wave-booted', '1');
+      return false;
+    } catch {
+      return false;
+    }
+  });
   useEffect(() => {
     const timer = setTimeout(() => setComplete(true), 1150);
     return () => clearTimeout(timer);

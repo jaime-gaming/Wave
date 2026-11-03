@@ -1,5 +1,5 @@
 import { matchesSearch } from '../domain/musicIdentity';
-import { ArrowLeft, ListMusic, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, FolderInput, ListMusic, Pencil, Plus, Trash2 } from './Glyphs';
 import { motion } from 'motion/react';
 import type { Playlist, Track } from '../domain/types';
 import { usePlaylistVisual } from '../hooks/usePlaylistVisual';
@@ -13,12 +13,15 @@ export function PlaylistCollection({
   query,
   onOpen,
   onCreate,
+  onImport,
 }: {
   playlists: Playlist[];
   tracks: Track[];
   query: string;
   onOpen: (id: string) => void;
   onCreate: () => void;
+  /** Only the playlists view offers migration; search results do not. */
+  onImport?: () => void;
 }) {
   const visible = [...playlists]
     .filter((playlist) => matchesSearch(`${playlist.name} ${playlist.description}`, query))
@@ -29,10 +32,18 @@ export function PlaylistCollection({
         <h2>
           Your playlists <span>{playlists.length}</span>
         </h2>
-        <button className="filled-button" onClick={onCreate}>
-          <Plus size={20} />
-          Create playlist
-        </button>
+        <div className="collection-actions">
+          {onImport && (
+            <button className="tonal-button" onClick={onImport}>
+              <FolderInput size={19} />
+              Bring playlists over
+            </button>
+          )}
+          <button className="filled-button" onClick={onCreate}>
+            <Plus size={20} />
+            Create playlist
+          </button>
+        </div>
       </div>
       {visible.length ? (
         <div className="group-grid playlist-grid">
@@ -82,7 +93,7 @@ export function PlaylistHeader({
       <Artwork track={{ title: playlist.name, album: '', artwork: visual.artwork }} />
       <div className="playlist-detail-copy">
         <p className="playlist-kicker">
-          Playlist · {playlist.trackIds.length} {playlist.trackIds.length === 1 ? 'song' : 'songs'}
+          {playlist.trackIds.length} {playlist.trackIds.length === 1 ? 'song' : 'songs'}
         </p>
         <h2>{playlist.name}</h2>
         {playlist.description && <p className="playlist-description">{playlist.description}</p>}

@@ -8,25 +8,30 @@ import {
   Library,
   HardDrive,
   Info,
-} from 'lucide-react';
+  Smartphone,
+} from './Glyphs';
 import { motion } from 'motion/react';
 import { useWaveMotion } from '../ui/motion';
 const sections = [
-  { id: 'appearance', title: 'Appearance', description: 'Theme & motion', icon: Palette },
-  { id: 'playback', title: 'Playback', description: 'Mix & Autoplay', icon: SlidersHorizontal },
-  { id: 'lyrics', title: 'Lyrics', description: 'Automatic lyric search', icon: Captions },
-  {
-    id: 'library',
-    title: 'Library management',
-    description: 'Editing & local metadata',
-    icon: Library,
-  },
-  { id: 'storage', title: 'Storage', description: 'Space & duplicate copies', icon: HardDrive },
-  { id: 'about', title: 'About Wave', description: 'Privacy, rights & source', icon: Info },
+  { id: 'appearance', title: 'Appearance', icon: Palette },
+  { id: 'playback', title: 'Playback', icon: SlidersHorizontal },
+  { id: 'lyrics', title: 'Lyrics', icon: Captions },
+  { id: 'library', title: 'Library', icon: Library },
+  { id: 'devices', title: 'Devices', icon: Smartphone },
+  { id: 'storage', title: 'Storage', icon: HardDrive },
+  { id: 'about', title: 'About', icon: Info },
 ] as const;
 type Section = (typeof sections)[number]['id'];
-export function SettingsPage(props: Record<Section, ReactNode> & { onBack: () => void }) {
-  const [selected, setSelected] = useState<Section | null>(null);
+/** The id of a Settings section, for anything that opens Settings on one. */
+export type SettingsSection = Section;
+export function SettingsPage(
+  props: Record<Section, ReactNode> & {
+    onBack: () => void;
+    /** Opens straight into one section, used by a `#wave-pair=` link. */
+    initialSection?: Section | null;
+  },
+) {
+  const [selected, setSelected] = useState<Section | null>(props.initialSection ?? null);
   const heading = useRef<HTMLHeadingElement>(null);
   const root = useRef<HTMLElement>(null);
   const previous = useRef<Section | null>(null);
@@ -76,7 +81,7 @@ export function SettingsPage(props: Record<Section, ReactNode> & { onBack: () =>
         </motion.div>
       ) : (
         <div className="settings-menu-grid">
-          {sections.map(({ id, title, description, icon: Icon }) => (
+          {sections.map(({ id, title, icon: Icon }) => (
             <button
               key={id}
               className="settings-menu-item"
@@ -89,7 +94,6 @@ export function SettingsPage(props: Record<Section, ReactNode> & { onBack: () =>
               </span>
               <span className="settings-menu-copy">
                 <strong>{title}</strong>
-                <span>{description}</span>
               </span>
               <ChevronRight size={20} />
             </button>
@@ -98,7 +102,7 @@ export function SettingsPage(props: Record<Section, ReactNode> & { onBack: () =>
       )}
       <footer className="settings-hub-footer">
         <a href={`${import.meta.env.BASE_URL}privacy.html`}>Privacy &amp; rights</a>
-        <span>Wave 0.1.0</span>
+        <span>Wave {__WAVE_VERSION__}</span>
       </footer>
     </section>
   );
