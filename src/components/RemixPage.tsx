@@ -107,7 +107,7 @@ export function RemixPage({
           icon={<AudioLines size={40} strokeWidth={1.4} />}
           title={t('No week to look back on yet')}
           description="Import your files or add a YouTube song, play something, and this page fills in: your week in one number, and a Remix list made from what you actually played."
-          hint="Kept on this device, never uploaded"
+          hint={t('Kept on this device, never uploaded')}
           actions={
             <button className="tonal-button" onClick={onAdd}>
               Add music
@@ -230,7 +230,7 @@ export function RemixPage({
           {hoveredDay === null
             ? busiestDay && busiestDay.seconds > 0
               ? `Most on ${weekday(busiestDay.at)}, ${listeningTime(busiestDay.seconds)}`
-              : 'Quiet week'
+              : t('Quiet week')
             : `${listeningTime(recap.days[hoveredDay].seconds)} · ${recap.days[hoveredDay].plays} plays`}
         </p>
       </section>
@@ -267,7 +267,7 @@ export function RemixPage({
                   }
                 }}
               >
-                <Disc3 size={18} /> {saving ? 'Saving…' : 'Save as playlist'}
+                <Disc3 size={18} /> {saving ? t('Saving…') : t('Save as playlist')}
               </button>
             </div>
           </div>
@@ -330,11 +330,11 @@ export function RemixPage({
                     {weekRange(week.start, week.end).replace(/\s*–\s*/u, ' – ')}
                   </span>
                   <span className="remix-history-time">
-                    {quiet ? 'Nothing played' : listeningTime(week.seconds)}
+                    {quiet ? t('Nothing played') : listeningTime(week.seconds)}
                   </span>
                   <span className="remix-history-note">
                     {quiet
-                      ? 'A quiet week'
+                      ? t('A quiet week')
                       : `${week.plays} ${week.plays === 1 ? 'play' : 'plays'}${
                           top ? ` · ${top.track.title}` : ''
                         }`}

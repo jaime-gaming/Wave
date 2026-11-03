@@ -48,7 +48,7 @@ export function LyricsEditor({
     request.current = controller;
     setSearching(true);
     setCandidate(undefined);
-    setSearchMessage('Searching LRCLIB…');
+    setSearchMessage(t('Searching LRCLIB…'));
     try {
       const result = await lookupLyrics(track, controller.signal);
       if (controller.signal.aborted) return;
@@ -57,16 +57,16 @@ export function LyricsEditor({
       setNow(Date.now());
       setSearchMessage(
         result.lyrics
-          ? 'Matching lyrics found. Use the result to replace the draft, then Save lyrics.'
+          ? t('Matching lyrics found. Use the result to replace the draft, then Save lyrics.')
           : result.lookup.status === 'instrumental'
-            ? 'This recording is listed as instrumental.'
+            ? t('This recording is listed as instrumental.')
             : result.lookup.status === 'error'
-              ? 'Lyrics could not be retrieved. Your draft is unchanged.'
-              : 'No matching lyrics found for this recording. Your draft is unchanged.',
+              ? t('Lyrics could not be retrieved. Your draft is unchanged.')
+              : t('No matching lyrics found for this recording. Your draft is unchanged.'),
       );
     } catch {
       if (!controller.signal.aborted)
-        setSearchMessage('Lyrics could not be retrieved. Your draft is unchanged.');
+        setSearchMessage(t('Lyrics could not be retrieved. Your draft is unchanged.'));
     } finally {
       if (!controller.signal.aborted) setSearching(false);
     }
@@ -81,11 +81,11 @@ export function LyricsEditor({
         : parseLyrics(raw, offset, applied?.raw === raw ? 'lrclib' : 'local');
       if (parsed && applied?.raw === raw) parsed.providerId = applied.providerId;
       if (!remove && !parsed?.lines.some((line) => line.text))
-        throw Error('Add some lyrics or choose Remove lyrics.');
+        throw Error(t('Add some lyrics or choose Remove lyrics.'));
       if (await onSave(track.id, parsed)) onClose();
-      else setError('Lyrics could not be saved. Please try again.');
+      else setError(t('Lyrics could not be saved. Please try again.'));
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Lyrics could not be read.');
+      setError(reason instanceof Error ? reason.message : t('Lyrics could not be read.'));
     } finally {
       setBusy(false);
     }
@@ -125,7 +125,7 @@ export function LyricsEditor({
                 onClick={() => {
                   request.current?.abort();
                   setSearching(false);
-                  setSearchMessage('Search canceled. Your draft is unchanged.');
+                  setSearchMessage(t('Search canceled. Your draft is unchanged.'));
                 }}
               >
                 <X size={18} />
@@ -154,7 +154,7 @@ export function LyricsEditor({
                   setOffset(candidate.offsetMs);
                   setApplied(candidate);
                   setCandidate(undefined);
-                  setSearchMessage('Result placed in the draft. Save lyrics to keep it.');
+                  setSearchMessage(t('Result placed in the draft. Save lyrics to keep it.'));
                 }}
               >
                 Use found lyrics
@@ -184,14 +184,14 @@ export function LyricsEditor({
             setError('');
             try {
               if (selected.size > MAX_LYRICS_LENGTH * 3 || !/\.(lrc|txt)$/i.test(selected.name))
-                throw Error('Choose an LRC or TXT file up to 300 KB.');
+                throw Error(t('Choose an LRC or TXT file up to 300 KB.'));
               const text = await selected.text();
               parseLyrics(text);
               setRaw(text);
               setOffset(0);
               setApplied(undefined);
             } catch (reason) {
-              setError(reason instanceof Error ? reason.message : 'The file could not be read.');
+              setError(reason instanceof Error ? reason.message : t('The file could not be read.'));
             } finally {
               setBusy(false);
             }
@@ -242,7 +242,7 @@ export function LyricsEditor({
           disabled={busy || !raw.trim()}
         >
           <Save size={18} />
-          {busy ? 'Saving…' : 'Save lyrics'}
+          {busy ? t('Saving…') : t('Save lyrics')}
         </button>
       </div>
     </Modal>

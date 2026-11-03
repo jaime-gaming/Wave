@@ -58,11 +58,11 @@ export function PlaylistCollection({
           <div className="empty-symbol">
             <ListMusic size={40} />
           </div>
-          <h2>{query ? 'No playlists found' : 'Your first playlist starts here'}</h2>
+          <h2>{query ? t('No playlists found') : t('Your first playlist starts here')}</h2>
           <p>
             {query
-              ? 'Try a different playlist name.'
-              : 'Collect your songs in the order you want to hear them.'}
+              ? t('Try a different playlist name.')
+              : t('Collect your songs in the order you want to hear them.')}
           </p>
         </div>
       )}

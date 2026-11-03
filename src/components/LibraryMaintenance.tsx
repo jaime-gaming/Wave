@@ -40,16 +40,16 @@ export function LibraryMaintenance({
             setMessage(
               found.length
                 ? `${found.length} identical groups found.`
-                : 'No byte-identical duplicates.',
+                : t('No byte-identical duplicates.'),
             );
           } catch {
-            setMessage('Scan failed. Try again.');
+            setMessage(t('Scan failed. Try again.'));
           } finally {
             setBusy(false);
           }
         }}
       >
-        {busy ? 'Checking files…' : 'Scan duplicate files'}
+        {busy ? t('Checking files…') : t('Scan duplicate files')}
       </button>
       {groups.map((group) => (
         <div className="duplicate-group" key={group[0].id}>
@@ -69,9 +69,11 @@ export function LibraryMaintenance({
                 );
                 await onMerged();
                 setGroups((current) => current.filter((item) => item !== group));
-                setMessage('Identical copies merged; favorites and playlist references retained.');
+                setMessage(
+                  t('Identical copies merged; favorites and playlist references retained.'),
+                );
               } catch (error) {
-                setMessage(error instanceof Error ? error.message : 'Merge failed.');
+                setMessage(error instanceof Error ? error.message : t('Merge failed.'));
               } finally {
                 setBusy(false);
               }

@@ -107,12 +107,12 @@ export function VideoBackdrop({
       title={t('Video clip')}
       description={
         !online
-          ? 'Clip search needs a connection. A saved clip still plays.'
+          ? t('Clip search needs a connection. A saved clip still plays.')
           : search === 'searching'
-            ? 'Looking for this song on YouTube…'
+            ? t('Looking for this song on YouTube…')
             : search === 'empty'
-              ? 'No clip matched this song closely enough.'
-              : 'Clip search is unreachable right now. Try again later.'
+              ? t('No clip matched this song closely enough.')
+              : t('Clip search is unreachable right now. Try again later.')
       }
       actions={
         search !== 'searching' ? (
@@ -120,13 +120,13 @@ export function VideoBackdrop({
             type="button"
             className="text-button"
             disabled={!online}
-            aria-label={networkAriaLabel(online, 'Search again')}
+            aria-label={networkAriaLabel(online, t('Search again'))}
             onClick={() => {
               setSearch('searching');
               setAttempt((n) => n + 1);
             }}
           >
-            {networkLabel(online, 'Search again')}
+            {networkLabel(online, t('Search again'))}
           </button>
         ) : undefined
       }

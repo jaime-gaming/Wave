@@ -67,17 +67,17 @@ export function LocalMetadataReview({
       </div>
       <p>
         {!enabled
-          ? 'Nothing leaves this device while this is off.'
+          ? t('Nothing leaves this device while this is off.')
           : filling
             ? `Looking up ${filling} ${filling === 1 ? 'song' : 'songs'}…`
             : gaps
               ? `${gaps} ${gaps === 1 ? 'song is' : 'songs are'} missing something${completed ? ` · ${completed} completed` : ''}`
-              : 'Every song knows what it is.'}
+              : t('Every song knows what it is.')}
       </p>
       {!!gaps && onLookUp && enabled && (
         <button className="tonal-button" onClick={onLookUp} disabled={!!filling}>
           <Sparkles size={17} aria-hidden="true" />
-          {filling ? 'Looking up…' : 'Look up now'}
+          {filling ? t('Looking up…') : t('Look up now')}
         </button>
       )}
       {!!entries.length && (

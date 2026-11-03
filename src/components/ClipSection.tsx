@@ -138,7 +138,7 @@ export function ClipSection({ track }: { track: Track }) {
           onClick={() => void search()}
         >
           {status === 'searching' ? <Loader2 size={16} className="spin" /> : null}
-          {clip ? 'Choose another' : 'Find a clip'}
+          {clip ? t('Choose another') : t('Find a clip')}
         </button>
       </div>
       {status === 'empty' && (

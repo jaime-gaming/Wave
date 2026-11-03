@@ -75,8 +75,8 @@ export function MigrationSheet({
     if (!parsed.entries.length) {
       setError(
         parsed.skipped
-          ? 'That text did not contain any songs Wave could read.'
-          : 'Paste a playlist, or choose the file your other app exported.',
+          ? t('That text did not contain any songs Wave could read.')
+          : t('Paste a playlist, or choose the file your other app exported.'),
       );
       return;
     }
@@ -99,9 +99,9 @@ export function MigrationSheet({
     if (!report || saving) return;
     setSaving(true);
     setError('');
-    const created = await onSave(name.trim() || 'Imported playlist', report.trackIds);
+    const created = await onSave(name.trim() || t('Imported playlist'), report.trackIds);
     if (created) setSaved(true);
-    else setError('That playlist could not be saved. Nothing was changed.');
+    else setError(t('That playlist could not be saved. Nothing was changed.'));
     setSaving(false);
   };
 
@@ -110,7 +110,7 @@ export function MigrationSheet({
       {saved ? (
         <div className="migration-done">
           <Check size={28} aria-hidden="true" />
-          <h3>{name.trim() || 'Your playlist'} is here</h3>
+          <h3>{name.trim() || t('Your playlist')} is here</h3>
           <p>
             {report?.matchedCount} {report?.matchedCount === 1 ? 'song is' : 'songs are'} in your
             library now, in the list&apos;s order.
@@ -160,7 +160,7 @@ export function MigrationSheet({
                 // A playlist file is text, and small; anything else is refused
                 // rather than read into memory.
                 if (chosen.size > 8_000_000) {
-                  setError('That file is too large to be a playlist.');
+                  setError(t('That file is too large to be a playlist.'));
                   return;
                 }
                 const content = await chosen.text();
@@ -211,7 +211,7 @@ export function MigrationSheet({
                 <span>
                   <strong>{match.entry.title}</strong>
                   <small>
-                    {match.entry.artist || 'Unknown artist'}
+                    {match.entry.artist || t('Unknown artist')}
                     {match.status === 'matched' && match.trackId
                       ? ` · ${tracks.find((track) => track.id === match.trackId)?.title ?? ''}`
                       : match.status === 'ambiguous'
@@ -241,7 +241,7 @@ export function MigrationSheet({
               onClick={() => void confirm()}
             >
               <Upload size={18} aria-hidden="true" />
-              {saving ? 'Saving…' : `Create playlist with ${report.trackIds.length}`}
+              {saving ? t('Saving…') : `Create playlist with ${report.trackIds.length}`}
             </button>
           </div>
         </div>

@@ -89,11 +89,11 @@ export const Artists = memo(function Artists({
       ) : (
         <div className="empty-state">
           <Music2 size={36} />
-          <h2>{query ? 'No artists found' : 'No artists yet'}</h2>
+          <h2>{query ? t('No artists found') : t('No artists yet')}</h2>
           <p>
             {query
-              ? 'Try an artist, album, or song name.'
-              : 'Import music to build your artist collection.'}
+              ? t('Try an artist, album, or song name.')
+              : t('Import music to build your artist collection.')}
           </p>
         </div>
       )}

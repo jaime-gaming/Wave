@@ -112,7 +112,7 @@ function PlayerDetails({
         >
           <button
             className="stage-cover"
-            aria-label={state.playing ? 'Pause from artwork' : 'Play from artwork'}
+            aria-label={state.playing ? t('Pause from artwork') : t('Play from artwork')}
             disabled={!current}
             onClick={() => dispatch({ type: 'toggle' })}
           >
@@ -151,7 +151,7 @@ function PlayerDetails({
             animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
             transition={{ ...animation.reveal, delay: animation.enabled ? 0.06 : 0 }}
           >
-            <h3 title={current?.title}>{current?.title ?? 'Nothing playing'}</h3>
+            <h3 title={current?.title}>{current?.title ?? t('Nothing playing')}</h3>
             {current ? (
               <div className="stage-metadata">
                 <button
@@ -222,7 +222,7 @@ function PlayerDetails({
                 whileTap={animation.enabled ? { scale: 0.9 } : undefined}
                 transition={animation.fast}
                 onClick={() => dispatch({ type: 'toggle' })}
-                aria-label={state.playing ? 'Pause' : 'Play'}
+                aria-label={state.playing ? t('Pause') : t('Play')}
                 disabled={!current}
               >
                 <PlaySymbol playing={state.playing} size={32} />
@@ -259,10 +259,10 @@ function PlayerDetails({
                 disabled={!current || !!player.youTube}
                 aria-label={
                   player.youTube
-                    ? 'YouTube songs always show their video'
+                    ? t('YouTube songs always show their video')
                     : videoClip
-                      ? 'Hide video clip'
-                      : 'Show video clip'
+                      ? t('Hide video clip')
+                      : t('Show video clip')
                 }
                 aria-pressed={videoClip}
                 onClick={() => onToggleVideoClip?.()}
@@ -273,7 +273,7 @@ function PlayerDetails({
                 className={current?.favorite ? 'active' : ''}
                 disabled={!current}
                 aria-label={
-                  current?.favorite ? 'Unfavorite current track' : 'Favorite current track'
+                  current?.favorite ? t('Unfavorite current track') : t('Favorite current track')
                 }
                 aria-pressed={current?.favorite ?? false}
                 onClick={() => {
@@ -287,7 +287,7 @@ function PlayerDetails({
               <button
                 className="icon-button"
                 onClick={player.toggleMute}
-                aria-label={volume ? 'Mute' : 'Unmute'}
+                aria-label={volume ? t('Mute') : t('Unmute')}
               >
                 {volume ? <Volume2 size={21} /> : <VolumeX size={21} />}
               </button>
@@ -500,9 +500,9 @@ export function PlayerBar(props: PlayerProps) {
               disabled={!player.current}
               onClick={(event) => onOpen(event.currentTarget)}
             >
-              <strong>{player.current?.title ?? 'Nothing playing'}</strong>
+              <strong>{player.current?.title ?? t('Nothing playing')}</strong>
               {/*
-                One line, two states: the artist normally, "Mixing" while the
+                One line, two states: the artist normally, t("Mixing") while the
                 next song is being announced. Swapping the text in place made
                 the bar jump a pixel and read as a glitch, so the line hands over
                 instead — the old text leaves downwards, the new one arrives
@@ -531,7 +531,7 @@ export function PlayerBar(props: PlayerProps) {
                       transition={animation.effects}
                     >
                       <span className="compact-artist">
-                        {player.current?.artist ?? 'Select a song'}
+                        {player.current?.artist ?? t('Select a song')}
                       </span>
                     </motion.span>
                   )}
@@ -550,7 +550,7 @@ export function PlayerBar(props: PlayerProps) {
             </button>
             <motion.button
               className="mini-play"
-              aria-label={player.state.playing ? 'Pause' : 'Play'}
+              aria-label={player.state.playing ? t('Pause') : t('Play')}
               disabled={!player.current}
               onClick={() => player.dispatch({ type: 'toggle' })}
               whileTap={animation.enabled ? { scale: 0.9 } : undefined}
@@ -601,7 +601,7 @@ export function PlayerBar(props: PlayerProps) {
           <div className="compact-volume">
             <button
               className="icon-button"
-              aria-label={player.volume ? 'Mute' : 'Unmute'}
+              aria-label={player.volume ? t('Mute') : t('Unmute')}
               onClick={player.toggleMute}
             >
               {player.volume ? <Volume2 size={20} /> : <VolumeX size={20} />}

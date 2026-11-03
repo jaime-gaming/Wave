@@ -51,7 +51,7 @@ export function TrackEditor({
           setSaving(true);
           setError('');
           if (await onSave(track.id, metadata)) onClose();
-          else setError('Changes could not be saved. Please try again.');
+          else setError(t('Changes could not be saved. Please try again.'));
           setSaving(false);
         }}
       >
@@ -109,7 +109,7 @@ export function TrackEditor({
             onClick={async () => {
               setSaving(true);
               if (await onRestore(track.id)) onClose();
-              else setError('Original information could not be restored.');
+              else setError(t('Original information could not be restored.'));
               setSaving(false);
             }}
           >
@@ -123,7 +123,7 @@ export function TrackEditor({
           </button>
           <button type="submit" className="filled-button" disabled={busy || !metadata.title.trim()}>
             <Save size={18} />
-            {saving ? 'Saving…' : 'Save changes'}
+            {saving ? t('Saving…') : t('Save changes')}
           </button>
         </div>
       </form>

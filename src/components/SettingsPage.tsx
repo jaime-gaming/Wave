@@ -59,11 +59,11 @@ export function SettingsPage(
     >
       <button
         className="text-button settings-back"
-        aria-label={selected ? 'Back to settings' : 'Back from settings'}
+        aria-label={selected ? t('Back to settings') : t('Back from settings')}
         onClick={() => (selected ? setSelected(null) : props.onBack())}
       >
         <ArrowLeft size={19} />
-        {selected ? 'All settings' : 'Back'}
+        {selected ? t('All settings') : t('Back')}
       </button>
       {section && selected ? (
         <motion.div

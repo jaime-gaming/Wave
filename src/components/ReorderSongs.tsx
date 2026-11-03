@@ -139,7 +139,9 @@ export function ReorderSongs({
             if (await onSave(ids)) onClose();
             else
               setError(
-                'Order could not be saved. The collection may have changed; reopen it and try again.',
+                t(
+                  'Order could not be saved. The collection may have changed; reopen it and try again.',
+                ),
               );
             setBusy(false);
           }}

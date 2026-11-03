@@ -66,11 +66,11 @@ export const HomePage = memo(function HomePage({
   const favorites = tracks.filter((track) => track.favorite);
   const counts = [tracks.length, albums.length, artists.length, playlists.length, favorites.length];
   const destinations = [
-    ['songs', 'Songs', Music2],
-    ['albums', 'Albums', Disc3],
-    ['artists', 'Artists', Users],
-    ['playlists', 'Playlists', ListMusic],
-    ['favorites', 'Favorites', Heart],
+    ['songs', t('Songs'), Music2],
+    ['albums', t('Albums'), Disc3],
+    ['artists', t('Artists'), Users],
+    ['playlists', t('Playlists'), ListMusic],
+    ['favorites', t('Favorites'), Heart],
   ] as const;
   return (
     <div className="home-content">
@@ -148,7 +148,7 @@ export const HomePage = memo(function HomePage({
       >
         <section aria-label={t('Recently added songs')} className="home-recent-songs">
           <div className="section-heading">
-            <h2>{tracks.length ? 'Recently added songs' : 'Your music'}</h2>
+            <h2>{tracks.length ? t('Recently added songs') : t('Your music')}</h2>
             {tracks.length > 0 && (
               <button className="text-button" onClick={() => onView('songs')}>
                 All songs

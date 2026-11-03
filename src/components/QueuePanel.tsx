@@ -152,7 +152,7 @@ export function QueuePanel({
         </span>
         <button
           className="icon-button queue-edit"
-          aria-label={editing ? 'Finish reordering queue' : 'Reorder queue'}
+          aria-label={editing ? t('Finish reordering queue') : t('Reorder queue')}
           aria-pressed={editing}
           disabled={queue.length < 2 && !editing}
           onClick={() => setEditing((v) => !v)}
@@ -177,7 +177,7 @@ export function QueuePanel({
           level={3}
           icon={<ListMusic size={40} />}
           title={t('Queue is empty')}
-          description="Choose the songs you want to hear next."
+          description={t('Choose the songs you want to hear next.')}
         />
       ) : (
         <Reorder.Group

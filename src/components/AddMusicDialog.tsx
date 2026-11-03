@@ -86,7 +86,7 @@ export function AddMusicDialog({
     try {
       const files = await readFolder(handle);
       if (!files.length) {
-        setFolderError('No music files in that folder.');
+        setFolderError(t('No music files in that folder.'));
         return;
       }
       onFolderFiles(files);
@@ -96,7 +96,7 @@ export function AddMusicDialog({
         .then((saved) => setFolders(saved))
         .catch(() => undefined);
     } catch {
-      setFolderError('That folder could not be read. Nothing was imported.');
+      setFolderError(t('That folder could not be read. Nothing was imported.'));
     } finally {
       setFolderBusy('');
     }
@@ -110,24 +110,26 @@ export function AddMusicDialog({
       if (pick.reason === 'cancelled') return;
       // Refused by the browser — a frame, a policy, an older build — so the
       // click is answered with the input instead of nothing at all.
-      setFolderError('This window cannot open a folder chooser, so Wave is asking the usual way.');
+      setFolderError(
+        t('This window cannot open a folder chooser, so Wave is asking the usual way.'),
+      );
     }
     if (canChooseDirectory) {
       directory.current?.click();
       return;
     }
-    setFolderError('This browser cannot hand over a whole folder. Choose the files inside it.');
+    setFolderError(t('This browser cannot hand over a whole folder. Choose the files inside it.'));
   };
 
   const allowFolder = async (folder: RememberedFolder) => {
     setFolderError('');
     if (!folder.handle) {
-      setFolderError('Pick that folder again to give Wave permission to read it.');
+      setFolderError(t('Pick that folder again to give Wave permission to read it.'));
       return;
     }
     const granted = await requestFolderAccess(folder);
     if (!granted) {
-      setFolderError('The browser did not give access to that folder.');
+      setFolderError(t('The browser did not give access to that folder.'));
       return;
     }
     await readGranted(folder.handle as DirectoryHandleLike);
@@ -141,7 +143,7 @@ export function AddMusicDialog({
     const result = await onYouTube(link.trim());
     setPending(false);
     if (!result.ok || !result.track) {
-      setError(result.error ?? 'That link could not be added.');
+      setError(result.error ?? t('That link could not be added.'));
       return;
     }
     onAdded(result.track);
@@ -174,13 +176,13 @@ export function AddMusicDialog({
               aria-label={t('Add a whole folder')}
             >
               <FolderSearch size={24} aria-hidden="true" />
-              <strong>{folderBusy ? `Reading ${folderBusy}…` : 'A whole folder'}</strong>
+              <strong>{folderBusy ? `Reading ${folderBusy}…` : t('A whole folder')}</strong>
               <span>
                 {canChooseDirectory
                   ? canPick
-                    ? 'Everything inside it, at any depth. Remembered for next time.'
-                    : 'Everything inside it, at any depth.'
-                  : 'Choose the files inside it instead.'}
+                    ? t('Everything inside it, at any depth. Remembered for next time.')
+                    : t('Everything inside it, at any depth.')
+                  : t('Choose the files inside it instead.')}
               </span>
             </button>
             <button
@@ -188,11 +190,11 @@ export function AddMusicDialog({
               className="add-music-choice"
               onClick={() => setMode('youtube')}
               disabled={busy || !online}
-              aria-label={networkAriaLabel(online, 'Add from YouTube')}
+              aria-label={networkAriaLabel(online, t('Add from YouTube'))}
             >
               <Video size={24} aria-hidden="true" />
-              <strong>{networkLabel(online, 'From YouTube')}</strong>
-              <span>{online ? 'Paste a link.' : 'Needs a connection.'}</span>
+              <strong>{networkLabel(online, t('From YouTube'))}</strong>
+              <span>{online ? t('Paste a link.') : t('Needs a connection.')}</span>
             </button>
           </div>
           {!!folders.length && (
@@ -206,7 +208,7 @@ export function AddMusicDialog({
                     <small>
                       {folder.scannedAt
                         ? `Read ${new Date(folder.scannedAt).toLocaleDateString()}`
-                        : 'Not read yet'}
+                        : t('Not read yet')}
                     </small>
                   </span>
                   <button
@@ -215,7 +217,7 @@ export function AddMusicDialog({
                     onClick={() => void allowFolder(folder)}
                     disabled={!!folderBusy}
                   >
-                    {folder.handle ? 'Allow and read again' : 'Pick again'}
+                    {folder.handle ? t('Allow and read again') : t('Pick again')}
                   </button>
                   <button
                     type="button"
@@ -249,7 +251,7 @@ export function AddMusicDialog({
               const files = [...(event.target.files ?? [])].filter((file) => file.size > 0);
               event.target.value = '';
               if (!files.length) {
-                setFolderError('No music files in that folder.');
+                setFolderError(t('No music files in that folder.'));
                 return;
               }
               onFolderFiles(files);
@@ -284,7 +286,7 @@ export function AddMusicDialog({
               onClick={() => void submit()}
               disabled={!link.trim() || pending}
             >
-              {pending ? 'Adding…' : 'Add song'}
+              {pending ? t('Adding…') : t('Add song')}
             </button>
           </div>
           {error && (
@@ -301,8 +303,8 @@ export function AddMusicDialog({
       )}
       <p className="add-music-note">
         {mode === 'youtube'
-          ? 'Only the link is sent. Audio is never downloaded.'
-          : 'Your files stay on this device.'}
+          ? t('Only the link is sent. Audio is never downloaded.')
+          : t('Your files stay on this device.')}
       </p>
     </Modal>
   );

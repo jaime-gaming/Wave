@@ -85,8 +85,8 @@ export const LibraryContent = memo(function LibraryContent({
       <EmptyState
         icon={<FolderOpen size={42} strokeWidth={1.4} />}
         title={t('No songs yet')}
-        description="Import your own files, or add a song from YouTube by link."
-        hint="MP3, WAV, M4A, OGG and FLAC"
+        description={t('Import your own files, or add a song from YouTube by link.')}
+        hint={t('MP3, WAV, M4A, OGG and FLAC')}
         actions={
           <button className="filled-button" disabled={busy} onClick={onAdd}>
             <Plus size={20} />
@@ -110,21 +110,21 @@ export const LibraryContent = memo(function LibraryContent({
         }
         title={
           query
-            ? 'No tracks found.'
+            ? t('No tracks found.')
             : view === 'favorites'
-              ? 'No favorites yet'
+              ? t('No favorites yet')
               : view === 'playlists'
-                ? 'This playlist is empty'
-                : 'No songs in this collection'
+                ? t('This playlist is empty')
+                : t('No songs in this collection')
         }
         description={
           query
-            ? 'Try a different title, artist, or album.'
+            ? t('Try a different title, artist, or album.')
             : view === 'playlists'
-              ? 'Use Add songs to build this playlist.'
+              ? t('Use Add songs to build this playlist.')
               : view === 'favorites'
-                ? 'Use the heart on a song to add it here.'
-                : 'Choose another collection or add music to your library.'
+                ? t('Use the heart on a song to add it here.')
+                : t('Choose another collection or add music to your library.')
         }
         actions={
           query ? (
@@ -147,7 +147,7 @@ export const LibraryContent = memo(function LibraryContent({
             <ArrowLeft size={22} />
           </button>
           <div>
-            <h2>{view === 'albums' ? (tracks[0]?.album ?? 'Album') : group}</h2>
+            <h2>{view === 'albums' ? (tracks[0]?.album ?? t('Album')) : group}</h2>
             <p>
               {tracks.length} {tracks.length === 1 ? 'song' : 'songs'}
             </p>
@@ -254,7 +254,7 @@ export const LibraryContent = memo(function LibraryContent({
                   <div className="song-actions">
                     <button
                       className={`icon-button row-favorite ${track.favorite ? 'active' : ''}`}
-                      aria-label={`${track.favorite ? 'Unfavorite' : 'Favorite'} ${track.title}`}
+                      aria-label={`${track.favorite ? t('Unfavorite') : t('Favorite')} ${track.title}`}
                       aria-pressed={track.favorite}
                       onClick={() => onFavorite(track)}
                     >

@@ -59,7 +59,7 @@ export const SearchPage = memo(function SearchPage({
   onCreatePlaylist,
 }: Props) {
   const t = useT();
-  const [kind, setKind] = useState('All');
+  const [kind, setKind] = useState(t('All'));
   const [recent, setRecent] = useState<string[]>(loadRecentSearches);
   useEffect(() => {
     inputRef.current?.focus();
@@ -157,7 +157,7 @@ export const SearchPage = memo(function SearchPage({
         )}
       </div>
       <div className="search-kinds" aria-label={t('Search categories')}>
-        {['All', 'Songs', 'Artists', 'Albums', 'Playlists'].map((label) => (
+        {[t('All'), t('Songs'), t('Artists'), t('Albums'), t('Playlists')].map((label) => (
           <motion.button
             key={label}
             aria-pressed={kind === label}
@@ -265,7 +265,7 @@ export const SearchPage = memo(function SearchPage({
                 onAlbum={(t) => onAlbum(JSON.stringify([t.artist, t.album]))}
               />
               {kind === 'All' && songs.length > 12 && (
-                <button className="text-button" onClick={() => setKind('Songs')}>
+                <button className="text-button" onClick={() => setKind(t('Songs'))}>
                   Show all {songs.length} songs
                 </button>
               )}

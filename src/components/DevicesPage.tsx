@@ -62,7 +62,7 @@ export function DevicesPage({
   const [loaned, setLoaned] = useState<{ text: string; failed: boolean } | null>(() => {
     const address = location.hash || location.search;
     return /wave-pair=/u.test(address) && !readPairingLink(address)
-      ? { text: 'That link is not a Wave pairing link.', failed: true }
+      ? { text: t('That link is not a Wave pairing link.'), failed: true }
       : null;
   });
   const entries = useMemo(() => devices.peerLibrary?.entries ?? [], [devices.peerLibrary]);
@@ -74,14 +74,14 @@ export function DevicesPage({
     const { getLoanedAudio } = await import('../sync/store');
     const blob = await getLoanedAudio(loanId);
     if (!blob) {
-      setLoaned({ text: 'That copy is no longer on this device.', failed: true });
+      setLoaned({ text: t('That copy is no longer on this device.'), failed: true });
       return;
     }
     try {
       await onAddLoaned(blob, borrowedName(title, blob.type));
       setLoaned({ text: `Kept “${title ?? 'the song'}” in your library.`, failed: false });
     } catch {
-      setLoaned({ text: 'The song could not be added. Nothing was changed.', failed: true });
+      setLoaned({ text: t('The song could not be added. Nothing was changed.'), failed: true });
     }
   };
   useEffect(() => {
@@ -266,18 +266,18 @@ export function DevicesPage({
           <h3>
             <QrCode size={18} aria-hidden="true" />
             {devices.stage === 'show-code'
-              ? 'Scan this with the other device'
-              : 'Now let the other device scan this'}
+              ? t('Scan this with the other device')
+              : t('Now let the other device scan this')}
           </h3>
           <p>
             {devices.stage === 'show-code'
-              ? 'It will show a code of its own. Come back here to scan that one.'
-              : 'When it has read this, the two devices will be linked.'}
+              ? t('It will show a code of its own. Come back here to scan that one.')
+              : t('When it has read this, the two devices will be linked.')}
           </p>
           <img src={devices.qr} alt={t('Wave pairing code')} className="devices-qr-image" />
           <div className="devices-actions">
             <button className="tonal-button" onClick={() => void copy()}>
-              <Copy size={16} /> {copied ? 'Link copied' : 'Copy link'}
+              <Copy size={16} /> {copied ? t('Link copied') : t('Copy link')}
             </button>
             {devices.stage === 'show-code' ? (
               <button className="primary-button" onClick={() => setScanning('reply')}>
@@ -306,7 +306,7 @@ export function DevicesPage({
         <section className="devices-card">
           <div className="devices-connected">
             <span className="devices-dot" aria-hidden="true" />
-            <strong>{devices.peerName || 'Linked device'}</strong>
+            <strong>{devices.peerName || t('Linked device')}</strong>
             <button className="text-button" onClick={devices.reset}>
               Disconnect
             </button>
@@ -319,7 +319,7 @@ export function DevicesPage({
             <p className="devices-note" role="status">
               {devices.progress.total > 0
                 ? `Receiving songs… ${devices.progress.received} of ${devices.progress.total}`
-                : 'Preparing the songs…'}
+                : t('Preparing the songs…')}
             </p>
           )}
           {!entries.length && <p className="devices-note">{t('Waiting for its library…')}</p>}
@@ -335,7 +335,7 @@ export function DevicesPage({
                     setSelected(new Set());
                   }}
                 >
-                  {selected.size ? `Bring ${selected.size}` : 'Select songs'}
+                  {selected.size ? `Bring ${selected.size}` : t('Select songs')}
                 </button>
               </div>
               <ul className="devices-songs">
@@ -442,9 +442,9 @@ export function DevicesPage({
             {devices.loans.map((loan) => (
               <li key={loan.loanId}>
                 <span>
-                  <strong>{loan.title ?? 'Borrowed song'}</strong>
+                  <strong>{loan.title ?? t('Borrowed song')}</strong>
                   <small>
-                    {loan.artist ?? 'From a linked device'} · {kb(loan.size)}
+                    {loan.artist ?? t('From a linked device')} · {kb(loan.size)}
                   </small>
                 </span>
                 <button

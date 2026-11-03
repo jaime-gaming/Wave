@@ -54,6 +54,7 @@ const LyricRow = memo(function LyricRow({
   onSeek: (time: number) => void;
 }) {
   const animation = useWaveMotion();
+  const t = useT();
   const tokens = useMemo(() => lyricFillTokens(line.text || '♪'), [line.text]);
   const wordTokens = line.words?.map((word) => ({
     ...word,
@@ -82,7 +83,9 @@ const LyricRow = memo(function LyricRow({
       data-active={active}
       aria-current={active ? 'true' : undefined}
       aria-label={
-        readOnly ? line.text || 'Instrumental' : `Seek to lyric: ${line.text || 'Instrumental'}`
+        readOnly
+          ? line.text || t('Instrumental')
+          : `Seek to lyric: ${line.text || t('Instrumental')}`
       }
       onClick={readOnly ? undefined : () => onSeek(line.time!)}
       animate={
@@ -237,9 +240,9 @@ export function LyricsPanel({
         offsetMs: Math.max(-10000, Math.min(10000, lyrics.offsetMs + delta)),
       });
       if (saved) setFollow(true);
-      else setTimingError('Could not save timing. Try again.');
+      else setTimingError(t('Could not save timing. Try again.'));
     } catch {
-      setTimingError('Could not save timing. Try again.');
+      setTimingError(t('Could not save timing. Try again.'));
     } finally {
       setAdjusting(false);
     }
@@ -323,7 +326,7 @@ export function LyricsPanel({
                 >
                   <LocateFixed size={18} />
                   <span className="sr-only">
-                    {follow ? 'Following playback' : 'Follow playback'}
+                    {follow ? t('Following playback') : t('Follow playback')}
                   </span>
                 </button>
               )}
@@ -396,33 +399,33 @@ export function LyricsPanel({
           </motion.div>
           <h3>
             {!online
-              ? 'No connection'
+              ? t('No connection')
               : cooldown
-                ? 'Taking a breath'
+                ? t('Taking a breath')
                 : loading
-                  ? 'Looking for lyrics'
+                  ? t('Looking for lyrics')
                   : status === 'instrumental'
-                    ? 'Instrumental'
-                    : 'No lyrics yet'}
+                    ? t('Instrumental')
+                    : t('No lyrics yet')}
           </h3>
           <p>
             {!online
-              ? 'Lyrics search needs a connection. Anything already saved still shows.'
+              ? t('Lyrics search needs a connection. Anything already saved still shows.')
               : cooldown
                 ? `Try again in ${cooldown} seconds.`
                 : loading
-                  ? 'Searching for this song.'
+                  ? t('Searching for this song.')
                   : status === 'instrumental'
-                    ? 'This song is marked instrumental.'
+                    ? t('This song is marked instrumental.')
                     : status === 'error'
-                      ? 'The lyrics service did not answer.'
-                      : 'Nothing matched this song.'}
+                      ? t('The lyrics service did not answer.')
+                      : t('Nothing matched this song.')}
           </p>
           <span>
             {automatic
               ? !canLookup(track)
-                ? 'Add a title and artist in the song details to search for lyrics.'
-                : 'You can add your own lyrics if nothing matches.'
+                ? t('Add a title and artist in the song details to search for lyrics.')
+                : t('You can add your own lyrics if nothing matches.')
               : ''}
           </span>
           {!cinematic && (
@@ -431,11 +434,11 @@ export function LyricsPanel({
                 <button
                   className="tonal-button"
                   disabled={loading || cooldown > 0 || !canLookup(track) || !online}
-                  aria-label={networkAriaLabel(online, 'Search again')}
+                  aria-label={networkAriaLabel(online, t('Search again'))}
                   onClick={onRetry}
                 >
                   <RefreshCw size={17} />
-                  {networkLabel(online, 'Search again')}
+                  {networkLabel(online, t('Search again'))}
                 </button>
               )}
               <button className="text-button" onClick={onEdit}>

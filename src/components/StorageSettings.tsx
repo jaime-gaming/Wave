@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import { HardDrive, ShieldCheck, RefreshCw } from './Glyphs';
 import type { Track } from '../domain/types';
 import { formatBytes, libraryFootprint, requestPersistentStorage } from '../data/storage';
@@ -13,16 +13,16 @@ export function StorageSettings({ tracks }: { tracks: Track[] }) {
     [persisted, setPersisted] = useState(false),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState('');
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     try {
       const info = await navigator.storage?.estimate?.();
       setUsage(info?.usage);
       setQuota(info?.quota);
       setPersisted((await navigator.storage?.persisted?.()) ?? false);
     } catch {
-      setMessage('This browser cannot say how much space is left.');
+      setMessage(t('This browser cannot say how much space is left.'));
     }
-  };
+  }, [t]);
   useEffect(() => {
     const timer = setTimeout(() => void refresh(), 0);
     // The history is a few small rows, but it is still part of what Wave keeps.
@@ -30,12 +30,12 @@ export function StorageSettings({ tracks }: { tracks: Track[] }) {
       .then(setPlays)
       .catch(() => undefined);
     return () => clearTimeout(timer);
-  }, []);
+  }, [refresh]);
   return (
     <section className="storage-settings" aria-label={t('Browser storage')}>
       <h3>
         <HardDrive size={20} />
-        Browser storage
+        {t('Browser storage')}
       </h3>
       <dl>
         <div>
@@ -82,15 +82,17 @@ export function StorageSettings({ tracks }: { tracks: Track[] }) {
             setPersisted(protectedStorage);
             setMessage(
               protectedStorage
-                ? 'Your files are protected: the browser will not clear them to make room.'
-                : 'The browser would not promise to keep them. Open Wave in its own tab and try again.',
+                ? t('Your files are protected: the browser will not clear them to make room.')
+                : t(
+                    'The browser would not promise to keep them. Open Wave in its own tab and try again.',
+                  ),
             );
             await refresh();
             setBusy(false);
           }}
         >
           <ShieldCheck size={18} />
-          {persisted ? 'Storage protected' : 'Protect stored files'}
+          {persisted ? t('Storage protected') : t('Protect stored files')}
         </button>
         <button
           className="icon-button"

@@ -45,7 +45,7 @@ export function ArtistEditor({
           onClick={async () => {
             setBusy(true);
             if (await onSave({ ...profile, artwork })) onClose();
-            else setError('This photo could not be saved. Try again.');
+            else setError(t('This photo could not be saved. Try again.'));
             setBusy(false);
           }}
         >

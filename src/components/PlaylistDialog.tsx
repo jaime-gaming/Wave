@@ -29,7 +29,7 @@ export function PlaylistDialog({
   const busy = saving || imageBusy;
   return (
     <Modal
-      title={playlist ? 'Edit playlist' : 'Create playlist'}
+      title={playlist ? t('Edit playlist') : t('Create playlist')}
       closeDisabled={busy}
       onClose={() => {
         if (!busy) onClose();
@@ -43,7 +43,7 @@ export function PlaylistDialog({
           setSaving(true);
           setError('');
           if (await onSave({ name, description, artwork })) onClose();
-          else setError('This playlist could not be saved. Please try again.');
+          else setError(t('This playlist could not be saved. Please try again.'));
           setSaving(false);
         }}
       >
@@ -91,7 +91,7 @@ export function PlaylistDialog({
           </button>
           <button type="submit" className="filled-button" disabled={busy || !name.trim()}>
             <Check size={19} />
-            {saving ? 'Saving…' : playlist ? 'Save playlist' : 'Create playlist'}
+            {saving ? t('Saving…') : playlist ? t('Save playlist') : t('Create playlist')}
           </button>
         </div>
       </form>
@@ -175,10 +175,10 @@ export function AddSongsDialog({
         {!visible.length && (
           <p className="picker-empty">
             {available.length
-              ? 'No songs match your search.'
+              ? t('No songs match your search.')
               : tracks.length
                 ? `All your songs are already in ${playlist ? 'this playlist' : 'the queue'}.`
-                : 'Import audio files into your library first.'}
+                : t('Import audio files into your library first.')}
           </p>
         )}
       </div>
@@ -197,12 +197,12 @@ export function AddSongsDialog({
           onClick={async () => {
             setSaving(true);
             if (await onAdd([...selected])) onClose();
-            else setError('Songs could not be added. Please try again.');
+            else setError(t('Songs could not be added. Please try again.'));
             setSaving(false);
           }}
         >
           <Plus size={18} />
-          {saving ? 'Adding…' : `Add ${selected.size} ${selected.size === 1 ? 'song' : 'songs'}`}
+          {saving ? t('Adding…') : `Add ${selected.size} ${selected.size === 1 ? 'song' : 'songs'}`}
         </button>
       </div>
     </Modal>
@@ -245,7 +245,7 @@ export function AddToPlaylistDialog({
             onClick={async () => {
               setBusy(true);
               if (await onAdd(playlist.id)) onClose();
-              else setError('The song could not be added. Please try again.');
+              else setError(t('The song could not be added. Please try again.'));
               setBusy(false);
             }}
           >
@@ -254,7 +254,7 @@ export function AddToPlaylistDialog({
               {playlist.name}
               <small>
                 {playlist.trackIds.includes(track.id)
-                  ? 'Already added'
+                  ? t('Already added')
                   : `${playlist.trackIds.length} songs`}
               </small>
             </span>

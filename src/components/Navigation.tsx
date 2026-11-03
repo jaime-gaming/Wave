@@ -35,10 +35,10 @@ export function Navigation({
       <nav className="app-navigation" aria-label={t('Main navigation')}>
         {(
           [
-            { id: 'home', name: 'Home', icon: Home },
-            { id: 'search', name: 'Search', icon: Search },
-            { id: 'library', name: 'Library', icon: Library },
-            { id: 'remix', name: 'Remix', icon: Remix },
+            { id: 'home', name: t('Home'), icon: Home },
+            { id: 'search', name: t('Search'), icon: Search },
+            { id: 'library', name: t('Library'), icon: Library },
+            { id: 'remix', name: t('Remix'), icon: Remix },
           ] as const
         ).map(({ id, name, icon: Icon }) => (
           <motion.button
@@ -68,13 +68,18 @@ export function Navigation({
         <p>{t('Collection')}</p>
         {(
           [
-            { id: 'albums', label: t('Albums'), name: 'Browse albums', icon: Disc3 },
-            { id: 'artists', label: t('Artists'), name: 'Browse artists', icon: Users },
-            { id: 'playlists', label: t('Playlists'), name: 'Browse playlists', icon: ListMusic },
+            { id: 'albums', label: t('Albums'), name: t('Browse albums'), icon: Disc3 },
+            { id: 'artists', label: t('Artists'), name: t('Browse artists'), icon: Users },
+            {
+              id: 'playlists',
+              label: t('Playlists'),
+              name: t('Browse playlists'),
+              icon: ListMusic,
+            },
             {
               id: 'favorites',
               label: t('Favorites'),
-              name: 'Browse favorite songs',
+              name: t('Browse favorite songs'),
               icon: Heart,
             },
           ] as const
