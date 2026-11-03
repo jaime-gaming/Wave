@@ -1,4 +1,5 @@
 import { Component, type ReactNode } from 'react';
+import { translateNow } from '../i18n/dictionary';
 
 /**
  * The one thing between a broken render and a blank page.
@@ -36,7 +37,7 @@ export class AppError extends Component<{ children: ReactNode }, { crashed: bool
           <i />
           <i />
         </span>
-        <h1>This screen stopped. Your music didn’t.</h1>
+        <h1>{translateNow('This screen stopped. Your music didn’t.')}</h1>
         <p>
           Nothing on this device was changed. Reload to carry on where you were — the player picks
           up from the same place.

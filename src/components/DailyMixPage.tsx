@@ -5,6 +5,7 @@ import { formatTime, type Track } from '../domain/types';
 import { playlistIcon } from '../domain/playlistVisual';
 import { Artwork } from './Artwork';
 import { LibraryContent } from './LibraryContent';
+import { useT } from '../i18n';
 export interface MixSelection {
   mix: DailyMix;
   number: number;
@@ -36,6 +37,7 @@ export function DailyMixPage({
   onAlbum: (track: Track) => void;
   onSave: (tracks: Track[]) => Promise<boolean>;
 }) {
+  const t = useT();
   const { mix, number } = selection;
   const byId = new Map(tracks.map((t) => [t.id, t]));
   const songs = mix.tracks.flatMap((t) => (byId.has(t.id) ? [byId.get(t.id)!] : []));
@@ -92,16 +94,16 @@ export function DailyMixPage({
             setError('');
             try {
               if (!(await onSave(songs)))
-                setError('Could not save this playlist. Please try again.');
+                setError(t('Could not save this playlist. Please try again.'));
             } catch {
-              setError('Could not save this playlist. Please try again.');
+              setError(t('Could not save this playlist. Please try again.'));
             } finally {
               setSaving(false);
             }
           }}
         >
           <ListPlus size={20} />
-          {saving ? 'Saving…' : 'Save as playlist'}
+          {saving ? t('Saving…') : t('Save as playlist')}
         </button>
       </div>
       {error && <p role="alert">{error}</p>}

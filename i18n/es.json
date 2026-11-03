@@ -391,5 +391,7 @@
   "Your playlist": "Tu lista",
   "wave1.…": "wave1.…",
   "youtube.com/watch?v=…": "youtube.com/watch?v=…",
-  "Drag ${track.title} to reorder": "Arrastra ${track.title} para reordenar"
+  "Drag ${track.title} to reorder": "Arrastra ${track.title} para reordenar",
+  "Replace": "Sustituir",
+  "Add": "Añadir"
 }

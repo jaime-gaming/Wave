@@ -37,7 +37,7 @@ import {
 } from './domain/collections';
 import { AnimatePresence, MotionConfig, motion } from 'motion/react';
 import { MotionPreference, useWaveMotion } from './ui/motion';
-import { I18nProvider, useI18n } from './i18n';
+import { useI18n } from './i18n';
 import { languages } from './i18n/dictionary';
 import { usePlaylists } from './hooks/usePlaylists';
 import { PlaylistCollection, PlaylistHeader } from './components/PlaylistCollection';
@@ -128,13 +128,11 @@ function readTheme(): Theme {
 export default function App() {
   const [animations, setAnimations] = useState(() => readFlag('wave-animations-enabled', true));
   return (
-    <I18nProvider>
-      <MotionConfig reducedMotion={animations ? 'user' : 'always'}>
-        <MotionPreference.Provider value={animations}>
-          <WaveApp animations={animations} onAnimations={setAnimations} />
-        </MotionPreference.Provider>
-      </MotionConfig>
-    </I18nProvider>
+    <MotionConfig reducedMotion={animations ? 'user' : 'always'}>
+      <MotionPreference.Provider value={animations}>
+        <WaveApp animations={animations} onAnimations={setAnimations} />
+      </MotionPreference.Provider>
+    </MotionConfig>
   );
 }
 

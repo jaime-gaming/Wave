@@ -63,3 +63,14 @@ export function translate(
     key in values ? String(values[key]) : whole,
   );
 }
+
+/**
+ * The current sentence, without a hook.
+ *
+ * The error screen is a class component that also sits above the provider, and a
+ * thrown render must not throw again because a context was missing. It reads the
+ * choice and the device directly, which is enough for a page that is shown once.
+ */
+export function translateNow(english: string): string {
+  return translate(resolveLanguage(readChoice()), english);
+}

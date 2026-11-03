@@ -53,11 +53,11 @@ Release 0.2.0 · 3 November 2026. Historical run dates are retained below.
   fila «Language» de Ajustes → Apariencia permite fijar inglés o español en vez de seguir al
   sistema, y no hay ningún aviso ni pregunta al arrancar. `src/i18n/i18n.test.tsx` cubre la
   detección, la prioridad de la elección, el respaldo al inglés cuando falta una entrada y el
-  re-render al cambiar de idioma. El diccionario `i18n/es.json` tiene 393 frases y el barrido ha
-  conectado 163: la barra de navegación, Inicio, la portada de Ajustes, el reproductor y el marco
-  de la aplicación están traducidos; los diálogos largos, los editores, Dispositivos, la migración
-  y las pantallas de letras siguen en inglés, y Android y Windows siguen en inglés porque aún no
-  llevan la tabla. Hasta que eso termine, la fila «Interface language» de `PLATFORMS.md` dice la
+  re-render al cambiar de idioma. El diccionario `i18n/es.json` tiene 395 frases y el código usa 321 de
+  ellas: la barra de navegación, Inicio, Ajustes, el reproductor, la cola, la búsqueda, la
+  biblioteca, Remix, Dispositivos, la migración, los editores y los diálogos están traducidos. Las
+  frases que quedan sueltas son interpolaciones (`Seek to lyric: …`, nombres de archivo) y
+  Android y Windows siguen en inglés porque aún no llevan la tabla. Hasta que eso termine, la fila «Interface language» de `PLATFORMS.md` dice la
   verdad y no se publica la versión.
 
 - **The film was reviewed frame by frame.** Frames decoded from the rendered MP4 were inspected at
