@@ -7036,10 +7036,13 @@ h1 {
   }
 }
 
-/* Keep the desktop page at the same width before and during playback. The
-   player occupies the right-hand column; the page does not jump when it opens. */
+/* The right-hand player column is long gone — the player is the bar along the
+   bottom — but its reservation stayed behind, and all it did was hold a dead
+   strip of page between the content and the right edge of the screen. Nothing
+   opens into that column any more, so the reserve is zero and the workspace
+   keeps on the right the same 24px the player bar's own inset uses. */
 .app-shell {
-  --player-reserve: var(--player-width);
+  --player-reserve: 0px;
 }
 .workspace {
   margin-right: calc(var(--player-reserve) + var(--space-5));

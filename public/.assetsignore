@@ -1,7 +1,0 @@
-# Workers assets only. The SPA rewrite in `_redirects` is Cloudflare Pages'
-# mechanism; the Worker's equivalent is `not_found_handling:
-# "single-page-application"` in wrangler.jsonc. Shipping the rule to the
-# Worker makes Cloudflare reject the deploy with an infinite-loop error
-# (100324), because its clean-URL handling strips `/index.html` straight
-# back into the `/*` rule. So the file stays behind, with Pages.
-_redirects
