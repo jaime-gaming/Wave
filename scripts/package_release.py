@@ -68,8 +68,15 @@ def package_release(root: Path, output: Path) -> list[Path]:
             info.external_attr = 0o100644 << 16
             info.compress_type = zipfile.ZIP_DEFLATED
             zipped.writestr(info, content, compresslevel=9)
+    # The Promo film workflow commits the current film as `wave-promo.mp4`; a
+    # versioned copy beside it is accepted too. The packaged asset always
+    # carries the version, so two releases never hand out the same filename.
     film = root / "docs" / "media" / f"wave-{version}-promo.mp4"
-    packaged_film = output / film.name
+    if not film.is_file():
+        film = root / "docs" / "media" / "wave-promo.mp4"
+    if not film.is_file():
+        raise ValueError("The product film is missing from docs/media")
+    packaged_film = output / f"wave-{version}-promo.mp4"
     shutil.copyfile(film, packaged_film)
     assets = [archive, packaged_film]
     checksums = output / "SHA256SUMS.txt"
