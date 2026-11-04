@@ -1,14 +1,20 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  // The site is one page: every unknown path falls through to the app itself.
-  // On Pages the `_redirects` rule does this; under Workers assets that same
-  // rule loops (error 100324), so `public/.assetsignore` keeps the rule with
-  // Pages and `not_found_handling` does the job here.
+  // The site is one page, and the SPA fallback is written down twice because
+  // two mechanisms read it: `public/_redirects` for the Pages project that
+  // builds the same tree, and `not_found_handling` below for this Worker.
+  // wrangler reads `_redirects` from the build output whatever else is
+  // configured — keeping it out of the upload does not hide the rule — and
+  // under the default clean-URL handling the rule loops (Cloudflare error
+  // 100324: `/index.html` is stripped back to `/`, which triggers `/*` again).
+  // `html_handling: "none"` removes the stripping, so the rule is a plain
+  // rewrite and exact files still serve as themselves.
   "name": "wave",
   "compatibility_date": "2026-11-03",
   "observability": { "enabled": true },
   "assets": {
     "directory": "./dist",
+    "html_handling": "none",
     "not_found_handling": "single-page-application",
   },
 }
