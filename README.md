@@ -137,7 +137,7 @@ then, Wave installs to the Home Screen from Safari and behaves like an app there
 
 **Browser.** The instructions above are all you need. You can install Wave to a home screen and
 it opens without a connection once loaded. The published site is built and served by
-[Cloudflare Pages](docs/PLATFORMS.md#browser-and-cloudflare-pages); to host your own copy, see the
+[Cloudflare](docs/PLATFORMS.md#browser-and-cloudflare); to host your own copy, see the
 same page.
 
 **Windows.** A native C#/WPF app. Unzip the download, run `Wave.Windows.exe`, and add your

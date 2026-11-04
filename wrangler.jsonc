@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // The site is one page: every unknown path falls through to the app itself.
+  // On Pages the `_redirects` rule does this; under Workers assets that same
+  // rule loops (error 100324), so `public/.assetsignore` keeps the rule with
+  // Pages and `not_found_handling` does the job here.
+  "name": "wave",
+  "compatibility_date": "2026-11-03",
+  "observability": { "enabled": true },
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application",
+  },
+}

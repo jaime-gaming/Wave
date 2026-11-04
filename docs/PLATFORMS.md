@@ -31,11 +31,11 @@ through that client pairs like any other device; what the installed builds lack 
 them. Everything above those rows exists on all three platforms; where the wording differs, it is the
 platform's own control for the same job, not a missing feature.
 
-## Browser and Cloudflare Pages
+## Browser and Cloudflare
 
-The published web client is **https://wave.jaime-gaming.com**, served by **Cloudflare Pages**. Use Node.js 22.12+ or 24 and `npm ci && npm run dev`. Production: `npm run build`. For a repository path, use `WAVE_BASE_PATH=/Wave/ npm run build` and serve it below `/Wave/`.
+The published web client is **https://wave.jaime-gaming.com**, served by **Cloudflare** as a Worker with static assets: `wrangler.jsonc` points the `wave` Worker at `dist` with the single-page fallback (`not_found_handling`), and the production build runs `npm run build` followed by `npx wrangler deploy`. Use Node.js 22.12+ or 24 and `npm ci && npm run dev`. Production by hand: `npm run build`. For a repository path, use `WAVE_BASE_PATH=/Wave/ npm run build` and serve it below `/Wave/`.
 
-Cloudflare Pages builds the repository itself: **Build command** `npm run build`, **Build output directory** `dist`, Node 22 or newer. The custom domain is set once in the Pages project (**Custom domains → wave.jaime-gaming.com**); there is no `CNAME` file to commit, because Cloudflare owns the record. Branch builds get `*.pages.dev` preview URLs automatically, and every build is immutable.
+Cloudflare builds the repository itself: **Build command** `npm run build`, **Build output directory** `dist`, Node 22 or newer, deploy `npx wrangler deploy`. One file differs between the two hosting mechanisms: `public/_redirects` carries the SPA rule for the Pages project that still builds the same tree (branch builds keep their `*.pages.dev` preview URLs), and `public/.assetsignore` keeps that same file out of the Worker — under Workers assets a `/*` → `/index.html` rule loops against its own clean-URL handling (Cloudflare error 100324), so the Worker's fallback is the `not_found_handling` setting in `wrangler.jsonc` instead. The custom domain is set once in the Cloudflare dashboard; there is no `CNAME` file to commit, because Cloudflare owns the record.
 
 Two files in `public/` carry the hosting rules and are copied into the build:
 

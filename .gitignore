@@ -13,6 +13,9 @@ test-results/
 
 .cache/
 
+# Wrangler's local state; the Worker deploy needs no more than wrangler.jsonc.
+.wrangler/
+
 # Native projects; never commit media, signing keys or compiled packages.
 .gradle/
 local.properties
