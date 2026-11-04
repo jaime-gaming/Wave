@@ -110,6 +110,9 @@ desktop as well as in a tab.
   the browser and in SharedPreferences, `Language` in the Windows preferences file).
   `i18n/es.json` is the single source: `npm run build:i18n` writes the phone's `Loc.kt` and the
   window's `Localization.cs` from it, and the release check refuses tables that lag behind.
+- The release packager takes the product film the `Promo film` workflow commits
+  (`docs/media/wave-promo.mp4`) and versions the asset it ships, so packaging no longer depends
+  on a filename no workflow writes.
 - The error screen is for a person: a stopped waveform, one sentence and the two honest ways out.
 - After an hour and a half of actual playing the music stops and Wave asks whether to take a break.
 - The product film for this version is rendered by the `Promo film` workflow from the app itself:

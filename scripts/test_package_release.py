@@ -63,6 +63,19 @@ class PackageReleaseTests(unittest.TestCase):
         for a, b in zip(first, second):
             self.assertEqual(a.read_bytes(), b.read_bytes())
 
+    def test_falls_back_to_the_film_the_workflow_commits(self):
+        media = self.root / "docs" / "media"
+        (media / "wave-0.1.0-promo.mp4").unlink()
+        (media / "wave-promo.mp4").write_bytes(b"the film the workflow commits")
+        assets = package_release(self.root, self.root / "out")
+        self.assertEqual(assets[1].name, "wave-0.1.0-promo.mp4")
+        self.assertEqual(assets[1].read_bytes(), b"the film the workflow commits")
+
+    def test_missing_film_says_so(self):
+        (self.root / "docs" / "media" / "wave-0.1.0-promo.mp4").unlink()
+        with self.assertRaisesRegex(ValueError, "product film"):
+            package_release(self.root, self.root / "out")
+
     def test_missing_build_fails_before_creating_archive(self):
         (self.root / "dist" / "index.html").unlink()
         with self.assertRaisesRegex(ValueError, "Build the web client"):
