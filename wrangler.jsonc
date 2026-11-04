@@ -1,20 +1,21 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  // The site is one page, and the SPA fallback is written down twice because
-  // two mechanisms read it: `public/_redirects` for the Pages project that
-  // builds the same tree, and `not_found_handling` below for this Worker.
-  // wrangler reads `_redirects` from the build output whatever else is
-  // configured — keeping it out of the upload does not hide the rule — and
-  // under the default clean-URL handling the rule loops (Cloudflare error
-  // 100324: `/index.html` is stripped back to `/`, which triggers `/*` again).
-  // `html_handling: "none"` removes the stripping, so the rule is a plain
-  // rewrite and exact files still serve as themselves.
+  // One page, one fallback: any path that is not an exact file is served
+  // /index.html by `not_found_handling` below. The classic Pages rule for
+  // this (`/* -> /index.html 200` in _redirects) can never ship to a
+  // Worker: wrangler reads _redirects from the build output whatever the
+  // configuration says, and Cloudflare's asset validator rejects
+  // wildcard-to-index rules unconditionally (error 100324 — the rewrite
+  // target is normalized back to /, which triggers the rule again; even
+  // `html_handling: "none"` does not lift the block, as the validator's
+  // own tests document). public/_redirects is therefore gone, and the
+  // Pages project that builds the same tree serves its branch previews at
+  // their root URL; the Worker on the custom domain is the real site.
   "name": "wave",
   "compatibility_date": "2026-11-03",
   "observability": { "enabled": true },
   "assets": {
     "directory": "./dist",
-    "html_handling": "none",
     "not_found_handling": "single-page-application",
   },
 }
