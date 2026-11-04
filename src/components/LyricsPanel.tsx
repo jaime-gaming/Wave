@@ -14,7 +14,7 @@ import {
   Minus,
   Plus,
   Music2,
-} from 'lucide-react';
+} from './Glyphs';
 import {
   activeLyricIndex,
   lyricFillProgress,
@@ -23,8 +23,11 @@ import {
   type Lyrics,
   type LyricLine,
 } from '../domain/lyrics';
+import { karaokeWords, wordProgress } from '../domain/wordTiming';
 import type { Track } from '../domain/types';
 import { useWaveMotion } from '../ui/motion';
+import { networkAriaLabel, networkLabel, useOnline } from '../ui/network';
+import { useT } from '../i18n';
 const LyricRow = memo(function LyricRow({
   readOnly = false,
   line,
@@ -36,11 +39,13 @@ const LyricRow = memo(function LyricRow({
   offsetMs = 0,
   nextLine,
   duration,
+  karaoke = true,
 }: {
   seconds?: number;
   offsetMs?: number;
   nextLine?: number;
   duration?: number;
+  karaoke?: boolean;
   readOnly?: boolean;
   line: LyricLine;
   active: boolean;
@@ -49,11 +54,27 @@ const LyricRow = memo(function LyricRow({
   onSeek: (time: number) => void;
 }) {
   const animation = useWaveMotion();
+  const t = useT();
   const tokens = useMemo(() => lyricFillTokens(line.text || '♪'), [line.text]);
   const wordTokens = line.words?.map((word) => ({
     ...word,
     fill: timedWordProgress(word, seconds, offsetMs, nextLine, duration),
   }));
+  // Word-by-word timing: provider timestamps when the file has them, otherwise
+  // a deterministic estimate derived from the line window.
+  const karaokeTokens = useMemo(() => {
+    if (!karaoke || line.time === undefined) return null;
+    const words = karaokeWords(line, nextLine, duration);
+    if (!words.length) return null;
+    const clock = seconds - offsetMs / 1000;
+    return words.map((word) => ({
+      text: word.text,
+      start: word.start,
+      end: word.end,
+      source: word.source,
+      fill: wordProgress(word, clock),
+    }));
+  }, [karaoke, line, nextLine, duration, seconds, offsetMs]);
   const Row = readOnly ? motion.p : motion.button;
   return (
     <Row
@@ -62,7 +83,9 @@ const LyricRow = memo(function LyricRow({
       data-active={active}
       aria-current={active ? 'true' : undefined}
       aria-label={
-        readOnly ? line.text || 'Instrumental' : `Seek to lyric: ${line.text || 'Instrumental'}`
+        readOnly
+          ? line.text || t('Instrumental')
+          : t('Seek to lyric: {line}', { line: line.text || t('Instrumental') })
       }
       onClick={readOnly ? undefined : () => onSeek(line.time!)}
       animate={
@@ -81,7 +104,7 @@ const LyricRow = memo(function LyricRow({
         aria-hidden="true"
         data-fill={active ? progress : passed ? 1 : 0}
       >
-        {(wordTokens ?? tokens).map((token, i) => {
+        {(karaokeTokens ?? wordTokens ?? tokens).map((token, i) => {
           const fill = passed
             ? 1
             : 'fill' in token
@@ -102,6 +125,9 @@ const LyricRow = memo(function LyricRow({
               key={i}
               className="lyric-word"
               data-word-fill={fill}
+              data-word-source={
+                'source' in token ? (token as { source: string }).source : undefined
+              }
               style={{
                 backgroundImage: `linear-gradient(90deg, var(--player-ink) ${fill * 100}%, var(--player-muted) ${fill * 100}%)`,
               }}
@@ -128,11 +154,14 @@ export function LyricsPanel({
   onOffset,
   stage = false,
   cinematic = false,
+  karaoke = true,
 }: {
   readTime?: () => number;
   playing?: boolean;
   stage?: boolean;
   cinematic?: boolean;
+  /** Word-by-word highlighting; estimated timings are labelled as such. */
+  karaoke?: boolean;
   track: Track;
   time: number;
   duration?: number;
@@ -143,13 +172,16 @@ export function LyricsPanel({
   onRetry?: () => void;
   onOffset?: (lyrics: Lyrics) => Promise<boolean>;
 }) {
+  const t = useT();
   const [nativeTime, setNativeTime] = useState(reportedTime);
   useEffect(() => {
     if (!playing || !readTime) return;
     let frame = 0,
       last = 0;
     const sample = (now: number) => {
-      if (!document.hidden && now - last >= 32) {
+      // ~12 Hz is smooth for a word fill and keeps the reader off the main
+      // thread's critical path on a slow device; the seek bar has its own clock.
+      if (!document.hidden && now - last >= 80) {
         setNativeTime(readTime());
         last = now;
       }
@@ -162,50 +194,12 @@ export function LyricsPanel({
   const pane = useRef<HTMLDivElement>(null);
   const [follow, setFollow] = useState(true),
     [adjusting, setAdjusting] = useState(false);
-  const [pageStart, setPageStart] = useState(0);
   const animation = useWaveMotion();
   const lyrics = track.lyrics,
     index = lyrics ? activeLyricIndex(lyrics, time) : -1,
     activeTime = index >= 0 ? lyrics?.lines[index].time : undefined;
-  const [windowCount, setWindowCount] = useState(3);
-  useEffect(() => {
-    const el = pane.current;
-    if (!stage || !el || typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(([entry]) => {
-      const h = entry.contentRect.height;
-      setWindowCount(cinematic ? 3 : h >= 280 ? 3 : h >= 160 ? 2 : 1);
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [stage, lyrics?.raw, cinematic]);
   const synchronized = lyrics?.lines[0]?.time !== undefined;
-  const windowStart =
-    follow && synchronized
-      ? Math.min(
-          Math.max(0, index - Math.floor(windowCount / 2)),
-          Math.max(0, (lyrics?.lines.length ?? 0) - windowCount),
-        )
-      : pageStart;
   const lineProgress = lyrics ? lyricFillProgress(lyrics, time, duration) : 0;
-  const browsePage = (direction: number) => {
-    if (!lyrics) return;
-    const next = Math.max(
-      0,
-      Math.min(
-        lyrics.lines.length - 1,
-        (follow ? windowStart : pageStart) + direction * windowCount,
-      ),
-    );
-    setFollow(false);
-    setPageStart(next);
-    const el = pane.current,
-      row = el?.querySelectorAll<HTMLElement>('.lyric-line')[next];
-    if (el && row)
-      el.scrollTo({
-        top: row.offsetTop - el.clientHeight / 2 + row.clientHeight / 2,
-        behavior: animation.enabled ? 'smooth' : 'instant',
-      });
-  };
   const seek = useCallback(
     (seconds: number) => {
       onSeek(Math.max(0, seconds + (lyrics?.offsetMs ?? 0) / 1000));
@@ -216,46 +210,25 @@ export function LyricsPanel({
   useLayoutEffect(() => {
     const el = pane.current;
     if (!el || typeof ResizeObserver === 'undefined') return;
+    // Only the scroll is adjusted. Lyrics are never shrunk to fit: a line that is
+    // too long wraps, and the reader scrolls, because small lyrics are unreadable
+    // lyrics — this is the size the type is set to and it stays there.
+    //
+    // The cinema view follows too: a lyric page that stops on the first verse is
+    // not a lyric page, and the long listen is exactly where it matters most.
     const fit = (smooth: boolean) => {
-      for (const previous of el.querySelectorAll<HTMLElement>('[data-fitted]')) {
-        previous.style.removeProperty('font-size');
-        delete previous.dataset.fitted;
-      }
       const line = el.querySelector<HTMLElement>('.lyric-line.active');
-      if (!line) return;
-      const max = Number.parseFloat(getComputedStyle(line).fontSize),
-        budget = el.clientHeight * (cinematic ? 0.68 : 0.9);
-      if (line.scrollHeight > budget) {
-        let low = 12,
-          high = Math.floor(max);
-        while (low < high) {
-          const middle = Math.ceil((low + high) / 2);
-          line.style.fontSize = middle + 'px';
-          if (line.scrollHeight <= budget) low = middle;
-          else high = middle - 1;
-        }
-        line.style.fontSize = low + 'px';
-        line.dataset.fitted = 'true';
-      }
-      if (!cinematic && follow)
-        el.scrollTo({
-          top: line.offsetTop - el.clientHeight / 2 + line.clientHeight / 2,
-          behavior: smooth && animation.enabled ? 'smooth' : 'instant',
-        });
+      if (!line || (!follow && !cinematic)) return;
+      el.scrollTo({
+        top: line.offsetTop - el.clientHeight / 2 + line.clientHeight / 2,
+        behavior: smooth && animation.enabled ? 'smooth' : 'instant',
+      });
     };
     const observer = new ResizeObserver(() => fit(false));
     observer.observe(el);
     fit(true);
     return () => observer.disconnect();
-  }, [
-    cinematic,
-    activeTime,
-    lyrics?.raw,
-    lyrics?.offsetMs,
-    follow,
-    animation.enabled,
-    windowCount,
-  ]);
+  }, [cinematic, activeTime, lyrics?.raw, lyrics?.offsetMs, follow, animation.enabled]);
   const [timingError, setTimingError] = useState('');
   const adjustOffset = async (delta: number) => {
     if (!lyrics || !onOffset || adjusting) return;
@@ -267,13 +240,14 @@ export function LyricsPanel({
         offsetMs: Math.max(-10000, Math.min(10000, lyrics.offsetMs + delta)),
       });
       if (saved) setFollow(true);
-      else setTimingError('Could not save timing. Try again.');
+      else setTimingError(t('Could not save timing. Try again.'));
     } catch {
-      setTimingError('Could not save timing. Try again.');
+      setTimingError(t('Could not save timing. Try again.'));
     } finally {
       setAdjusting(false);
     }
   };
+  const online = useOnline();
   const retryAt = track.lyricsLookup?.retryAt ?? 0;
   const [now, setNow] = useState(Date.now);
   useEffect(() => {
@@ -287,7 +261,7 @@ export function LyricsPanel({
     <motion.section
       id={cinematic ? undefined : stage ? 'now-playing-lyrics' : undefined}
       className={`lyrics-panel ${stage ? 'lyrics-stage' : ''} ${cinematic ? 'lyrics-cinematic' : ''}`}
-      aria-label="Song lyrics"
+      aria-label={t('Song lyrics')}
       initial={animation.enabled ? { opacity: 0, y: 20, scale: 0.97 } : { opacity: 1 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={animation.expressive}
@@ -296,45 +270,17 @@ export function LyricsPanel({
         <div className="lyrics-heading">
           <h3>
             <Captions size={22} />
-            Lyrics
+            {t('Lyrics')}
           </h3>
-          <button className="icon-button" aria-label="Edit lyrics" onClick={onEdit}>
+          <button className="icon-button" aria-label={t('Edit lyrics')} onClick={onEdit}>
             <Pencil size={20} />
           </button>
         </div>
       )}
       {lyrics?.lines.length ? (
         <>
-          {!cinematic && (
-            <div
-              className="lyrics-caption lyrics-provenance"
-              title={
-                synchronized
-                  ? lyrics.lines.some((line) => line.words?.length)
-                    ? 'Text fill uses supplied word timestamps; untimed lines interpolate line intervals.'
-                    : 'Text fill interpolates line intervals, not exact word timing.'
-                  : undefined
-              }
-            >
-              <span>
-                <span className={synchronized ? 'sr-only' : undefined}>
-                  {synchronized ? 'Synchronized lyrics · tap a line to seek' : 'Text lyrics'}
-                </span>
-              </span>
-              {lyrics.source === 'lrclib' && (
-                <a
-                  href={
-                    lyrics.providerId
-                      ? `https://lrclib.net/lyrics/${lyrics.providerId}`
-                      : 'https://lrclib.net'
-                  }
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  LRCLIB
-                </a>
-              )}
-            </div>
+          {!cinematic && synchronized && (
+            <p className="lyrics-caption">{t('Tap a line to seek')}</p>
           )}
           <div
             ref={pane}
@@ -343,9 +289,7 @@ export function LyricsPanel({
             onTouchMove={() => setFollow(false)}
           >
             {lyrics.lines.map((line, i) =>
-              cinematic &&
-              (i < windowStart || i >= windowStart + windowCount) ? null : line.time !==
-                undefined ? (
+              line.time !== undefined ? (
                 <LyricRow
                   readOnly={cinematic}
                   key={i}
@@ -358,12 +302,10 @@ export function LyricsPanel({
                   offsetMs={lyrics.offsetMs}
                   nextLine={lyrics.lines.slice(i + 1).find((next) => next.time! > line.time!)?.time}
                   duration={duration}
+                  karaoke={karaoke}
                 />
               ) : (
-                <p
-                  key={i}
-                  className={`lyric-line plain ${cinematic && i === windowStart ? 'active' : ''}`}
-                >
+                <p key={i} className="lyric-line plain">
                   <span className="lyric-text">{line.text}</span>
                 </p>
               ),
@@ -372,27 +314,9 @@ export function LyricsPanel({
           {!cinematic && (
             <div className="lyrics-tools">
               {stage && (
-                <button className="icon-button" aria-label="Edit lyrics" onClick={onEdit}>
+                <button className="icon-button" aria-label={t('Edit lyrics')} onClick={onEdit}>
                   <Pencil size={18} />
                 </button>
-              )}
-              {stage && lyrics.lines.length > windowCount && (
-                <div className="lyrics-pages">
-                  <button
-                    className="icon-button"
-                    aria-label="Previous lyric lines"
-                    onClick={() => browsePage(-1)}
-                  >
-                    <Minus size={16} />
-                  </button>
-                  <button
-                    className="icon-button"
-                    aria-label="Next lyric lines"
-                    onClick={() => browsePage(1)}
-                  >
-                    <Plus size={16} />
-                  </button>
-                </div>
               )}
               {synchronized && (
                 <button
@@ -402,19 +326,19 @@ export function LyricsPanel({
                 >
                   <LocateFixed size={18} />
                   <span className="sr-only">
-                    {follow ? 'Following playback' : 'Follow playback'}
+                    {follow ? t('Following playback') : t('Follow playback')}
                   </span>
                 </button>
               )}
               {synchronized && onOffset && (
                 <details className="lyrics-timing">
-                  <summary aria-label="Adjust lyric timing" title="Adjust lyric timing">
+                  <summary aria-label={t('Adjust lyric timing')} title={t('Adjust lyric timing')}>
                     <SlidersHorizontal size={18} />
                   </summary>
-                  <div className="lyrics-offset" aria-label="Lyric timing adjustment">
+                  <div className="lyrics-offset" aria-label={t('Lyric timing adjustment')}>
                     <button
                       className="icon-button"
-                      aria-label="Show lyrics 100 milliseconds earlier"
+                      aria-label={t('Show lyrics 100 milliseconds earlier')}
                       disabled={adjusting || lyrics.offsetMs <= -10000}
                       onClick={() => void adjustOffset(-100)}
                     >
@@ -426,7 +350,7 @@ export function LyricsPanel({
                     </span>
                     <button
                       className="icon-button"
-                      aria-label="Show lyrics 100 milliseconds later"
+                      aria-label={t('Show lyrics 100 milliseconds later')}
                       disabled={adjusting || lyrics.offsetMs >= 10000}
                       onClick={() => void adjustOffset(100)}
                     >
@@ -434,8 +358,8 @@ export function LyricsPanel({
                     </button>
                     <button
                       className="icon-button"
-                      aria-label="Reset lyric timing"
-                      title="Reset lyric timing"
+                      aria-label={t('Reset lyric timing')}
+                      title={t('Reset lyric timing')}
                       disabled={adjusting || lyrics.offsetMs === 0}
                       onClick={() => void adjustOffset(-lyrics.offsetMs)}
                     >
@@ -474,42 +398,47 @@ export function LyricsPanel({
             )}
           </motion.div>
           <h3>
-            {cooldown
-              ? 'Un momento…'
-              : loading
-                ? 'Buscando letras…'
-                : status === 'instrumental'
-                  ? 'Solo música'
-                  : '¡Oh, oh!'}
+            {!online
+              ? t('No connection')
+              : cooldown
+                ? t('Taking a breath')
+                : loading
+                  ? t('Looking for lyrics')
+                  : status === 'instrumental'
+                    ? t('Instrumental')
+                    : t('No lyrics yet')}
           </h3>
           <p>
-            {cooldown
-              ? `El servicio ha pedido una pausa. Podrás volver a buscar en ${cooldown} s.`
-              : loading
-                ? 'Buscando la letra de tu canción…'
-                : status === 'instrumental'
-                  ? 'Esta canción está marcada como instrumental.'
-                  : status === 'error'
-                    ? 'No hemos podido conectar con el servicio de letras.'
-                    : 'No hemos encontrado ninguna letra para esta canción.'}
+            {!online
+              ? t('Lyrics search needs a connection. Anything already saved still shows.')
+              : cooldown
+                ? `Try again in ${cooldown} seconds.`
+                : loading
+                  ? t('Searching for this song.')
+                  : status === 'instrumental'
+                    ? t('This song is marked instrumental.')
+                    : status === 'error'
+                      ? t('The lyrics service did not answer.')
+                      : t('Nothing matched this song.')}
           </p>
           <span>
             {automatic
               ? !canLookup(track)
-                ? 'Añade el título y el artista en la información de la canción para buscar letras.'
-                : 'Puedes añadir tu propia letra si no encontramos una coincidencia.'
-              : 'Buscar online envía el título y el artista a LRCLIB, nunca tu audio. También puedes añadir un LRC.'}
+                ? t('Add a title and artist in the song details to search for lyrics.')
+                : t('You can add your own lyrics if nothing matches.')
+              : ''}
           </span>
           {!cinematic && (
             <div className="lyrics-empty-actions">
               {onRetry && (
                 <button
                   className="tonal-button"
-                  disabled={loading || cooldown > 0 || !canLookup(track)}
+                  disabled={loading || cooldown > 0 || !canLookup(track) || !online}
+                  aria-label={networkAriaLabel(online, t('Search again'))}
                   onClick={onRetry}
                 >
                   <RefreshCw size={17} />
-                  Search again
+                  {networkLabel(online, t('Search again'))}
                 </button>
               )}
               <button className="text-button" onClick={onEdit}>

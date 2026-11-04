@@ -1,33 +1,37 @@
 import { MusicLighting } from './MusicLighting';
-import { useIdleListening } from '../hooks/useIdleListening';
+import { VideoBackdrop } from './VideoBackdrop';
+import { YouTubeStage } from './YouTubeStage';
 import { MixVisual } from './MixVisual';
+import { MixCueLabel, MixCueVisual } from './MixCueVisual';
+import { SilenceNotice } from './SilenceNotice';
+import { BreakPrompt } from './BreakPrompt';
+import { cueForTrack, useMixCue, type MixCue } from '../ui/mixCue';
 import { WaveSeek } from './WaveSeek';
 import { LyricsPanel } from './LyricsPanel';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useWaveMotion } from '../ui/motion';
 import type { RefObject } from 'react';
 import {
   ChevronDown,
   Captions,
-  Heart,
-  ListMusic,
-  Pause,
-  Play,
   Repeat,
   Repeat1,
   Shuffle,
   SkipBack,
   SkipForward,
-  Volume2,
-  VolumeX,
-} from 'lucide-react';
+  Film,
+} from './Glyphs';
+import { Heart, VolumeX, Pause, Play, ListMusic, Volume2 } from './Glyphs';
 import { Artwork } from './Artwork';
+import { getClip, loadClips } from '../domain/videoClips';
 import { Modal } from './Modal';
 import { formatTime, type Track } from '../domain/types';
 import type { usePlayer } from '../hooks/usePlayer';
-import { useArtworkColor } from '../hooks/useArtworkColor';
+import { usePlayerColors } from '../hooks/usePlayerColors';
+import { usePlaybackTime } from '../hooks/playbackClock';
 
+import { useT } from '../i18n';
 type PlayerProps = {
   player: ReturnType<typeof usePlayer>;
   onFavorite: (track: Track) => void;
@@ -37,6 +41,10 @@ type PlayerProps = {
   returnFocusRef: RefObject<HTMLElement | null>;
   queueOpen: boolean;
   onQueue: () => void;
+  /** Word-by-word lyric highlighting. */
+  /** Video clip backdrop, driven by the same transport. */
+  videoClip?: boolean;
+  onToggleVideoClip?: () => void;
   onLyrics: (track: Track) => void;
   onSaveLyrics?: (id: string, lyrics: import('../domain/lyrics').Lyrics) => Promise<boolean>;
   lyricsOpen?: boolean;
@@ -75,6 +83,7 @@ function PlaySymbol({ playing, size }: { playing: boolean; size: number }) {
 
 function PlayerDetails({
   player,
+  time,
   onFavorite,
   lyricsOpen,
   onLyrics,
@@ -86,8 +95,12 @@ function PlayerDetails({
   onArtist,
   onAlbum,
   readerActive = true,
-}: PlayerProps & { readerActive?: boolean }) {
-  const { current, state, time, duration, volume, dispatch } = player;
+  videoClip = false,
+  onToggleVideoClip,
+  cue = null,
+}: PlayerProps & { readerActive?: boolean; time: number; cue?: MixCue | null }) {
+  const t = useT();
+  const { current, state, duration, volume, dispatch } = player;
   const animation = useWaveMotion();
   return (
     <>
@@ -99,12 +112,14 @@ function PlayerDetails({
         >
           <button
             className="stage-cover"
-            aria-label={state.playing ? 'Pause from artwork' : 'Play from artwork'}
+            aria-label={state.playing ? t('Pause from artwork') : t('Play from artwork')}
             disabled={!current}
             onClick={() => dispatch({ type: 'toggle' })}
           >
             {player.blend ? (
               <MixVisual blend={player.blend} artworkClassName="stage-artwork" />
+            ) : cue ? (
+              <MixCueVisual cue={cue} artworkClassName="stage-artwork" />
             ) : (
               <AnimatePresence mode="wait" initial={false}>
                 {' '}
@@ -113,13 +128,14 @@ function PlayerDetails({
                   key={`${current?.id ?? 'empty'}:${current?.editedAt ?? 0}`}
                   initial={{
                     opacity: animation.enabled ? 0 : 1,
-                    scale: animation.enabled ? 0.92 : 1,
-                    y: animation.enabled ? 16 : 0,
-                    rotate: animation.enabled ? -2 : 0,
+                    scale: animation.enabled ? 0.94 : 1,
+                    y: animation.enabled ? 18 : 0,
+                    rotate: animation.enabled ? -1.5 : 0,
+                    filter: animation.enabled ? 'blur(10px)' : 'blur(0px)',
                   }}
-                  animate={{ opacity: 1, scale: 1, y: 0, rotate: 0 }}
-                  exit={{ opacity: 0, scale: animation.enabled ? 1.025 : 1 }}
-                  transition={{ ...animation.spatial, opacity: animation.effects }}
+                  animate={{ opacity: 1, scale: 1, y: 0, rotate: 0, filter: 'blur(0px)' }}
+                  exit={{ opacity: 0, scale: animation.enabled ? 1.03 : 1 }}
+                  transition={{ ...animation.cinematic, opacity: animation.reveal }}
                 >
                   <Artwork track={current} className="stage-artwork" />
                 </motion.div>
@@ -129,11 +145,13 @@ function PlayerDetails({
           <motion.div
             className="stage-track"
             key={current?.id}
-            initial={animation.enabled ? { opacity: 0, y: 8 } : { opacity: 1 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={animation.effects}
+            initial={
+              animation.enabled ? { opacity: 0, y: 12, filter: 'blur(4px)' } : { opacity: 1 }
+            }
+            animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+            transition={{ ...animation.reveal, delay: animation.enabled ? 0.06 : 0 }}
           >
-            <h3 title={current?.title}>{current?.title ?? 'Nothing playing'}</h3>
+            <h3 title={current?.title}>{current?.title ?? t('Nothing playing')}</h3>
             {current ? (
               <div className="stage-metadata">
                 <button
@@ -152,8 +170,29 @@ function PlayerDetails({
                 </button>
               </div>
             ) : (
-              <p>Choose a song from your library.</p>
+              <p>{t('Choose a song from your library.')}</p>
             )}
+            {/*
+              The cue shares the line under the title with the artist, and the
+              block around it is what has to move: a word that appears and
+              disappears without the text around it reflowing leaves a gap that
+              snaps shut. The height is animated with the fade, so the title,
+              the artist and the words all settle together.
+            */}
+            <AnimatePresence initial={false}>
+              {cue && (
+                <motion.div
+                  className="stage-cue"
+                  key="stage-cue"
+                  initial={animation.enabled ? { opacity: 0, height: 0, y: 4 } : false}
+                  animate={{ opacity: 1, height: 'auto', y: 0 }}
+                  exit={animation.enabled ? { opacity: 0, height: 0, y: -2 } : undefined}
+                  transition={animation.effects}
+                >
+                  <MixCueLabel cue={cue} />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         </motion.div>
         <div className="stage-controls">
@@ -172,7 +211,7 @@ function PlayerDetails({
               <button
                 className="stage-skip"
                 onClick={player.previous}
-                aria-label="Previous track"
+                aria-label={t('Previous track')}
                 disabled={!current}
               >
                 <SkipBack size={27} />
@@ -183,7 +222,7 @@ function PlayerDetails({
                 whileTap={animation.enabled ? { scale: 0.9 } : undefined}
                 transition={animation.fast}
                 onClick={() => dispatch({ type: 'toggle' })}
-                aria-label={state.playing ? 'Pause' : 'Play'}
+                aria-label={state.playing ? t('Pause') : t('Play')}
                 disabled={!current}
               >
                 <PlaySymbol playing={state.playing} size={32} />
@@ -191,7 +230,7 @@ function PlayerDetails({
               <button
                 className="stage-skip"
                 onClick={() => dispatch({ type: 'next' })}
-                aria-label="Next track"
+                aria-label={t('Next track')}
                 disabled={!current}
               >
                 <SkipForward size={27} />
@@ -201,7 +240,7 @@ function PlayerDetails({
               <button
                 className={state.shuffled ? 'active' : ''}
                 onClick={player.shuffle}
-                aria-label="Shuffle"
+                aria-label={t('Shuffle')}
                 aria-pressed={state.shuffled}
                 disabled={!current}
               >
@@ -210,16 +249,31 @@ function PlayerDetails({
               <button
                 className={state.repeat !== 'off' ? 'active' : ''}
                 onClick={() => dispatch({ type: 'repeat' })}
-                aria-label={`Repeat: ${state.repeat}`}
+                aria-label={t(`Repeat: ${state.repeat}`)}
                 disabled={!current}
               >
                 {state.repeat === 'one' ? <Repeat1 size={22} /> : <Repeat size={22} />}
               </button>
               <button
+                className={videoClip && !player.youTube ? 'active' : ''}
+                disabled={!current || !!player.youTube}
+                aria-label={
+                  player.youTube
+                    ? t('YouTube songs always show their video')
+                    : videoClip
+                      ? t('Hide video clip')
+                      : t('Show video clip')
+                }
+                aria-pressed={videoClip}
+                onClick={() => onToggleVideoClip?.()}
+              >
+                <Film size={21} />
+              </button>
+              <button
                 className={current?.favorite ? 'active' : ''}
                 disabled={!current}
                 aria-label={
-                  current?.favorite ? 'Unfavorite current track' : 'Favorite current track'
+                  current?.favorite ? t('Unfavorite current track') : t('Favorite current track')
                 }
                 aria-pressed={current?.favorite ?? false}
                 onClick={() => {
@@ -233,12 +287,12 @@ function PlayerDetails({
               <button
                 className="icon-button"
                 onClick={player.toggleMute}
-                aria-label={volume ? 'Mute' : 'Unmute'}
+                aria-label={volume ? t('Mute') : t('Unmute')}
               >
                 {volume ? <Volume2 size={21} /> : <VolumeX size={21} />}
               </button>
               <input
-                aria-label="Volume"
+                aria-label={t('Volume')}
                 type="range"
                 min="0"
                 max="1"
@@ -256,7 +310,14 @@ function PlayerDetails({
           )}
         </div>
         {current && (
-          <section className="stage-lyrics" data-open={lyricsOpen ? 'true' : 'false'}>
+          // The reader travels with the record when the picture takes the stage,
+          // so entering a clip is a move rather than a jump.
+          <motion.section
+            className="stage-lyrics"
+            data-open={lyricsOpen ? 'true' : 'false'}
+            layout={animation.enabled ? 'position' : false}
+            transition={animation.spatial}
+          >
             <button
               className="stage-lyrics-toggle"
               aria-expanded={lyricsOpen}
@@ -264,7 +325,7 @@ function PlayerDetails({
               onClick={() => onDisclosure?.(!lyricsOpen)}
             >
               <Captions size={19} />
-              Lyrics
+              {t('Lyrics')}
               <ChevronDown size={18} />
             </button>
             <AnimatePresence initial={false}>
@@ -295,7 +356,7 @@ function PlayerDetails({
                 </motion.div>
               )}
             </AnimatePresence>
-          </section>
+          </motion.section>
         )}
       </div>
     </>
@@ -303,12 +364,73 @@ function PlayerDetails({
 }
 
 export function PlayerBar(props: PlayerProps) {
+  const t = useT();
   const [lyricsOpen, setLyricsOpen] = useState(true);
-  const { player, expanded, onExpanded, onOpen, returnFocusRef, onQueue } = props;
-  const idle = useIdleListening(player.state.playing && !player.buffering && !!player.current);
-  const showing = expanded || idle.immersive;
-  const colors = useArtworkColor(player.state.playing ? player.current?.artwork : undefined);
+  const {
+    player,
+    expanded,
+    onExpanded,
+    onOpen,
+    returnFocusRef,
+    onQueue,
+    videoClip = false,
+  } = props;
+  // The cue belongs to the song that is playing; a stale one is never drawn.
+  const cue = useMixCue(player.mixCue);
+  // Either side of the cue can be the song that is playing: the cue arrives
+  // while the outgoing song is still on, and by the time the two meet the
+  // interface has already moved on to the incoming one.
+  const pending = cueForTrack(cue, player.current?.id);
+  /**
+   * The other half of a mix, when it has a picture of its own.
+   *
+   * Read from the stored clips rather than by rendering a second search: a song
+   * with no clip must leave the outgoing picture alone, not replace it with a
+   * note about a missing one, and a note inside a fade would be visible.
+   */
+  const blendTrack = player.blend?.to;
+  const blendTo =
+    blendTrack &&
+    blendTrack.id !== player.current?.id &&
+    getClip(blendTrack.id, loadClips()) !== undefined
+      ? blendTrack
+      : undefined;
+  const blendProgress = Math.max(0, Math.min(1, player.blend?.progress ?? 0));
+  const blendSeconds = (player.blend?.seconds ?? 0) * blendProgress;
+  // The player opens when it is asked to. It used to take the screen over after
+  // thirty seconds of listening without a click; that scene is gone, so an idle
+  // room now stays exactly as the listener left it.
+  const showing = expanded;
+  // Only this bar follows the position; the rest of the interface stays still.
+  const time = usePlaybackTime(player.clock);
+  const colors = usePlayerColors(
+    player.state.playing ? player.current?.artwork : undefined,
+    player.blend,
+  );
   const animation = useWaveMotion();
+  // While the player is leaving, the silent YouTube host must not mount yet: two
+  // embeds of the same song would both be playing through the collapse. Closing
+  // turns it off; the end of the collapse turns it back on.
+  const [stageGone, setStageGone] = useState(true);
+  // The picture, when there is one, is the stage. The sleeve steps back to a
+  // corner so the clip is not watched through a square of album art.
+  const [clipLive, setClipLive] = useState(false);
+  /**
+   * A picture on screen changes what the whole window should look like.
+   *
+   * The spectral wash that follows the artwork is drawn by a sibling of the
+   * video, not by the video's container, so the only honest way to switch it off
+   * is at the root — the same place the palette and the motion preference live.
+   */
+  const clipShowing = clipLive && videoClip && expanded;
+  useEffect(() => {
+    const root = document.documentElement;
+    if (clipShowing) root.dataset.clip = 'live';
+    else delete root.dataset.clip;
+    return () => {
+      delete root.dataset.clip;
+    };
+  }, [clipShowing]);
   useEffect(() => {
     if (!expanded) return;
     const timer = setTimeout(() => setLyricsOpen(true), 0);
@@ -316,11 +438,23 @@ export function PlayerBar(props: PlayerProps) {
   }, [expanded, player.current?.id]);
   return (
     <>
+      <BreakPrompt
+        open={player.breakOpen}
+        onContinue={player.keepListening}
+        onStop={player.stopForNow}
+      />
+      {!showing && (
+        <SilenceNotice
+          text={player.silenceNotice?.text ?? null}
+          onRemove={player.removeSilence}
+          onKeep={player.keepSilence}
+        />
+      )}
       <footer
         className="player-bar"
         data-track-id={player.current?.id}
-        aria-label="Music player"
-        style={player.blend ? undefined : colors}
+        aria-label={t('Music player')}
+        style={colors}
         inert={showing}
         aria-hidden={showing}
         onClick={(event) => {
@@ -335,12 +469,14 @@ export function PlayerBar(props: PlayerProps) {
           <div className="compact-track">
             <button
               className="compact-cover-open"
-              aria-label="Expand album artwork"
+              aria-label={t('Expand album artwork')}
               disabled={!player.current}
               onClick={(event) => onOpen(event.currentTarget)}
             >
               {player.blend ? (
                 <MixVisual blend={player.blend} />
+              ) : pending ? (
+                <MixCueVisual cue={pending} />
               ) : (
                 <AnimatePresence mode="popLayout" initial={false}>
                   <motion.span
@@ -360,18 +496,53 @@ export function PlayerBar(props: PlayerProps) {
             </button>
             <button
               className="track-info compact-title-open"
-              aria-label="Open now playing"
+              aria-label={t('Open now playing')}
               disabled={!player.current}
               onClick={(event) => onOpen(event.currentTarget)}
             >
-              <strong>{player.current?.title ?? 'Nothing playing'}</strong>
-              <span className="compact-artist">{player.current?.artist ?? 'Select a song'}</span>
+              <strong>{player.current?.title ?? t('Nothing playing')}</strong>
+              {/*
+                One line, two states: the artist normally, t("Mixing") while the
+                next song is being announced. Swapping the text in place made
+                the bar jump a pixel and read as a glitch, so the line hands over
+                instead — the old text leaves downwards, the new one arrives
+                from below it.
+              */}
+              <span className="compact-subline">
+                <AnimatePresence mode="wait" initial={false}>
+                  {pending ? (
+                    <motion.span
+                      className="compact-subline-item"
+                      key="mixing"
+                      initial={animation.enabled ? { opacity: 0, y: 6 } : { opacity: 1 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={animation.enabled ? { opacity: 0, y: -6 } : undefined}
+                      transition={animation.effects}
+                    >
+                      <MixCueLabel cue={pending} />
+                    </motion.span>
+                  ) : (
+                    <motion.span
+                      className="compact-subline-item"
+                      key={`artist:${player.current?.id ?? 'none'}`}
+                      initial={animation.enabled ? { opacity: 0, y: 6 } : { opacity: 1 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={animation.enabled ? { opacity: 0, y: -6 } : undefined}
+                      transition={animation.effects}
+                    >
+                      <span className="compact-artist">
+                        {player.current?.artist ?? t('Select a song')}
+                      </span>
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </span>
             </button>
           </div>
           <div className="compact-transport">
             <button
               className="mini-previous"
-              aria-label="Previous track"
+              aria-label={t('Previous track')}
               disabled={!player.current}
               onClick={player.previous}
             >
@@ -379,7 +550,7 @@ export function PlayerBar(props: PlayerProps) {
             </button>
             <motion.button
               className="mini-play"
-              aria-label={player.state.playing ? 'Pause' : 'Play'}
+              aria-label={player.state.playing ? t('Pause') : t('Play')}
               disabled={!player.current}
               onClick={() => player.dispatch({ type: 'toggle' })}
               whileTap={animation.enabled ? { scale: 0.9 } : undefined}
@@ -390,7 +561,7 @@ export function PlayerBar(props: PlayerProps) {
             </motion.button>
             <button
               className="mini-next"
-              aria-label="Next track"
+              aria-label={t('Next track')}
               disabled={!player.current}
               onClick={() => player.dispatch({ type: 'next' })}
             >
@@ -399,18 +570,18 @@ export function PlayerBar(props: PlayerProps) {
           </div>
           <div className="compact-seek">
             <WaveSeek
-              time={player.time}
+              time={time}
               duration={player.duration}
               playing={player.state.playing && !player.buffering}
               onSeek={player.seek}
             />
             <span>
-              {formatTime(player.time)} / {formatTime(player.duration)}
+              {formatTime(time)} / {formatTime(player.duration)}
             </span>
           </div>
           <div className="compact-modes">
             <button
-              aria-label="Shuffle"
+              aria-label={t('Shuffle')}
               aria-pressed={player.state.shuffled}
               className={player.state.shuffled ? 'active' : ''}
               disabled={!player.current}
@@ -430,14 +601,14 @@ export function PlayerBar(props: PlayerProps) {
           <div className="compact-volume">
             <button
               className="icon-button"
-              aria-label={player.volume ? 'Mute' : 'Unmute'}
+              aria-label={player.volume ? t('Mute') : t('Unmute')}
               onClick={player.toggleMute}
             >
               {player.volume ? <Volume2 size={20} /> : <VolumeX size={20} />}
             </button>
             <input
               type="range"
-              aria-label="Volume"
+              aria-label={t('Volume')}
               min="0"
               max="1"
               step=".01"
@@ -445,96 +616,159 @@ export function PlayerBar(props: PlayerProps) {
               onChange={(event) => player.setVolume(Number(event.target.value))}
             />
           </div>
-          <button className="icon-button compact-queue" aria-label="Show queue" onClick={onQueue}>
+          <button
+            className="icon-button compact-queue"
+            aria-label={t('Show queue')}
+            onClick={onQueue}
+          >
             <ListMusic size={22} />
           </button>
         </div>
       </footer>
 
-      {showing && (
-        <Modal
-          title="Now playing"
-          fullScreen
-          immediate={idle.immersive}
-          headerActions={
-            <>
-              <button
-                className={`icon-button ${props.queueOpen ? 'active' : ''}`}
-                aria-label="Show queue"
-                aria-expanded={props.queueOpen}
-                onClick={onQueue}
-              >
-                <ListMusic size={23} />
-              </button>
-            </>
-          }
-          closeIcon={<ChevronDown size={24} />}
-          returnFocusRef={expanded ? returnFocusRef : undefined}
-          className={`player-modal ${idle.immersive ? 'is-immersive' : ''}`}
-          style={player.blend ? undefined : colors}
-          onClose={() => {
-            idle.wake();
-            onExpanded(false);
-          }}
-        >
-          <MusicLighting className="stage-aura" />
-          <div
-            data-track-id={player.current?.id}
-            className="player-normal-view"
-            inert={idle.immersive}
-            aria-hidden={idle.immersive}
-          >
-            <PlayerDetails
-              {...props}
-              readerActive={!idle.immersive}
-              lyricsOpen={lyricsOpen}
-              onDisclosure={setLyricsOpen}
-            />
-          </div>
-          {idle.immersive && player.current && (
-            <motion.div
-              initial={animation.enabled ? { opacity: 0, scale: 0.985 } : { opacity: 1 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: animation.enabled ? 0.55 : 0, ease: [0.2, 0, 0, 1] }}
-              className={`immersive-stage ${player.current.lyrics?.lines.length ? 'has-lyrics' : 'without-lyrics'}`}
-              aria-label="Immersive listening"
-            >
-              <div className="immersive-art">
-                <div className="immersive-title" aria-hidden="true">
-                  {player.current.title}
-                </div>
-                <motion.div
-                  key={player.current.id}
-                  className="immersive-record-art"
-                  initial={animation.enabled ? { opacity: 0, y: 16 } : { opacity: 1 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={animation.expressive}
+      {/* The expanded player leaves as an object rather than vanishing: it
+          scales back down towards the bar it came from and fades with it. */}
+      <AnimatePresence initial={false} onExitComplete={() => setStageGone(true)}>
+        {showing && (
+          <Modal
+            title={t('Now playing')}
+            fullScreen
+            // Closing folds the player back down into the bar it came from: it
+            // slides towards the bottom, tightens a little, and is gone before the
+            // movement ends, so there is no ghost hanging in the middle.
+            exitMotion={
+              animation.enabled
+                ? { opacity: 0, scale: 0.9, y: 64, transitionEnd: { display: 'none' } }
+                : undefined
+            }
+            exitTransition={
+              animation.enabled
+                ? {
+                    duration: 0.3,
+                    ease: [0.32, 0, 0.24, 1],
+                    opacity: { duration: 0.18, ease: 'easeOut' },
+                  }
+                : { duration: 0 }
+            }
+            headerActions={
+              <>
+                <button
+                  className={`icon-button ${props.queueOpen ? 'active' : ''}`}
+                  aria-label={t('Show queue')}
+                  aria-expanded={props.queueOpen}
+                  onClick={onQueue}
                 >
-                  <Artwork track={player.current} className="immersive-cover" />
-                </motion.div>
-                <div className="immersive-credit">
-                  <h2>{player.current.title}</h2>
-                  <p>{player.current.artist}</p>
-                  <p>{player.current.album}</p>
-                </div>
-              </div>
-              {!!player.current.lyrics?.lines.length && (
-                <LyricsPanel
-                  stage
-                  cinematic
-                  key={player.current.id}
-                  track={player.current}
-                  time={player.time}
-                  readTime={player.readTime}
-                  playing={player.state.playing}
-                  duration={player.duration}
-                  onSeek={player.seek}
-                  onEdit={() => {}}
-                />
-              )}
-            </motion.div>
-          )}
-        </Modal>
+                  <ListMusic size={23} />
+                </button>
+              </>
+            }
+            closeIcon={<ChevronDown size={24} />}
+            returnFocusRef={expanded ? returnFocusRef : undefined}
+            className="player-modal"
+            style={{ ...colors, transformOrigin: 'bottom center' }}
+            onClose={() => {
+              setStageGone(false);
+              onExpanded(false);
+            }}
+          >
+            {player.stageYouTube ? (
+              // A YouTube song plays through the embed: the video is the source, not
+              // a backdrop, so it stays visible whether or not the clip toggle is on.
+              <YouTubeStage
+                key={player.stageYouTube.track.videoId}
+                track={player.stageYouTube.track}
+                playing={player.state.playing}
+                volume={player.volume}
+                gain={player.stageYouTube.gain}
+                startGain={player.stageYouTube.startGain}
+                fadeSeconds={player.stageYouTube.fadeSeconds}
+                seek={player.youTube?.seek ?? { seconds: 0, nonce: 0 }}
+                startAt={time}
+                onTime={player.youTube?.onTime ?? (() => {})}
+                onDuration={player.youTube?.onDuration ?? (() => {})}
+                onEnded={player.youTube?.onEnded ?? (() => {})}
+                onError={player.youTube?.onError ?? (() => {})}
+              />
+            ) : (
+              videoClip &&
+              player.current && (
+                <>
+                  <VideoBackdrop
+                    track={player.current}
+                    time={time}
+                    duration={player.duration}
+                    playing={player.state.playing}
+                    onRevealed={setClipLive}
+                  />
+                  {/*
+                   * A mix is two songs for a while, so it is two pictures for a
+                   * while. The arriving song's clip fades in over the one that is
+                   * leaving, on the same progress number the sound uses, and the
+                   * handover is over when both are done. Songs without a clip
+                   * simply leave the other picture alone.
+                   */}
+                  {blendTo && (
+                    <div
+                      className="video-backdrop-blend"
+                      style={{ '--blend-progress': blendProgress } as CSSProperties}
+                    >
+                      <VideoBackdrop
+                        track={blendTo}
+                        time={blendSeconds}
+                        duration={blendTo.duration}
+                        playing={player.state.playing}
+                      />
+                    </div>
+                  )}
+                </>
+              )
+            )}
+            {/* The same question, in the open player: a long silence at the
+                edge of a file is not a fact about the bar. */}
+            <SilenceNotice
+              className="silence-notice--stage"
+              text={player.silenceNotice?.text ?? null}
+              onRemove={player.removeSilence}
+              onKeep={player.keepSilence}
+            />
+            <MusicLighting className="stage-aura" />
+            <div
+              data-track-id={player.current?.id}
+              className={`player-normal-view${clipShowing ? ' clip-live' : ''}`}
+            >
+              <PlayerDetails
+                {...props}
+                time={time}
+                cue={pending}
+                lyricsOpen={lyricsOpen}
+                onDisclosure={setLyricsOpen}
+              />
+            </div>
+          </Modal>
+        )}
+      </AnimatePresence>
+      {/*
+        A YouTube song keeps playing while Now Playing is collapsed, so the embed
+        stays mounted in a one-pixel host. Expanding mounts the visible player from
+        the same position; the song never restarts because of a layout change.
+      */}
+      {!showing && stageGone && player.stageYouTube && (
+        <YouTubeStage
+          key={`silent-${player.stageYouTube.track.videoId}`}
+          track={player.stageYouTube.track}
+          playing={player.state.playing}
+          volume={player.volume}
+          gain={player.stageYouTube.gain}
+          startGain={player.stageYouTube.startGain}
+          fadeSeconds={player.stageYouTube.fadeSeconds}
+          seek={player.youTube?.seek ?? { seconds: 0, nonce: 0 }}
+          startAt={time}
+          silent
+          onTime={player.youTube?.onTime ?? (() => {})}
+          onDuration={player.youTube?.onDuration ?? (() => {})}
+          onEnded={player.youTube?.onEnded ?? (() => {})}
+          onError={player.youTube?.onError ?? (() => {})}
+        />
       )}
     </>
   );

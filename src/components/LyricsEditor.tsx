@@ -2,10 +2,11 @@ import { lookupLyrics } from '../services/lyrics';
 import { lyricsCooldown } from '../services/lyricsCooldown';
 import { canLookup } from '../domain/lyricsLookup';
 import { useEffect, useRef, useState } from 'react';
-import { FileUp, Save, Trash2, Search, X } from 'lucide-react';
+import { FileUp, Save, Trash2, Search, X } from './Glyphs';
 import { parseLyrics, MAX_LYRICS_LENGTH, type Lyrics } from '../domain/lyrics';
 import type { Track } from '../domain/types';
 import { Modal } from './Modal';
+import { useT } from '../i18n';
 export function LyricsEditor({
   track,
   onSave,
@@ -17,6 +18,7 @@ export function LyricsEditor({
   onSave: (id: string, lyrics?: Lyrics) => Promise<boolean>;
   onClose: () => void;
 }) {
+  const t = useT();
   const [raw, setRaw] = useState(track.lyrics?.raw ?? ''),
     [offset, setOffset] = useState(track.lyrics?.offsetMs ?? 0);
   const [busy, setBusy] = useState(false),
@@ -46,7 +48,7 @@ export function LyricsEditor({
     request.current = controller;
     setSearching(true);
     setCandidate(undefined);
-    setSearchMessage('Searching LRCLIB…');
+    setSearchMessage(t('Searching LRCLIB…'));
     try {
       const result = await lookupLyrics(track, controller.signal);
       if (controller.signal.aborted) return;
@@ -55,28 +57,21 @@ export function LyricsEditor({
       setNow(Date.now());
       setSearchMessage(
         result.lyrics
-          ? 'Matching lyrics found. Use the result to replace the draft, then Save lyrics.'
+          ? t('Matching lyrics found. Use the result to replace the draft, then Save lyrics.')
           : result.lookup.status === 'instrumental'
-            ? 'This recording is listed as instrumental.'
+            ? t('This recording is listed as instrumental.')
             : result.lookup.status === 'error'
-              ? 'Lyrics could not be retrieved. Your draft is unchanged.'
-              : 'No matching lyrics found for this recording. Your draft is unchanged.',
+              ? t('Lyrics could not be retrieved. Your draft is unchanged.')
+              : t('No matching lyrics found for this recording. Your draft is unchanged.'),
       );
     } catch {
       if (!controller.signal.aborted)
-        setSearchMessage('Lyrics could not be retrieved. Your draft is unchanged.');
+        setSearchMessage(t('Lyrics could not be retrieved. Your draft is unchanged.'));
     } finally {
       if (!controller.signal.aborted) setSearching(false);
     }
   };
   const file = useRef<HTMLInputElement>(null);
-  let preview = '';
-  try {
-    const parsed = parseLyrics(raw, offset);
-    preview = `${parsed.lines.length} ${parsed.lines[0]?.time !== undefined ? 'synchronized' : 'plain-text'} lines`;
-  } catch {
-    /* Validation on save. */
-  }
   const save = async (remove = false) => {
     setError('');
     setBusy(true);
@@ -86,18 +81,18 @@ export function LyricsEditor({
         : parseLyrics(raw, offset, applied?.raw === raw ? 'lrclib' : 'local');
       if (parsed && applied?.raw === raw) parsed.providerId = applied.providerId;
       if (!remove && !parsed?.lines.some((line) => line.text))
-        throw Error('Add some lyrics or choose Remove lyrics.');
+        throw Error(t('Add some lyrics or choose Remove lyrics.'));
       if (await onSave(track.id, parsed)) onClose();
-      else setError('Lyrics could not be saved. Please try again.');
+      else setError(t('Lyrics could not be saved. Please try again.'));
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Lyrics could not be read.');
+      setError(reason instanceof Error ? reason.message : t('Lyrics could not be read.'));
     } finally {
       setBusy(false);
     }
   };
   return (
     <Modal
-      title="Edit lyrics"
+      title={t('Edit lyrics')}
       onClose={onClose}
       closeDisabled={busy}
       className="lyrics-editor-modal"
@@ -109,11 +104,11 @@ export function LyricsEditor({
           Import LRC timestamps like [00:12.500], or paste plain text. Your audio file stays
           unchanged. No automatic online lookup is performed.
         </p>
-        <section className="editor-lookup" aria-label="Find lyrics">
+        <section className="editor-lookup" aria-label={t('Find lyrics')}>
           <p>
-            Search LRCLIB with this song’s title, artist and known album/duration — never audio.
-            Playback and automatic lookup are not required. Results are saved only when you choose
-            Save lyrics.
+            Search LRCLIB with this song’s title, artist, album and duration. Your audio is never
+            sent. Playback and automatic lookup are not required. Results are saved only when you
+            choose Save lyrics.
           </p>
           <div className="editor-lookup-actions">
             <button
@@ -130,7 +125,7 @@ export function LyricsEditor({
                 onClick={() => {
                   request.current?.abort();
                   setSearching(false);
-                  setSearchMessage('Search canceled. Your draft is unchanged.');
+                  setSearchMessage(t('Search canceled. Your draft is unchanged.'));
                 }}
               >
                 <X size={18} />
@@ -139,7 +134,7 @@ export function LyricsEditor({
             )}
           </div>
           {!canLookup(track) && (
-            <p>Add a song title and artist in Song options before searching.</p>
+            <p>{t('Add a song title and artist in Song options before searching.')}</p>
           )}
           <p role="status" aria-live="polite">
             {searchMessage}
@@ -148,7 +143,7 @@ export function LyricsEditor({
           </p>
           {candidate && (
             <>
-              <pre className="editor-result" tabIndex={0} aria-label="Lyrics search preview">
+              <pre className="editor-result" tabIndex={0} aria-label={t('Lyrics search preview')}>
                 {candidate.raw}
               </pre>
               <button
@@ -159,7 +154,7 @@ export function LyricsEditor({
                   setOffset(candidate.offsetMs);
                   setApplied(candidate);
                   setCandidate(undefined);
-                  setSearchMessage('Result placed in the draft. Save lyrics to keep it.');
+                  setSearchMessage(t('Result placed in the draft. Save lyrics to keep it.'));
                 }}
               >
                 Use found lyrics
@@ -177,7 +172,7 @@ export function LyricsEditor({
           ref={file}
           type="file"
           className="file-input"
-          aria-label="Lyrics file"
+          aria-label={t('Lyrics file')}
           accept=".lrc,.txt,text/plain"
           disabled={busy}
           onChange={async (event) => {
@@ -189,21 +184,21 @@ export function LyricsEditor({
             setError('');
             try {
               if (selected.size > MAX_LYRICS_LENGTH * 3 || !/\.(lrc|txt)$/i.test(selected.name))
-                throw Error('Choose an LRC or TXT file up to 300 KB.');
+                throw Error(t('Choose an LRC or TXT file up to 300 KB.'));
               const text = await selected.text();
               parseLyrics(text);
               setRaw(text);
               setOffset(0);
               setApplied(undefined);
             } catch (reason) {
-              setError(reason instanceof Error ? reason.message : 'The file could not be read.');
+              setError(reason instanceof Error ? reason.message : t('The file could not be read.'));
             } finally {
               setBusy(false);
             }
           }}
         />
         <label className="form-field lyrics-field">
-          Lyrics
+          {t('Lyrics')}
           <textarea
             value={raw}
             disabled={busy}
@@ -212,7 +207,6 @@ export function LyricsEditor({
             placeholder={'[00:05.000]First line\n[00:12.500]Next line'}
           />
         </label>
-        <p className="lyrics-caption">{preview}</p>
         <label className="form-field">
           Timing offset (ms)
           <input
@@ -225,10 +219,7 @@ export function LyricsEditor({
             onChange={(event) => setOffset(Number(event.target.value))}
           />
         </label>
-        <p className="lyrics-caption">
-          Positive values show lines later; negative values show them earlier. Plain text is not
-          synchronized.
-        </p>
+        <p className="lyrics-caption">{t('Positive values show lines later.')}</p>
         {error && (
           <p role="alert" className="form-error">
             {error}
@@ -251,7 +242,7 @@ export function LyricsEditor({
           disabled={busy || !raw.trim()}
         >
           <Save size={18} />
-          {busy ? 'Saving…' : 'Save lyrics'}
+          {busy ? t('Saving…') : t('Save lyrics')}
         </button>
       </div>
     </Modal>

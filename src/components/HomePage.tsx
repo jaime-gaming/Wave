@@ -2,7 +2,7 @@ import type { DailyMix } from '../domain/dailyMixes';
 import { DailyMixes } from './DailyMixes';
 import { memo, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { ArrowUpRight, Disc3, Heart, ListMusic, Music2, Users, Plus } from 'lucide-react';
+import { ArrowUpRight, Disc3, Heart, ListMusic, Music2, Users, Plus, Smartphone } from './Glyphs';
 import { albumKey, collectAlbums, collectArtists } from '../domain/collections';
 import type { LibraryView, Playlist, Track } from '../domain/types';
 import { useWaveMotion } from '../ui/motion';
@@ -13,6 +13,7 @@ import { Artwork } from './Artwork';
 import { ArtistPortrait } from './Artists';
 import { LibraryContent } from './LibraryContent';
 
+import { useT } from '../i18n';
 export const HomePage = memo(function HomePage({
   tracks,
   playlists,
@@ -20,7 +21,7 @@ export const HomePage = memo(function HomePage({
   playing,
   loading,
   busy,
-  onImport,
+  onAdd,
   onMix,
   onView,
   onAlbum,
@@ -30,15 +31,18 @@ export const HomePage = memo(function HomePage({
   onFavorite,
   onMore,
   artistPhotos,
+  onDevices,
 }: {
   tracks: Track[];
   artistPhotos?: Map<string, string | undefined>;
+  /** Opens the device screen: the first thing a phone should offer. */
+  onDevices?: () => void;
   playlists: Playlist[];
   current?: Track;
   playing: boolean;
   loading: boolean;
   busy: boolean;
-  onImport: () => void;
+  onAdd: () => void;
   onMix: (mix: DailyMix, number: number) => void;
   onView: (view: LibraryView) => void;
   onAlbum: (id: string) => void;
@@ -48,6 +52,7 @@ export const HomePage = memo(function HomePage({
   onFavorite: (track: Track) => void;
   onMore: (track: Track) => void;
 }) {
+  const t = useT();
   const animation = useWaveMotion();
   const albums = useMemo(
     () => collectAlbums(tracks).sort((a, b) => b.addedAt - a.addedAt),
@@ -61,20 +66,20 @@ export const HomePage = memo(function HomePage({
   const favorites = tracks.filter((track) => track.favorite);
   const counts = [tracks.length, albums.length, artists.length, playlists.length, favorites.length];
   const destinations = [
-    ['songs', 'Songs', Music2],
-    ['albums', 'Albums', Disc3],
-    ['artists', 'Artists', Users],
-    ['playlists', 'Playlists', ListMusic],
-    ['favorites', 'Favorites', Heart],
+    ['songs', t('Songs'), Music2],
+    ['albums', t('Albums'), Disc3],
+    ['artists', t('Artists'), Users],
+    ['playlists', t('Playlists'), ListMusic],
+    ['favorites', t('Favorites'), Heart],
   ] as const;
   return (
     <div className="home-content">
-      <section aria-label="Your collection" className="home-overview">
+      <section aria-label={t('Your collection')} className="home-overview">
         <div className="section-heading">
-          <h2>Your collection</h2>
-          <button className="tonal-button" disabled={busy} onClick={onImport}>
+          <h2>{t('Your collection')}</h2>
+          <button className="tonal-button" disabled={busy} onClick={onAdd}>
             <Plus size={18} />
-            Add music
+            {t('Add music')}
           </button>
         </div>
         <div className="home-shortcuts">
@@ -94,13 +99,40 @@ export const HomePage = memo(function HomePage({
           ))}
         </div>
       </section>
+      {/*
+       * Linking, first, on a phone.
+       *
+       * A person opening Wave on their phone usually has their music on the
+       * computer in front of them, and the one thing that makes this app worth
+       * having there is that the two devices share what they hold. It is a card
+       * of its own at the top of the page rather than a line in Settings, and it
+       * disappears once a device is linked.
+       */}
+      {onDevices && (
+        <motion.button
+          type="button"
+          className="home-link-card"
+          onClick={onDevices}
+          whileTap={animation.enabled ? { scale: 0.985 } : undefined}
+          transition={animation.fast}
+        >
+          <span className="home-link-icon" aria-hidden="true">
+            <Smartphone size={20} />
+          </span>
+          <span className="home-link-copy">
+            <strong>{t('Bring your other device in')}</strong>
+            <small>{t('Scan a code and listen to the songs on your computer from here.')}</small>
+          </span>
+          <ArrowUpRight size={18} aria-hidden="true" />
+        </motion.button>
+      )}
       <DailyMixes tracks={tracks} onOpen={onMix} />
       {albums.length > 0 && (
-        <section aria-label="Recently added albums" className="home-albums">
+        <section aria-label={t('Recently added albums')} className="home-albums">
           <div className="section-heading">
-            <h2>Recently added albums</h2>
+            <h2>{t('Recently added albums')}</h2>
             <button className="text-button" onClick={() => onView('albums')}>
-              All albums
+              {t('All albums')}
               <ArrowUpRight size={18} />
             </button>
           </div>
@@ -114,12 +146,12 @@ export const HomePage = memo(function HomePage({
       <div
         className={`home-dashboard ${playlists.length || artists.length ? 'has-secondary' : ''}`}
       >
-        <section aria-label="Recently added songs" className="home-recent-songs">
+        <section aria-label={t('Recently added songs')} className="home-recent-songs">
           <div className="section-heading">
-            <h2>{tracks.length ? 'Recently added songs' : 'Your music'}</h2>
+            <h2>{tracks.length ? t('Recently added songs') : t('Your music')}</h2>
             {tracks.length > 0 && (
               <button className="text-button" onClick={() => onView('songs')}>
-                All songs
+                {t('All songs')}
                 <ArrowUpRight size={18} />
               </button>
             )}
@@ -134,7 +166,7 @@ export const HomePage = memo(function HomePage({
             query=""
             currentId={current?.id}
             playing={playing}
-            onImport={onImport}
+            onAdd={onAdd}
             onGroup={() => {}}
             onClearSearch={() => {}}
             onPlay={onPlay}
@@ -147,11 +179,11 @@ export const HomePage = memo(function HomePage({
         {(playlists.length > 0 || artists.length > 0) && (
           <div className="home-secondary">
             {playlists.length > 0 && (
-              <section aria-label="Your playlists">
+              <section aria-label={t('Your playlists')}>
                 <div className="section-heading">
-                  <h2>Your playlists</h2>
+                  <h2>{t('Your playlists')}</h2>
                   <button className="text-button" onClick={() => onView('playlists')}>
-                    All playlists
+                    {t('All playlists')}
                     <ArrowUpRight size={18} />
                   </button>
                 </div>
@@ -171,11 +203,11 @@ export const HomePage = memo(function HomePage({
               </section>
             )}
             {artists.length > 0 && (
-              <section aria-label="Artists in your library">
+              <section aria-label={t('Artists in your library')}>
                 <div className="section-heading">
-                  <h2>Artists</h2>
+                  <h2>{t('Artists')}</h2>
                   <button className="text-button" onClick={() => onView('artists')}>
-                    All artists
+                    {t('All artists')}
                     <ArrowUpRight size={18} />
                   </button>
                 </div>

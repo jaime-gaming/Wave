@@ -7,8 +7,10 @@ export interface Lyrics {
   raw: string;
   lines: LyricLine[];
   offsetMs: number;
-  source: 'local' | 'embedded' | 'lrclib';
+  source: 'local' | 'embedded' | 'lrclib' | 'netease' | 'kugou';
   providerId?: number;
+  /** Display name of the provider, when it is not LRCLIB. */
+  provider?: string;
 }
 export const MAX_LYRICS_LENGTH = 100_000;
 export function parseLyrics(raw: string, offsetMs = 0, source: Lyrics['source'] = 'local'): Lyrics {

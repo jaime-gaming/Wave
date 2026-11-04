@@ -167,7 +167,7 @@ test('right-click offers track and general actions, bounded placement and keyboa
   await page.mouse.click(20, 20);
   await expect(dialog).toHaveCount(0);
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.locator('.app-name').click({ button: 'right' });
+  await page.locator('.workspace h1').first().click({ button: 'right' });
   await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Settings', exact: true })).toBeVisible();
   await page
@@ -181,31 +181,6 @@ test('right-click offers track and general actions, bounded placement and keyboa
     .click();
   await page.getByRole('searchbox').click({ button: 'right' });
   await expect(dialog).toHaveCount(0);
-});
-test('absence hides the entire lower UI and wakes without interrupting native playback', async ({
-  page,
-}) => {
-  await setup(page, { covers: true });
-  await page.getByRole('button', { name: 'Open now playing', exact: true }).click();
-  await page.clock.install();
-  await page.mouse.move(40, 40);
-  await page.clock.fastForward(30001);
-  await expect(page.locator('.immersive-stage')).toBeVisible();
-  await expect(page.locator('html')).toHaveAttribute('data-immersive', 'true');
-  for (const selector of [
-    '.player-bar',
-    '.navigation-shell',
-    '.workspace',
-    '.player-normal-view',
-    '.player-normal-view .stage-transport',
-  ])
-    await expect(page.locator(selector)).toHaveCSS('visibility', 'hidden');
-  const source = (await playing(page)).src;
-  await page.mouse.move(60, 60);
-  await page.clock.runFor(500);
-  await expect(page.locator('html')).toHaveAttribute('data-immersive', 'false');
-  await expect(page.locator('.player-normal-view .stage-transport')).toBeVisible();
-  expect((await playing(page)).src).toBe(source);
 });
 test('mix uses silence-safe cue points and animates artwork palette over real two-deck overlap', async ({
   page,

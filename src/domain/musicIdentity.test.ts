@@ -1,5 +1,10 @@
 import { expect, it } from 'vitest';
-import { inferFileMetadata, matchesSearch } from './musicIdentity';
+import {
+  inferFileMetadata,
+  matchesSearch,
+  splitInlineArtist,
+  stripLeadingNumber,
+} from './musicIdentity';
 import { cleanTitle, recordingMatch } from './lyricsMatch';
 import { makeTrack } from '../test/fixtures';
 it('infers a conservative filename identity across track prefixes and spaced dash styles', () => {
@@ -52,4 +57,25 @@ it('recognizes an underscore-delimited artist-title filename without guessing ba
     title: 'Signal',
   });
   expect(inferFileMetadata('Signal-Part-Two.wav')).toEqual({ title: 'Signal-Part-Two' });
+});
+
+it('lifts the artist out of a title that holds the whole line', () => {
+  expect(splitInlineArtist('Nils Frahm - Says')).toEqual({ artist: 'Nils Frahm', title: 'Says' });
+  expect(splitInlineArtist('01 - Nils Frahm - Says')).toEqual({
+    artist: 'Nils Frahm',
+    title: 'Says',
+  });
+  // Not enough evidence to split: a number, a long left side, or brackets.
+  expect(splitInlineArtist('1975')).toBeNull();
+  expect(splitInlineArtist('12 - Says')).toBeNull();
+  expect(splitInlineArtist('Song (Live) - Again')).toBeNull();
+  expect(splitInlineArtist('Artist - Album - Song')).toBeNull();
+});
+
+it('drops a zero-padded album position but keeps real numbers', () => {
+  expect(stripLeadingNumber('01 - Song')).toBe('Song');
+  expect(stripLeadingNumber('07 Song')).toBe('Song');
+  expect(stripLeadingNumber('1975')).toBe('1975');
+  expect(stripLeadingNumber('99 Luftballons')).toBe('99 Luftballons');
+  expect(stripLeadingNumber('7 Rings')).toBe('7 Rings');
 });

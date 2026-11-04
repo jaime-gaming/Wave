@@ -1,6 +1,12 @@
-import { DailyMixPage, type MixSelection } from './components/DailyMixPage';
-import { SettingsPage } from './components/SettingsPage';
+import type { MixSelection } from './components/DailyMixPage';
+import type { SettingsSection } from './components/SettingsPage';
 import { LocalMetadataReview } from './components/LocalMetadataReview';
+import { useOnline } from './ui/network';
+import {
+  detailsEnabled,
+  setDetailsEnabled,
+  useCatalogueDetails,
+} from './hooks/useCatalogueDetails';
 import { ContextMenu, type ContextAction } from './components/ContextMenu';
 import { MusicLighting } from './components/MusicLighting';
 import { QueuePanel } from './components/QueuePanel';
@@ -8,6 +14,8 @@ import { useInteractionRipples } from './hooks/useInteractionRipples';
 import { StartupAnimation } from './components/StartupAnimation';
 import { useMusicEnergy } from './hooks/useMusicEnergy';
 import { SearchPage } from './components/SearchPage';
+import { RemixPage } from './components/RemixPage';
+import { useListeningHistory } from './hooks/useListeningHistory';
 import { LibraryMaintenance } from './components/LibraryMaintenance';
 import { useAutomaticLyrics } from './hooks/useAutomaticLyrics';
 import { StorageSettings } from './components/StorageSettings';
@@ -20,14 +28,23 @@ import type { ArtistProfile } from './domain/types';
 import { LibrarySurface } from './components/LibrarySurface';
 import { HomePage } from './components/HomePage';
 import { Artists, ArtistHeader } from './components/Artists';
-import { albumKey, collectAlbums, collectArtists } from './domain/collections';
+import {
+  albumKey,
+  artistCredits,
+  collectAlbums,
+  collectArtists,
+  primaryArtist,
+} from './domain/collections';
 import { AnimatePresence, MotionConfig, motion } from 'motion/react';
 import { MotionPreference, useWaveMotion } from './ui/motion';
+import { useI18n } from './i18n';
+import { languages } from './i18n/dictionary';
 import { usePlaylists } from './hooks/usePlaylists';
 import { PlaylistCollection, PlaylistHeader } from './components/PlaylistCollection';
 import { PlaylistDialog, AddSongsDialog, AddToPlaylistDialog } from './components/PlaylistDialog';
+import { MigrationSheet } from './components/MigrationSheet';
 import { TrackEditor } from './components/TrackEditor';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Music2,
   Disc3,
@@ -36,30 +53,56 @@ import {
   Check,
   ChevronDown,
   FolderOpen,
+  FolderInput,
   ListMusic,
   Heart,
   Pencil,
   ArrowUp,
   ArrowDown,
+  Film,
   Trash2,
   Play,
   Pause,
   SkipForward,
   Plus,
   Settings,
-  ShieldCheck,
   Shuffle,
   SlidersHorizontal,
   X,
-} from 'lucide-react';
+} from './components/Glyphs';
 import { useLibrary } from './hooks/useLibrary';
 import { useAppPalette } from './hooks/useAppPalette';
 import { usePlayer } from './hooks/usePlayer';
+
+/*
+ * Views that most sessions never open are downloaded when they are first
+ * needed, so the first screen on a phone is not paying for the settings page,
+ * the metadata review or a daily mix.
+ */
+const DevicesPage = lazy(() =>
+  import('./components/DevicesPage').then((module) => ({ default: module.DevicesPage })),
+);
+const SettingsPage = lazy(() =>
+  import('./components/SettingsPage').then((module) => ({ default: module.SettingsPage })),
+);
+const DailyMixPage = lazy(() =>
+  import('./components/DailyMixPage').then((module) => ({ default: module.DailyMixPage })),
+);
 import { Artwork } from './components/Artwork';
 import { LibraryContent } from './components/LibraryContent';
 import { Navigation, type Page } from './components/Navigation';
 import { Modal } from './components/Modal';
+import { AndroidAppSheet } from './components/AndroidAppSheet';
+import {
+  isAndroidBrowser,
+  isStandalone,
+  promptAlreadyAnswered,
+  rememberPromptAnswer,
+} from './ui/androidApp';
 import { PlayerBar } from './components/PlayerBar';
+import { getClip, loadClips, removeClip } from './domain/videoClips';
+import { AddMusicDialog } from './components/AddMusicDialog';
+import { extendedLyricsEnabled, setExtendedLyrics } from './services/lyricsExtra';
 import { AUDIO_ACCEPT } from './data/import';
 import { shuffleQueue } from './domain/player';
 import { filterTracks, type LibraryView, type Track } from './domain/types';
@@ -100,10 +143,20 @@ function WaveApp({
   animations: boolean;
   onAnimations: (value: boolean) => void;
 }) {
+  const { t, choice: languageChoice, setChoice: setLanguageChoice } = useI18n();
   const library = useLibrary();
   const [automaticLyrics, setAutomaticLyrics] = useState(
     () => readFlag('wave-lyrics-consent-v1') && readFlag('wave-auto-lyrics'),
   );
+  const [videoClip, setVideoClip] = useState(() => readFlag('wave-video-clip'));
+  const [wordSources, setWordSources] = useState(extendedLyricsEnabled);
+  useEffect(() => {
+    try {
+      localStorage.setItem('wave-video-clip', String(videoClip));
+    } catch {
+      /* Session-only options. */
+    }
+  }, [videoClip]);
   useEffect(() => {
     try {
       localStorage.setItem('wave-auto-lyrics', String(automaticLyrics));
@@ -128,7 +181,22 @@ function WaveApp({
   const [addingQueue, setAddingQueue] = useState(false);
   const animation = useWaveMotion();
   useInteractionRipples();
-  const player = usePlayer(library.tracks, !library.loading);
+  /**
+   * How the player asks about the dead air at the edges of a file. The library
+   * owns the record; the player only reports and requests.
+   */
+  const silenceAction = library.silence;
+  const silenceStore = useMemo(
+    () => ({
+      record: (id: string, bounds: { start: number; end: number }) =>
+        void silenceAction(id, 'record', bounds),
+      trim: (id: string, bounds: { start: number; end: number }) =>
+        void silenceAction(id, 'trim', bounds),
+      keep: (id: string) => void silenceAction(id, 'keep'),
+    }),
+    [silenceAction],
+  );
+  const player = usePlayer(library.tracks, !library.loading, silenceStore);
   useAppPalette(
     player.state.playing ? player.current?.artwork : undefined,
     player.state.playing ? player.blend : null,
@@ -156,24 +224,54 @@ function WaveApp({
       void acceptDuration(currentId, decodedDuration);
   }, [decodedDuration, currentDuration, currentId, player.durationTrackId, acceptDuration]);
   const { dispatch } = player;
-  const [page, setPage] = useState<Page>('home');
+  /**
+   * A pairing link opens straight into Settings → Devices. The link is a QR
+   * code someone scanned or a URL they opened, and landing on Home would leave
+   * them to find the page themselves.
+   */
+  const [pairLink] = useState(() => /(?:#|&|\?)wave-pair=/u.test(location.hash + location.search));
+  const [page, setPage] = useState<Page>(pairLink ? 'settings' : 'home');
   const [dailySelection, setDailySelection] = useState<MixSelection | null>(null);
   const [view, setView] = useState<LibraryView>('songs');
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState('recent');
   const [group, setGroup] = useState<string | null>(null);
   const [queueOpen, setQueueOpen] = useState(false);
+  /**
+   * A phone browsing the web is offered the Android app once. It is asked after
+   * the interface has settled, so the first thing on screen is still the music,
+   * and never on a device that answered already or that already runs the app.
+   */
+  const [androidSheet, setAndroidSheet] = useState(false);
+  useEffect(() => {
+    if (!isAndroidBrowser(undefined, isStandalone()) || promptAlreadyAnswered()) return;
+    const timer = setTimeout(() => setAndroidSheet(true), 4_000);
+    return () => clearTimeout(timer);
+  }, []);
+  /** Listening history is counted from the playback clock and shown in Remix. */
+  const listening = useListeningHistory({
+    track: player.current,
+    playing: player.state.playing && !player.buffering,
+    duration: player.duration,
+    readTime: player.readTime,
+    tracks: library.tracks,
+  });
   const [playerOpen, setPlayerOpen] = useState(false);
   const playerOpener = useRef<HTMLElement | null>(null);
   const settingsPrevious = useRef<Page>('home');
+  const [settingsSection, setSettingsSection] = useState<SettingsSection | null>(null);
   const settingsOpener = useRef<HTMLElement | null>(null);
-  const openSettings = () => {
+  const openSettings = (section: SettingsSection | null = null) => {
     if (page !== 'settings') settingsPrevious.current = page;
     settingsOpener.current = document.activeElement as HTMLElement;
+    setSettingsSection(section);
     setPage('settings');
   };
   const closeSettings = () => {
     setPage(settingsPrevious.current);
+    // The section is a way in, not a place to come back to: the next visit to
+    // Settings starts on the list of sections.
+    setSettingsSection(null);
     requestAnimationFrame(() => settingsOpener.current?.focus({ preventScroll: true }));
   };
   const [removeTarget, setRemoveTarget] = useState<Track | null>(null);
@@ -185,7 +283,25 @@ function WaveApp({
     opener?: HTMLElement;
   } | null>(null);
   const [trackOptions, setTrackOptions] = useState<Track | null>(null);
+  const clipsForOptions = useMemo(() => (trackOptions ? loadClips() : {}), [trackOptions]);
   const [editorEnabled, setEditorEnabled] = useState(() => readFlag('wave-editor-enabled'));
+  /**
+   * Online detail lookups are off until the listener turns them on, and they
+   * stop entirely without a connection: a promise to fill gaps is not a promise
+   * to keep retrying in an offline room.
+   */
+  const [detailsOn, setDetailsOn] = useState(() => detailsEnabled());
+  const toggleDetails = useCallback((next: boolean) => {
+    setDetailsEnabled(next);
+    setDetailsOn(next);
+  }, []);
+  const online = useOnline();
+  const catalogue = useCatalogueDetails({
+    tracks: library.tracks,
+    onUpdate: library.applyDetails,
+    enabled: detailsOn,
+    online,
+  });
   const [editingTrack, setEditingTrack] = useState<Track | null>(null);
   const [playlistId, setPlaylistId] = useState<string | null>(null);
   const [playlistForm, setPlaylistForm] = useState<'new' | 'edit' | null>(null);
@@ -193,6 +309,7 @@ function WaveApp({
   const [addingTrack, setAddingTrack] = useState<Track | null>(null);
   const [pendingPlaylistTrack, setPendingPlaylistTrack] = useState<Track | null>(null);
   const [deletingPlaylist, setDeletingPlaylist] = useState(false);
+  const [migrationOpen, setMigrationOpen] = useState(false);
   const selectedPlaylist = collections.playlists.find((playlist) => playlist.id === playlistId);
   const [largeText, setLargeText] = useState(() => readFlag('wave-large-text'));
   useEffect(() => {
@@ -297,7 +414,9 @@ function WaveApp({
     if (view === 'favorites') tracks = tracks.filter((track) => track.favorite);
     if (group)
       tracks = tracks.filter((track) =>
-        view === 'artists' ? track.artist === group : albumKey(track) === group,
+        view === 'artists'
+          ? artistCredits(track.artist).includes(group)
+          : albumKey(track) === group,
       );
     if (selectedPlaylist && sort === 'playlist') return tracks;
     if (view === 'albums' && group && sort === 'album')
@@ -324,10 +443,52 @@ function WaveApp({
           duration: 0,
         })
       : undefined;
-  const albumCount = albums.length;
   const favoriteCount = library.tracks.filter((track) => track.favorite).length;
+  /**
+   * The line under the page title.
+   *
+   * It says what the page is looking at, in the library's own numbers, and it is
+   * the reason the header has a second line at all: a title alone leaves a band
+   * of empty page under it. Nothing here is a status or a build note.
+   */
+  const pageSummary =
+    page === 'search'
+      ? t('Songs, albums and artists on this device')
+      : page === 'settings'
+        ? t('Playback, appearance, lyrics and storage')
+        : page === 'remix'
+          ? t('The songs you played this week')
+          : page === 'library' && view !== 'songs'
+            ? `${library.tracks.length} ${library.tracks.length === 1 ? 'song' : 'songs'} in your library`
+            : `${library.tracks.length} ${library.tracks.length === 1 ? 'song' : 'songs'} · ${albums.length} ${albums.length === 1 ? 'album' : 'albums'}`;
   const busy = library.loading || !!library.progress;
   const chooseFiles = useCallback(() => input.current?.click(), []);
+  const [addOpen, setAddOpen] = useState(false);
+  /**
+   * Every "Add music" in the app opens the same chooser.
+   *
+   * A button that jumps straight to the file picker decides for the listener
+   * that what they want is a file on this device; a YouTube song is the other
+   * half of what Wave can add, so the two are always offered together.
+   */
+  const openAddMusic = useCallback(() => setAddOpen(true), []);
+  const [addBusy, setAddBusy] = useState(false);
+  /** YouTube songs are added to the library and start playing straight away. */
+  const addFromYouTube = useCallback(
+    async (link: string) => {
+      setAddBusy(true);
+      const result = await library.addYouTube(link);
+      setAddBusy(false);
+      return result;
+    },
+    [library],
+  );
+  const playAdded = useCallback(
+    (track: Track) => {
+      player.play([...library.tracks.filter((item) => item.id !== track.id), track], track.id);
+    },
+    [library.tracks, player],
+  );
   const clearSearch = useCallback(() => setQuery(''), []);
   const toggleFavorite = library.toggleFavorite;
   const favoriteTrack = useCallback((track: Track) => void toggleFavorite(track), [toggleFavorite]);
@@ -384,8 +545,10 @@ function WaveApp({
   );
   const openArtist = useCallback(
     (name: string) => {
+      // A tag that names two acts opens the first of them, which is the profile
+      // the listener means when they tap the artist under a song.
       browse('artists');
-      setGroup(name);
+      setGroup(primaryArtist(name));
     },
     [browse],
   );
@@ -405,6 +568,24 @@ function WaveApp({
   };
   const playAlbumTrack = useCallback((track: Track) => openAlbum(albumKey(track)), [openAlbum]);
   const createPlaylist = useCallback(() => setPlaylistForm('new'), []);
+  const saveMigrated = useCallback(
+    async (name: string, trackIds: string[]) => {
+      const saved = await collections.create(
+        {
+          name,
+          description: t(
+            'Brought over from another app. Songs already in your library were reused.',
+          ),
+        },
+        trackIds,
+      );
+      if (!saved) return false;
+      setView('playlists');
+      setPlaylistId(saved.id);
+      return true;
+    },
+    [collections, t],
+  );
   const playShuffle = () => shuffleCollection(visible);
 
   const contextTrack = context?.trackId
@@ -413,7 +594,7 @@ function WaveApp({
   const contextActions: ContextAction[] = contextTrack
     ? [
         {
-          label: 'Play song',
+          label: t('Play song'),
           icon: <Play size={18} />,
           run: () =>
             player.play(
@@ -428,48 +609,54 @@ function WaveApp({
             ),
         },
         {
-          label: player.state.queue.includes(contextTrack.id) ? 'Already in queue' : 'Add to queue',
+          label: player.state.queue.includes(contextTrack.id)
+            ? t('Already in queue')
+            : t('Add to queue'),
           icon: <Plus size={18} />,
           disabled: player.state.queue.includes(contextTrack.id),
           run: () => player.enqueue([contextTrack.id]),
         },
         {
-          label: contextTrack.favorite ? 'Remove from favorites' : 'Add to favorites',
+          label: contextTrack.favorite ? t('Remove from favorites') : t('Add to favorites'),
           icon: <Heart size={18} />,
           run: () => void library.toggleFavorite(contextTrack),
         },
         {
-          label: 'Add to playlist',
+          label: t('Add to playlist'),
           icon: <ListMusic size={18} />,
           run: () => setAddingTrack(contextTrack),
         },
         {
-          label: 'Edit lyrics',
+          label: t('Edit lyrics'),
           icon: <Pencil size={18} />,
           run: () => setEditingLyrics(contextTrack),
         },
         {
-          label: 'Song options',
+          label: t('Song options'),
           icon: <SlidersHorizontal size={18} />,
           run: () => setTrackOptions(contextTrack),
         },
       ]
     : [
         {
-          label: player.state.playing ? 'Pause' : 'Play',
+          label: player.state.playing ? t('Pause') : t('Play'),
           icon: player.state.playing ? <Pause size={18} /> : <Play size={18} />,
           disabled: !player.current,
           run: () => dispatch({ type: 'toggle' }),
         },
         {
-          label: 'Next song',
+          label: t('Next song'),
           icon: <SkipForward size={18} />,
           disabled: !player.current,
           run: () => dispatch({ type: 'next' }),
         },
-        { label: 'Playback queue', icon: <ListMusic size={18} />, run: () => setQueueOpen(true) },
-        { label: 'Import music', icon: <Plus size={18} />, disabled: busy, run: chooseFiles },
-        { label: 'Settings', icon: <Settings size={18} />, run: openSettings },
+        {
+          label: t('Playback queue'),
+          icon: <ListMusic size={18} />,
+          run: () => setQueueOpen(true),
+        },
+        { label: t('Import music'), icon: <Plus size={18} />, disabled: busy, run: chooseFiles },
+        { label: t('Settings'), icon: <Settings size={18} />, run: () => openSettings() },
       ];
 
   return (
@@ -531,12 +718,12 @@ function WaveApp({
       }}
     >
       <a className="skip-link" href="#main">
-        Skip to library
+        {t('Skip to library')}
       </a>
       <input
         ref={input}
         className="file-input"
-        aria-label="Import audio files"
+        aria-label={t('Import audio files')}
         type="file"
         accept={AUDIO_ACCEPT}
         multiple
@@ -573,62 +760,58 @@ function WaveApp({
       />
       <main id="main" tabIndex={-1} className={`workspace ${page}-page`}>
         <header className="library-header">
-          <div className="header-top">
-            <span className="app-name">Wave</span>
-            <div className="header-actions">
-              <button
-                className="icon-button import-header"
-                disabled={busy}
-                onClick={chooseFiles}
-                aria-label="Import music"
-              >
-                <Plus size={25} />
-              </button>
-              <button
-                className="icon-button settings-button"
-                aria-label="Open settings"
-                onClick={openSettings}
-              >
-                <Settings size={25} />
-              </button>
-            </div>
-          </div>
+          {/* One banner: what this page is on the left, the two utilities on
+              the right, both on the same line. There is no separate row for the
+              buttons, so the header cannot leave an empty band behind. */}
           <div className="title-row">
             <div>
               <h1>
                 {page === 'home'
                   ? dailySelection
-                    ? 'Daily mixes'
-                    : 'Home'
+                    ? t('Daily mixes')
+                    : t('Home')
                   : page === 'search'
-                    ? 'Search'
+                    ? t('Search')
                     : page === 'settings'
-                      ? 'Settings'
-                      : 'Library'}
+                      ? t('Settings')
+                      : page === 'remix'
+                        ? t('Remix')
+                        : t('Library')}
               </h1>
-              <p className="library-summary">
-                {library.loading
-                  ? 'Loading…'
-                  : page === 'settings'
-                    ? 'Appearance, playback & your library'
-                    : `${library.tracks.length} ${library.tracks.length === 1 ? 'song' : 'songs'} · ${albumCount} ${albumCount === 1 ? 'album' : 'albums'}`}
-              </p>
+              <p className="library-summary">{pageSummary}</p>
+            </div>
+            <div className="header-actions">
+              <button
+                className="icon-button import-header"
+                disabled={busy}
+                onClick={() => setAddOpen(true)}
+                aria-label={t('Add music')}
+              >
+                <Plus size={24} />
+              </button>
+              <button
+                className="icon-button settings-button"
+                aria-label={t('Open settings')}
+                onClick={() => openSettings()}
+              >
+                <Settings size={24} />
+              </button>
             </div>
           </div>
           {page === 'library' && (
-            <div ref={categoryStrip} className="library-tabs" aria-label="Browse library">
+            <div ref={categoryStrip} className="library-tabs" aria-label={t('Browse library')}>
               {(
                 [
-                  { id: 'songs', label: 'Songs', icon: Music2, count: library.tracks.length },
-                  { id: 'albums', label: 'Albums', icon: Disc3, count: albums.length },
-                  { id: 'artists', label: 'Artists', icon: Users, count: artists.length },
+                  { id: 'songs', label: t('Songs'), icon: Music2, count: library.tracks.length },
+                  { id: 'albums', label: t('Albums'), icon: Disc3, count: albums.length },
+                  { id: 'artists', label: t('Artists'), icon: Users, count: artists.length },
                   {
                     id: 'playlists',
-                    label: 'Playlists',
+                    label: t('Playlists'),
                     icon: ListMusic,
                     count: collections.playlists.length,
                   },
-                  { id: 'favorites', label: 'Favorites', icon: Heart, count: favoriteCount },
+                  { id: 'favorites', label: t('Favorites'), icon: Heart, count: favoriteCount },
                 ] as const
               ).map((tab) => (
                 <motion.button
@@ -661,216 +844,282 @@ function WaveApp({
             key={`${page}:${dailySelection?.mix.id ?? ''}:${view}:${group ?? ''}:${playlistId ?? ''}`}
           >
             {page === 'settings' ? (
-              <SettingsPage
-                onBack={closeSettings}
-                appearance={
-                  <>
-                    <div className="theme-options">
-                      {(['dark', 'light', 'system'] as const).map((option) => (
+              <Suspense fallback={<div className="empty-state" aria-busy="true" />}>
+                <SettingsPage
+                  initialSection={settingsSection ?? (pairLink ? 'devices' : null)}
+                  onBack={closeSettings}
+                  appearance={
+                    <>
+                      <div className="settings-label">{t('Theme')}</div>
+                      <div className="theme-options">
+                        {(['dark', 'light', 'system'] as const).map((option) => (
+                          <button
+                            key={option}
+                            className={theme === option ? 'chosen' : ''}
+                            aria-pressed={theme === option}
+                            onClick={() => setTheme(option)}
+                          >
+                            {t(option[0].toUpperCase() + option.slice(1))}
+                            {theme === option && <Check size={18} />}
+                          </button>
+                        ))}
+                      </div>
+                      {/* The language follows the device unless it is pinned
+                          here, and this row is the only place it is mentioned. */}
+                      <div className="settings-label">{t('Language')}</div>
+                      <div className="theme-options">
+                        {languages.map((option) => (
+                          <button
+                            key={option.id}
+                            className={languageChoice === option.id ? 'chosen' : ''}
+                            aria-pressed={languageChoice === option.id}
+                            onClick={() => setLanguageChoice(option.id)}
+                          >
+                            {option.id === 'system' ? t('System') : option.label}
+                            {languageChoice === option.id && <Check size={18} />}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="settings-switch-row">
+                        <div>
+                          <strong>{t('Larger text')}</strong>
+                        </div>
                         <button
-                          key={option}
-                          className={theme === option ? 'chosen' : ''}
-                          aria-pressed={theme === option}
-                          onClick={() => setTheme(option)}
+                          type="button"
+                          className="material-switch"
+                          role="switch"
+                          aria-label={t('Larger text')}
+                          aria-checked={largeText}
+                          onClick={() => setLargeText(!largeText)}
                         >
-                          {option[0].toUpperCase() + option.slice(1)}
-                          {theme === option && <Check size={18} />}
+                          <motion.span layout transition={animation.fast}>
+                            {largeText && <Check size={15} />}
+                          </motion.span>
                         </button>
-                      ))}
-                    </div>
-                    <div className="settings-switch-row">
-                      <div>
-                        <strong>Larger text</strong>
-                        <p>More readable labels, song titles and controls.</p>
                       </div>
-                      <button
-                        type="button"
-                        className="material-switch"
-                        role="switch"
-                        aria-label="Larger text"
-                        aria-checked={largeText}
-                        onClick={() => setLargeText(!largeText)}
-                      >
-                        <motion.span layout transition={animation.fast}>
-                          {largeText && <Check size={15} />}
-                        </motion.span>
-                      </button>
-                    </div>
-                    <div className="settings-switch-row">
-                      <div>
-                        <strong>Animations</strong>
-                        <p>Expressive transitions and playback feedback.</p>
+                      <div className="settings-switch-row">
+                        <div>
+                          <strong>{t('Animations')}</strong>
+                        </div>
+                        <button
+                          type="button"
+                          className="material-switch"
+                          role="switch"
+                          aria-label={t('Animations')}
+                          aria-checked={animations}
+                          onClick={() => onAnimations(!animations)}
+                        >
+                          <motion.span layout transition={animation.fast}>
+                            {animations && <Check size={15} />}
+                          </motion.span>
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        className="material-switch"
-                        role="switch"
-                        aria-label="Animations"
-                        aria-checked={animations}
-                        onClick={() => onAnimations(!animations)}
-                      >
-                        <motion.span layout transition={animation.fast}>
-                          {animations && <Check size={15} />}
-                        </motion.span>
-                      </button>
-                    </div>
-                  </>
-                }
-                playback={
-                  <>
-                    <div className="settings-switch-row">
-                      <div>
-                        <strong>Mix</strong>
-                        <p>
-                          Automatically chooses the overlap and handover for each pair of songs.
-                          Original audio, tempo and pitch stay unchanged.
-                        </p>
+                    </>
+                  }
+                  playback={
+                    <>
+                      <div className="settings-switch-row">
+                        <div>
+                          <strong>{t('Mix')}</strong>
+                        </div>
+                        <button
+                          type="button"
+                          className="material-switch"
+                          role="switch"
+                          aria-label={t('Mix')}
+                          aria-checked={player.mixEnabled}
+                          onClick={() => player.setMixEnabled(!player.mixEnabled)}
+                        >
+                          <motion.span layout transition={animation.fast}>
+                            {player.mixEnabled && <Check size={15} />}
+                          </motion.span>
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        className="material-switch"
-                        role="switch"
-                        aria-label="Mix"
-                        aria-checked={player.mixEnabled}
-                        onClick={() => player.setMixEnabled(!player.mixEnabled)}
-                      >
-                        <motion.span layout transition={animation.fast}>
-                          {player.mixEnabled && <Check size={15} />}
-                        </motion.span>
-                      </button>
-                    </div>
-                    <div className="settings-switch-row">
-                      <div>
-                        <strong>Autoplay</strong>
-                        <p>
-                          When the queue ends, continue with local songs guided by artist, album,
-                          genre and era, with weighted variety. Repeat takes priority.
-                        </p>
+                      <div className="settings-switch-row">
+                        <div>
+                          <strong>{t('Video clip')}</strong>
+                        </div>
+                        <button
+                          type="button"
+                          className="material-switch"
+                          role="switch"
+                          aria-label={t('Video clip')}
+                          aria-checked={videoClip}
+                          onClick={() => setVideoClip(!videoClip)}
+                        >
+                          <motion.span layout transition={animation.fast}>
+                            {videoClip && <Check size={15} />}
+                          </motion.span>
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        className="material-switch"
-                        role="switch"
-                        aria-label="Autoplay"
-                        aria-checked={player.autoplay}
-                        onClick={() => player.setAutoplay(!player.autoplay)}
-                      >
-                        <motion.span layout transition={animation.fast}>
-                          {player.autoplay && <Check size={15} />}
-                        </motion.span>
-                      </button>
-                    </div>
-                  </>
-                }
-                lyrics={
-                  <>
-                    {' '}
-                    <div className="settings-switch-row">
-                      <div>
-                        <strong>Automatic lyrics</strong>
-                        <p>
-                          Search LRCLIB by song title and artist after import, then save matching
-                          lyrics for offline use. Only metadata is sent; your audio is never
-                          uploaded.
-                        </p>
+                      <div className="settings-switch-row">
+                        <div>
+                          <strong>{t('Autoplay')}</strong>
+                        </div>
+                        <button
+                          type="button"
+                          className="material-switch"
+                          role="switch"
+                          aria-label={t('Autoplay')}
+                          aria-checked={player.autoplay}
+                          onClick={() => player.setAutoplay(!player.autoplay)}
+                        >
+                          <motion.span layout transition={animation.fast}>
+                            {player.autoplay && <Check size={15} />}
+                          </motion.span>
+                        </button>
                       </div>
-                      <button
-                        className="material-switch"
-                        role="switch"
-                        aria-label="Automatic lyrics"
-                        aria-checked={automaticLyrics}
-                        onClick={() => {
-                          setAutomaticLyrics((value) => !value);
-                          try {
-                            localStorage.setItem('wave-lyrics-consent-v1', 'true');
-                          } catch {
-                            /* Session-only consent. */
-                          }
-                        }}
-                      >
-                        <motion.span layout transition={animation.fast}>
-                          {automaticLyrics && <Check size={15} />}
-                        </motion.span>
-                      </button>
-                    </div>
-                  </>
-                }
-                library={
-                  <>
-                    {' '}
-                    <div className="settings-switch-row">
-                      <div>
-                        <strong>Library editing</strong>
-                        <p>
-                          Edit song information and add custom song or playlist covers. Original
-                          files stay unchanged.
-                        </p>
+                    </>
+                  }
+                  lyrics={
+                    <>
+                      <div className="settings-switch-row">
+                        <div>
+                          <strong>{t('Word-level lyric sources')}</strong>
+                          <p className="settings-warning">
+                            {t('Unofficial sources. Only the title and artist are sent.')}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          className="material-switch"
+                          role="switch"
+                          aria-label={t('Word-level lyric sources')}
+                          aria-checked={wordSources}
+                          onClick={() => {
+                            const next = !wordSources;
+                            setWordSources(next);
+                            setExtendedLyrics(next);
+                          }}
+                        >
+                          <motion.span layout transition={animation.fast}>
+                            {wordSources && <Check size={15} />}
+                          </motion.span>
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        className="material-switch"
-                        role="switch"
-                        aria-label="Library editing"
-                        aria-checked={editorEnabled}
-                        onClick={() => setEditorEnabled(!editorEnabled)}
-                      >
-                        <motion.span layout transition={animation.fast}>
-                          {editorEnabled && <Check size={15} />}
-                        </motion.span>
-                      </button>
-                    </div>
-                    <LocalMetadataReview tracks={library.tracks} />
-                  </>
-                }
-                storage={
-                  <>
-                    <LibraryMaintenance
+                      <div className="settings-switch-row">
+                        <div>
+                          <strong>{t('Automatic lyrics')}</strong>
+                        </div>
+                        <button
+                          className="material-switch"
+                          role="switch"
+                          aria-label={t('Automatic lyrics')}
+                          aria-checked={automaticLyrics}
+                          onClick={() => {
+                            setAutomaticLyrics((value) => !value);
+                            try {
+                              localStorage.setItem('wave-lyrics-consent-v1', 'true');
+                            } catch {
+                              /* Session-only consent. */
+                            }
+                          }}
+                        >
+                          <motion.span layout transition={animation.fast}>
+                            {automaticLyrics && <Check size={15} />}
+                          </motion.span>
+                        </button>
+                      </div>
+                    </>
+                  }
+                  library={
+                    <>
+                      {' '}
+                      <div className="settings-switch-row">
+                        <div>
+                          <strong>{t('Library editing')}</strong>
+                        </div>
+                        <button
+                          type="button"
+                          className="material-switch"
+                          role="switch"
+                          aria-label={t('Library editing')}
+                          aria-checked={editorEnabled}
+                          onClick={() => setEditorEnabled(!editorEnabled)}
+                        >
+                          <motion.span layout transition={animation.fast}>
+                            {editorEnabled && <Check size={15} />}
+                          </motion.span>
+                        </button>
+                      </div>
+                      <LocalMetadataReview
+                        tracks={library.tracks}
+                        enabled={detailsOn}
+                        onToggle={toggleDetails}
+                        onLookUp={() => void catalogue.lookUp()}
+                        filling={catalogue.filling}
+                        completed={catalogue.completed}
+                      />
+                      {/*
+                        Bringing a library from somewhere else used to live only
+                        behind the playlists shelf, which is not where a person
+                        looks for it. It is here too, named for what it does.
+                      */}
+                      <div className="settings-switch-row">
+                        <div>
+                          <strong>{t('Bring your playlists over')}</strong>
+                          <span className="settings-row-note">
+                            {t(
+                              'Paste a link from another service and Wave finds those songs here.',
+                            )}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          className="tonal-button"
+                          onClick={() => setMigrationOpen(true)}
+                        >
+                          <FolderInput size={18} />
+                          {t('Open')}
+                        </button>
+                      </div>
+                    </>
+                  }
+                  devices={
+                    <DevicesPage
                       tracks={library.tracks}
-                      currentId={player.current?.id}
-                      onMerged={async () => {
-                        await library.reload();
-                        await collections.reload();
-                        await customizations.reload();
+                      onAddLoaned={async (blob, name) => {
+                        await importFiles([new File([blob], name, { type: blob.type })]);
                       }}
                     />
-                    <StorageSettings tracks={library.tracks} />{' '}
-                    <div className="settings-privacy">
-                      <ShieldCheck size={24} />
-                      <div>
-                        <strong>Local storage</strong>
-                        <p>
-                          Your music and favorites are stored in this browser. Clearing site data
-                          removes your library, not your original files. Keep a copy of your
-                          originals.
-                        </p>
-                      </div>
-                    </div>
-                  </>
-                }
-                about={
-                  <>
-                    {' '}
-                    <h3>Independent editions</h3>
-                    <p>Local music. No account.</p>
-                    <p>Web · Android · Windows</p>
-                    <p>Native editions are in development.</p>
-                    <p>Use audio, images and lyrics you are entitled to access.</p>
-                    <p className="settings-shortcuts">
-                      <kbd>Space</kbd> Play / pause <span>·</span>
-                      <kbd>Ctrl / ⌘ K</kbd> Search
-                    </p>
-                    <a
-                      className="settings-source"
-                      href="https://github.com/jaime-gaming/Wave"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Wave 0.1.0 · Source code
-                      <ArrowUpRight size={16} />
-                    </a>
-                  </>
-                }
-              />
+                  }
+                  storage={
+                    <>
+                      <LibraryMaintenance
+                        tracks={library.tracks}
+                        currentId={player.current?.id}
+                        onMerged={async () => {
+                          await library.reload();
+                          await collections.reload();
+                          await customizations.reload();
+                        }}
+                      />
+                      <StorageSettings tracks={library.tracks} />
+                    </>
+                  }
+                  about={
+                    <>
+                      <button
+                        type="button"
+                        className="settings-source"
+                        onClick={() => setAndroidSheet(true)}
+                      >
+                        {t('Wave for Android')}
+                        <ArrowUpRight size={16} />
+                      </button>
+                      <a
+                        className="settings-source"
+                        href="https://github.com/jaime-gaming/Wave"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Wave {__WAVE_VERSION__} · {t('Source code')}
+                        <ArrowUpRight size={16} />
+                      </a>
+                    </>
+                  }
+                />
+              </Suspense>
             ) : page === 'search' ? (
               <SearchPage
                 tracks={library.tracks}
@@ -891,37 +1140,70 @@ function WaveApp({
                 onAlbum={openAlbum}
                 onPlaylist={openPlaylist}
                 onBrowse={browse}
-                onImport={chooseFiles}
+                onAdd={openAddMusic}
               />
-            ) : page === 'home' && dailySelection ? (
-              <DailyMixPage
-                selection={dailySelection}
-                tracks={library.tracks}
+            ) : page === 'remix' ? (
+              <RemixPage
+                summary={listening.summary}
+                recap={listening.recap}
+                history={listening.history}
+                loaded={listening.loaded}
                 currentId={player.current?.id}
                 playing={player.state.playing}
-                onBack={() => setDailySelection(null)}
                 onPlay={player.play}
-                onShuffle={shuffleCollection}
-                onFavorite={favoriteTrack}
-                onMore={setTrackOptions}
                 onArtist={openArtist}
-                onAlbum={(track) => openAlbum(albumKey(track))}
+                onAdd={openAddMusic}
+                onManageHistory={() => openSettings('storage')}
                 onSave={async (songs) => {
+                  // Saving is explicit: the list becomes an ordinary playlist and
+                  // nothing about the history changes.
                   const saved = await collections.create(
                     {
-                      name: `Daily mix ${dailySelection.number} · ${dailySelection.mix.label}`.slice(
-                        0,
-                        100,
-                      ),
-                      description: `Saved from your local ${dailySelection.mix.basis}-based daily mix.`,
+                      name: `Remix · ${new Date().toLocaleDateString(undefined, {
+                        day: 'numeric',
+                        month: 'short',
+                      })}`.slice(0, 100),
+                      description: t('Saved from Remix, the songs you played most this week.'),
                     },
-                    songs.map((t) => t.id),
+                    songs.map((track) => track.id),
                   );
                   if (!saved) return false;
                   openPlaylist(saved.id);
                   return true;
                 }}
+                onClear={listening.forget}
               />
+            ) : page === 'home' && dailySelection ? (
+              <Suspense fallback={<div className="empty-state" aria-busy="true" />}>
+                <DailyMixPage
+                  selection={dailySelection}
+                  tracks={library.tracks}
+                  currentId={player.current?.id}
+                  playing={player.state.playing}
+                  onBack={() => setDailySelection(null)}
+                  onPlay={player.play}
+                  onShuffle={shuffleCollection}
+                  onFavorite={favoriteTrack}
+                  onMore={setTrackOptions}
+                  onArtist={openArtist}
+                  onAlbum={(track) => openAlbum(albumKey(track))}
+                  onSave={async (songs) => {
+                    const saved = await collections.create(
+                      {
+                        name: `Daily mix ${dailySelection.number} · ${dailySelection.mix.label}`.slice(
+                          0,
+                          100,
+                        ),
+                        description: `Saved from your local ${dailySelection.mix.basis}-based daily mix.`,
+                      },
+                      songs.map((t) => t.id),
+                    );
+                    if (!saved) return false;
+                    openPlaylist(saved.id);
+                    return true;
+                  }}
+                />
+              </Suspense>
             ) : page === 'home' ? (
               <HomePage
                 tracks={library.tracks}
@@ -930,7 +1212,7 @@ function WaveApp({
                 playing={player.state.playing}
                 loading={library.loading}
                 busy={busy}
-                onImport={chooseFiles}
+                onAdd={openAddMusic}
                 onView={browse}
                 onAlbum={openAlbum}
                 onArtist={openArtist}
@@ -939,6 +1221,7 @@ function WaveApp({
                 onFavorite={favoriteTrack}
                 onMore={setTrackOptions}
                 artistPhotos={artistPhotos}
+                onDevices={() => openSettings('devices')}
                 onMix={(mix, number) => setDailySelection({ mix, number })}
               />
             ) : view === 'artists' && !group ? (
@@ -952,7 +1235,7 @@ function WaveApp({
             ) : view === 'playlists' && !selectedPlaylist ? (
               collections.loading ? (
                 <div className="empty-state">
-                  <h2>Loading playlists</h2>
+                  <h2>{t('Loading playlists')}</h2>
                 </div>
               ) : (
                 <PlaylistCollection
@@ -961,6 +1244,7 @@ function WaveApp({
                   query={query}
                   onOpen={openPlaylist}
                   onCreate={() => setPlaylistForm('new')}
+                  onImport={() => setMigrationOpen(true)}
                 />
               )
             ) : (
@@ -1002,23 +1286,23 @@ function WaveApp({
                 )}
                 {!group && !selectedPlaylist && (view === 'songs' || view === 'favorites') && (
                   <div className="library-list-title">
-                    <h2>{view === 'favorites' ? 'Favorite songs' : 'All songs'}</h2>
+                    <h2>{view === 'favorites' ? t('Favorite songs') : t('All songs')}</h2>
                   </div>
                 )}
                 <div className="library-toolbar">
                   <div className="library-play-actions">
                     <button
                       className="tonal-button shuffle-all"
-                      aria-label="Shuffle all songs"
+                      aria-label={t('Shuffle all songs')}
                       disabled={!visible.length}
                       onClick={playShuffle}
                     >
                       <Shuffle size={20} />
-                      Shuffle
+                      {t('Shuffle')}
                     </button>
                     <button
                       className="icon-button play-all"
-                      aria-label="Play all songs"
+                      aria-label={t('Play all songs')}
                       disabled={!visible.length}
                       onClick={() => player.play(visible, visible[0].id)}
                     >
@@ -1048,26 +1332,28 @@ function WaveApp({
                         setReordering({
                           kind: selectedPlaylist ? 'playlist' : 'album',
                           id: selectedPlaylist?.id ?? group!,
-                          name: selectedPlaylist?.name ?? album?.name ?? 'Album',
+                          name: selectedPlaylist?.name ?? album?.name ?? t('Album'),
                           tracks,
                         });
                       }}
                     >
-                      Reorder songs
+                      {t('Reorder songs')}
                     </button>
                   )}
                   <label className="sort-control">
                     <SlidersHorizontal size={20} />
                     <select
-                      aria-label="Sort tracks"
+                      aria-label={t('Sort tracks')}
                       value={sort}
                       onChange={(event) => setSort(event.target.value)}
                     >
-                      {selectedPlaylist && <option value="playlist">Playlist order</option>}
-                      {view === 'albums' && group && <option value="album">Album order</option>}
-                      <option value="recent">Recently added</option>
-                      <option value="title">Title A–Z</option>
-                      <option value="artist">Artist A–Z</option>
+                      {selectedPlaylist && <option value="playlist">{t('Playlist order')}</option>}
+                      {view === 'albums' && group && (
+                        <option value="album">{t('Album order')}</option>
+                      )}
+                      <option value="recent">{t('Recently added')}</option>
+                      <option value="title">{t('Title A–Z')}</option>
+                      <option value="artist">{t('Artist A–Z')}</option>
                     </select>
                     <ChevronDown size={16} />
                   </label>
@@ -1082,7 +1368,7 @@ function WaveApp({
                   hideGroupHeader={view === 'artists'}
                   onGroup={chooseGroup}
                   onClearSearch={clearSearch}
-                  onImport={chooseFiles}
+                  onAdd={openAddMusic}
                   busy={busy}
                   currentId={player.current?.id}
                   playing={player.state.playing}
@@ -1097,6 +1383,21 @@ function WaveApp({
           </LibrarySurface>
         </AnimatePresence>
       </main>
+      <AnimatePresence>
+        {androidSheet && (
+          <AndroidAppSheet
+            key="android-app"
+            onDismiss={() => {
+              rememberPromptAnswer('dismissed');
+              setAndroidSheet(false);
+            }}
+            onKeepWeb={() => {
+              rememberPromptAnswer('web');
+              setAndroidSheet(false);
+            }}
+          />
+        )}
+      </AnimatePresence>
       <PlayerBar
         player={player}
         expanded={playerOpen}
@@ -1119,12 +1420,33 @@ function WaveApp({
         onRetryLyrics={lookup.retryTrack}
         queueOpen={queueOpen}
         onQueue={() => setQueueOpen(!queueOpen)}
+        videoClip={videoClip}
+        onToggleVideoClip={() => setVideoClip(!videoClip)}
       />
       <AnimatePresence>
+        {addOpen && (
+          <AddMusicDialog
+            key="add-music"
+            onClose={() => setAddOpen(false)}
+            onLocal={chooseFiles}
+            onFolderFiles={importFiles}
+            onYouTube={addFromYouTube}
+            onAdded={playAdded}
+            busy={busy || addBusy}
+          />
+        )}
+        {migrationOpen && (
+          <MigrationSheet
+            key="migration"
+            tracks={library.tracks}
+            onSave={saveMigrated}
+            onClose={() => setMigrationOpen(false)}
+          />
+        )}
         {queueOpen && (
           <Modal
             key="queue"
-            title="Queue"
+            title={t('Queue')}
             className="queue-sheet"
             onClose={() => setQueueOpen(false)}
           >
@@ -1139,7 +1461,7 @@ function WaveApp({
         {trackOptions && (
           <Modal
             key="song-options"
-            title="Song options"
+            title={t('Song options')}
             className="song-options-modal"
             onClose={() => setTrackOptions(null)}
           >
@@ -1158,7 +1480,7 @@ function WaveApp({
               }}
             >
               <Heart size={22} />
-              {trackOptions.favorite ? 'Remove from favorites' : 'Add to favorites'}
+              {trackOptions.favorite ? t('Remove from favorites') : t('Add to favorites')}
             </button>
             <button
               className="options-action"
@@ -1168,7 +1490,7 @@ function WaveApp({
               }}
             >
               <ListMusic size={22} />
-              Add to playlist
+              {t('Add to playlist')}
             </button>
             <button
               className="options-action"
@@ -1179,7 +1501,9 @@ function WaveApp({
               }}
             >
               <Plus size={22} />
-              {player.state.queue.includes(trackOptions.id) ? 'Already in queue' : 'Add to queue'}
+              {player.state.queue.includes(trackOptions.id)
+                ? t('Already in queue')
+                : t('Add to queue')}
             </button>
             <button
               className="options-action"
@@ -1190,8 +1514,31 @@ function WaveApp({
             >
               {' '}
               <Pencil size={22} />
-              Edit lyrics
+              {t('Edit lyrics')}
             </button>
+            {trackOptions.videoId && (
+              <a
+                className="options-action"
+                href={`https://www.youtube.com/watch?v=${trackOptions.videoId}`}
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                <ArrowUpRight size={22} />
+                {t('Open on YouTube')}
+              </a>
+            )}
+            {!!getClip(trackOptions.id, clipsForOptions) && (
+              <button
+                className="options-action"
+                onClick={() => {
+                  removeClip(trackOptions.id);
+                  setTrackOptions(null);
+                }}
+              >
+                <Film size={22} />
+                {t('Remove video clip')}
+              </button>
+            )}
             {editorEnabled && (
               <button
                 className="options-action"
@@ -1201,7 +1548,7 @@ function WaveApp({
                 }}
               >
                 <Pencil size={22} />
-                Edit song
+                {t('Edit song')}
               </button>
             )}
             {selectedPlaylist && (
@@ -1219,7 +1566,7 @@ function WaveApp({
                   }}
                 >
                   <ArrowUp size={22} />
-                  Move up in playlist
+                  {t('Move up in playlist')}
                 </button>
                 <button
                   className="options-action"
@@ -1237,7 +1584,7 @@ function WaveApp({
                   }}
                 >
                   <ArrowDown size={22} />
-                  Move down in playlist
+                  {t('Move down in playlist')}
                 </button>
                 <button
                   className="options-action"
@@ -1250,7 +1597,7 @@ function WaveApp({
                   }}
                 >
                   <X size={22} />
-                  Remove from playlist
+                  {t('Remove from playlist')}
                 </button>
               </>
             )}
@@ -1262,21 +1609,23 @@ function WaveApp({
               }}
             >
               <Trash2 size={22} />
-              Remove from library
+              {t('Remove from library')}
             </button>
           </Modal>
         )}
         {removeTarget && (
           <Modal
             key="remove-track"
-            title="Remove this track?"
+            title={t('Remove this track?')}
             onClose={() => {
               if (!removing) setRemoveTarget(null);
             }}
           >
             <p className="modal-description">
-              Remove “{removeTarget.title}” from your library and queue? The original file on your
-              device won’t be changed.
+              {t(
+                'Remove “{title}” from your library and queue? The original file on your device won’t be changed.',
+                { title: removeTarget.title },
+              )}
             </p>
             <div className="modal-actions">
               <button
@@ -1284,7 +1633,7 @@ function WaveApp({
                 disabled={removing}
                 onClick={() => setRemoveTarget(null)}
               >
-                Keep track
+                {t('Keep track')}
               </button>
               <button
                 className="danger-button"
@@ -1299,7 +1648,7 @@ function WaveApp({
                   setRemoving(false);
                 }}
               >
-                Remove track
+                {t('Remove track')}
               </button>
             </div>
           </Modal>
@@ -1361,6 +1710,7 @@ function WaveApp({
             onClose={() => setEditingTrack(null)}
             onSave={library.editMetadata}
             onRestore={library.restoreMetadata}
+            onRestoreSilence={(id) => library.silence(id, 'restore')}
           />
         )}
         {playlistForm && (
@@ -1419,13 +1769,15 @@ function WaveApp({
         {deletingPlaylist && selectedPlaylist && (
           <Modal
             key="delete-playlist"
-            title="Delete playlist?"
+            title={t('Delete playlist?')}
             onClose={() => {
               if (!removing) setDeletingPlaylist(false);
             }}
           >
             <p className="modal-description">
-              Delete “{selectedPlaylist.name}”? Your songs will stay in the library.
+              {t('Delete “{name}”? Your songs will stay in the library.', {
+                name: selectedPlaylist.name,
+              })}
             </p>
             <div className="modal-actions">
               <button
@@ -1433,7 +1785,7 @@ function WaveApp({
                 disabled={removing}
                 onClick={() => setDeletingPlaylist(false)}
               >
-                Keep playlist
+                {t('Keep playlist')}
               </button>
               <button
                 className="danger-button"
@@ -1447,7 +1799,7 @@ function WaveApp({
                   setRemoving(false);
                 }}
               >
-                Delete playlist
+                {t('Delete playlist')}
               </button>
             </div>
           </Modal>
@@ -1458,13 +1810,16 @@ function WaveApp({
           <span>
             {error ||
               (library.progress
-                ? `Importing ${library.progress.done} of ${library.progress.total} files…`
+                ? t('Importing {done} of {total} files…', {
+                    done: library.progress.done,
+                    total: library.progress.total,
+                  })
                 : library.message)}
           </span>
           {!library.progress && (
             <button
               className="icon-button"
-              aria-label="Dismiss notification"
+              aria-label={t('Dismiss notification')}
               onClick={() => {
                 library.setError('');
                 collections.setError('');
@@ -1481,8 +1836,8 @@ function WaveApp({
       {dragging && (
         <div className="drop-overlay">
           <FolderOpen size={48} />
-          <h2>{busy ? 'Import in progress' : 'Add music'}</h2>
-          <p>{busy ? 'Wait for this import to finish.' : 'Drop your audio files here.'}</p>
+          <h2>{busy ? t('Import in progress') : t('Add music')}</h2>
+          <p>{busy ? t('Wait for this import to finish.') : t('Drop your audio files here.')}</p>
         </div>
       )}
     </div>

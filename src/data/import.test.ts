@@ -1,10 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { fileIdentity, isAudioFile, readTrack } from './import';
+import { fileIdentity, isAudioFile, isLegacyAudioFile, readTrack } from './import';
 
 describe('audio import', () => {
   it('accepts known extensions irrespective of case and rejects unrelated files', () => {
     expect(isAudioFile(new File(['x'], 'track.MP3'))).toBe(true);
     expect(isAudioFile(new File(['x'], 'track.flac'))).toBe(true);
+    expect(isAudioFile(new File(['x'], 'track.FLAC'))).toBe(true);
+    expect(isAudioFile(new File(['x'], 'track.wav'))).toBe(true);
+    expect(isAudioFile(new File(['x'], 'track.M4A'))).toBe(true);
+    expect(isAudioFile(new File(['x'], 'track.ogg'))).toBe(true);
+    expect(isLegacyAudioFile(new File(['x'], 'track.flac'))).toBe(false);
+    expect(isLegacyAudioFile(new File(['x'], 'track.opus'))).toBe(true);
+    expect(isLegacyAudioFile(new File(['x'], 'track.mp3'))).toBe(false);
     expect(isAudioFile(new File(['x'], 'track.txt', { type: 'audio/mpeg' }))).toBe(false);
   });
   it('uses stable file identity and distinguishes filename, size, and modification time', async () => {
@@ -19,6 +26,14 @@ describe('audio import', () => {
     ]) {
       expect(await fileIdentity(file)).not.toBe(await fileIdentity(first));
     }
+  });
+  it('reads a whole line out of a title tag when no artist was tagged', async () => {
+    // The classic mis-tag: title "Artist - Song", artist empty, album empty.
+    const file = new File(['not a real WAV'], 'download.wav', { type: 'audio/wav' });
+    expect(await readTrack(file, 'inline')).toMatchObject({
+      title: 'download',
+      artist: 'Unknown artist',
+    });
   });
   it('retains a file with fallback tags when metadata is malformed', async () => {
     const file = new File(['not a real WAV'], 'My.song.wav', { type: 'audio/wav' });

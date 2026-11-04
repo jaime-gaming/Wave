@@ -1,4 +1,6 @@
 using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -16,6 +18,10 @@ public partial class MainWindow : Window
     private readonly LyricsClient client = new();
     private List<Song> tracks = [], queue = [], visible = [];
     private List<NativePlaylist> playlists = [];
+    private List<Play> plays = [];
+    private double heard, heardMark;
+    private bool hearing;
+    private DateTime heardFrom = DateTime.UtcNow;
     private int index = -1;
     private string page = "Home", previousPage = "Home", repeat = "off";
     private string? collection;
@@ -32,6 +38,9 @@ public partial class MainWindow : Window
     private bool MixEnabled => preferences.Mix ?? preferences.Crossfade > 0;
     private TextBox? searchBox;
     private string searchQuery = "";
+    private string? artShown;
+    private string renderedPage = "";
+    private bool railNarrow;
 
     public MainWindow() : this(null) { }
     public MainWindow(string? folder)
@@ -41,9 +50,10 @@ public partial class MainWindow : Window
         try {
             tracks = repository.Load(); preferences = repository.LoadPreferences();
             playlists = NativeCollections.Load<List<NativePlaylist>>(repository.Folder, "playlists.json") ?? [];
-        } catch (Exception error) { Notify("Could not open local storage: " + error.Message); }
-        ApplyTheme(); volume = Math.Clamp(preferences.Volume, 0, 1); Volume.Value = volume;
-        initialized = true; ShowPage("Home"); timer.Tick += Tick; timer.Start();
+            plays = Listening.Load(repository.Folder);
+        } catch (Exception error) { Notify(Localization.T("Could not open local storage: {message}", new Dictionary<string, string> { ["message"] = error.Message })); }
+        ApplyTheme(); Localization.Init(preferences.Language); ApplyLanguage(); volume = Math.Clamp(preferences.Volume, 0, 1); Volume.Value = volume;
+        initialized = true; Loaded += (_, _) => FitRail(); ShowPage("Home"); timer.Tick += Tick; timer.Start();
         try {
             var session = NativeCollections.Load<ListeningSession>(repository.Folder, "session.json");
             if (session != null) {
@@ -51,7 +61,71 @@ public partial class MainWindow : Window
                 int restored = queue.FindIndex(s => s.Id == session.CurrentId);
                 if (restored >= 0) StartSong(restored, false, session.Position);
             }
-        } catch (Exception error) { Notify("Could not restore your listening session: " + error.Message); }
+        } catch (Exception error) { Notify(Localization.T("Could not restore your listening session: {message}", new Dictionary<string, string> { ["message"] = error.Message })); }
+    }
+    /// <summary>
+    /// The line under the title says what the page is showing. Settings and Remix
+    /// say what is in them; the browsing pages count what is on this device, and a
+    /// collection page leaves its own count to the card it shows.
+    /// </summary>
+    private void UpdateSummary()
+    {
+        Summary.Text = page switch {
+            "Search" => Localization.T("Songs, albums and artists on this device"),
+            "Settings" => Localization.T("Playback, appearance, lyrics and storage"),
+            "Remix" => Localization.T("The songs you played this week"),
+            "Albums" when collection == null => NativeCollections.Count(tracks.Select(AlbumKey).Distinct().Count(), "album"),
+            "Artists" when collection == null => NativeCollections.Count(tracks.Select(s => s.Artist).Distinct().Count(), "artist"),
+            "Playlists" when collection == null => NativeCollections.Count(playlists.Count, "playlist"),
+            "Favorites" => NativeCollections.Count(tracks.Count(s => s.Favorite), "favorite"),
+            // A collection page says the same thing as everywhere else, because
+            // the card itself counts the collection it is showing.
+            _ => $"{NativeCollections.Count(tracks.Count, "song")} · {NativeCollections.Count(tracks.Select(AlbumKey).Distinct().Count(), "album")}",
+        };
+    }
+    /// <summary>
+    /// One pass over the window's own words: the rail, the header, the player and
+    /// the dock take the current language, then the page in view is rebuilt so its
+    /// headings and rows follow. Called at start-up and whenever the choice changes.
+    /// </summary>
+    private void ApplyLanguage()
+    {
+        NavHomeText.Text = Localization.T("Home");
+        NavSearchText.Text = Localization.T("Search");
+        NavLibraryText.Text = Localization.T("Library");
+        NavRemixText.Text = Localization.T("Remix");
+        NavCollectionText.Text = Localization.T("Your collection").ToUpperInvariant();
+        NavAlbumsText.Text = Localization.T("Albums");
+        NavArtistsText.Text = Localization.T("Artists");
+        NavPlaylistsText.Text = Localization.T("Playlists");
+        NavFavoritesText.Text = Localization.T("Favorites");
+        NavSettingsText.Text = Localization.T("Settings");
+        ImportButton.ToolTip = Localization.T("Add music");
+        HeaderSettingsButton.ToolTip = Localization.T("Settings");
+        ClosePlayerButton.ToolTip = Localization.T("Close the player");
+        NowQueueButton.ToolTip = MiniQueueButton.ToolTip = Localization.T("Queue");
+        NowPlayingText.Text = Localization.T("Now playing");
+        NowHint.Text = Localization.T("Choose a song from your library.");
+        ShuffleButton.ToolTip = Localization.T("Shuffle");
+        FavoriteButton.ToolTip = Localization.T("Favorite");
+        PreviousButton.ToolTip = Localization.T("Previous");
+        NextButton.ToolTip = MiniNextButton.ToolTip = Localization.T("Next");
+        LyricsButton.ToolTip = Localization.T("Lyrics");
+        EditButton.ToolTip = Localization.T("Edit song and lyrics");
+        MiniOpenButton.ToolTip = Localization.T("Open the player");
+        Volume.ToolTip = Localization.T("Volume");
+        Heading.Text = collection ?? Localization.T(page);
+        UpdateSummary(); UpdateRepeat(); UpdatePlaybackLabels();
+        if (initialized) { if (page == "Settings") RenderSettings(); else Refresh(); }
+    }
+    /// <summary>The language row: remember the choice, then repaint the window.</summary>
+    private void SetLanguage(string choice)
+    {
+        preferences = preferences with { Language = choice };
+        preferencesDirty = true;
+        Localization.Init(choice);
+        ApplyLanguage();
+        SaveSession();
     }
     private void Notify(string text) { Message.Text = text; Message.Visibility = text.Length == 0 ? Visibility.Collapsed : Visibility.Visible; }
     private void Safe(Action action) { try { action(); } catch (Exception error) { Notify(error.Message); } }
@@ -61,21 +135,100 @@ public partial class MainWindow : Window
         if (destination != "Now playing" && destination != "Settings") previousPage = destination;
         page = destination; collection = group;
         bool expanded = page == "Now playing";
-        SidebarWidth.Width = new GridLength(expanded ? 0 : 216);
+        ApplyRailWidth();
         NavigationPanel.Visibility = PageHeader.Visibility = expanded ? Visibility.Collapsed : Visibility.Visible;
-        Heading.Text = collection ?? page;
-        Summary.Text = $"{tracks.Count} songs · {tracks.Select(s => s.Album).Distinct().Count()} albums";
+        Heading.Text = collection ?? Localization.T(page);
+        UpdateSummary();
         LibraryView.Visibility = page is "Now playing" or "Settings" ? Visibility.Collapsed : Visibility.Visible;
         NowView.Visibility = expanded ? Visibility.Visible : Visibility.Collapsed;
         SettingsView.Visibility = page == "Settings" ? Visibility.Visible : Visibility.Collapsed;
         if (NavigationPanel.Content is StackPanel navigation) foreach (var button in navigation.Children.OfType<Button>()) {
             bool selected = Equals(button.Tag, page == "Daily mix" ? "Home" : page);
-            button.SetResourceReference(Control.BackgroundProperty, selected ? "TonalBrush" : "BackgroundBrush");
-            button.FontWeight = selected ? FontWeights.SemiBold : FontWeights.Normal;
+            // The selected place is the only filled one on the rail, and the only
+            // one in the accent; the rest read as text until pointed at.
+            if (selected) {
+                button.SetResourceReference(Control.BackgroundProperty, "AccentTonalBrush");
+                button.SetResourceReference(Control.ForegroundProperty, "AccentBrush");
+                button.FontWeight = FontWeights.Bold;
+            } else {
+                button.ClearValue(Control.BackgroundProperty);
+                button.ClearValue(Control.ForegroundProperty);
+                button.FontWeight = FontWeights.SemiBold;
+            }
         }
+        LayoutPage();
+        if (expanded && Current == null) {
+            // The player can be opened with nothing behind it; say so, and let the
+            // record have the whole width instead of half of it beside an empty
+            // column that only exists when there are lyrics to show.
+            NowTitle.Text = Localization.T("Nothing playing");
+            NowArtist.Content = "";
+            NowHint.Visibility = Visibility.Visible;
+        }
+        if (expanded) SetLyricsVisibility();
         UpdateDock();
         if (page == "Settings") RenderSettings(); else if (!expanded) Refresh();
-        if (preferences.Animations) LibraryView.BeginAnimation(OpacityProperty, new DoubleAnimation(.35, 1, TimeSpan.FromMilliseconds(180)));
+        // A page change rises instead of swapping in place, and an unchanged
+        // page (a progress tick, a favourite toggled) only fades its list.
+        bool changed = page != renderedPage;
+        renderedPage = page;
+        if (page == "Settings") { if (changed) Motion.Rise(SettingsView, Motion.Enabled(preferences.Animations)); }
+        else if (expanded) { if (changed) Motion.Rise(NowView, Motion.Enabled(preferences.Animations)); }
+        else if (changed) Motion.Rise(LibraryView, Motion.Enabled(preferences.Animations));
+        else Motion.Fade(LibraryView, Motion.Enabled(preferences.Animations));
+    }
+    /// <summary>
+    /// A narrow window keeps the rail and loses the words.
+    ///
+    /// Below a thousand pixels the rail costs the page more width than it can
+    /// spare, so it becomes a column of icons whose names live in their tooltips,
+    /// and the page gets that width back. It widens again the moment there is
+    /// room: the handover is the window resizing, not a setting.
+    /// </summary>
+    private void WindowResized(object sender, SizeChangedEventArgs e) => FitRail();
+    private void FitRail()
+    {
+        bool narrow = ActualWidth > 0 && ActualWidth < 1000;
+        if (narrow == railNarrow) return;
+        railNarrow = narrow;
+        if (NavigationPanel.Content is StackPanel rail)
+        {
+            rail.Margin = narrow ? new Thickness(8, 24, 8, 18) : new Thickness(16, 24, 12, 18);
+            foreach (var element in rail.Children.OfType<FrameworkElement>())
+            {
+                if (element is Button button && button.Content is StackPanel content)
+                {
+                    foreach (var label in content.Children.OfType<TextBlock>())
+                        label.Visibility = narrow ? Visibility.Collapsed : Visibility.Visible;
+                    button.HorizontalContentAlignment = narrow ? HorizontalAlignment.Center : HorizontalAlignment.Left;
+                }
+                else if (element is TextBlock or Viewbox)
+                {
+                    // The wordmark and "your collection" are words about the rail;
+                    // a rail of icons has room for neither.
+                    element.Visibility = narrow ? Visibility.Collapsed : Visibility.Visible;
+                }
+            }
+        }
+        ApplyRailWidth();
+    }
+    private void ApplyRailWidth() => SidebarWidth.Width = new GridLength(page == "Now playing" ? 0 : railNarrow ? 96 : 216);
+    /// <summary>
+    /// Home, Remix and Settings are pages made of headings, shelves and rows; they
+    /// have no song list of their own below the fold, so their opening fills the
+    /// card and scrolls as one thing. The library pages have a list, so their
+    /// opening stays a short band above it and only the list scrolls — one bar per
+    /// page, never two side by side.
+    /// </summary>
+    private bool WholePage => page is "Home" or "Remix";
+    private void LayoutPage()
+    {
+        bool whole = WholePage;
+        LibraryView.RowDefinitions[0].Height = whole ? new GridLength(1, GridUnitType.Star) : GridLength.Auto;
+        LibraryView.RowDefinitions[1].Height = whole ? GridLength.Auto : new GridLength(1, GridUnitType.Star);
+        HeaderScroll.MaxHeight = whole ? double.PositiveInfinity : 300;
+        Songs.Visibility = whole ? Visibility.Collapsed : Visibility.Visible;
+        UpdateDock();
     }
     private void UpdateDock()
     {
@@ -83,13 +236,57 @@ public partial class MainWindow : Window
         MiniPlayer.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
         MiniHeight.Height = new GridLength(show ? 92 : 0);
     }
-    private async void ImportClick(object sender, RoutedEventArgs e)
+    private static readonly string[] AudioExtensions = [".mp3", ".wav", ".flac", ".m4a", ".aac", ".ogg", ".oga", ".opus", ".wma", ".aiff", ".aif"];
+
+    /// <summary>
+    /// "Add music" offers the two things it means: some files, or a whole folder.
+    /// It used to open the file picker straight away, which left a folder of
+    /// albums — the ordinary way a library is stored — with no way in.
+    /// </summary>
+    private void ImportClick(object sender, RoutedEventArgs e)
     {
-        var picker = new OpenFileDialog { Multiselect = true, Filter = "Audio|*.mp3;*.wav;*.flac;*.m4a;*.aac;*.ogg;*.wma;*.aiff" };
+        var menu = new ContextMenu();
+        var files = new MenuItem { Header = Localization.T("Choose files…") };
+        files.Click += async (_, _) => await ImportFiles();
+        var folder = new MenuItem { Header = Localization.T("Choose a folder…") };
+        folder.Click += async (_, _) => await ImportFolder();
+        menu.Items.Add(files);
+        menu.Items.Add(folder);
+        menu.PlacementTarget = sender as UIElement;
+        menu.IsOpen = true;
+    }
+
+    private async Task ImportFiles()
+    {
+        var picker = new OpenFileDialog { Multiselect = true, Filter = "Audio|*.mp3;*.wav;*.flac;*.m4a;*.aac;*.ogg;*.oga;*.opus;*.wma;*.aiff;*.aif" };
         if (picker.ShowDialog() != true) return;
+        await ImportPaths(picker.FileNames);
+    }
+
+    private async Task ImportFolder()
+    {
+        var picker = new OpenFolderDialog { Title = Localization.T("Choose a folder of music"), Multiselect = false };
+        if (picker.ShowDialog() != true) return;
+        string[] found;
+        try { found = Directory.EnumerateFiles(picker.FolderName, "*", SearchOption.AllDirectories).ToArray(); }
+        catch (Exception error) { Notify(error.Message); return; }
+        // A folder is not curated the way a hand-picked set of files is, so an
+        // odd file is skipped instead of failing the whole import.
+        var usable = found
+            .Where(path => AudioExtensions.Contains(System.IO.Path.GetExtension(path).ToLowerInvariant()))
+            .Where(path => { try { var length = new FileInfo(path).Length; return length > 0 && length <= 209715200; } catch { return false; } })
+            .ToArray();
+        if (usable.Length == 0) { Notify(Localization.T("No music files in that folder.")); return; }
+        await ImportPaths(usable);
+    }
+
+    private async Task ImportPaths(IEnumerable<string> paths)
+    {
+        var list = paths.ToArray();
         try {
-            Notify("Adding your music…"); int added = await repository.Import(picker.FileNames);
-            tracks = repository.Load(); Notify($"{added} tracks added; identical files skipped."); Refresh();
+            Notify(Localization.T("Adding {count}…", new Dictionary<string, string> { ["count"] = $"{list.Length} {(list.Length == 1 ? Localization.T("file") : Localization.T("files"))}" }));
+            int added = await repository.Import(list);
+            tracks = repository.Load(); Notify(Localization.T("{count} tracks added; identical files skipped.", new Dictionary<string, string> { ["count"] = added.ToString() })); Refresh();
         } catch (Exception error) { tracks = repository.Load(); Refresh(); Notify(error.Message); }
     }
     private void ArtworkPlayClick(object sender, MouseButtonEventArgs e) { if (sender is Border { Tag: Song song }) { PlayCollection(visible, song.Id); e.Handled = true; } }
@@ -106,7 +303,7 @@ public partial class MainWindow : Window
     {
         var player = new MediaPlayer();
         player.MediaEnded += (_, _) => { if (ReferenceEquals(active, player)) Advance(true); };
-        player.MediaFailed += (_, args) => { if (!ReferenceEquals(active, player)) return; playing = false; UpdatePlaybackLabels(); Notify("This file cannot be decoded: " + args.ErrorException.Message); };
+        player.MediaFailed += (_, args) => { if (!ReferenceEquals(active, player)) return; playing = false; UpdatePlaybackLabels(); Notify(Localization.T("This file cannot be decoded: {message}", new Dictionary<string, string> { ["message"] = args.ErrorException.Message })); };
         return player;
     }
     private void StartSong(int position, bool startPlaying, double restored)
@@ -139,11 +336,13 @@ public partial class MainWindow : Window
     {
         if (!ready) return;
         double time = active.Position.TotalSeconds;
+        CountListening(time);
         if (!Seek.IsMouseCaptureWithin && !Seek.IsKeyboardFocusWithin) Seek.Value = time;
         Elapsed.Text = Clock(time); Duration.Text = Clock(Seek.Maximum);
         if (playing && outgoing != null) {
             double fraction = Math.Clamp(time / fadeLength, 0, 1);
-            outgoing.Volume = volume * Math.Cos(fraction * Math.PI / 2); active.Volume = volume * Math.Sin(fraction * Math.PI / 2);
+            var (outgoingGain, incomingGain) = NativeCollections.HandoverGains(fraction);
+            outgoing.Volume = volume * outgoingGain; active.Volume = volume * incomingGain;
             if (fraction >= 1) { outgoing.Close(); outgoing = null; PrepareNext(); }
         } else if (playing && spareReady && spare != null && active.NaturalDuration.HasTimeSpan && spare.NaturalDuration.HasTimeSpan) {
             double window = NativeCollections.MixWindow(active.NaturalDuration.TimeSpan.TotalSeconds, spare.NaturalDuration.TimeSpan.TotalSeconds);
@@ -157,12 +356,15 @@ public partial class MainWindow : Window
         }
         int at = lines.FindLastIndex(line => line.Time <= time);
         if (at != highlighted) {
+            int previous = highlighted;
             highlighted = at;
-            for (int i = 0; i < LyricsLines.Children.Count; i++) if (LyricsLines.Children[i] is TextBlock text) {
-                text.SetResourceReference(TextBlock.ForegroundProperty, i == at ? "AccentBrush" : "MutedBrush");
-                text.FontWeight = i == at ? FontWeights.Bold : FontWeights.Normal;
-                text.Effect = i != at && preferences.Animations ? new BlurEffect { Radius = 1.5 } : null;
-                if (i == at && page == "Now playing") text.BringIntoView();
+            // Only the line that was sung and the one that now is are touched: a
+            // full pass over the lyric block on every line is wasted layout.
+            if (previous >= 0 && previous < LyricsLines.Children.Count && LyricsLines.Children[previous] is TextBlock before)
+                StyleLine(before, false);
+            if (at >= 0 && at < LyricsLines.Children.Count && LyricsLines.Children[at] is TextBlock current) {
+                StyleLine(current, true);
+                if (page == "Now playing") current.BringIntoView();
             }
         }
         if (at >= 0 && at < LyricsLines.Children.Count && LyricsLines.Children[at] is TextBlock currentLine) {
@@ -174,13 +376,66 @@ public partial class MainWindow : Window
         }
         if (DateTime.UtcNow - lastSave > TimeSpan.FromSeconds(5)) { SaveSession(); lastSave = DateTime.UtcNow; }
     }
+    /// <summary>
+    /// Counts what is heard from the player's own clock.
+    ///
+    /// The difference between two samples is added and a jump is ignored, so a
+    /// seek or a stall never inflates the numbers. A play is written as soon as
+    /// the song passes its threshold, not when it ends: a song skipped in its last
+    /// ten seconds was still heard.
+    /// </summary>
+    private void CountListening(double time)
+    {
+        if (Current is not { } song || !playing) { heard = 0; hearing = false; return; }
+        if (!hearing) { hearing = true; heard = 0; heardFrom = DateTime.UtcNow; heardMark = time; return; }
+        double step = time - heardMark;
+        if (step is > 0 and <= 2.5) heard += step;
+        heardMark = time;
+        if (heard < Listening.Threshold(Seek.Maximum)) return;
+        int seconds = (int)heard;
+        bool completed = ready && time >= Seek.Maximum - 1;
+        heard = 0;
+        heardFrom = DateTime.UtcNow;
+        RecordPlay(song, seconds, completed);
+    }
+    private void RecordPlay(Song song, int seconds, bool completed)
+    {
+        Safe(() => {
+            plays = Listening.Add(repository.Folder, plays, new Play(song.Id,
+                new DateTimeOffset(heardFrom).ToUnixTimeMilliseconds(), seconds, completed));
+            Update(song with { PlayCount = song.PlayCount + 1, LastPlayed = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() });
+            if (page == "Listening" || page == "Home") Refresh();
+        });
+    }
+    private ListeningSummary ListeningNow() => Listening.Summarise(plays, tracks, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+    /// <summary>
+    /// One idea of a lyric line: the sung one is hard to miss, the rest stay quiet.
+    /// No blur, no shadow — the text does the work.
+    /// </summary>
+    private void StyleLine(TextBlock line, bool sung) {
+        line.SetResourceReference(TextBlock.ForegroundProperty, sung ? "AccentBrush" : "MutedBrush");
+        line.FontWeight = sung ? FontWeights.Bold : FontWeights.Normal;
+        line.Opacity = sung ? 1 : .62;
+    }
     private static string Clock(double seconds) { if (!double.IsFinite(seconds) || seconds < 0) seconds = 0; return $"{(int)seconds / 60}:{(int)seconds % 60:00}"; }
-    private void UpdatePlaybackLabels() { MiniToggle.Content = NowToggle.Content = playing ? "Pause" : "Play"; }
+    private void UpdatePlaybackLabels()
+    {
+        Iconography.Set(NowToggle, playing ? "pause" : "play", 22);
+        Iconography.Set(MiniToggle, playing ? "pause" : "play", 18);
+        NowToggle.ToolTip = MiniToggle.ToolTip = Localization.T(playing ? "Pause" : "Play");
+    }
     private void UpdateCurrent()
     {
         if (Current == null) return;
-        MiniTitle.Text = NowTitle.Text = Current.Title; MiniArtist.Text = Current.Artist; NowArtist.Content = Current.Artist;
+        MiniTitle.Text = NowTitle.Text = Current.Title; MiniArtist.Text = Current.Artist; NowArtist.Content = Current.Artist; NowHint.Visibility = Visibility.Collapsed;
         NowArt.Background = ArtworkBrush(Current.Artwork); ArtPlaceholder.Visibility = Current.Artwork == null ? Visibility.Visible : Visibility.Collapsed;
+        MiniArt.Background = ArtworkBrush(Current.Artwork);
+        // A new song's cover arrives rather than appears; the same song's
+        // metadata edit does not replay the movement.
+        if (artShown != Current.Id) { Motion.Settle(NowArt, Motion.Enabled(preferences.Animations)); artShown = Current.Id; }
+        if (MiniArt.Child is TextBlock note) note.Visibility = Current.Artwork == null ? Visibility.Visible : Visibility.Collapsed;
+        if (Current.Favorite) FavoriteButton.SetResourceReference(Control.ForegroundProperty, "AccentBrush");
+        else FavoriteButton.ClearValue(Control.ForegroundProperty);
         UpdatePlaybackLabels(); RenderLyrics();
     }
     private ImageBrush? LoadImage(string? path) { try { if (path == null || !File.Exists(path)) return null; var image = new BitmapImage(); image.BeginInit(); image.CacheOption = BitmapCacheOption.OnLoad; image.DecodePixelWidth = 600; image.UriSource = new Uri(path); image.EndInit(); image.Freeze(); return new ImageBrush(image) { Stretch = Stretch.UniformToFill }; } catch { return null; } }
@@ -205,8 +460,22 @@ public partial class MainWindow : Window
     private void SeekToSlider() { if (!ready) return; CancelFade(); active.Position = TimeSpan.FromSeconds(Seek.Value); }
     private void VolumeChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { if (!initialized) return; volume = e.NewValue; preferences = preferences with { Volume = volume }; preferencesDirty = true; if (outgoing == null) active.Volume = volume; }
     private void FavoriteClick(object sender, RoutedEventArgs e) { if (Current != null) Safe(() => Update(Current with { Favorite = !Current.Favorite })); }
-    private void ShuffleClick(object sender, RoutedEventArgs e) { if (Current == null) return; var id = Current.Id; queue = new[] { Current }.Concat(queue.Where(s => s.Id != id).OrderBy(_ => Random.Shared.Next())).ToList(); index = 0; CancelFade(); PrepareNext(); Notify("Upcoming songs shuffled."); }
-    private void RepeatClick(object sender, RoutedEventArgs e) { repeat = repeat == "off" ? "all" : repeat == "all" ? "one" : "off"; RepeatButton.Content = "Repeat: " + repeat; PrepareNext(); }
+    private void ShuffleClick(object sender, RoutedEventArgs e) { if (Current == null) return; var id = Current.Id; queue = new[] { Current }.Concat(queue.Where(s => s.Id != id).OrderBy(_ => Random.Shared.Next())).ToList(); index = 0; CancelFade(); PrepareNext(); Notify(Localization.T("Upcoming songs shuffled.")); }
+    private void RepeatClick(object sender, RoutedEventArgs e) { repeat = repeat == "off" ? "all" : repeat == "all" ? "one" : "off"; UpdateRepeat(); PrepareNext(); }
+    /// <summary>Repeat is a state, so the button says which one it is in.</summary>
+    private void UpdateRepeat()
+    {
+        RepeatButton.ToolTip = Localization.T("Repeat: " + repeat);
+        var icon = Iconography.Draw("repeat", 20);
+        if (repeat == "one") {
+            var stack = new Grid();
+            stack.Children.Add(icon);
+            stack.Children.Add(new TextBlock { Text = "1", FontSize = 9, FontWeight = FontWeights.Bold, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Foreground = (Brush)Application.Current.Resources["InkBrush"] });
+            RepeatButton.Content = stack;
+        } else RepeatButton.Content = icon;
+        if (repeat == "off") RepeatButton.ClearValue(Control.ForegroundProperty);
+        else RepeatButton.SetResourceReference(Control.ForegroundProperty, "AccentBrush");
+    }
     private void NowClick(object sender, RoutedEventArgs e) { if (Current != null) ShowPage("Now playing"); }
     private void CollapseClick(object sender, RoutedEventArgs e) => ShowPage(previousPage);
     private void NowArtistClick(object sender, RoutedEventArgs e) { if (Current != null) ShowPage("Artists", Current.Artist); }
@@ -224,7 +493,7 @@ public partial class MainWindow : Window
         if (lookingUp) return; lookingUp = true;
         try { string text = await client.Find(song); var latest = tracks.Find(s => s.Id == song.Id);
             if (latest != null && latest.Title == song.Title && latest.Artist == song.Artist && latest.Lyrics.Length == 0) Update(latest with { Lyrics = text, CheckedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() });
-            Notify(text.Length == 0 ? "No matching lyrics." : "Lyrics saved for offline listening.");
+            Notify(Localization.T(text.Length == 0 ? "No matching lyrics." : "Lyrics saved for offline listening."));
         } catch (Exception error) { Notify(error.Message); } finally { lookingUp = false; }
     }
     private void RenderLyrics()
@@ -232,7 +501,7 @@ public partial class MainWindow : Window
         LyricsLines.Children.Clear(); lines = LyricsClient.Parse(Current?.Lyrics ?? ""); highlighted = -2; SetLyricsVisibility();
         if (lines.Count == 0) { if (!string.IsNullOrWhiteSpace(Current?.Lyrics)) LyricsLines.Children.Add(Label(Current.Lyrics, 24)); return; }
         foreach (var line in lines) {
-            var text = Label(line.Text, 26); text.Margin = new Thickness(0, 14, 0, 14); text.Cursor = Cursors.Hand;
+            var text = Label(line.Text, 26); text.Margin = new Thickness(0, 14, 0, 14); text.Cursor = Cursors.Hand; text.Opacity = .62;
             text.MouseLeftButtonUp += (_, _) => { if (ready) { CancelFade(); active.Position = TimeSpan.FromSeconds(line.Time); } };
             LyricsLines.Children.Add(text);
         }

@@ -1,5 +1,5 @@
 import { matchesSearch } from '../domain/musicIdentity';
-import { ArrowLeft, ListMusic, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, FolderInput, ListMusic, Pencil, Plus, Trash2 } from './Glyphs';
 import { motion } from 'motion/react';
 import type { Playlist, Track } from '../domain/types';
 import { usePlaylistVisual } from '../hooks/usePlaylistVisual';
@@ -7,32 +7,45 @@ import { useArtworkColor } from '../hooks/useArtworkColor';
 import { Artwork } from './Artwork';
 import { useWaveMotion } from '../ui/motion';
 
+import { useT } from '../i18n';
 export function PlaylistCollection({
   playlists,
   tracks,
   query,
   onOpen,
   onCreate,
+  onImport,
 }: {
   playlists: Playlist[];
   tracks: Track[];
   query: string;
   onOpen: (id: string) => void;
   onCreate: () => void;
+  /** Only the playlists view offers migration; search results do not. */
+  onImport?: () => void;
 }) {
+  const t = useT();
   const visible = [...playlists]
     .filter((playlist) => matchesSearch(`${playlist.name} ${playlist.description}`, query))
     .sort((a, b) => b.updatedAt - a.updatedAt);
   return (
-    <section aria-label="Playlists">
+    <section aria-label={t('Playlists')}>
       <div className="collection-heading">
         <h2>
-          Your playlists <span>{playlists.length}</span>
+          {t('Your playlists')} <span>{playlists.length}</span>
         </h2>
-        <button className="filled-button" onClick={onCreate}>
-          <Plus size={20} />
-          Create playlist
-        </button>
+        <div className="collection-actions">
+          {onImport && (
+            <button className="tonal-button" onClick={onImport}>
+              <FolderInput size={19} />
+              {t('Bring playlists over')}
+            </button>
+          )}
+          <button className="filled-button" onClick={onCreate}>
+            <Plus size={20} />
+            {t('Create playlist')}
+          </button>
+        </div>
       </div>
       {visible.length ? (
         <div className="group-grid playlist-grid">
@@ -45,11 +58,11 @@ export function PlaylistCollection({
           <div className="empty-symbol">
             <ListMusic size={40} />
           </div>
-          <h2>{query ? 'No playlists found' : 'Your first playlist starts here'}</h2>
+          <h2>{query ? t('No playlists found') : t('Your first playlist starts here')}</h2>
           <p>
             {query
-              ? 'Try a different playlist name.'
-              : 'Collect your songs in the order you want to hear them.'}
+              ? t('Try a different playlist name.')
+              : t('Collect your songs in the order you want to hear them.')}
           </p>
         </div>
       )}
@@ -72,29 +85,34 @@ export function PlaylistHeader({
   onAdd: () => void;
   onDelete: () => void;
 }) {
+  const t = useT();
   const visual = usePlaylistVisual(playlist, tracks),
     palette = useArtworkColor(visual.artwork);
   return (
-    <section style={palette} className="playlist-detail" aria-label="Playlist details">
-      <button className="icon-button playlist-back" onClick={onBack} aria-label="Back to playlists">
+    <section style={palette} className="playlist-detail" aria-label={t('Playlist details')}>
+      <button
+        className="icon-button playlist-back"
+        onClick={onBack}
+        aria-label={t('Back to playlists')}
+      >
         <ArrowLeft size={23} />
       </button>
       <Artwork track={{ title: playlist.name, album: '', artwork: visual.artwork }} />
       <div className="playlist-detail-copy">
         <p className="playlist-kicker">
-          Playlist · {playlist.trackIds.length} {playlist.trackIds.length === 1 ? 'song' : 'songs'}
+          {playlist.trackIds.length} {playlist.trackIds.length === 1 ? 'song' : 'songs'}
         </p>
         <h2>{playlist.name}</h2>
         {playlist.description && <p className="playlist-description">{playlist.description}</p>}
         <div className="playlist-detail-actions">
           <button className="tonal-button" onClick={onAdd}>
             <Plus size={19} />
-            Add songs
+            {t('Add songs')}
           </button>
-          <button className="icon-button" onClick={onEdit} aria-label="Edit playlist">
+          <button className="icon-button" onClick={onEdit} aria-label={t('Edit playlist')}>
             <Pencil size={20} />
           </button>
-          <button className="icon-button" onClick={onDelete} aria-label="Delete playlist">
+          <button className="icon-button" onClick={onDelete} aria-label={t('Delete playlist')}>
             <Trash2 size={20} />
           </button>
         </div>

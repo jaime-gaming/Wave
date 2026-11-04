@@ -6,13 +6,18 @@ export function wav(
   artist = 'Wave Tests',
   album = 'First light',
   genre?: string,
+  /** Seconds of true silence before and after the tone, for the edge cases. */
+  silence = 0,
 ) {
   const bytesPerSample = bitsPerSample / 8;
   const data = Buffer.alloc(sampleRate * duration * bytesPerSample);
-  for (let i = 0; i < data.length / bytesPerSample; i++)
+  const quiet = Math.round(silence * sampleRate);
+  const total = data.length / bytesPerSample;
+  for (let i = quiet; i < total - quiet; i++)
     data.writeIntLE(
       Math.round(
-        Math.sin((i / sampleRate) * 440 * Math.PI * 2) * (bitsPerSample === 24 ? 128000 : 1000),
+        Math.sin(((i - quiet) / sampleRate) * 440 * Math.PI * 2) *
+          (bitsPerSample === 24 ? 128000 : 1000),
       ),
       i * bytesPerSample,
       bytesPerSample,

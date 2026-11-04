@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { makeTrack } from '../test/fixtures';
-import { albumKey, collectAlbums, collectArtists, initials } from './collections';
+import {
+  albumKey,
+  artistCredits,
+  collectAlbums,
+  collectArtists,
+  initials,
+  primaryArtist,
+} from './collections';
 
 describe('local collection grouping', () => {
   it('keeps same-named albums by different artists separate', () => {
@@ -35,5 +42,35 @@ describe('local collection grouping', () => {
     expect(initials('  Jaime Gaming  ')).toBe('JG');
     expect(initials('Álvaro')).toBe('Á');
     expect(initials('')).toBe('');
+  });
+});
+
+describe('an artist tag that names two acts', () => {
+  it('gives each of them a profile', () => {
+    expect(artistCredits('Nils Frahm, Ólafur Arnalds')).toEqual(['Nils Frahm', 'Ólafur Arnalds']);
+    expect(artistCredits('A; B')).toEqual(['A', 'B']);
+  });
+
+  it('lets the song appear under both', () => {
+    const duet = makeTrack({ id: 'duet', artist: 'A, B', title: 'Together' });
+    const solo = makeTrack({ id: 'solo', artist: 'B', title: 'Alone' });
+    const artists = collectArtists([duet, solo]);
+    expect(artists.map((artist) => artist.name)).toEqual(['A', 'B']);
+    expect(artists[0].tracks.map((track) => track.id)).toEqual(['duet']);
+    expect(artists[1].tracks.map((track) => track.id)).toEqual(['duet', 'solo']);
+  });
+
+  it('leaves the names that really contain a comma alone', () => {
+    for (const name of ['Earth, Wind & Fire', 'Tyler, the Creator', 'Crosby, Stills & Nash']) {
+      expect(artistCredits(name)).toEqual([name]);
+    }
+  });
+
+  it('keeps a collaboration phrasing as one credit', () => {
+    expect(artistCredits('Nils Frahm feat. Ólafur Arnalds')).toEqual([
+      'Nils Frahm feat. Ólafur Arnalds',
+    ]);
+    expect(primaryArtist('A, B')).toBe('A');
+    expect(primaryArtist('Solo')).toBe('Solo');
   });
 });

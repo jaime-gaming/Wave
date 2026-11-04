@@ -30,7 +30,12 @@ await context.addInitScript(() => {
 });
 const errors: string[] = [];
 const sourceErrors: string[] = [];
-context.on('page', (page) => page.on('pageerror', (e) => errors.push(e.message)));
+context.on('page', (page) =>
+  page.on('pageerror', (e) => {
+    errors.push(e.message);
+    console.log('::warning::page error: ' + e.message.replace(/\s+/g, ' ').slice(0, 300));
+  }),
+);
 const seed = await context.newPage();
 await seed.goto(origin);
 const albums = [
@@ -147,6 +152,8 @@ await seed.evaluate(async () => {
   db.close();
 });
 await seed.close();
+/** Scenes whose real controls could not be driven; reported, never silent. */
+const failures: string[] = [];
 const manifest: Record<
   string,
   { file: string; startAt: number; endAt: number; viewport: { width: number; height: number } }
@@ -180,9 +187,17 @@ async function click(page: Page, target: Locator) {
     { x: box.x + box.width / 2, y: box.y + box.height / 2 },
   );
   await sleep(page, 380);
-  await target.click();
+  await target.click({ timeout: 8000 });
   await sleep(page, 350);
 }
+/** Opens Search, finds a song and plays it. */
+async function play(page: Page, text: string) {
+  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  await page.getByRole('searchbox', { name: 'Search library' }).fill(text);
+  await sleep(page, 700);
+  await page.locator('.song-title-button').first().click();
+}
+
 async function playlist(page: Page) {
   await page.locator('.home-shortcut').filter({ hasText: 'Playlists' }).click();
   await page.locator('.playlist-card').filter({ hasText: 'Evening collection' }).click();
@@ -194,21 +209,46 @@ async function record(
   width = 1440,
   height = 900,
 ) {
+  /*
+   * A scene that goes wrong costs that scene, not the film.
+   *
+   * The selectors below are the app's real controls, so a rename or a moved
+   * button shows up here first; failing the whole recording would then take the
+   * other nine scenes down with it and leave nothing to review. The failure is
+   * still printed, and it is written next to the manifest, because a film with a
+   * missing moment must not pass for a film with all of them.
+   */
   const page = await context.newPage();
-  await page.setViewportSize({ width, height });
-  await page.goto(origin);
-  await page.getByRole('heading', { name: 'Home', exact: true }).waitFor();
-  await page.evaluate(() => document.fonts.ready);
-  await prepare(page);
-  await sleep(page, 500);
-  await cursor(page);
-  const startAt = Date.now();
-  await sleep(page, 600);
-  await actions(page);
-  await sleep(page, 1800);
+  // The clock starts when the app is on screen and ready, not when the browser
+  // has opened: the first seconds of a take are page load, and the film should
+  // not spend its first beat on that.
+  let startAt = Date.now();
+  try {
+    await page.setViewportSize({ width, height });
+    await page.goto(origin);
+    await page.getByRole('heading', { name: 'Home', exact: true }).waitFor();
+    await page.evaluate(() => document.fonts.ready);
+    await prepare(page);
+    await sleep(page, 500);
+    await cursor(page);
+    startAt = Date.now();
+    await sleep(page, 600);
+    await actions(page);
+    await sleep(page, 1800);
+  } catch (error) {
+    // The whole message, folded onto one line: it names the control that would
+    // not answer and why, which is the only diagnosis a headless run leaves.
+    const detail = (error instanceof Error ? error.message : String(error))
+      .replace(/\s+/g, ' ')
+      .slice(0, 420);
+    const message = `${name}: ${detail}`;
+    failures.push(message);
+    console.log('::warning::' + message);
+  }
   const endAt = Date.now();
-  const video = page.video()!;
+  const video = page.video();
   await page.close();
+  if (!video) throw new Error('The browser recorded nothing for ' + name);
   manifest[name] = { file: await video.path(), startAt, endAt, viewport: { width, height } };
   await writeFile(path.join(output, 'captures.json'), JSON.stringify(manifest, null, 2));
   console.log('Captured', name, Math.round((endAt - startAt) / 100) / 10 + 's');
@@ -225,6 +265,10 @@ await record(
       buffer: wav('Harbor light', 120, 8000, 16, 'Sunday Club', 'Soft light', 'Jazz'),
     });
     await sleep(p, 850);
+    // The import sheet stands over the page until it is dismissed; the notice
+    // that follows lives behind it.
+    await p.keyboard.press('Escape');
+    await sleep(p, 400);
     const dismiss = p.getByRole('button', { name: 'Dismiss notification' });
     if (await dismiss.isVisible()) await dismiss.click();
     await click(p, p.locator('.home-shortcut').filter({ hasText: 'Albums' }));
@@ -247,6 +291,8 @@ await record(
     await sleep(p, 1100);
   },
 );
+// Letters in the wrong place: the demo library has no artist called "Nothbound",
+// and this release is about that not being a dead end.
 await record(
   'search',
   async (p) => {
@@ -254,12 +300,11 @@ await record(
   },
   async (p) => {
     const search = p.getByRole('searchbox', { name: 'Search library' });
-    await search.pressSequentially('Northbound', { delay: 75 });
-    await sleep(p, 1100);
-    await click(p, p.getByRole('button', { name: 'Options for After hours', exact: true }));
-    await click(p, p.getByRole('button', { name: 'Edit song', exact: true }));
-    await sleep(p, 1100);
-    await click(p, p.getByRole('button', { name: 'Save changes', exact: true }));
+    await search.pressSequentially('Nothbound', { delay: 95 });
+    await sleep(p, 1600);
+    const result = p.locator('.group-card').filter({ hasText: 'Northbound' }).first();
+    if (await result.isVisible()) await click(p, result);
+    await sleep(p, 1200);
   },
 );
 await record('ordering', playlist, async (p) => {
@@ -272,90 +317,95 @@ await record('ordering', playlist, async (p) => {
   await click(p, p.getByRole('button', { name: 'Save order', exact: true }));
   await sleep(p, 600);
 });
-await record(
-  'playback',
-  async (p) => {
-    await playlist(p);
-    await p.locator('.song-title-button').first().click();
-    await p.getByRole('button', { name: 'Open now playing', exact: true }).click();
-  },
-  async (p) => {
-    await sleep(p, 4400);
-    await click(
-      p,
-      p
-        .getByRole('dialog', { name: 'Now playing', exact: true })
-        .getByRole('button', { name: 'Next track', exact: true }),
+
+/*
+ * The join, recorded where it is really heard.
+ *
+ * Mix and autoplay are switched on in Settings before the clock starts — the
+ * switch is a setting, not the subject of the scene. Then the song is taken to
+ * ten seconds before its end and left alone: what follows is the app's own
+ * overlap, with its own cue, its own entry point and its own hand-over.
+ */
+const seek = (p: Page, seconds: number) =>
+  p.evaluate((value) => {
+    const input = document.querySelector<HTMLInputElement>(
+      'input[type="range"][aria-label="Seek"]',
     );
-    await sleep(p, 1300);
-  },
-);
+    if (!input) throw new Error('The transport has no seek control');
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+    setter?.call(input, String(value));
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  }, seconds);
 await record(
-  'queue',
-  async (p) => {
-    await playlist(p);
-    await p.locator('.song-title-button').first().click();
-    await p.getByRole('button', { name: 'Show queue', exact: true }).click();
-  },
-  async (p) => {
-    await click(p, p.getByRole('button', { name: 'Reorder queue', exact: true }));
-    const up = p.getByRole('button', { name: 'Move After hours up', exact: true });
-    if (await up.isEnabled()) await click(p, up);
-    else await click(p, p.getByRole('button', { name: 'Move Slow motion up', exact: true }));
-    await sleep(p, 1400);
-  },
-);
-await record(
-  'mix',
+  'blend',
   async (p) => {
     await p.getByRole('button', { name: 'Open settings', exact: true }).click();
     await p.getByRole('button', { name: 'Playback', exact: true }).click();
+    for (const name of ['Mix', 'Autoplay']) {
+      const control = p.getByRole('switch', { name, exact: true });
+      if ((await control.getAttribute('aria-checked')) !== 'true') await control.click();
+      await sleep(p, 250);
+    }
+    await p.keyboard.press('Escape');
+    await sleep(p, 500);
+    // The whole library, in order: a mix needs a next song, and a single result
+    // from a search is a queue of one.
+    await p
+      .getByRole('navigation', { name: 'Main navigation' })
+      .getByRole('button', { name: 'Library', exact: true })
+      .click();
+    await p.getByRole('combobox', { name: 'Sort tracks' }).selectOption('title');
+    await p.getByRole('button', { name: 'Play all songs', exact: true }).click();
+    await p.getByRole('button', { name: 'Open now playing', exact: true }).click();
+    await p.getByRole('dialog', { name: 'Now playing', exact: true }).waitFor();
+    await sleep(p, 600);
   },
   async (p) => {
-    await click(p, p.getByRole('switch', { name: 'Mix', exact: true }));
-    await sleep(p, 600);
-    await click(p, p.getByRole('switch', { name: 'Autoplay', exact: true }));
-    await sleep(p, 1000);
+    // Two minutes of song, a join of about fourteen seconds that starts sixteen
+    // seconds before the end. Fifteen seconds out, the take holds the cue, the
+    // two decks together and the hand-over, at the speed they happen.
+    await seek(p, 105);
+    await sleep(p, 14_000);
+  },
+);
+/*
+ * Dead air at the start of a file.
+ *
+ * The fixture is the only made-up part: six silent seconds on each side of the
+ * tone. The notice, its wording and its two answers are the app's.
+ */
+await record(
+  'silence',
+  async (p) => {
+    await p.getByLabel('Import audio files').setInputFiles({
+      name: 'Tidewater.wav',
+      mimeType: 'audio/wav',
+      buffer: wav('Tidewater', 60, 8000, 16, 'Sunday Club', 'Soft light', 'Jazz', 6),
+    });
+    await sleep(p, 900);
+    const dismiss = p.getByRole('button', { name: 'Dismiss notification' });
+    if (await dismiss.isVisible()) await dismiss.click();
+    await p.getByRole('button', { name: 'Search', exact: true }).click();
+    await p.getByRole('searchbox', { name: 'Search library' }).fill('Tidewater');
+    await sleep(p, 700);
+    await p.locator('.song-title-button').first().click();
+  },
+  async (p) => {
+    const notice = p.getByRole('status').filter({ hasText: 'silence' }).first();
+    await notice.waitFor({ timeout: 20_000 });
+    await sleep(p, 1400);
+    await click(p, p.getByRole('button', { name: 'Remove it', exact: true }));
+    await sleep(p, 1400);
   },
 );
 await record(
   'lyrics',
   async (p) => {
-    await playlist(p);
-    await p.locator('.song-title-button').first().click();
+    await play(p, 'After hours');
     await p.getByRole('button', { name: 'Open now playing', exact: true }).click();
   },
   async (p) => {
     await sleep(p, 7200);
-  },
-);
-await record(
-  'editor',
-  async (p) => {
-    await p.route('https://lrclib.net/api/**', (r) => {
-      const q = new URL(r.request().url()).searchParams;
-      return r.fulfill({
-        json: {
-          id: 100,
-          trackName: q.get('track_name') ?? 'After hours',
-          artistName: q.get('artist_name') ?? 'Northbound',
-          albumName: 'Night signals',
-          duration: 120,
-          syncedLyrics:
-            '[00:00]The city slows beneath the light\n[00:05]We take the long way home tonight\n[00:10]A little room to breathe again',
-        },
-      });
-    });
-    await playlist(p);
-    await p.getByRole('button', { name: 'Options for After hours', exact: true }).click();
-    await p.getByRole('button', { name: 'Edit lyrics', exact: true }).click();
-  },
-  async (p) => {
-    await click(p, p.getByRole('button', { name: 'Search online', exact: true }));
-    await p.getByRole('button', { name: 'Use found lyrics', exact: true }).waitFor();
-    await sleep(p, 800);
-    await click(p, p.getByRole('button', { name: 'Use found lyrics', exact: true }));
-    await click(p, p.getByRole('button', { name: 'Save lyrics', exact: true }));
   },
 );
 await record(
@@ -377,7 +427,12 @@ await record(
 );
 await record(
   'mobile-home',
-  async () => {},
+  async (p) => {
+    await p.evaluate(() => {
+      localStorage.setItem('wave-theme', 'dark');
+      window.dispatchEvent(new StorageEvent('storage', { key: 'wave-theme', newValue: 'dark' }));
+    });
+  },
   async (p) => {
     await sleep(p, 1400);
     await p.locator('.daily-mix-card').filter({ hasText: 'Rock' }).scrollIntoViewIfNeeded();
@@ -389,8 +444,11 @@ await record(
 await record(
   'mobile-player',
   async (p) => {
-    await playlist(p);
-    await p.locator('.song-title-button').first().click();
+    await p.evaluate(() => {
+      localStorage.setItem('wave-theme', 'light');
+      window.dispatchEvent(new StorageEvent('storage', { key: 'wave-theme', newValue: 'light' }));
+    });
+    await play(p, 'After hours');
     await p.getByRole('button', { name: 'Open now playing', exact: true }).click();
   },
   async (p) => {
@@ -401,5 +459,35 @@ await record(
 );
 await context.close();
 await browser.close();
-if (errors.length || sourceErrors.length) throw new Error([...errors, ...sourceErrors].join('\n'));
-console.log('All real UI scenes captured.');
+const expected = [
+  'collection',
+  'daily',
+  'search',
+  'ordering',
+  'blend',
+  'lyrics',
+  'silence',
+  'appearance',
+  'mobile-home',
+  'mobile-player',
+];
+for (const name of expected) if (!manifest[name]) failures.push(`${name}: never recorded`);
+await writeFile(
+  path.join(output, 'capture-failures.txt'),
+  failures.length ? failures.join('\n') + '\n' : '',
+);
+// A page error is a real defect in the app under the camera, not a lost take: it
+// is already annotated above, and it is written down with the rest. The browser
+// suite is the gate that fails a build over it; a film that renders anyway is
+// still worth reviewing.
+if (errors.length || sourceErrors.length) {
+  await writeFile(
+    path.join(output, 'capture-failures.txt'),
+    [...failures, ...errors.map((e) => 'page error: ' + e), ...sourceErrors].join('\n') + '\n',
+  );
+}
+console.log(
+  failures.length
+    ? `Captured every scene; ${failures.length} could not be driven: ${failures.join('; ')}`
+    : 'All real UI scenes captured.',
+);

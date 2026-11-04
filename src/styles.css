@@ -196,17 +196,6 @@ p {
 .library-header {
   padding: 24px 32px 26px;
 }
-.header-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 21px;
-}
-.app-name {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--primary);
-}
 .header-actions {
   display: flex;
   gap: 12px;
@@ -352,6 +341,7 @@ h1 {
   min-width: 0;
 }
 .filled-button,
+.primary-button,
 .tonal-button,
 .danger-button {
   display: inline-flex;
@@ -364,7 +354,10 @@ h1 {
   font-size: 15px;
   font-weight: 700;
 }
-.filled-button {
+.filled-button,
+/* The Devices page calls its main action this; it had no style of its own at
+   all, so "Link a device" and "Send" fell back to the browser's grey button. */
+.primary-button {
   background: var(--primary);
   color: var(--on-primary);
 }
@@ -412,6 +405,94 @@ h1 {
   text-align: center;
   padding: 76px 24px 80px;
 }
+.app-crash {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 88px 24px 96px;
+  /* It arrives rather than appearing: the same gentle rise every other panel
+     uses, so a broken screen is still a Wave screen. */
+  animation: app-crash-in 420ms cubic-bezier(0.22, 0.9, 0.24, 1) both;
+}
+@keyframes app-crash-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+.app-crash-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 62px;
+  height: 62px;
+  border-radius: 22px;
+  color: var(--primary);
+  background: var(--primary-container);
+  margin-bottom: 6px;
+}
+.app-crash-mark i {
+  width: 3px;
+  border-radius: 2px;
+  background: currentColor;
+  animation: app-crash-bars 2.6s ease-in-out infinite;
+}
+.app-crash-mark i:nth-child(1) {
+  height: 12px;
+  animation-delay: 0s;
+}
+.app-crash-mark i:nth-child(2) {
+  height: 22px;
+  animation-delay: 0.16s;
+}
+.app-crash-mark i:nth-child(3) {
+  height: 16px;
+  animation-delay: 0.32s;
+}
+.app-crash-mark i:nth-child(4) {
+  height: 8px;
+  animation-delay: 0.48s;
+}
+@keyframes app-crash-bars {
+  0%,
+  60%,
+  100% {
+    transform: scaleY(0.45);
+    opacity: 0.55;
+  }
+  24% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+.app-crash h1 {
+  font-size: clamp(24px, 4vw, 31px);
+  line-height: 1.2;
+  letter-spacing: -0.5px;
+}
+.app-crash p {
+  color: var(--muted);
+  max-width: 42ch;
+  line-height: 1.6;
+}
+.app-crash-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-crash,
+  .app-crash-mark i {
+    animation: none;
+  }
+}
 .empty-symbol {
   display: grid;
   place-items: center;
@@ -428,15 +509,24 @@ h1 {
   letter-spacing: -0.4px;
 }
 .empty-state p {
-  margin: 9px 0 26px;
+  margin: 9px 0 0;
   font-size: 15px;
   color: var(--muted);
   line-height: 1.65;
 }
-.supported-formats {
-  font-size: 12px;
+/* One place decides how an empty view offers its way out. */
+.empty-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 22px;
+}
+.empty-state > span {
+  margin-top: 12px;
+  font-size: 13px;
   color: var(--muted);
-  margin-top: 20px;
 }
 .song-list-heading,
 .song-row {
@@ -714,6 +804,14 @@ h1 {
   margin-top: auto;
   padding-top: 24px;
 }
+/*
+ * A dialog is somewhere you are, not a layer over a page you can keep scrolling.
+ * Locking the page also takes away the scrollbar strip that would otherwise sit
+ * beside a full-screen player and stop its picture short of the window's edge.
+ */
+html:has(dialog[open]) {
+  overflow: hidden;
+}
 .modal {
   width: min(480px, calc(100vw - 32px));
   max-height: calc(100dvh - 48px);
@@ -726,6 +824,11 @@ h1 {
 }
 .modal::backdrop {
   background: #090c14b0;
+}
+/* A dialog that is on its way out is already gone as far as the pointer is
+   concerned: the page behind it can be clicked while it finishes leaving. */
+.modal[inert] {
+  pointer-events: none;
 }
 .modal-heading {
   display: flex;
@@ -776,34 +879,6 @@ h1 {
 .theme-options .chosen {
   color: var(--on-primary);
   background: var(--primary);
-}
-.settings-privacy {
-  display: flex;
-  gap: 14px;
-  margin-top: 32px;
-}
-.settings-privacy > svg {
-  color: var(--primary);
-  flex-shrink: 0;
-}
-.settings-privacy strong {
-  font-size: 16px;
-  font-weight: 700;
-}
-.settings-privacy p {
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 1.7;
-  margin-top: 8px;
-}
-.settings-shortcuts {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-  color: var(--muted);
-  font-size: 12px;
-  margin: 28px 0;
 }
 kbd {
   font-family: inherit;
@@ -1057,25 +1132,13 @@ kbd {
   }
   .library-header {
     position: relative;
-    padding: 32px 20px 21px;
+    padding: 22px 20px 16px;
   }
-  .header-top {
-    position: absolute;
-    top: 32px;
-    right: 20px;
-    margin: 0;
-  }
-  .header-top .app-name {
-    display: none;
-  }
-  .title-row > div:first-child {
-    padding-right: 108px;
+  .title-row {
+    gap: 10px;
   }
   .workspace:not(.search-page) .search-box {
     display: none;
-  }
-  .app-name {
-    font-size: 15px;
   }
   .header-actions {
     gap: 10px;
@@ -1083,11 +1146,6 @@ kbd {
   .header-actions .icon-button {
     width: 44px;
     height: 44px;
-  }
-  .title-row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 23px;
   }
   h1 {
     font-size: 56px;
@@ -1163,9 +1221,6 @@ kbd {
   }
   .empty-state p {
     font-size: 14px;
-  }
-  .supported-formats {
-    font-size: 11px;
   }
   .song-list-heading {
     display: none;
@@ -1908,6 +1963,25 @@ kbd {
   height: 54px;
   border-radius: 17px;
 }
+/* The cue replaces the artist line: one word and one thin line, never wider
+   than the title beside it. */
+.compact-track .mix-cue-label {
+  width: min(100%, 96px);
+}
+/* The line under the compact title hands over instead of swapping. */
+.compact-subline {
+  display: block;
+  overflow: hidden;
+  min-height: 1.15em;
+}
+.compact-subline-item {
+  display: inline-flex;
+  max-width: 100%;
+}
+.compact-track .mix-cue-word {
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+}
 .compact-transport {
   display: flex;
   align-items: center;
@@ -2021,6 +2095,29 @@ kbd {
 }
 .home-content > section + section {
   margin-top: 36px;
+}
+/* One heading size and one gap for every section on the home column: the
+   collection, the daily mixes and the shelves below them read as one page
+   instead of four different type sizes. */
+.home-content .section-heading {
+  margin-bottom: 14px;
+}
+.home-content .section-heading h2 {
+  font-size: 21px;
+  letter-spacing: -0.3px;
+}
+/* The link card on a phone is not a section, so it had no gap under it and the
+   daily mixes sat against it. It keeps the same air as the sections do. */
+.home-link-card {
+  margin-bottom: 36px;
+}
+.settings-row-note {
+  display: block;
+  margin-top: 3px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--muted);
+  max-width: 42ch;
 }
 .home-shortcuts {
   display: grid;
@@ -2469,12 +2566,11 @@ kbd {
   flex-wrap: wrap;
 }
 
+/* The reader is text on the player surface, never a card around it. */
 .lyrics-panel {
-  background: var(--player-tonal);
-  border-radius: 32px;
-  padding: 24px;
   color: var(--player-ink);
   min-width: 0;
+  min-height: 0;
 }
 .lyrics-heading {
   display: flex;
@@ -2491,7 +2587,7 @@ kbd {
   color: var(--player-ink);
 }
 .lyrics-caption {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
   color: var(--muted);
   margin: 12px 0;
@@ -2509,9 +2605,9 @@ kbd {
   width: 100%;
   padding: 12px 4px;
   text-align: left;
-  font-size: clamp(20px, 2.2vw, 30px);
+  font-size: clamp(23px, 2.4vw, 33px);
   font-weight: 750;
-  line-height: 1.4;
+  line-height: 1.42;
   color: var(--player-muted);
   overflow-wrap: anywhere;
   transition: color 0.16s ease;
@@ -2519,9 +2615,10 @@ kbd {
 .lyric-line.active {
   color: var(--player-ink);
 }
+/* The sung line grows and takes the accent; it never gets a box of its own. */
 .lyric-line[aria-current='true'] {
-  border-left: 4px solid var(--player-accent);
-  padding-left: 16px;
+  color: var(--player-accent);
+  font-weight: 800;
 }
 .lyrics-empty {
   display: flex;
@@ -2598,10 +2695,6 @@ kbd {
   flex-wrap: wrap;
 }
 @media (max-width: 700px) {
-  .lyrics-panel {
-    padding: 18px;
-    border-radius: 26px;
-  }
   .lyrics-scroll {
     max-height: 280px;
   }
@@ -2674,16 +2767,6 @@ kbd {
   padding: 80px 10px;
   scroll-padding: 60px;
   mask-image: linear-gradient(transparent, #000 12%, #000 88%, transparent);
-}
-.lyrics-provenance {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.lyrics-provenance a {
-  color: var(--player-accent);
-  text-underline-offset: 3px;
 }
 .lyrics-tools {
   display: flex;
@@ -2848,14 +2931,6 @@ kbd {
   background: var(--background);
   padding: 28px 8px 24px;
 }
-.brand-symbol {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 16px;
-  background: var(--primary-container);
-}
 .app-navigation {
   gap: 10px;
   margin-top: 40px;
@@ -2885,16 +2960,6 @@ kbd {
 .rail-collection,
 .rail-settings > span {
   display: none;
-}
-.home-content > section + section {
-  margin-top: 24px;
-}
-.home-overview .section-heading {
-  margin-bottom: 14px;
-}
-.home-overview .section-heading h2 {
-  font-size: 18px;
-  font-weight: 700;
 }
 .home-shortcuts {
   gap: 10px;
@@ -2984,16 +3049,6 @@ kbd {
   flex-direction: column;
   gap: 28px;
 }
-.home-dashboard .section-heading {
-  margin-bottom: 16px;
-}
-.home-dashboard .section-heading h2 {
-  font-size: 22px;
-  letter-spacing: -0.35px;
-}
-.home-secondary .section-heading h2 {
-  font-size: 20px;
-}
 .home-playlist {
   padding: 10px 12px;
   border-radius: 20px;
@@ -3046,11 +3101,6 @@ kbd {
     padding: 0 12px;
     font-size: 22px;
     letter-spacing: -0.6px;
-  }
-  .brand-symbol {
-    width: 42px;
-    height: 42px;
-    border-radius: 15px;
   }
   .app-navigation {
     margin-top: 30px;
@@ -3122,9 +3172,6 @@ kbd {
   .rail-settings > span {
     display: block;
   }
-  .home-page .header-top .app-name {
-    visibility: hidden;
-  }
   .home-page .library-header {
     padding-bottom: 22px;
   }
@@ -3166,9 +3213,6 @@ kbd {
   }
 }
 @media (max-width: 900px) {
-  .home-dashboard .section-heading h2 {
-    font-size: 21px;
-  }
   .home-shortcut {
     padding: 14px;
     min-height: 88px;
@@ -3258,9 +3302,6 @@ kbd {
   .home-shortcut strong {
     font-size: 22px;
   }
-  .home-overview .section-heading h2 {
-    font-size: 18px;
-  }
   .home-overview .tonal-button {
     min-height: 40px;
     padding: 8px 12px;
@@ -3300,20 +3341,49 @@ kbd {
     bottom: calc(164px + env(safe-area-inset-bottom));
   }
 }
-.wave-mark {
-  width: 38px;
-  height: 30px;
+/*
+ * The wordmark is a path, not a font: the word is drawn with the same pen as the
+ * mark, so "Wave" looks like Wave wherever it appears and in whatever colour the
+ * song has given the interface.
+ *
+ * Only one of the two drawings is ever on screen. A narrow rail gets the W; a
+ * rail with room for a word gets the word, at a size where it still reads as
+ * lettering rather than as a smudge. The swap is at the same breakpoint that
+ * widens the rail, so the word always has somewhere to live.
+ */
+.wave-wordmark {
   display: block;
+  height: auto;
+  color: var(--primary);
+  transition: color 0.5s var(--ease-out);
 }
-.brand-symbol {
-  background: none;
-  border-radius: 0;
-  width: 40px;
-  height: 40px;
+.wave-wordmark-full {
+  display: none;
+  width: 88px;
+}
+/* The W alone: the same crests, cropped to the first letter. */
+.wave-wordmark-mark {
+  width: 36px;
 }
 .brand {
-  font-weight: 850;
-  letter-spacing: -0.9px;
+  padding: 4px 2px;
+  border-radius: 14px;
+}
+.brand:hover .wave-wordmark {
+  transform: translateY(-1px);
+}
+@media (min-width: 1100px) {
+  .wave-wordmark-full {
+    display: block;
+  }
+  .wave-wordmark-mark {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wave-wordmark {
+    transition: none;
+  }
 }
 section.settings-page {
   max-width: 1100px;
@@ -3452,7 +3522,7 @@ section.settings-page {
   mask-image: none;
 }
 .lyrics-stage .lyric-line {
-  font-size: clamp(17px, 2.2vw, 27px);
+  font-size: clamp(21px, 2.6vw, 32px);
   line-height: 1.22;
   padding: 6px 8px;
   margin: 0;
@@ -3538,69 +3608,6 @@ section.settings-page {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.is-immersive > .modal-heading {
-  visibility: hidden;
-  pointer-events: none;
-}
-.immersive-stage {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  align-items: center;
-  gap: 5vw;
-  padding: 5dvh 6vw;
-  box-sizing: border-box;
-  overflow: hidden;
-  background: radial-gradient(ellipse at 30% 40%, var(--player-tonal), transparent 65%);
-}
-.immersive-art {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-width: 0;
-  min-height: 0;
-}
-.immersive-title {
-  position: absolute;
-  top: -10%;
-  left: -8%;
-  right: -8%;
-  z-index: 0;
-  font-size: clamp(44px, 9vw, 150px);
-  font-weight: 950;
-  line-height: 0.92;
-  text-align: center;
-  color: var(--player-ink);
-  opacity: 0.35;
-  overflow-wrap: anywhere;
-  max-height: 70%;
-  overflow: hidden;
-  letter-spacing: -0.065em;
-}
-.immersive-cover {
-  position: relative;
-  z-index: 1;
-  width: min(36vw, 52dvh);
-  height: auto;
-  aspect-ratio: 1;
-  border-radius: 28px;
-  margin: 10dvh 0 0;
-  box-shadow: 0 24px 80px #0004;
-}
-.immersive-credit {
-  position: relative;
-  margin: 16px 0 0;
-  max-width: 100%;
-  font-size: 13px;
-  text-align: center;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--player-muted);
-}
 .lyrics-cinematic {
   background: transparent;
   box-shadow: none;
@@ -3613,33 +3620,18 @@ section.settings-page {
   gap: 12px;
 }
 .lyrics-cinematic .lyric-line {
-  font-size: clamp(22px, 3.4vw, 46px);
+  font-size: clamp(26px, 3.8vw, 52px);
   pointer-events: none;
 }
 @media (max-width: 800px) {
   .lyrics-stage .lyric-line {
-    font-size: clamp(18px, 2.8dvh, 26px);
-  }
-  .immersive-stage {
-    grid-template-columns: 1fr;
-    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
-    padding: 5dvh 7vw;
-    gap: 3dvh;
-  }
-  .immersive-cover {
-    width: min(62vw, 32dvh);
-    margin: 7dvh 0 0;
-    border-radius: 24px;
-  }
-  .immersive-title {
-    font-size: clamp(48px, 16vw, 90px);
-    top: 0;
+    font-size: clamp(21px, 3.2dvh, 30px);
   }
   .lyrics-cinematic {
     height: 100%;
   }
   .lyrics-cinematic .lyric-line {
-    font-size: clamp(20px, 3.1dvh, 32px);
+    font-size: clamp(24px, 3.6dvh, 36px);
   }
 }
 @media (max-height: 540px) {
@@ -3647,7 +3639,7 @@ section.settings-page {
     display: none;
   }
   .lyrics-stage .lyric-line {
-    font-size: 16px;
+    font-size: 19px;
     padding: 2px 4px;
   }
   .lyrics-stage .lyrics-empty > span {
@@ -3918,65 +3910,6 @@ section.settings-page {
   text-align: center;
   max-width: 420px;
 }
-.immersive-stage {
-  position: absolute;
-  inset: 0;
-  padding: 7dvh 7vw;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
-  gap: 7vw;
-  align-items: center;
-  overflow: hidden;
-}
-.immersive-art {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  position: relative;
-}
-.immersive-title {
-  top: 6%;
-  left: -4%;
-  right: -4%;
-  font-size: clamp(44px, 7vw, 112px);
-  opacity: 0.09;
-  line-height: 1;
-  max-height: 50%;
-}
-.immersive-cover {
-  width: min(34vw, 48dvh);
-  margin: 0;
-  border-radius: 24px;
-}
-.immersive-credit {
-  white-space: normal;
-  max-width: 100%;
-  margin: 24px 0 0;
-  overflow: visible;
-  text-align: center;
-}
-.immersive-credit h2 {
-  font-size: clamp(20px, 2.2vw, 34px);
-  line-height: 1.2;
-  overflow-wrap: anywhere;
-}
-.immersive-credit p {
-  margin-top: 8px;
-  font-size: 15px;
-  color: var(--muted);
-}
-.immersive-stage.without-lyrics {
-  grid-template-columns: 1fr;
-}
-.without-lyrics .immersive-art {
-  width: min(720px, 100%);
-  margin: auto;
-}
-.without-lyrics .immersive-cover {
-  width: min(52vw, 46dvh);
-}
 .lyrics-cinematic {
   height: 100%;
   width: 100%;
@@ -4015,59 +3948,17 @@ section.settings-page {
 }
 @media (max-width: 700px) {
   .lyrics-stage .lyric-line {
-    font-size: clamp(20px, 5.6vw, 28px);
+    font-size: clamp(23px, 6.4vw, 32px);
     padding: 10px 0;
   }
-  .immersive-stage {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto minmax(0, 1fr);
-    padding: 5dvh 7vw;
-    gap: 4dvh;
-  }
-  .immersive-art {
-    height: auto;
-  }
-  .immersive-cover {
-    width: min(46vw, 26dvh);
-    border-radius: 20px;
-  }
-  .immersive-credit {
-    margin: 16px 0 0;
-  }
-  .immersive-credit h2 {
-    font-size: 20px;
-  }
-  .immersive-credit p {
-    font-size: 12px;
-    margin-top: 4px;
-  }
-  .immersive-title {
-    font-size: 52px;
-  }
   .lyrics-cinematic .lyric-line {
-    font-size: 26px;
-  }
-  .without-lyrics .immersive-art {
-    height: 100%;
+    font-size: 30px;
   }
 }
 @media (max-height: 540px) and (min-width: 701px) {
   .lyrics-stage .lyric-line {
-    font-size: 20px;
+    font-size: 22px;
     padding: 6px 0;
-  }
-  .immersive-stage {
-    padding: 5dvh 6vw;
-    gap: 5vw;
-  }
-  .immersive-cover {
-    width: 34dvh;
-  }
-  .immersive-credit {
-    margin-top: 10px;
-  }
-  .immersive-credit h2 {
-    font-size: 18px;
   }
 }
 .playlist-card,
@@ -4081,12 +3972,6 @@ section.settings-page {
 :root[data-theme='light'] .playlist-detail {
   background: hsl(var(--art-hue, var(--wave-hue)) 40% 93%);
   border-color: hsl(var(--art-hue, var(--wave-hue)) 25% 82%);
-}
-.immersive-stage.without-lyrics {
-  grid-template-rows: 1fr;
-}
-.without-lyrics .immersive-title {
-  display: none;
 }
 .lyrics-stage .lyrics-scroll {
   position: relative;
@@ -4644,8 +4529,9 @@ select {
   font-size: 17px;
 }
 .settings-menu-copy > span {
+  font-size: 13.5px;
+  line-height: 1.35;
   color: var(--muted);
-  font-size: 14px;
 }
 .settings-menu-item > svg {
   flex-shrink: 0;
@@ -4804,24 +4690,11 @@ select {
   .library-header {
     padding: 20px 16px 18px;
   }
-  .header-top {
-    top: 18px;
-    right: 16px;
-  }
   .header-actions {
     gap: 6px;
   }
   .title-row {
     gap: 12px;
-  }
-  .title-row > div:first-child {
-    padding-right: 100px;
-    width: 100%;
-  }
-  .title-row h1 {
-    font-size: clamp(32px, 9vw, 42px);
-    letter-spacing: -1.2px;
-    line-height: 1.15;
   }
   .library-summary {
     font-size: 12px;
@@ -4952,9 +4825,6 @@ select {
   }
   .settings-menu-copy strong {
     font-size: 16px;
-  }
-  .settings-menu-copy > span {
-    font-size: 13px;
   }
   .settings-page-options {
     padding: 18px;
@@ -5144,9 +5014,11 @@ select {
 :root[data-text-size='large'] .settings-menu-copy strong {
   font-size: 18px;
 }
+:root[data-text-size='large'] .settings-menu-copy > span {
+  font-size: 15px;
+}
 :root[data-text-size='large'] .song-artist-link,
 :root[data-text-size='large'] .daily-mix-copy > span,
-:root[data-text-size='large'] .settings-menu-copy > span,
 :root[data-text-size='large'] .settings-switch-row p,
 :root[data-text-size='large'] .modal-description,
 :root[data-text-size='large'] .editor-lookup p,
@@ -5264,11 +5136,10 @@ select {
   font-size: 22px;
   overflow-wrap: anywhere;
 }
-.daily-mix-description {
-  max-width: 660px;
+.daily-mix-meta {
   color: var(--muted);
-  line-height: 1.6;
-  margin: 16px 0;
+  font-size: 13px;
+  letter-spacing: 0.01em;
 }
 .daily-mix-actions {
   display: flex;
@@ -5376,9 +5247,6 @@ select {
     width: 120px;
     height: 120px;
   }
-  .title-row > div:first-child {
-    padding-right: 94px;
-  }
 }
 
 /* Phone ergonomics: prevent iOS input zoom and keep controls finger-sized. */
@@ -5443,4 +5311,1846 @@ select {
   .without-track.app-shell {
     padding-bottom: calc(84px + env(safe-area-inset-bottom));
   }
+}
+
+/* Playback options: mix style, crossfade length and other multi-choice rows. */
+.settings-warning {
+  color: var(--warning, #e7b46b);
+  font-size: 12px;
+  line-height: 1.4;
+  margin: 2px 0 0;
+}
+.settings-option-block {
+  display: grid;
+  gap: 10px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--outline);
+}
+.settings-option-block strong {
+  display: block;
+  margin-bottom: 4px;
+}
+.settings-option-block p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+  max-width: 60ch;
+}
+.settings-choice {
+  display: inline-flex;
+  padding: 3px;
+  gap: 3px;
+  border-radius: 999px;
+  background: var(--container);
+  width: fit-content;
+}
+.settings-choice button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  padding: 7px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.settings-choice button.active {
+  background: var(--container-high);
+  color: var(--text);
+  font-weight: 700;
+}
+.settings-choice button:focus-visible,
+.settings-slider:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.settings-slider {
+  width: min(320px, 100%);
+  accent-color: var(--primary);
+}
+
+/* Word-by-word lyrics: estimated timings look softer than provider timings. */
+.lyric-word[data-word-source='derived'] {
+  transition: background-image 0.08s linear;
+}
+
+/* Phones and tablets: every control is reachable with a thumb, nothing is
+   hidden behind a hover state, and panes scroll the way the platform expects. */
+button,
+[role='button'],
+a {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.lyrics-scroll,
+.queue-list,
+.modal,
+.workspace,
+.daily-mix-page,
+.settings-panel {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+@media (pointer: coarse) {
+  .text-button,
+  .settings-choice button,
+  .player-bar .icon-button,
+  .song-row .icon-button,
+  .compact-transport button {
+    min-height: 44px;
+  }
+  .text-button {
+    padding-block: 12px;
+  }
+  .settings-choice button {
+    padding: 10px 18px;
+  }
+  .song-actions .icon-button,
+  .queue-row .icon-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  /* Hover lifts and reveals read as broken feedback on touch. */
+  .song-row:hover,
+  .daily-mix-card:hover,
+  .album-card:hover {
+    transform: none;
+  }
+  .lyrics-scroll {
+    scroll-padding-block: 40vh;
+  }
+}
+
+/* Refinement layer: one shadow, one border and one transition for every raised
+   surface, so cards, modals and the player feel cut from the same material. */
+:root {
+  --elevation-1: 0 1px 2px rgba(4, 8, 18, 0.16), 0 8px 24px rgba(4, 8, 18, 0.18);
+  --elevation-2: 0 2px 6px rgba(4, 8, 18, 0.2), 0 22px 48px rgba(4, 8, 18, 0.28);
+  --hairline: color-mix(in srgb, var(--text) 8%, transparent);
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  /*
+   * A touch of overshoot, and only a touch.
+   *
+   * Anything that is pressed, opened or dropped into place ends a hair past its
+   * target and settles back. It reads as weight rather than as decoration: the
+   * movement is 1-2 px and 120-260 ms, so it is felt more than seen, which is
+   * the point — the interface should feel like it is made of something.
+   */
+  --ease-wobble: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-wobble-soft: cubic-bezier(0.3, 1.25, 0.6, 1);
+}
+:root[data-theme='light'] {
+  --elevation-1: 0 1px 2px rgba(28, 38, 68, 0.06), 0 8px 20px rgba(28, 38, 68, 0.08);
+  --elevation-2: 0 2px 6px rgba(28, 38, 68, 0.08), 0 22px 44px rgba(28, 38, 68, 0.14);
+}
+::selection {
+  background: color-mix(in srgb, var(--primary) 34%, transparent);
+  color: var(--text);
+}
+.workspace {
+  box-shadow: var(--elevation-1);
+}
+.library-header {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--header) 88%, #fff 12%),
+    var(--header)
+  );
+}
+.modal {
+  box-shadow: var(--elevation-2);
+  border: 1px solid var(--hairline);
+}
+.album-card,
+.home-playlist,
+.daily-mix-card,
+.song-row,
+.settings-menu-item {
+  border: 1px solid var(--hairline);
+}
+.group-card .artwork,
+.album-card .artwork,
+.daily-mix-card .artwork {
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--background) 55%, transparent);
+}
+.group-card,
+.album-card,
+.home-playlist,
+.daily-mix-card,
+.home-artist {
+  transition:
+    transform 0.28s var(--ease-wobble),
+    box-shadow 0.28s var(--ease-out),
+    background-color 0.2s ease;
+}
+.group-card:hover,
+.album-card:hover,
+.home-playlist:hover,
+.home-artist:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--elevation-1);
+}
+/*
+ * The wobble layer.
+ *
+ * Every press sinks a measured amount and comes back through the overshoot
+ * curve; every surface that appears lands with a small settle. Nothing moves
+ * more than a couple of pixels, so it is invisible in a screenshot and only
+ * there if you are the kind of person who notices.
+ */
+.filled-button,
+.tonal-button,
+.icon-button,
+.text-button,
+.category-selection,
+.library-tabs button,
+.app-navigation button,
+.rail-collection button,
+.rail-settings {
+  transition:
+    transform 0.22s var(--ease-wobble),
+    background-color 0.16s ease,
+    color 0.16s ease,
+    box-shadow 0.22s var(--ease-out);
+}
+.filled-button:active:not(:disabled),
+.tonal-button:active:not(:disabled),
+.library-tabs button:active,
+.rail-collection button:active {
+  transform: scale(0.972);
+  transition-duration: 90ms;
+}
+.icon-button:active:not(:disabled),
+.rail-settings:active {
+  transform: scale(0.9);
+  transition-duration: 90ms;
+}
+.text-button:active:not(:disabled) {
+  transform: translateY(1px);
+  transition-duration: 90ms;
+}
+/* A list row lifts half a pixel on hover and settles under the pointer. */
+.song-row {
+  transition:
+    background-color 0.18s ease,
+    transform 0.26s var(--ease-wobble);
+}
+.song-row:hover {
+  transform: translateX(1.5px);
+}
+.song-row:active {
+  transform: translateX(1.5px) scale(0.997);
+  transition-duration: 90ms;
+}
+/* Notices arrive with a small spring instead of appearing. */
+.toast {
+  animation: wave-wobble-in 0.42s var(--ease-wobble) both;
+}
+@keyframes wave-wobble-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-1.5px) scale(1.004);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+/* A number that changes (a count, a total) ticks rather than swaps. */
+.remix-week-figure strong,
+.remix-rank,
+.category-count {
+  transition: transform 0.3s var(--ease-wobble);
+}
+@media (prefers-reduced-motion: reduce) {
+  .filled-button,
+  .tonal-button,
+  .icon-button,
+  .text-button,
+  .library-tabs button,
+  .app-navigation button,
+  .rail-collection button,
+  .rail-settings,
+  .song-row,
+  .toast {
+    animation: none;
+    transition: none;
+  }
+  .filled-button:active,
+  .tonal-button:active,
+  .song-row:hover,
+  .song-row:active {
+    transform: none;
+  }
+}
+.text-button {
+  border-radius: 999px;
+  padding-inline: 8px;
+  margin-inline: -4px;
+  transition:
+    color 0.16s ease,
+    background-color 0.16s ease;
+}
+.text-button:hover:not(:disabled) {
+  filter: none;
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+}
+.filled-button {
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--primary) 28%, transparent);
+}
+.filled-button:hover:not(:disabled),
+.tonal-button:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+.section-heading h2 {
+  letter-spacing: -0.4px;
+}
+/* Thin, calm scrollbars instead of the platform default. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--text) 18%, transparent) transparent;
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--text) 18%, transparent);
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--text) 30%, transparent);
+  background-clip: content-box;
+}
+@media (prefers-reduced-motion: reduce) {
+  .group-card,
+  .album-card,
+  .home-playlist,
+  .daily-mix-card,
+  .home-artist {
+    transition: none;
+  }
+  .group-card:hover,
+  .album-card:hover,
+  .home-playlist:hover,
+  .home-artist:hover {
+    transform: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Layering and rhythm.
+
+   One scale decides what can cover what, so nothing decorative can end up over
+   the text and no interactive element ends up under another. Spacing follows a
+   single rhythm too: sections get 20 px, panels 16 px, rows 12 px.
+   ------------------------------------------------------------------------- */
+:root {
+  --layer-base: 0;
+  --layer-content: 1;
+  --layer-nav: 20;
+  --layer-player: 30;
+  --layer-menu: 40;
+  --layer-toast: 60;
+  --layer-drop: 70;
+  --layer-skip: 80;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 28px;
+}
+.app-shell {
+  position: relative;
+  isolation: isolate;
+}
+/* Ambient light belongs behind the interface, never over its text. */
+.music-backdrop {
+  z-index: var(--layer-base);
+}
+.workspace {
+  position: relative;
+  z-index: var(--layer-content);
+}
+.navigation-shell {
+  z-index: var(--layer-nav);
+}
+.player-bar {
+  z-index: var(--layer-player);
+}
+.toast {
+  z-index: var(--layer-toast);
+}
+.drop-overlay {
+  z-index: var(--layer-drop);
+}
+.skip-link {
+  z-index: var(--layer-skip);
+}
+
+/* Tighter shell: less empty frame around the content. */
+.workspace {
+  margin: var(--space-4) calc(var(--player-width) + var(--space-5)) var(--space-4)
+    calc(var(--rail-width) + var(--space-3));
+  min-height: calc(100dvh - 32px);
+  border-radius: 28px;
+}
+.library-header {
+  padding: var(--space-5) 26px 22px;
+}
+.section-heading {
+  margin-bottom: var(--space-4);
+}
+.home-dashboard {
+  gap: var(--space-5);
+  margin-top: var(--space-5);
+}
+.stage-layout {
+  gap: var(--space-3) clamp(18px, 3.2vw, 52px);
+}
+.stage-record {
+  gap: var(--space-4);
+}
+.settings-switch-row {
+  margin-top: var(--space-5);
+  gap: var(--space-4);
+}
+.settings-page-options {
+  padding: 20px;
+}
+.lyrics-stage {
+  gap: var(--space-3);
+}
+@media (max-width: 1100px) {
+  .workspace {
+    margin-right: var(--space-4);
+    margin-bottom: var(--space-4);
+  }
+}
+@media (max-width: 700px) {
+  .workspace {
+    margin: 0;
+    border-radius: 0;
+  }
+}
+
+/*
+ * The header is one banner, not a stack.
+ *
+ * The title and what it is looking at sit on the left; the two utilities sit on
+ * the right, on the same line and level with the title. Nothing above them is
+ * reserved, so there is no empty band where a toolbar used to be, and the
+ * content starts immediately under the banner.
+ */
+.library-header {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+.title-row > div:first-child {
+  min-width: 0;
+}
+.header-actions {
+  align-self: flex-start;
+  flex: none;
+}
+/* The line under the title: the library's own numbers, quiet enough to read as
+   a caption and short enough never to wrap on a phone. */
+.library-summary {
+  color: var(--primary);
+  opacity: 0.8;
+  font-size: 13.5px;
+  line-height: 1.4;
+  margin: 6px 0 0;
+}
+@media (max-width: 700px) {
+  .title-row {
+    gap: 12px;
+  }
+  .library-summary {
+    font-size: 12.5px;
+    margin-top: 4px;
+  }
+}
+
+/* The page title is a heading, not a poster: it keeps the header short so the
+   first song is visible without scrolling. */
+h1 {
+  font-size: clamp(26px, 2.6vw, 38px);
+  letter-spacing: -0.8px;
+  line-height: 1.1;
+  margin: 0;
+}
+.title-row {
+  margin-bottom: 12px;
+}
+@media (max-width: 700px) {
+  h1 {
+    font-size: clamp(24px, 7vw, 30px);
+    letter-spacing: -0.5px;
+  }
+  .title-row {
+    margin-bottom: 8px;
+  }
+}
+/* Empty-state hint under the import button. */
+.supported-formats {
+  display: block;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+/* Long lists: skip layout and paint for rows that are off screen. */
+.song-list[data-virtual='true'] > .song-row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 68px;
+}
+@media (max-width: 700px) {
+  .song-list[data-virtual='true'] > .song-row {
+    contain-intrinsic-size: auto 76px;
+  }
+}
+
+/* Library rhythm: every list shares one row height, one corner and one hover, so
+   a long album reads as a list instead of a stack of cards. */
+.song-row {
+  min-height: 68px;
+  padding: 8px 16px;
+  margin-bottom: 4px;
+  border-radius: 16px;
+  gap: 14px;
+  transition:
+    background 0.16s var(--ease-out),
+    border-color 0.16s var(--ease-out);
+}
+.song-row:hover,
+.song-row:focus-within {
+  background: color-mix(in srgb, var(--container-high) 76%, transparent);
+  border-color: color-mix(in srgb, var(--primary) 26%, var(--hairline));
+}
+.song-row .track-info {
+  gap: 2px;
+}
+.song-row .track-info strong {
+  font-size: 15.5px;
+  font-weight: 650;
+  letter-spacing: -0.1px;
+}
+.song-row .track-info > span {
+  font-size: 13.5px;
+}
+.song-row .artwork {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+}
+.song-list-heading {
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  padding-bottom: 10px;
+}
+@media (max-width: 700px) {
+  .song-row {
+    min-height: 76px;
+    padding: 10px 12px;
+    border-radius: 16px;
+  }
+  .song-row .artwork {
+    width: 52px;
+    height: 52px;
+    border-radius: 13px;
+  }
+  .song-row .track-info strong {
+    font-size: 15px;
+  }
+}
+
+/* Long songs lists: rows outside the viewport cost no layout and no paint, and
+   the placeholder keeps the scrollbar honest while they are skipped. */
+.song-list .song-row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 68px;
+}
+.song-row-sentinel {
+  height: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+@media (max-width: 700px) {
+  .song-list .song-row {
+    contain-intrinsic-size: auto 76px;
+  }
+}
+
+/*
+ * Devices: pairing, the peer's library and borrowed songs.
+ *
+ * Two columns on a desktop (this device, another device), one column on a phone.
+ * The code boxes are monospace and read-only, because a code is a thing you
+ * copy, not a thing you read.
+ */
+.devices-page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-bottom: 24px;
+}
+.devices-intro {
+  margin: 0;
+  max-width: 62ch;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.devices-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+}
+.devices-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 20px;
+  background: var(--container);
+}
+.devices-card h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 16px;
+}
+.devices-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+.devices-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.devices-field span {
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+.devices-field textarea {
+  width: 100%;
+  resize: vertical;
+  padding: 10px 12px;
+  border: 1px solid var(--outline, #3a4254);
+  border-radius: 12px;
+  background: var(--container-high);
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.devices-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.devices-confirm {
+  align-items: center;
+  text-align: center;
+}
+.devices-code {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin: 4px 0;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  font-variant-numeric: tabular-nums;
+}
+.devices-code span {
+  display: grid;
+  place-items: center;
+  min-width: 40px;
+  padding: 8px 4px;
+  border-radius: 12px;
+  background: var(--container-high);
+  color: var(--primary);
+}
+.devices-connected {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.devices-connected strong {
+  flex: 1;
+}
+.devices-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--primary);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 22%, transparent);
+}
+.devices-note {
+  color: var(--muted);
+  font-size: 13px;
+}
+.devices-error {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--error, #ff6b6b) 16%, transparent);
+  color: var(--text);
+  font-size: 13.5px;
+}
+.devices-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.devices-songs,
+.devices-device-list,
+.devices-song-loans {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.devices-songs {
+  max-height: 320px;
+  overflow-y: auto;
+}
+.devices-songs label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 6px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.devices-songs label:hover {
+  background: var(--container-high);
+}
+.devices-songs strong,
+.devices-device-list strong,
+.devices-song-loans strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+}
+.devices-songs small,
+.devices-device-list small,
+.devices-song-loans small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.devices-device-list li,
+.devices-song-loans li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 4px;
+}
+.devices-device-list li > span,
+.devices-song-loans li > span {
+  flex: 1;
+  min-width: 0;
+}
+.spin {
+  animation: devices-spin 0.9s linear infinite;
+}
+@keyframes devices-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+}
+
+/* The clip section inside the song editor: what is playing, and the shortlist. */
+.clip-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 16px;
+  background: var(--container-high);
+}
+.clip-section header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+.clip-current {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.clip-current img,
+.clip-choices img {
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.clip-current span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.clip-current small,
+.clip-choices small,
+.clip-empty,
+.clip-offset span {
+  color: var(--muted);
+  font-size: 12px;
+}
+.clip-current a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+.clip-current a:hover {
+  color: var(--primary);
+}
+/* A link is the fallback when discovery cannot answer: the clip is never a dead end. */
+.clip-link {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.clip-link label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 180px;
+  padding: 0 10px;
+  border: 1px solid var(--outline, #3a4254);
+  border-radius: 10px;
+  background: var(--container);
+  color: var(--muted);
+}
+.clip-link input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+.clip-link input:focus {
+  outline: none;
+}
+.clip-link label:focus-within {
+  border-color: var(--accent, #7aa2f7);
+}
+.clip-link input[aria-invalid='true'] {
+  color: var(--danger, #f7768e);
+}
+
+.clip-offset {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.clip-offset input {
+  width: 74px;
+  padding: 6px 8px;
+  border: 1px solid var(--outline, #3a4254);
+  border-radius: 8px;
+  background: var(--container);
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.clip-actions {
+  display: flex;
+  gap: 10px;
+}
+.clip-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.clip-choices button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px;
+  border-radius: 10px;
+  text-align: left;
+}
+.clip-choices button:hover {
+  background: var(--container);
+}
+.clip-choices span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.clip-choices strong {
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Recent searches: chips, not a list of history rows. */
+.search-recent {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 4px 0 18px;
+}
+.search-recent-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.search-recent-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.search-recent-chips button {
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: var(--container);
+  color: var(--text);
+  font-size: 13.5px;
+  transition: background 0.18s ease;
+}
+.search-recent-chips button:hover {
+  background: var(--container-high);
+}
+
+/* The pairing QR and the camera sheet. */
+.devices-qr {
+  align-items: center;
+  text-align: center;
+}
+.devices-qr-image {
+  width: min(320px, 78vw);
+  height: auto;
+  border-radius: 16px;
+  background: #fff;
+  padding: 10px;
+}
+.devices-actions .tonal-button,
+.devices-actions .primary-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.devices-page .text-button.danger {
+  color: var(--error, #e5484d);
+}
+.qr-scanner {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 24px;
+  background: #05070cd9;
+  backdrop-filter: blur(10px);
+}
+.qr-scanner-frame {
+  position: relative;
+  width: min(420px, 86vw);
+  aspect-ratio: 1;
+  border-radius: 24px;
+  overflow: hidden;
+  background: #000;
+}
+.qr-scanner-frame video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.qr-scanner-corners {
+  position: absolute;
+  inset: 12%;
+  border: 2px solid #fff9;
+  border-radius: 18px;
+  box-shadow: 0 0 0 9999px #0006;
+}
+.qr-scanner-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: #e8ecf5;
+  font-size: 14px;
+}
+.qr-scanner-error {
+  max-width: 44ch;
+  margin: 0;
+  color: #ffd9d9;
+  font-size: 14px;
+  text-align: center;
+}
+
+/* Offering the Android build: a small sheet above the player, never over it. */
+.android-app-sheet {
+  position: fixed;
+  z-index: 45;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    'mark text'
+    'actions actions';
+  align-items: center;
+  gap: 10px 12px;
+  width: min(420px, calc(100vw - 32px));
+  padding: 16px;
+  border-radius: 20px;
+  border: 1px solid var(--outline, #3a4254);
+  background: var(--container-high);
+  color: var(--text);
+  box-shadow: 0 18px 40px #05070c66;
+}
+.android-app-mark {
+  grid-area: mark;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: var(--container);
+  color: var(--accent, #7aa2f7);
+}
+.android-app-text {
+  grid-area: text;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding-right: 20px;
+}
+.android-app-text strong {
+  font-size: 14.5px;
+}
+.android-app-text p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+.android-app-actions {
+  grid-area: actions;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.android-app-actions .tonal-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+}
+.android-app-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+}
+@media (max-width: 1100px) {
+  .android-app-sheet {
+    bottom: calc(var(--compact-bottom) + 96px);
+  }
+}
+
+/*
+ * Remix.
+ *
+ * The week read as a page rather than as a dashboard: one figure, one sentence
+ * about it, seven quiet columns, then the songs. There is no card around the
+ * number, no badge and no icon doing work a sentence can do — the type and the
+ * hairlines are the design. Everything is measured in the same rhythm: one gap
+ * between blocks, one rule between rows, nothing else.
+ */
+.remix-page {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 34px;
+  padding-bottom: 8px;
+  max-width: 880px;
+  --remix-rule: color-mix(in srgb, var(--outline) 35%, transparent);
+}
+.remix-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin-bottom: -20px;
+}
+.remix-subtitle {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13.5px;
+  letter-spacing: 0.01em;
+}
+.remix-confirm {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 13.5px;
+  color: var(--muted);
+}
+.text-button.quiet {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* The week in one figure, and the sleeve of the song that earned it. */
+.remix-lede {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 4px 28px;
+}
+.remix-lede-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.remix-figure {
+  margin: 0;
+  font-size: clamp(52px, 7.4vw, 84px);
+  font-weight: 780;
+  line-height: 0.94;
+  letter-spacing: -3px;
+  color: var(--primary);
+}
+.remix-line {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14.5px;
+}
+.remix-compare {
+  font-size: 13.5px;
+  margin-top: 2px;
+}
+.remix-compare[data-up='true'] {
+  color: var(--primary);
+}
+/* One sleeve, lifted off the margin, with the reason it is there under it. */
+.remix-lede-art {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 7px;
+  padding: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.remix-lede-art .artwork {
+  width: 116px;
+  height: 116px;
+  border-radius: 18px;
+  box-shadow: 0 18px 40px -24px #000c;
+  transition: transform 0.3s var(--ease-wobble);
+}
+.remix-lede-art:hover .artwork {
+  transform: translateY(-2px) rotate(-0.6deg);
+}
+
+/* Seven columns, one per day, under the figure they add up to. */
+.remix-week {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-top: 1px solid var(--remix-rule);
+  padding-top: 20px;
+}
+.remix-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  height: 84px;
+}
+.remix-bar {
+  position: relative;
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  background: none;
+  color: var(--muted);
+  border-radius: 10px;
+}
+.remix-bar-fill {
+  display: block;
+  flex-shrink: 0;
+  width: 100%;
+  max-width: 46px;
+  border-radius: 8px 8px 3px 3px;
+  background: var(--container-high);
+  transform-origin: bottom center;
+}
+.remix-bar.today .remix-bar-fill {
+  background: var(--primary);
+}
+.remix-bar.hovered .remix-bar-fill,
+.remix-bar:focus-visible .remix-bar-fill {
+  background: var(--primary);
+  opacity: 0.85;
+}
+.remix-bar-fill[data-empty='true'] {
+  background: var(--remix-rule);
+}
+.remix-bar-day {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.remix-bar.today .remix-bar-day {
+  color: var(--text);
+}
+.remix-caption {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* Your Remix: a heading, two actions, and rows divided by a hairline. */
+.remix-mix {
+  border-top: 1px solid var(--remix-rule);
+  padding-top: 22px;
+}
+.remix-mix-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.remix-mix-head h3 {
+  margin: 0;
+  font-size: 21px;
+  font-weight: 750;
+  letter-spacing: -0.4px;
+}
+.remix-mix-head p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13.5px;
+}
+.remix-mix-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.remix-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+.remix-list li {
+  display: grid;
+  grid-template-columns: 26px 48px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--remix-rule);
+  border-radius: 0;
+  background: none;
+}
+.remix-list li:last-child {
+  border-bottom: 0;
+}
+.remix-list li.current .remix-name strong {
+  color: var(--primary);
+}
+.remix-rank {
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  text-align: right;
+}
+.remix-cover {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: none;
+}
+.remix-cover .artwork {
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+}
+.remix-playing {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  background: #0007;
+}
+.remix-playing span {
+  width: 3px;
+  height: 14px;
+  border-radius: 2px;
+  background: #fff;
+  animation: remix-play 0.9s ease-in-out infinite alternate;
+}
+.remix-playing span:last-child {
+  height: 9px;
+  animation-delay: 0.3s;
+}
+@keyframes remix-play {
+  from {
+    transform: scaleY(0.4);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+.remix-name {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+  background: none;
+}
+.remix-name strong,
+.remix-name span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.remix-name strong {
+  font-size: 14.5px;
+  font-weight: 700;
+}
+.remix-name span {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.remix-count {
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+/* Three facts, one line of type: no card, no chart, no second page. */
+.remix-notes {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin: -14px 0 0;
+  padding-top: 18px;
+  border-top: 1px solid var(--remix-rule);
+  color: var(--muted);
+  font-size: 13.5px;
+}
+.remix-notes span,
+.remix-notes button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.remix-notes span + span::before,
+.remix-notes button::before,
+.remix-notes span + button::before {
+  content: '';
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.6;
+}
+.remix-notes button {
+  padding: 0;
+  background: none;
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 650;
+}
+.remix-notes button:hover {
+  color: var(--primary);
+}
+
+/* Who the week belonged to: quiet chips, not a leaderboard. */
+.remix-people {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: -18px;
+}
+.remix-people button {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--container);
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 650;
+  transition: background 0.2s ease;
+}
+.remix-people button:hover {
+  background: var(--container-high);
+}
+.remix-people button span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/*
+ * The weeks before this one: four lines of type, one per week, with the week's
+ * own figures on one line and a way back into it on the right. Rows rather than
+ * cards, because a history is read down, not browsed across.
+ */
+.remix-history h3 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+.remix-history ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--remix-rule);
+}
+.remix-history li {
+  display: grid;
+  grid-template-columns: minmax(0, 190px) minmax(0, 120px) minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 4px 18px;
+  padding: 11px 4px;
+  border-bottom: 1px solid var(--remix-rule);
+  font-size: 14px;
+}
+.remix-history li[data-quiet='true'] {
+  color: var(--muted);
+}
+.remix-history-when {
+  font-weight: 650;
+}
+.remix-history-time {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+.remix-history-note {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+}
+.remix-history-play {
+  font-size: 13px;
+}
+@media (max-width: 720px) {
+  .remix-history li {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'when time'
+      'note play';
+    gap: 2px 12px;
+  }
+  .remix-history-when {
+    grid-area: when;
+  }
+  .remix-history-time {
+    grid-area: time;
+    justify-self: end;
+  }
+  .remix-history-note {
+    grid-area: note;
+  }
+  .remix-history-play {
+    grid-area: play;
+    justify-self: end;
+  }
+}
+
+.remix-foot {
+  border-top: 1px solid var(--remix-rule);
+  padding-top: 16px;
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.remix-foot p {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.remix-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0;
+  background: none;
+  color: var(--primary);
+  font: inherit;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in oklab, var(--primary) 45%, transparent);
+  text-underline-offset: 3px;
+}
+.remix-link:hover {
+  text-decoration-color: currentColor;
+}
+@media (max-width: 640px) {
+  .remix-page {
+    gap: 26px;
+  }
+  .remix-lede {
+    gap: 14px;
+  }
+  .remix-lede-art .artwork {
+    width: 88px;
+    height: 88px;
+    border-radius: 16px;
+  }
+  .remix-notes,
+  .remix-people {
+    margin-top: 0;
+  }
+  /* A wrapped line would start with a dot; stacked, each fact starts with a word. */
+  .remix-notes {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  .remix-notes span + span::before,
+  .remix-notes button::before,
+  .remix-notes span + button::before {
+    display: none;
+  }
+  .remix-mix-actions button {
+    white-space: nowrap;
+    padding-inline: 12px;
+    font-size: 13px;
+  }
+  .remix-bars {
+    height: 68px;
+    gap: 6px;
+  }
+  .remix-list li {
+    grid-template-columns: 20px 44px minmax(0, 1fr);
+    gap: 11px;
+  }
+  .remix-list li {
+    grid-template-columns: 20px 44px minmax(0, 1fr) auto;
+  }
+  .remix-mix-actions {
+    width: 100%;
+  }
+  .remix-mix-actions button {
+    flex: 1;
+  }
+}
+
+/*
+ * The phone layout, as one piece.
+ *
+ * A tablet at 820 px is a narrow desktop and already reads well: the rail, the
+ * card and the player all keep their shape. A phone is not a narrow desktop, so
+ * below 700 px the shell changes character: the page becomes a card that floats
+ * over the backdrop instead of bleeding to the edges, the collection numbers
+ * become a short list instead of five empty boxes, and the bottom bar gets a
+ * scrim so scrolling content disappears behind it instead of being sliced by
+ * it.
+ */
+@media (max-width: 700px) {
+  .workspace {
+    margin: 0 10px 10px;
+    border-radius: 28px;
+    min-height: auto;
+  }
+  /* The dock floats; the strip behind it belongs to the bar, not to the list. */
+  .app-shell::after {
+    content: '';
+    position: fixed;
+    inset: auto 0 0;
+    height: 168px;
+    z-index: 2;
+    pointer-events: none;
+    background: linear-gradient(to top, var(--background) 46%, transparent);
+  }
+  .library-header {
+    padding: 20px 18px 14px;
+  }
+  .title-row {
+    align-items: center;
+    gap: 12px;
+  }
+  h1 {
+    font-size: clamp(36px, 10.5vw, 46px);
+    letter-spacing: -1.4px;
+  }
+  .library-summary {
+    margin-top: 4px;
+    font-size: 13px;
+  }
+  .header-actions .icon-button {
+    width: 42px;
+    height: 42px;
+  }
+
+  /* Collection: five rows that say the number, not five boxes with air in them. */
+  .home-overview .section-heading {
+    margin-bottom: 12px;
+  }
+  .home-shortcuts {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+    overflow: visible;
+    padding: 0;
+  }
+  /* The last two numbers used to widen to fill a six-column grid; a one-column
+     grid needs no exception, and a leftover span would invent the columns back. */
+  .home-shortcut,
+  .home-shortcut:nth-last-child(-n + 2) {
+    grid-column: auto;
+    grid-template-columns: 22px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 13px;
+    min-height: 0;
+    border-radius: 16px;
+  }
+  .home-shortcut svg {
+    grid-area: 1 / 1;
+    width: 18px;
+    height: 18px;
+  }
+  .home-shortcut > span {
+    grid-area: 1 / 2;
+    font-size: 13px;
+    color: var(--text);
+  }
+  .home-shortcut strong {
+    grid-area: 1 / 3;
+    font-size: 19px;
+    letter-spacing: -0.4px;
+  }
+  .home-shortcut:first-child {
+    background: var(--primary-container);
+  }
+
+  /* Sections breathe less: the surface is a phone screen, not a poster. */
+  .library-surface {
+    padding: 18px 14px 26px;
+    border-radius: 26px 26px 0 0;
+  }
+  .section-heading {
+    margin-bottom: 12px;
+  }
+
+  /* Lyrics keep their air at the top and bottom of the scroll, not inside it. */
+  .lyrics-scroll {
+    padding: 36px 6px;
+    scroll-padding: 28px;
+  }
+  .lyric-line {
+    font-size: clamp(21px, 6.4vw, 27px);
+  }
+}
+
+/* Keep the desktop page at the same width before and during playback. The
+   player occupies the right-hand column; the page does not jump when it opens. */
+.app-shell {
+  --player-reserve: var(--player-width);
+}
+.workspace {
+  margin-right: calc(var(--player-reserve) + var(--space-5));
+  transition: margin-right 0.26s cubic-bezier(0.4, 0, 0.2, 1);
+}
+@media (max-width: 1100px) {
+  .app-shell {
+    --player-reserve: 0px;
+  }
+}
+@media (max-width: 700px) {
+  .workspace {
+    margin-right: 10px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace {
+    transition: none;
+  }
+}
+
+/*
+ * Linking, offered first on a phone.
+ *
+ * Phones are where a linked device matters: the music is on a computer, the
+ * listener is not. It is the first card under the collection, and on a wide
+ * screen — where both halves are usually in the same room — it steps aside.
+ */
+.home-link-card {
+  display: none;
+  width: 100%;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 22px;
+  text-align: left;
+  background: var(--primary-container, #232b3a);
+  color: var(--on-primary-container, #e7ecf7);
+  border: 1px solid color-mix(in srgb, var(--primary, #b0c7ff) 16%, transparent);
+}
+.home-link-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  flex: none;
+  background: color-mix(in srgb, var(--primary, #b0c7ff) 22%, transparent);
+  color: var(--primary, #b0c7ff);
+}
+.home-link-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.home-link-copy strong {
+  font-size: 15px;
+  font-weight: 650;
+}
+.home-link-copy small {
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--muted, #a5adbb);
+}
+@media (max-width: 760px) {
+  .home-link-card {
+    display: flex;
+  }
+}
+
+/*
+ * Pasting a pairing code.
+ *
+ * The field and its button are one filled pill, the way every other input in
+ * Settings is drawn, and the button sits inside the field so the code and the
+ * way to use it are a single thing.
+ */
+.devices-paste-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 6px 6px 14px;
+  border-radius: 18px;
+  background: var(--container-high);
+}
+.devices-paste-field input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 0;
+  background: none;
+  border: 0;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text);
+  letter-spacing: 0.01em;
+}
+.devices-paste-field input::placeholder {
+  color: var(--muted);
+  opacity: 0.7;
+}
+.devices-paste-field .tonal-button {
+  flex: none;
+  padding: 7px 14px;
+  font-size: 13px;
+  border-radius: 13px;
+}
+.devices-paste h3 {
+  margin-bottom: 6px;
+}
+.devices-paste p {
+  margin: 0 0 12px;
 }

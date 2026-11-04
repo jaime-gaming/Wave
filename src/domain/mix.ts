@@ -16,24 +16,43 @@ export function mixCues(envelope: EnergyEnvelope | undefined, duration: number):
     end = Math.max(duration - 4, Math.min(duration, (last + 1) * step + 0.2));
   return { start: start >= 0.35 ? start : 0, end: duration - end >= 0.35 ? end : duration };
 }
-/** Equal-power staged handover: bring in, hold both recordings, then release the tail. */
-export function mixGains(progress: number, mix: boolean): { outgoing: number; incoming: number } {
-  const p = Math.max(0, Math.min(1, progress));
-  const smooth = (x: number) => x * x * (3 - 2 * x);
-  const phase = mix
-    ? p < 0.35
-      ? 0.45 * smooth(p / 0.35)
-      : p < 0.6
-        ? 0.45 + 0.1 * smooth((p - 0.35) / 0.25)
-        : 0.55 + 0.45 * smooth((p - 0.6) / 0.4)
-    : p;
-  return { outgoing: Math.cos((phase * Math.PI) / 2), incoming: Math.sin((phase * Math.PI) / 2) };
+/**
+ * The most a mix may start before the end of the *file*, whatever the analysis
+ * believes the audible end to be. A handover that begins earlier is not a mix,
+ * it is skipping the song, and it is the worst thing the feature can do.
+ */
+export const MIN_MIX_TAIL = 12;
+
+/** True only inside the final seconds of a song, where a handover belongs. */
+export function mixWindowReached(currentTime: number, duration: number, window: number) {
+  if (!Number.isFinite(currentTime) || !Number.isFinite(duration) || duration <= 0) return false;
+  const tail = Math.max(MIN_MIX_TAIL, (Number.isFinite(window) ? window : 0) + 2);
+  return duration - currentTime <= tail;
 }
 
-/** Automatic window based on the shorter recording, bounded for short clips and full songs. */
+/**
+ * Overlap used when there is no usable plan.
+ *
+ * This used to shrink with the square root of the song and stop at eight
+ * seconds, so a handover between two songs the analysis could not read was a
+ * short fade — the exact thing Mix is supposed to replace. A real song now gets
+ * the same length the planner aims for; a very short file still gets a short
+ * overlap, and neither deck is ever faded for more than half its playing time.
+ */
+export const MIX_FLOOR_SECONDS = 12;
+export const MIX_CEILING_SECONDS = 24;
+
 export function automaticMixSeconds(outgoing: number, incoming: number) {
   if (!Number.isFinite(outgoing) || !Number.isFinite(incoming) || outgoing <= 0 || incoming <= 0)
     return 0;
   const shortest = Math.min(outgoing, incoming);
-  return Math.min(8, Math.max(2, Math.sqrt(shortest) * 0.55), shortest / 2);
+  // A real song is blended for a phrase or more: twelve seconds at the floor and
+  // twenty-four at the ceiling, which is the range a DJ would use. Two short
+  // files still meet in the middle, and nothing is ever faded for more than half
+  // of the shorter one.
+  return Math.min(
+    MIX_CEILING_SECONDS,
+    Math.max(Math.min(MIX_FLOOR_SECONDS, shortest / 4), shortest * 0.12),
+    shortest / 2,
+  );
 }

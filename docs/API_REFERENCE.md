@@ -1,6 +1,6 @@
 # Wave Internal API Reference
 
-**Version: 0.1.0 · Release date: 17 October 2026.**
+**Version: 0.2.0 · Release date: 3 November 2026.**
 
 This document describes the implemented TypeScript modules. Wave has no HTTP API or backend. These interfaces are internal and may change during `0.x` development.
 
@@ -112,8 +112,12 @@ initials(name: string): string
 Defined in `src/data/import.ts`:
 
 ```ts
-AUDIO_EXTENSIONS: string[]
+AUDIO_EXTENSIONS: string[]   // 'mp3' | 'wav' | 'm4a' | 'ogg' since Wave 1.1
 AUDIO_ACCEPT: string
+IMPORT_FORMAT_HINT: string
+LEGACY_AUDIO_EXTENSIONS: string[]
+fileExtension(name: string): string
+isLegacyAudioFile(file: File): boolean
 MAX_FILE_SIZE: number
 isAudioFile(file: File): boolean
 fileIdentity(file: File): Promise<string> // legacy helper; not used for new imports
@@ -129,6 +133,83 @@ readTrack(file: File, id: string): Promise<Track>
 - `readTrack` reads local tags and optional cover art. Missing or malformed metadata falls back to the filename, `Unknown artist`, and `Unknown album`. It does not write to the database.
 
 For the complete validated, duplicate-aware workflow, use `useLibrary().importFiles` rather than calling `readTrack` alone.
+
+## Folder API
+
+Defined in `src/data/folders.ts`:
+
+```ts
+supportsFolderPicker(scope?): boolean
+supportsDirectoryInput(doc?): boolean
+pickFolder(scope?): Promise<DirectoryHandleLike | null>
+readFolder(handle, { depth?, limit? }): Promise<File[]>
+folderAccess(folder): Promise<'granted' | 'prompt' | 'denied'>
+requestFolderAccess(folder): Promise<boolean>
+rememberFolder(handle): Promise<RememberedFolder>
+rememberedFolders(): Promise<RememberedFolder[]>
+markFolderScanned(id): Promise<void>
+forgetFolder(id): Promise<void>
+isAudioFile(name): boolean
+MAX_FOLDER_FILES // 20 000
+MAX_FOLDER_DEPTH // 12
+```
+
+- `readFolder` walks depth-first, keeps audio files only and skips a subdirectory it cannot read instead of failing the whole import.
+- `requestFolderAccess` must be called from a user gesture; browsers refuse a silent permission request.
+- A handle that the browser cannot store is dropped and the folder is remembered by name only, so the sheet asks for it again rather than claiming access it does not have.
+- Nothing here reads audio data; the returned `File` objects go through the ordinary importer.
+
+## Song details API
+
+Defined in `src/domain/catalogue.ts`, `src/services/catalogue.ts` and
+`src/hooks/useCatalogueDetails.ts`:
+
+```ts
+needsDetails(track): boolean
+catalogueQuery(track): string
+scoreRelease(track, release): number
+bestRelease(track, releases, accept = 0.62): CatalogueRelease | undefined
+detailsPatch(track, release): { patch, filled }
+isPlaceholderArtist(value) / isPlaceholderAlbum(value) / looksLikeFileName(track)
+searchCatalogue(term, { signal?, country? }): Promise<CatalogueRelease[]>
+downloadCover(url, signal?): Promise<File | undefined>
+parseCatalogueResults(payload): CatalogueRelease[]
+preferredCountry(locale?): string
+useCatalogueDetails({ tracks, onUpdate, enabled?, online? }): { filling, completed, lookUp }
+detailsQueue(tracks, now?): Track[]
+detailsSummary(tracks): { incomplete, complete }
+DETAILS_FLAG / DETAILS_RETRY_MS / DETAILS_BATCH / DETAILS_GAP_MS
+applyOnlineDetails(id, patch, { checked? }): Promise<Track | null> // src/data/library.ts
+markDetailsChecked(id): Promise<Track | null>
+```
+
+- `detailsPatch` only returns fields with a real gap, and nothing at all for a track with `editedAt`.
+  `duration` is never in the patch.
+- `searchCatalogue` sends the query and the storefront only, resolves to `[]` for any failure and
+  never throws, so the caller needs no error branch.
+- `useCatalogueDetails` asks about at most `DETAILS_BATCH` songs per pass, waits `DETAILS_GAP_MS`
+  between requests, and remembers `detailsCheckedAt` on the track.
+
+## Playlist migration API
+
+Defined in `src/domain/importFile.ts`, `playlistImport.ts` and `linkImport.ts`:
+
+```ts
+parsePlaylistText(raw: string, limit?): ParsedList // source: 'm3u' | 'csv' | 'text'
+parseExtendedLine(line: string): { duration?; title; album? }
+readCsv(text: string): string[][]
+splitArtistTitle(text: string): { artist; title }
+isLink(raw: string): boolean
+matchEntries(entries, candidates, options?): ImportReport
+DEFAULT_MATCH_OPTIONS // { durationTolerance: 5, acceptScore: 0.82, reportScore: 0.45 }
+suggestedPlaylistName(raw, provider): string
+parseImportLink(raw: string): LinkParse
+PROVIDER_LIMITS: Record<LinkProvider, ProviderLimits>
+```
+
+- `parsePlaylistText` reads an exported `.m3u` (with or without file paths between the tags), a `.csv` whose header names its columns and whose durations may be milliseconds, or plain text. A link produces no entries; `MigrationSheet` then explains why, using `parseImportLink` and `PROVIDER_LIMITS`.
+- `matchEntries` writes nothing. It returns matched, ambiguous and missing entries with a score each; `ImportReport.trackIds` is the ordered, unique set of local songs the user can accept.
+- The confirmed ids go through `createPlaylist`, which keeps only ids that still exist. Songs already in the library are reused and never reassigned twice.
 
 ## Storage API
 
@@ -255,8 +336,10 @@ player.time; // Elapsed seconds
 player.duration; // Browser-reported seconds, or zero
 player.volume; // Persisted number from 0 to 1, default 1
 player.buffering; // Browser waiting state
-player.mixEnabled; // Single persisted automatic Mix switch, fresh default true
-player.setMixEnabled(enabled); // Automatic window, staged handover and conservative cues
+player.mixEnabled; // Single persisted Mix switch, fresh default true
+player.setMixEnabled(enabled); // Analysis, planning, bass swap and pan; no deck is ever re-rated
+// There is no overlap length to configure: the planner chooses the bar count.
+player.youTube; // {seek, time, onTime, onDuration, onEnded, onError} or null
 player.autoplay; // Persisted, default true; repeat takes priority
 player.setAutoplay(enabled); // Local patterned continuation at queue completion
 player.reorderQueue(ids); // Valid queue permutation; retain selected source/time, reset shuffle
@@ -374,7 +457,7 @@ formatBytes(value: number): string
 
 `saveLyricsResult` atomically rejects stale metadata matches or manual/embedded overrides and never recreates deleted tracks. Repository records persist raw lyric text without parsed lines; public reads rehydrate them. Hooks preserve active Blob identity on merges. `player.blend` exposes progress, actual seconds, outgoing/incoming Blobs and optional resolved `from`/`to` tracks; null means no overlap. This remains internal transition state for fading covers; the UI does not expose a mix progress meter or banner.
 
-Storage estimates are approximate and exclude general database overhead; cover estimates include original-cover metadata retained for restoration. Persistent storage is browser-controlled eviction protection, not a backup or protection against clearing site data.
+Storage estimates are approximate and exclude general database overhead; cover estimates include original-cover metadata retained for restoration. Persistent storage is a browser promise not to clear the library to make room, not a backup and no protection against clearing site data. The Settings page states both in plain words: "Space used", nothing re-encoded, and the two sentence-long outcomes of asking for protection.
 
 ## Three-platform update
 
@@ -396,7 +479,7 @@ Separate native Android (Kotlin/Compose) and Windows (C#/WPF) source implementat
 
 ### Listening activity
 
-`useIdleListening(playing)` returns the current immersive state and a wake action. Entry requires 30 seconds of inactivity, a visible page and no non-player dialog; `PlayerBar` also requires a non-buffering selected track. Pointer, touch, keyboard, wheel or visibility changes clear immersion. The hook never starts, pauses, seeks or changes audio.
+`useIdleListening` was removed in 0.1.1. It used to open a full-screen listening scene after thirty seconds without activity; the player now opens only when it is asked to, so nothing in the app observes idle time and no root attribute is written.
 
 ### Visual identity
 
@@ -431,16 +514,28 @@ Idle entry now additionally requires `document.hasFocus()`. `blur` wakes the pla
 
 ### Mix and context surfaces
 
-- `mixCues(envelope, duration): {start, end}` returns conservative original-recording cue times or full boundaries when unavailable; does not rewrite audio.
-- `mixGains(progress, mix): {outgoing, incoming}` provides bounded complementary equal-power gains with staged or classic phase.
-- `MixAudio.setMixEnabled(enabled)` opts into staged curves and cue analysis; `mixRemaining` reads the effective outgoing duration minus original media time.
+- `analyzePcm(samples, sampleRate): TrackAnalysis` is the DSP core: FFT frames, band energies, onset envelope, tempo (autocorrelation, 120 BPM prior, parabolic refinement), beat phase, silence bounds, energy segments and vocal regions. `introEnd`/`outroStart`/`overlapsRegion` read that result.
+- `analyzeTrack(blob)` decodes a downmixed mono copy at 11 025 Hz off the main thread (worker with a main-thread fallback), caches per `Blob`, and `primeAnalysis(blob)` warms it up.
+- `automaticBars(bpm): number` returns the bar count Mix uses for a blend of about `TARGET_SECONDS` (18 s) at that tempo, in multiples of four bars between `MIN_BARS` and `MAX_BARS`.
+- `planTransition(outgoing, incoming, {bars, fallbackSeconds, minSeconds, vocalTolerance, maxStretch}): TransitionPlan` returns `{mode, seconds, startAt, cue, incomingRate, stretched, bassSwapAt, bars, phaseAligned, notes}`. `bars` is optional; without it the planner calls `automaticBars` with the outgoing tempo. Modes are `beatmatched`, `crossfade` and `cut`; `isUsablePlan(plan, remaining)` gates execution.
+- `planGains(progress)` and `bassSwapGains(progress)` are equal-power `cos/sin` curves. `MixGraph` builds source → lowshelf (180 Hz, `bassShelfDb`) → gain → destination per element; `stretchRate(analysis, bpm)` returns the ±8 % rate or 1.
+- `mixCues(envelope, duration)` still supplies conservative cues when no analysis is available; `mixGains(progress, mix)` remains for the legacy equal-power overlap.
+- `MixAudio.setMixEnabled(enabled)` opts into the Web Audio graph and cue analysis; `setAnalysis(blob, analysis)`, `transitionWithPlan(blob, plan, guard, onStarted)` and `cancelTransition()` drive a planned handover. `mixRemaining` reads the effective outgoing end minus media time.
 - `useAppPalette(artwork?, blend?)` follows actual overlap colors; blend accepts `{from: {artwork?}, progress, seconds}` or null. Reduced motion applies the incoming target directly.
 - `ContextMenu({x, y, title, actions, onClose, returnFocus?})` provides top-layer, edge-clamped keyboard-accessible actions. Each action contains `label`, `icon`, optional `disabled` and `run`.
 - Queue reorder is independent of saved playlist/album order. Permutations with missing, foreign or duplicate IDs are rejected. Native source/time are retained for the selected song.
 
 ### Automatic Mix, continuation and metadata checks
 
-- `automaticMixSeconds(outgoingDuration, incomingDuration)` returns the automatic finite handover window, bounded by the shorter recording and eight seconds. No manual duration control remains.
+- `automaticMixSeconds(outgoingDuration, incomingDuration)` returns the fallback handover window used when a song has no trusted beat grid, bounded by the shorter recording and eight seconds.
+- `findClip({title, artist, duration}, options)` searches Piped then Invidious with a timeout, caches found and empty answers (`wave-clip-search-v1`) and returns `found`, `empty` or `unavailable`; `rememberClip(trackId, candidate)` stores the choice. `clipQuery`/`pickClip`/`scoreClip` are the pure ranking rules, and `storeClip(trackId, videoId, startAt)` validates the id.
+- `youtubeTrack({videoId, title, artist, duration}, id)` builds a library record with `source: 'youtube'` and no `blob`; `youTubeVideoOf(link)` rejects playlists; `isYouTubeTrack(track)` is the single check used by playback, analysis and storage. `fetchVideoMeta(videoId)` reads the public oEmbed title with a timeout and never throws.
+- `resolvePlayable(track, tracks): {track, fromYouTube} | undefined` decides what should sound for a library row: a local file always wins over a YouTube row for the same song. `localTwin(track, tracks)` is the match itself; `youtubeTrack(...)`/`isYouTubeTrack(...)` build and test the row.
+- `planEdgeHandover(outgoingSeconds, incomingSeconds)` sizes a crossfade between a YouTube song and a local one (2.5–8 s, never more than a quarter of the shorter side); `edgeGains(progress)` is the same equal-power curve the local path uses. `MixAudio.fadeOut(seconds, pauseAtEnd)` and `fadeIn(seconds)` ramp the whole deck for these handovers; `YouTubeStage` ramps the embed with `gain`/`startGain`/`fadeSeconds`.
+- `useOnline()`, `networkLabel(online, label)` and `networkAriaLabel(online, label)` come from `src/ui/network.ts`: the first two swap a control's text for `Offline`, the third keeps its accessible name.
+- `dailyMixes(tracks, day, features)` now accepts measured `{bpm, energy}` per track, orders a measured group slowest-first with artist spreading, and returns `descriptor`, `bpm` and `energy` alongside the songs. `mixDescriptor({tracks, bpm})` builds the one-line summary.
+- `parseYrc`, `parseKrc`, `decodeKrc`, `wordTimelinePlausible` and `hasWordTimings` (`src/domain/wordLyrics.ts`) read NetEase/Kugou word formats; `fetchWordLyrics(track, options)` (`src/services/lyricsExtra.ts`) is opt-in via `setExtendedLyrics(true)` and falls through to LRCLIB on any failure. Selected lyrics carry `source: 'netease' | 'kugou'` and a `provider` label.
+- `planVideoSync` now returns `nudge` for drift between 0.15 s and 1.1 s (rate 0.9/1.1) and `seek` above that; `VideoState.rate` avoids repeating the same nudge. `YouTubeStage` treats the embed as the master clock and posts `playVideo`/`pauseVideo`/`seekTo`/`setVolume`/`setPlaybackRate`.
 - `continuationQueue(tracks, current, recent, random?, limit?)` selects unique local IDs by contextual weighted variety, preferring alternatives outside the last twelve recent IDs. A single-song library yields no continuation. Reducer `continue` is accepted only at a playing, repeat-off queue boundary.
 - `parseLocalMetadata(file)` uses one reusable module worker, disposed after idle, and falls back to direct parsing when workers are unavailable. `readTrack` records `genres`, `year` and local `metadataCheck` alongside existing tags and audio Blob.
 - `metadataIssues(track)` identifies incomplete local title/artist/album/duration/artwork. Completeness is not authoritative recording identification.
@@ -452,7 +547,7 @@ Idle entry now additionally requires `document.hasFocus()`. `blur` wakes the pla
 - `LocalMetadataReview({tracks})` recomputes `metadataIssues` from current fields, not old online suggestions, and pages eight incomplete songs at a time. No field is remotely completed or silently reverted.
 - Settings preferences retain their existing storage keys. The six menu IDs are component-local navigation, not new server routes.
 
-### 0.1.0 candidate additions
+### Additions in the current release
 
 - `dailyMixes(tracks, localDayKey): DailyMix[]` returns at most three disjoint genre-tag groups, with explicit artist-tag fallback for songs without useful genres. A group needs three unique song IDs; results cap at thirty per group, retain original Track objects and never mutate saved playlists. Stable ID ordering and a day/group seed make selection deterministic for an unchanged library/day; the first song rotates daily.
 - `localDayKey(date?)` uses the browser's local calendar, not UTC midnight. `DailyMixes` refreshes at the next local midnight and on focus/visibility changes; current playback is not replaced when the displayed mixes refresh.

@@ -1,12 +1,13 @@
 import { memo } from 'react';
 import { motion } from 'motion/react';
-import { ArrowLeft, Music2, Disc3, Play, Shuffle, ImagePlus } from 'lucide-react';
-import { collectArtists, initials, type ArtistGroup } from '../domain/collections';
+import { ArrowLeft, Music2, Disc3, Play, Shuffle, ImagePlus } from './Glyphs';
+import { artistCredits, collectArtists, initials, type ArtistGroup } from '../domain/collections';
 import { filterTracks, formatTime, type Track } from '../domain/types';
 import { AlbumCard } from './CollectionCard';
 import { Artwork } from './Artwork';
 import { useWaveMotion } from '../ui/motion';
 
+import { useT } from '../i18n';
 export function ArtistPortrait({ artist, photo }: { artist: ArtistGroup; photo?: string }) {
   const covers = artist.albums.filter((album) => album.cover.artwork).slice(0, 3);
   return (
@@ -39,22 +40,25 @@ export const Artists = memo(function Artists({
   loading?: boolean;
   photos?: Map<string, string | undefined>;
 }) {
+  const t = useT();
   const animation = useWaveMotion();
-  const matches = new Set(filterTracks(tracks, query).map((track) => track.artist));
+  const matches = new Set(
+    filterTracks(tracks, query).flatMap((track) => artistCredits(track.artist)),
+  );
   const artists = collectArtists(tracks).filter((artist) => matches.has(artist.name));
   if (loading)
     return (
       <div className="empty-state">
-        <h2>Loading artists</h2>
+        <h2>{t('Loading artists')}</h2>
       </div>
     );
   return (
-    <section aria-label="Artists collection" className="artists-collection">
+    <section aria-label={t('Artists collection')} className="artists-collection">
       <div className="section-heading">
         <h2>
           Artists <span>{artists.length}</span>
         </h2>
-        <p>From your library</p>
+        <p>{t('From your library')}</p>
       </div>
       {artists.length ? (
         <div className="artist-grid-new">
@@ -85,11 +89,11 @@ export const Artists = memo(function Artists({
       ) : (
         <div className="empty-state">
           <Music2 size={36} />
-          <h2>{query ? 'No artists found' : 'No artists yet'}</h2>
+          <h2>{query ? t('No artists found') : t('No artists yet')}</h2>
           <p>
             {query
-              ? 'Try an artist, album, or song name.'
-              : 'Import music to build your artist collection.'}
+              ? t('Try an artist, album, or song name.')
+              : t('Import music to build your artist collection.')}
           </p>
         </div>
       )}
@@ -113,16 +117,16 @@ export function ArtistHeader({
   onBack: () => void;
   onAlbum: (id: string) => void;
 }) {
+  const t = useT();
   return (
     <>
       <button className="text-button collection-back" onClick={onBack}>
         <ArrowLeft size={20} />
         Back to artists
       </button>
-      <section className="artist-detail" aria-label="Artist details">
+      <section className="artist-detail" aria-label={t('Artist details')}>
         <ArtistPortrait artist={artist} photo={photo} />
         <div>
-          <p className="playlist-kicker">In your library</p>
           <h2>{artist.name}</h2>
           <div className="artist-stats">
             <span>
@@ -143,7 +147,7 @@ export function ArtistHeader({
               aria-label={`Play artist ${artist.name}`}
             >
               <Play size={19} />
-              Play
+              {t('Play')}
             </button>
             <button
               className="tonal-button"
@@ -152,19 +156,19 @@ export function ArtistHeader({
               aria-label={`Shuffle artist ${artist.name}`}
             >
               <Shuffle size={19} />
-              Shuffle
+              {t('Shuffle')}
             </button>
             <button className="tonal-button" onClick={onEditPhoto}>
               <ImagePlus size={18} />
-              Edit artist photo
+              {t('Edit artist photo')}
             </button>
           </div>
         </div>
       </section>
       {artist.albums.length > 0 && (
-        <section className="artist-albums" aria-label="Artist albums">
+        <section className="artist-albums" aria-label={t('Artist albums')}>
           <div className="section-heading">
-            <h3>Albums</h3>
+            <h3>{t('Albums')}</h3>
             <span>{artist.albums.length}</span>
           </div>
           <div className="album-shelf">
@@ -174,7 +178,7 @@ export function ArtistHeader({
           </div>
         </section>
       )}
-      <h3 className="songs-section-title">Songs</h3>
+      <h3 className="songs-section-title">{t('Songs')}</h3>
     </>
   );
 }

@@ -4,6 +4,7 @@ import console from 'node:console';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, URL } from 'node:url';
+import { buildI18n } from './build-i18n.mjs';
 
 /** Validate source metadata before any tag, merge or public release operation. */
 export function checkRelease(root, tag) {
@@ -14,6 +15,14 @@ export function checkRelease(root, tag) {
   const lock = JSON.parse(read('package-lock.json'));
   assert.equal(lock.version, pkg.version, 'Lockfile version differs');
   assert.equal(lock.packages?.['']?.version, pkg.version, 'Lockfile root version differs');
+  // A version bump once rewrote a dependency's own entry — win-guid, which really is
+  // 0.2.1 — and `npm ci` then refused the tree. Every entry must still agree with the
+  // tarball it points at, whatever the project's version happens to be.
+  for (const [key, entry] of Object.entries(lock.packages ?? {})) {
+    const installed = /\/-(\d+\.\d+\.\d+[^/]*)\.tgz$/.exec(entry?.resolved ?? '')?.[1];
+    if (installed)
+      assert.equal(entry.version, installed, `Lockfile entry ${key} points at ${installed}`);
+  }
   const windows = read('platforms/windows/Wave.Windows/Wave.Windows.csproj');
   assert.equal(
     windows.match(/<Version>([^<]+)<\/Version>/)?.[1],
@@ -37,8 +46,48 @@ export function checkRelease(root, tag) {
     Number(android.match(/versionCode\s*=\s*(\d+)/)?.[1]) >= 1,
     'Android version code is missing',
   );
+  // The places the listener actually reads the version from must not lag behind.
+  // The rail no longer carries the version — it was clipped on short windows and
+  // Settings → About says it — so the guard reads the About line itself.
+  const labels = [
+    [
+      'platforms/windows/Wave.Windows/MainWindow.Settings.cs',
+      /Wave (\d+\.\d+\.\d+)/,
+      'Windows settings version',
+    ],
+    [
+      'platforms/windows/Wave.Windows/LyricsClient.cs',
+      /Wave\/(\d+\.\d+\.\d+)/,
+      'Windows user agent',
+    ],
+    [
+      'platforms/android/app/src/main/java/io/github/jaimegaming/wave/LyricsClient.kt',
+      /Wave\/(\d+\.\d+\.\d+)/,
+      'Android user agent',
+    ],
+  ];
+  for (const [file, pattern, label] of labels) {
+    assert.equal(read(file).match(pattern)?.[1], pkg.version, `${label} differs`);
+  }
   const notes = read(`docs/RELEASE_NOTES_${pkg.version}.md`);
   assert.ok(notes.startsWith(`# Wave ${pkg.version}\n`), 'Release notes version differs');
+  // The changelog and the notes are read together by anyone asking what changed, and a
+  // release whose section is missing — or still dated for another day — is the easiest
+  // mistake to make the night before. The date is required, not just the heading.
+  const dated = new RegExp(
+    `^## ${pkg.version.replaceAll('.', '\\.')} — \\d{1,2} [A-Z][a-z]+ \\d{4}$`,
+    'm',
+  );
+  assert.ok(dated.test(read('CHANGELOG.md')), `Changelog has no dated ${pkg.version} section`);
+  // The generated language tables travel with the dictionary: a phrase added to
+  // `i18n/es.json` without re-running the generator would ship the phone and the
+  // window behind the site, which is exactly the drift nobody sees until after.
+  const { stale } = buildI18n(root, { check: true });
+  assert.deepEqual(
+    stale,
+    [],
+    'Language tables are stale; run `npm run build:i18n` and commit the result',
+  );
   return { version: pkg.version, tag: `v${pkg.version}` };
 }
 

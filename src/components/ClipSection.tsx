@@ -1,0 +1,202 @@
+import { useEffect, useState } from 'react';
+import { ExternalLink, Film, Link2, Loader2, Trash2 } from './Glyphs';
+import { searchClips, chooseClip } from '../services/clipSearch';
+import { autoClipStart } from '../domain/clipSearch';
+import { CLIPS_CHANGED, getClip, loadClips, removeClip } from '../domain/videoClips';
+import { parseYouTubeLink, youtubeThumbnailUrl } from '../domain/youtube';
+import type { ClipCandidate } from '../domain/clipSearch';
+import type { Track } from '../domain/types';
+
+import { useT } from '../i18n';
+/**
+ * The clip for this song, and a way to change your mind.
+ *
+ * Automatic discovery is a guess, and a guess you cannot correct is worse than
+ * no guess: this shows which video was picked, offers the runners-up, lets the
+ * clip start a few seconds in when it has an intro, and can remove it entirely.
+ * Everything is stored on this device and keyed by the song; nothing is uploaded.
+ */
+export function ClipSection({ track }: { track: Track }) {
+  const t = useT();
+  const [clip, setClip] = useState(() => getClip(track.id, loadClips()));
+  const [status, setStatus] = useState<'idle' | 'searching' | 'empty' | 'unavailable'>('idle');
+  const [candidates, setCandidates] = useState<ClipCandidate[]>([]);
+  const [offset, setOffset] = useState(clip?.startAt ?? 0);
+  const [link, setLink] = useState('');
+  const [linkError, setLinkError] = useState(false);
+
+  useEffect(() => {
+    const sync = () => {
+      const next = getClip(track.id, loadClips());
+      setClip(next);
+      setOffset(next?.startAt ?? 0);
+    };
+    window.addEventListener(CLIPS_CHANGED, sync);
+    return () => window.removeEventListener(CLIPS_CHANGED, sync);
+  }, [track.id]);
+
+  const search = async () => {
+    setStatus('searching');
+    setCandidates([]);
+    const result = await searchClips({
+      title: track.title,
+      artist: track.artist,
+      duration: track.duration,
+    });
+    setCandidates(result.candidates);
+    setStatus(result.status === 'found' ? 'idle' : result.status);
+  };
+
+  const applyLink = () => {
+    const parsed = parseYouTubeLink(link);
+    if (!parsed || parsed.kind !== 'video') {
+      setLinkError(true);
+      return;
+    }
+    setLinkError(false);
+    setLink('');
+    // Nothing is known about this upload's length, so it starts where it starts;
+    // the offset field below is right there if it needs a nudge.
+    pick({ videoId: parsed.videoId, title: '', author: '', duration: 0 }, 0);
+  };
+
+  const pick = (
+    candidate: ClipCandidate,
+    startAt = autoClipStart(candidate.duration, track.duration),
+  ) => {
+    chooseClip(track.id, candidate, startAt);
+    setCandidates([]);
+    window.dispatchEvent(new Event(CLIPS_CHANGED));
+  };
+
+  return (
+    <section className="clip-section" aria-label={t('Video clip')}>
+      <header>
+        <Film size={17} aria-hidden="true" />
+        <strong>{t('Video clip')}</strong>
+      </header>
+      {clip ? (
+        <>
+          <div className="clip-current">
+            <img src={youtubeThumbnailUrl(clip.videoId)} alt="" width={72} height={40} />
+            <span>
+              <small>{t('Playing behind this song')}</small>
+              <a
+                className="clip-current-link"
+                href={`https://www.youtube.com/watch?v=${clip.videoId}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open on YouTube
+                <ExternalLink size={13} aria-hidden="true" />
+              </a>
+            </span>
+            <button
+              type="button"
+              className="icon-button"
+              aria-label={t('Remove video clip')}
+              onClick={() => {
+                removeClip(track.id);
+                window.dispatchEvent(new Event(CLIPS_CHANGED));
+              }}
+            >
+              <Trash2 size={17} />
+            </button>
+          </div>
+          <label className="clip-offset">
+            <span>{t('Clip starts at')}</span>
+            <input
+              type="number"
+              // Either side of zero: positive when the upload has an intro before
+              // the music, negative when the picture begins before the song does.
+              min={-3600}
+              max={3600}
+              step={1}
+              value={offset}
+              onChange={(event) => {
+                const next = Number(event.target.value);
+                setOffset(Number.isFinite(next) ? Math.max(-3600, Math.min(3600, next)) : 0);
+              }}
+              onBlur={() =>
+                pick(
+                  { videoId: clip.videoId, title: '', author: '', duration: clip.duration ?? 0 },
+                  offset,
+                )
+              }
+            />
+            <span>s</span>
+          </label>
+        </>
+      ) : (
+        <p className="clip-empty">{t('No clip yet. Wave looks for one by itself.')}</p>
+      )}
+      <div className="clip-actions">
+        <button
+          type="button"
+          className="text-button"
+          disabled={status === 'searching'}
+          onClick={() => void search()}
+        >
+          {status === 'searching' ? <Loader2 size={16} className="spin" /> : null}
+          {clip ? t('Choose another') : t('Find a clip')}
+        </button>
+      </div>
+      {status === 'empty' && (
+        <p className="clip-empty" role="status">
+          Nothing matched this song closely enough.
+        </p>
+      )}
+      {status === 'unavailable' && (
+        <p className="clip-empty" role="status">
+          The clip search is unreachable right now. You can paste a link instead.
+        </p>
+      )}
+      <form
+        className="clip-link"
+        onSubmit={(event) => {
+          event.preventDefault();
+          applyLink();
+        }}
+      >
+        <label>
+          <Link2 size={16} aria-hidden="true" />
+          <input
+            type="url"
+            inputMode="url"
+            placeholder={t('youtube.com/watch?v=…')}
+            aria-label={t('YouTube link for this clip')}
+            aria-invalid={linkError || undefined}
+            value={link}
+            onChange={(event) => {
+              setLink(event.target.value);
+              setLinkError(false);
+            }}
+          />
+        </label>
+        <button type="submit" className="text-button" disabled={!link.trim()}>
+          Use this video
+        </button>
+      </form>
+      {linkError && (
+        <p className="clip-empty" role="status">
+          That is not a YouTube video link.
+        </p>
+      )}
+      {!!candidates.length && (
+        <ul className="clip-choices">
+          {candidates.map((candidate) => (
+            <li key={candidate.videoId}>
+              <button type="button" onClick={() => pick(candidate)}>
+                <img src={youtubeThumbnailUrl(candidate.videoId)} alt="" width={72} height={40} />
+                <span>
+                  <strong>{candidate.title}</strong>
+                  <small>{candidate.author}</small>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}

@@ -12,12 +12,27 @@ import {
   type PlaylistChange,
   type PlaylistDetails,
 } from '../domain/playlists';
+import type { PlayEvent } from '../domain/listening';
 
 interface WaveDatabase extends DBSchema {
   tracks: { key: string; value: Track };
   playlists: { key: string; value: Playlist };
   artists: { key: string; value: ArtistProfile };
   albumOrders: { key: string; value: AlbumOrder };
+  plays: { key: string; value: PlayEvent; indexes: { 'by-at': number } };
+  /** Folders the listener asked Wave to remember. Added in version 5. */
+  folders: { key: string; value: RememberedFolder };
+}
+
+/** A folder Wave was given, and the browser's handle for asking again. */
+export interface RememberedFolder {
+  id: string;
+  name: string;
+  /** Absent on browsers without the File System Access API. */
+  handle?: unknown;
+  addedAt: number;
+  /** Last time files were read from it, for the sheet's line of text. */
+  scannedAt?: number;
 }
 const DATABASE_NAME = 'wave-library';
 
@@ -30,8 +45,23 @@ async function abortFailedTransaction(tx: { abort: () => void; done: Promise<unk
   await tx.done.catch(() => undefined);
 }
 
+/**
+ * Schema versions.
+ *
+ * 1: tracks. 2: playlists. 3: artist profiles and album order. 4: listening
+ * history. 5: remembered folders. Each step is additive, so an old library opens
+ * and keeps every row; a play is only ever appended, and the store is pruned by
+ * the domain rules rather than by a migration.
+ *
+ * Nothing is ever rewritten in place: a version bump only creates what is
+ * missing, which means a listener who updates mid-week keeps the same library
+ * and the same history. `docs/ARCHITECTURE.md` describes the rule and the
+ * migration test that holds it.
+ */
+export const LIBRARY_VERSION = 5;
+
 export function openLibrary() {
-  return openDB<WaveDatabase>(DATABASE_NAME, 3, {
+  return openDB<WaveDatabase>(DATABASE_NAME, LIBRARY_VERSION, {
     upgrade(db, oldVersion) {
       if (oldVersion < 1) db.createObjectStore('tracks', { keyPath: 'id' });
       if (oldVersion < 2) db.createObjectStore('playlists', { keyPath: 'id' });
@@ -39,6 +69,11 @@ export function openLibrary() {
         db.createObjectStore('artists', { keyPath: 'name' });
         db.createObjectStore('albumOrders', { keyPath: 'id' });
       }
+      if (oldVersion < 4) {
+        const plays = db.createObjectStore('plays', { keyPath: 'id' });
+        plays.createIndex('by-at', 'at');
+      }
+      if (oldVersion < 5) db.createObjectStore('folders', { keyPath: 'id' });
     },
     blocking(_old, _next, event) {
       (event.target as IDBDatabase).close();
@@ -109,6 +144,45 @@ async function mutateTrack(id: string, mutate: (track: Track) => Track): Promise
     db.close();
   }
 }
+/**
+ * Silent edges: recorded once, then either removed or kept.
+ *
+ * None of these touch the audio. `silence` is what the analysis measured, `trim`
+ * is the pair of bounds playback obeys, and `silenceKept` is the listener saying
+ * they want the file as it is. The recording keeps every sample in every case —
+ * removing a trim restores the song exactly as it was imported.
+ */
+export function recordTrackSilence(
+  id: string,
+  bounds: { start: number; end: number },
+): Promise<Track> {
+  return mutateTrack(id, (track) =>
+    track.trim || track.silenceKept ? track : { ...track, silence: bounds },
+  );
+}
+export function trimTrackSilence(
+  id: string,
+  bounds: { start: number; end: number },
+): Promise<Track> {
+  return mutateTrack(id, (track) => {
+    const start = Math.max(0, Math.min(bounds.start, track.duration || bounds.start));
+    const end = Math.max(start, Math.min(bounds.end, track.duration || bounds.end));
+    return {
+      ...track,
+      trim: { start: Math.round(start * 100) / 100, end: Math.round(end * 100) / 100 },
+    };
+  });
+}
+export function restoreTrackSilence(id: string): Promise<Track> {
+  return mutateTrack(id, (track) => {
+    const restored = { ...track };
+    delete restored.trim;
+    return restored;
+  });
+}
+export function keepTrackSilence(id: string): Promise<Track> {
+  return mutateTrack(id, (track) => ({ ...track, silenceKept: true }));
+}
 export function toggleTrackFavorite(id: string): Promise<Track> {
   return mutateTrack(id, (track) => ({ ...track, favorite: !track.favorite }));
 }
@@ -137,6 +211,51 @@ export function editTrackMetadata(id: string, metadata: TrackMetadata): Promise<
     }),
   );
 }
+/**
+ * Writes what an online catalogue filled in, and remembers that the song was
+ * asked about.
+ *
+ * Two things can never come from here: a field the listener edited (a song with
+ * `editedAt` is left alone entirely) and the running time, which belongs to the
+ * decoded file rather than to a catalogue's edition of it. A title change
+ * invalidates cached online lyrics the same way a hand edit does, because it
+ * changes what would be searched for.
+ */
+export function applyOnlineDetails(
+  id: string,
+  patch: Partial<Pick<Track, 'title' | 'artist' | 'album' | 'year' | 'genres' | 'artwork'>>,
+  options: { checked?: boolean } = {},
+): Promise<Track | null> {
+  return mutateTrack(id, (track) => {
+    const next = track.editedAt ? { ...track } : { ...track, ...cleanPatch(patch) };
+    next.detailsCheckedAt = Date.now();
+    if (!options.checked) delete next.detailsCheckedAt;
+    if (track.editedAt) return next;
+    return next.title !== track.title || next.artist !== track.artist
+      ? invalidateOnlineLyrics(track, next)
+      : next;
+  }).catch(() => null);
+}
+
+/** Blank values are never written: a gap is better than an empty string. */
+function cleanPatch(
+  patch: Partial<Pick<Track, 'title' | 'artist' | 'album' | 'year' | 'genres' | 'artwork'>>,
+) {
+  const clean: typeof patch = {};
+  if (patch.title?.trim()) clean.title = patch.title.trim().slice(0, 200);
+  if (patch.artist?.trim()) clean.artist = patch.artist.trim().slice(0, 200);
+  if (patch.album?.trim()) clean.album = patch.album.trim().slice(0, 200);
+  if (patch.year && patch.year > 1000) clean.year = patch.year;
+  if (patch.genres?.length) clean.genres = patch.genres.filter(Boolean).slice(0, 4);
+  if (patch.artwork) clean.artwork = patch.artwork;
+  return clean;
+}
+
+/** Marks a song as already asked about, so it is not asked again for a month. */
+export function markDetailsChecked(id: string): Promise<Track | null> {
+  return mutateTrack(id, (track) => ({ ...track, detailsCheckedAt: Date.now() })).catch(() => null);
+}
+
 export function restoreTrackMetadata(id: string): Promise<Track> {
   return mutateTrack(id, (track) => {
     if (!track.originalMetadata) return track;
@@ -322,7 +441,9 @@ export async function mergeExactDuplicates(keepId: string, ids: string[]) {
     group.some((track) => !track)
   )
     throw Error('The library changed. Scan again.');
-  const hashes = await Promise.all(group.map((track) => contentIdentity(track!.blob)));
+  if (group.some((track) => !track?.blob))
+    throw Error('Only local files can be compared byte for byte.');
+  const hashes = await Promise.all(group.map((track) => contentIdentity(track!.blob!)));
   if (new Set(hashes).size !== 1) throw Error('These files are not byte-identical.');
   const db = await openLibrary();
   try {

@@ -11,21 +11,70 @@ public partial class MainWindow
     {
         async Task Capture(string name) {
             await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
+            // Changing page fades the content in over 180 ms. Idle arrives on the
+            // first frame, so without this the picture is a page at a third of its
+            // opacity — which is how every Windows screenshot read as dim.
+            await Task.Delay(420);
+            await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
             UpdateLayout();
             var root = (FrameworkElement)Content;
             if (root.ActualWidth < 1 || root.ActualHeight < 1) throw new Exception("Native root did not lay out.");
+            // The window's own background is not part of its content, so a capture
+            // without it is a transparent PNG that most viewers show as white and
+            // that hides light text. Paint the theme colour behind the content.
+            if (root is Panel panel) panel.Background = Background;
             var bitmap = new RenderTargetBitmap((int)root.ActualWidth, (int)root.ActualHeight, 96, 96, PixelFormats.Pbgra32); bitmap.Render(root);
             var png = new PngBitmapEncoder(); png.Frames.Add(BitmapFrame.Create(bitmap)); using var stream = File.Create(Path.Combine(output, name + ".png")); png.Save(stream);
         }
         void Check(bool result, string text) { if (!result) throw new Exception(text); }
         await Capture("home-dark");
-        Check(CollectionHeader.Children.OfType<WrapPanel>().First().Children.Count == 5, "Home collection shortcuts missing.");
+        Check(CollectionHeader.Children.OfType<System.Windows.Controls.Primitives.UniformGrid>().First().Children.Count == 5, "Home collection shortcuts missing.");
+        Check(Songs.Visibility == Visibility.Collapsed, "Home should read as one page, not a list under a shelf.");
         Check(MiniPlayer.Visibility == Visibility.Collapsed, "Empty mini player should be hidden.");
-        ShowPage("Search"); searchBox!.Text = "Local song 3"; Check(visible.Count == 1, "Native search failed.");
-        ShowPage("Daily mix", DailyGroups()[0].Id); Check(visible.Count == 3, "Native daily mix is not browsable."); await Capture("daily-mix");
+        ShowPage("Search");
+        // A name typed in the box has to lead somewhere: the album found by its
+        // own name is a row that opens it, not a song list with no way up.
+        searchBox!.Text = "Album 1";
+        var matches = CollectionHeader.Children.OfType<StackPanel>().FirstOrDefault(panel => Equals(panel.Tag, "search-matches"));
+        Check(matches != null, "Search should name the collections it found, not only the songs.");
+        Check(TextsIn(matches!).Any(text => text.Text == "Albums · 1"), "Search should group the album it found.");
+        Check(matches!.Children.OfType<Button>().Count() == 1, "The album found by name should open from the search.");
+        await Capture("search");
+        searchBox.Text = "Local song 3"; Check(visible.Count == 1, "Native search failed.");
+        ShowPage("Daily mix", DailyGroups()[0].Id); Check(visible.Count == 3, "Native daily mix is not browsable.");
+        Check(Summary.Text.Contains("·"), "A browsing page should count the library under its title.");
+        await Capture("daily-mix");
         var snapshot = new NativePlaylist("smoke", "Morning collection", "Saved local selection", visible.Select(s => s.Id).ToList());
         SavePlaylists(new() { snapshot }); ShowPage("Playlists", snapshot.Id); Check(visible.Count == 3, "Playlist snapshot lost songs."); await Capture("playlist");
-        ShowPage("Settings"); Check(SettingsBody.Children.OfType<Button>().Count() == 7, "Expected Back and six Settings sections."); await Capture("settings");
+        // Remix over the seeded week: the figure and its sleeve, then the list it earns.
+        ShowPage("Remix");
+        // The page is built from grids and panels now, so the words have to be read
+        // out of the whole tree rather than off the top level.
+        var remixText = TextsIn(CollectionHeader).Select(text => text.Text).ToList();
+        Check(remixText.Contains("MOST PLAYED"), "Remix should show the sleeve of the week's song.");
+        Check(remixText.Contains("Your Remix"), "Remix should list the week's songs.");
+        Check(remixText.Any(text => text.EndsWith("vs last week")), "Remix should compare with the week before.");
+        Check(!remixText.Contains("More about this week"), "Remix should not carry the old card stack.");
+        await Capture("remix");
+        ShowPage("Settings"); // Back is a button too, so seven: one way out and six sections.
+        Check(SettingsBody.Children.OfType<Button>().Count() == 7, "Expected Back and six Settings sections."); await Capture("settings");
+        // The player view has no song behind it here, which is exactly the empty
+        // case worth a look: the record, the lyrics area and the transport should
+        // still sit where they belong.
+        ShowPage("Now playing"); await Capture("now-playing");
+        Check(NowView.Visibility == Visibility.Visible, "The player view should be the one on screen.");
+        ShowPage("Library");
         preferences = preferences with { Theme = "light" }; ApplyTheme(); Width = 820; Height = 640; ShowPage("Library"); await Capture("library-light-narrow");
+    }
+
+    /// <summary>Every TextBlock under an element, however deeply it is nested.</summary>
+    private static IEnumerable<TextBlock> TextsIn(DependencyObject root)
+    {
+        for (int index = 0; index < VisualTreeHelper.GetChildrenCount(root); index++)
+        {
+            var child = VisualTreeHelper.GetChild(root, index);
+            if (child is TextBlock block) yield return block;
+            foreach (var nested in TextsIn(child)) yield return nested;
+        }
     }
 }

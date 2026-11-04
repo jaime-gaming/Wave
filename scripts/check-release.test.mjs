@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { checkRelease } from './check-release.mjs';
+import { renderLocKt, renderLocalizationCs } from './build-i18n.mjs';
 
 function fixture(run) {
   const root = mkdtempSync(path.join(tmpdir(), 'wave-release-'));
@@ -21,7 +22,33 @@ function fixture(run) {
     '<Project><Version>0.1.0</Version><AssemblyVersion>0.1.0.0</AssemblyVersion><FileVersion>0.1.0.0</FileVersion></Project>',
   );
   put('platforms/android/app/build.gradle.kts', 'versionName = "0.1.0"; versionCode = 1');
+  put('platforms/windows/Wave.Windows/MainWindow.xaml', '<TextBlock Text="0.1.0"/>');
+  put(
+    'platforms/windows/Wave.Windows/MainWindow.Settings.cs',
+    'Label("Wave 0.1.0 · 1 October 2026", 23);',
+  );
+  put(
+    'platforms/windows/Wave.Windows/LyricsClient.cs',
+    'UserAgent.ParseAdd("Wave/0.1.0 (https://github.com/jaime-gaming/Wave)");',
+  );
+  put(
+    'platforms/android/app/src/main/java/io/github/jaimegaming/wave/LyricsClient.kt',
+    'connection.setRequestProperty("User-Agent","Wave/0.1.0 (https://github.com/jaime-gaming/Wave)")',
+  );
   put('docs/RELEASE_NOTES_0.1.0.md', '# Wave 0.1.0\n\nRelease notes.');
+  put('CHANGELOG.md', '# Changelog\n\n## 0.1.0 — 1 October 2026\n\n- The first release.\n');
+  // The language tables are generated, committed, and part of what a release may
+  // not let drift: the fixture writes them with the same renderer the build uses.
+  const phrases = [
+    ['Play', 'Reproducir'],
+    ['Pause', 'Pausa'],
+  ];
+  put('i18n/es.json', JSON.stringify(Object.fromEntries(phrases), null, 2) + '\n');
+  put(
+    'platforms/android/app/src/main/java/io/github/jaimegaming/wave/ui/Loc.kt',
+    renderLocKt(phrases),
+  );
+  put('platforms/windows/Wave.Windows/Localization.cs', renderLocalizationCs(phrases));
   try {
     run(root, put);
   } finally {
@@ -33,6 +60,16 @@ test('accepts matching platform versions and release notes', () =>
   fixture((root) => {
     assert.deepEqual(checkRelease(root, 'v0.1.0'), { version: '0.1.0', tag: 'v0.1.0' });
   }));
+test('rejects a changelog with no section for this release', () =>
+  fixture((root, put) => {
+    put('CHANGELOG.md', '# Changelog\n\n## 0.0.9 — 1 October 2026\n\n- Something.\n');
+    assert.throws(() => checkRelease(root), /no dated 0\.1\.0 section/);
+  }));
+test('rejects a changelog section with no date', () =>
+  fixture((root, put) => {
+    put('CHANGELOG.md', '# Changelog\n\n## 0.1.0\n\n- Something.\n');
+    assert.throws(() => checkRelease(root), /no dated 0\.1\.0 section/);
+  }));
 test('rejects the wrong release tag', () =>
   fixture((root) => {
     assert.throws(() => checkRelease(root, 'v1.0.0'), /Tag and package version differ/);
@@ -41,6 +78,14 @@ test('rejects a mismatched native version', () =>
   fixture((root, put) => {
     put('platforms/android/app/build.gradle.kts', 'versionName = "0.2.0"; versionCode = 2');
     assert.throws(() => checkRelease(root), /Android version differs/);
+  }));
+test('rejects a stale version shown in a platform interface', () =>
+  fixture((root, put) => {
+    put(
+      'platforms/windows/Wave.Windows/MainWindow.Settings.cs',
+      'SettingsBody.Children.Add(Label("Wave 0.0.9 · 27 October 2026", 23));',
+    );
+    assert.throws(() => checkRelease(root), /Windows settings version differs/);
   }));
 test('rejects mismatched release notes', () =>
   fixture((root, put) => {
@@ -60,4 +105,13 @@ test('rejects a stale lockfile', () =>
       JSON.stringify({ version: '0.0.9', packages: { '': { version: '0.0.9' } } }),
     );
     assert.throws(() => checkRelease(root), /Lockfile version differs/);
+  }));
+
+test('refuses language tables that lag behind the dictionary', () =>
+  fixture((root, put) => {
+    put(
+      'i18n/es.json',
+      JSON.stringify({ Play: 'Reproducir', Pause: 'Pausa', Next: 'Siguiente' }, null, 2) + '\n',
+    );
+    assert.throws(() => checkRelease(root), /build:i18n/);
   }));

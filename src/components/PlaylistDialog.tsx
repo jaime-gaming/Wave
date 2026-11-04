@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, Plus, Search } from 'lucide-react';
+import { Check, Plus, Search } from './Glyphs';
 import { Modal } from './Modal';
 import { ArtworkPicker } from './ArtworkPicker';
 import { usePlaylistVisual } from '../hooks/usePlaylistVisual';
@@ -7,6 +7,7 @@ import { Artwork } from './Artwork';
 import { filterTracks, type Playlist, type Track } from '../domain/types';
 import type { PlaylistDetails } from '../domain/playlists';
 
+import { useT } from '../i18n';
 export function PlaylistDialog({
   playlist,
   editorEnabled,
@@ -18,6 +19,7 @@ export function PlaylistDialog({
   onSave: (details: PlaylistDetails) => Promise<boolean>;
   onClose: () => void;
 }) {
+  const t = useT();
   const [name, setName] = useState(playlist?.name ?? '');
   const [description, setDescription] = useState(playlist?.description ?? '');
   const [artwork, setArtwork] = useState(playlist?.artwork);
@@ -27,7 +29,7 @@ export function PlaylistDialog({
   const busy = saving || imageBusy;
   return (
     <Modal
-      title={playlist ? 'Edit playlist' : 'Create playlist'}
+      title={playlist ? t('Edit playlist') : t('Create playlist')}
       closeDisabled={busy}
       onClose={() => {
         if (!busy) onClose();
@@ -41,7 +43,7 @@ export function PlaylistDialog({
           setSaving(true);
           setError('');
           if (await onSave({ name, description, artwork })) onClose();
-          else setError('This playlist could not be saved. Please try again.');
+          else setError(t('This playlist could not be saved. Please try again.'));
           setSaving(false);
         }}
       >
@@ -54,26 +56,26 @@ export function PlaylistDialog({
           />
         )}
         <label className="form-field">
-          Playlist name
+          {t('Playlist name')}
           <input
             autoFocus
             value={name}
             required
             maxLength={100}
             disabled={saving}
-            placeholder="Name your playlist"
+            placeholder={t('Name your playlist')}
             onChange={(event) => setName(event.target.value)}
           />
         </label>
         {editorEnabled && (
           <label className="form-field">
-            Description
+            {t('Description')}
             <textarea
               value={description}
               maxLength={1000}
               rows={3}
               disabled={saving}
-              placeholder="Optional"
+              placeholder={t('Optional')}
               onChange={(event) => setDescription(event.target.value)}
             />
           </label>
@@ -85,11 +87,11 @@ export function PlaylistDialog({
         )}
         <div className="modal-actions">
           <button type="button" className="tonal-button" disabled={busy} onClick={onClose}>
-            Cancel
+            {t('Cancel')}
           </button>
           <button type="submit" className="filled-button" disabled={busy || !name.trim()}>
             <Check size={19} />
-            {saving ? 'Saving…' : playlist ? 'Save playlist' : 'Create playlist'}
+            {saving ? t('Saving…') : playlist ? t('Save playlist') : t('Create playlist')}
           </button>
         </div>
       </form>
@@ -114,6 +116,7 @@ export function AddSongsDialog({
   onAdd: (ids: string[]) => Promise<boolean>;
   onClose: () => void;
 }) {
+  const t = useT();
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState(new Set<string>());
   const [saving, setSaving] = useState(false);
@@ -124,7 +127,7 @@ export function AddSongsDialog({
   const visible = filterTracks(available, query);
   return (
     <Modal
-      title={title}
+      title={t(title)}
       closeDisabled={saving}
       className="picker-modal"
       onClose={() => {
@@ -132,13 +135,15 @@ export function AddSongsDialog({
       }}
     >
       <p className="modal-description">
-        Add songs to {playlist?.name ?? destination ?? 'your collection'}.
+        {t('Add songs to {destination}.', {
+          destination: playlist?.name ?? (destination ? t(destination) : t('your collection')),
+        })}
       </p>
       <div className="search-box picker-search">
         <Search size={20} />
         <input
-          aria-label="Search songs to add"
-          placeholder="Search your library"
+          aria-label={t('Search songs to add')}
+          placeholder={t('Search your library')}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
@@ -172,10 +177,12 @@ export function AddSongsDialog({
         {!visible.length && (
           <p className="picker-empty">
             {available.length
-              ? 'No songs match your search.'
+              ? t('No songs match your search.')
               : tracks.length
-                ? `All your songs are already in ${playlist ? 'this playlist' : 'the queue'}.`
-                : 'Import audio files into your library first.'}
+                ? t('All your songs are already in {destination}.', {
+                    destination: playlist ? t('this playlist') : t('the queue'),
+                  })
+                : t('Import audio files into your library first.')}
           </p>
         )}
       </div>
@@ -186,7 +193,7 @@ export function AddSongsDialog({
       )}
       <div className="modal-actions">
         <button className="tonal-button" disabled={saving} onClick={onClose}>
-          Cancel
+          {t('Cancel')}
         </button>
         <button
           className="filled-button"
@@ -194,12 +201,12 @@ export function AddSongsDialog({
           onClick={async () => {
             setSaving(true);
             if (await onAdd([...selected])) onClose();
-            else setError('Songs could not be added. Please try again.');
+            else setError(t('Songs could not be added. Please try again.'));
             setSaving(false);
           }}
         >
           <Plus size={18} />
-          {saving ? 'Adding…' : `Add ${selected.size} ${selected.size === 1 ? 'song' : 'songs'}`}
+          {saving ? t('Adding…') : `Add ${selected.size} ${selected.size === 1 ? 'song' : 'songs'}`}
         </button>
       </div>
     </Modal>
@@ -221,17 +228,20 @@ export function AddToPlaylistDialog({
   onCreate: () => void;
   onClose: () => void;
 }) {
+  const t = useT();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   return (
     <Modal
-      title="Add to playlist"
+      title={t('Add to playlist')}
       closeDisabled={busy}
       onClose={() => {
         if (!busy) onClose();
       }}
     >
-      <p className="modal-description">Choose a playlist for {track.title}.</p>
+      <p className="modal-description">
+        {t('Choose a playlist for {title}.', { title: track.title })}
+      </p>
       <div className="playlist-picker">
         {playlists.map((playlist) => (
           <button
@@ -241,7 +251,7 @@ export function AddToPlaylistDialog({
             onClick={async () => {
               setBusy(true);
               if (await onAdd(playlist.id)) onClose();
-              else setError('The song could not be added. Please try again.');
+              else setError(t('The song could not be added. Please try again.'));
               setBusy(false);
             }}
           >
@@ -250,7 +260,7 @@ export function AddToPlaylistDialog({
               {playlist.name}
               <small>
                 {playlist.trackIds.includes(track.id)
-                  ? 'Already added'
+                  ? t('Already added')
                   : `${playlist.trackIds.length} songs`}
               </small>
             </span>
@@ -264,7 +274,7 @@ export function AddToPlaylistDialog({
       )}
       <button className="tonal-button" disabled={busy} onClick={onCreate}>
         <Plus size={19} />
-        Create playlist
+        {t('Create playlist')}
       </button>
     </Modal>
   );

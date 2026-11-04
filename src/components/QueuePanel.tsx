@@ -9,12 +9,14 @@ import {
   ArrowUp,
   ArrowDown,
   Check,
-} from 'lucide-react';
+} from './Glyphs';
 import { Artwork } from './Artwork';
+import { EmptyState } from './EmptyState';
 import { formatTime, type Track } from '../domain/types';
 import type { usePlayer } from '../hooks/usePlayer';
 import { useWaveMotion } from '../ui/motion';
 import { moveId } from '../domain/order';
+import { useT } from '../i18n';
 function QueueRow({
   track,
   index,
@@ -32,6 +34,7 @@ function QueueRow({
 }) {
   const controls = useDragControls(),
     animation = useWaveMotion(),
+    t = useT(),
     current = track.id === player.current?.id;
   return (
     <Reorder.Item
@@ -48,7 +51,7 @@ function QueueRow({
       {editing && (
         <button
           className="icon-button queue-drag"
-          aria-label={`Drag ${track.title} to reorder`}
+          aria-label={t('Drag {title} to reorder', { title: track.title })}
           onPointerDown={(e) => controls.start(e)}
           onKeyDown={(e) => {
             if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
@@ -63,7 +66,7 @@ function QueueRow({
       <button
         className="queue-entry__play"
         onClick={() => player.dispatch({ type: 'jump', id: track.id })}
-        aria-label={`Play ${track.title} from queue`}
+        aria-label={t('Play {title} from queue', { title: track.title })}
       >
         {!editing && (
           <span className="queue-entry__number" aria-hidden="true">
@@ -108,7 +111,7 @@ function QueueRow({
         <button
           className="icon-button queue-entry__remove"
           onClick={() => player.dispatch({ type: 'remove', id: track.id })}
-          aria-label={`Remove ${track.title} from queue`}
+          aria-label={t('Remove {title} from queue', { title: track.title })}
         >
           <span aria-hidden="true">×</span>
         </button>
@@ -125,6 +128,7 @@ export function QueuePanel({
   tracks: Track[];
   onAdd: () => void;
 }) {
+  const t = useT();
   const list = useRef<HTMLOListElement>(null),
     animation = useWaveMotion();
   const [editing, setEditing] = useState(false),
@@ -141,7 +145,7 @@ export function QueuePanel({
       ?.scrollIntoView({ block: 'nearest', behavior: animation.enabled ? 'smooth' : 'instant' });
   }, [player.current?.id, animation.enabled]);
   return (
-    <aside className="listening-queue" aria-label="Playback queue" data-editing={editing}>
+    <aside className="listening-queue" aria-label={t('Playback queue')} data-editing={editing}>
       <div className="listening-queue__summary">
         <span>
           {queue.length} {queue.length === 1 ? 'song' : 'songs'}
@@ -149,7 +153,7 @@ export function QueuePanel({
         </span>
         <button
           className="icon-button queue-edit"
-          aria-label={editing ? 'Finish reordering queue' : 'Reorder queue'}
+          aria-label={editing ? t('Finish reordering queue') : t('Reorder queue')}
           aria-pressed={editing}
           disabled={queue.length < 2 && !editing}
           onClick={() => setEditing((v) => !v)}
@@ -158,19 +162,24 @@ export function QueuePanel({
         </button>
         <button className="tonal-button" onClick={onAdd}>
           <Plus size={18} />
-          Add songs to queue
+          {t('Add songs to queue')}
         </button>
       </div>
-      {editing && <p className="queue-order-hint">Drag a handle, use the arrows or Alt + ↑ / ↓.</p>}
+      {editing && (
+        <p className="queue-order-hint">{t('Drag a handle or use the arrows to reorder.')}</p>
+      )}
       <span className="sr-only" aria-live="polite">
         {announcement}
       </span>
       {!queue.length ? (
-        <div className="listening-queue__empty">
-          <ListMusic size={40} />
-          <h3>Queue is empty</h3>
-          <p>Choose the songs you want to hear next.</p>
-        </div>
+        <EmptyState
+          className="listening-queue__empty"
+          symbolClassName="listening-queue__empty-symbol"
+          level={3}
+          icon={<ListMusic size={40} />}
+          title={t('Queue is empty')}
+          description={t('Choose the songs you want to hear next.')}
+        />
       ) : (
         <Reorder.Group
           as="ol"
@@ -195,7 +204,11 @@ export function QueuePanel({
                 const ids = moveId(player.state.queue, track.id, direction);
                 player.reorderQueue(ids);
                 setAnnouncement(
-                  `${track.title}, position ${ids.indexOf(track.id) + 1} of ${ids.length}`,
+                  t('{title}, position {index} of {count}', {
+                    title: track.title,
+                    index: ids.indexOf(track.id) + 1,
+                    count: ids.length,
+                  }),
                 );
               }}
             />
