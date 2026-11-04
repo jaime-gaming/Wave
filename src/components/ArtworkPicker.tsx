@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { ImagePlus, X } from './Glyphs';
 import { Artwork } from './Artwork';
 import { ARTWORK_ACCEPT, readArtwork } from '../data/artwork';
+import { useT } from '../i18n';
 
 export function ArtworkPicker({
   value,
@@ -17,6 +18,7 @@ export function ArtworkPicker({
   onBusy: (busy: boolean) => void;
 }) {
   const input = useRef<HTMLInputElement>(null);
+  const t = useT();
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   return (
@@ -30,7 +32,11 @@ export function ArtworkPicker({
           onClick={() => input.current?.click()}
         >
           <ImagePlus size={19} />
-          {busy ? 'Reading image…' : value ? `Replace ${kind}` : `Add ${kind}`}
+          {busy
+            ? t('Reading image…')
+            : value
+              ? t(kind === 'photo' ? 'Replace photo' : 'Replace cover')
+              : t(kind === 'photo' ? 'Add photo' : 'Add cover')}
         </button>
         {value && (
           <button
@@ -40,13 +46,17 @@ export function ArtworkPicker({
             onClick={() => onChange(undefined)}
           >
             <X size={16} />
-            Remove {kind}
+            {t(kind === 'photo' ? 'Remove photo' : 'Remove cover')}
           </button>
         )}
         <p>
-          JPEG, PNG or WebP · Up to 5 MB
+          {t('JPEG, PNG or WebP · Up to 5 MB')}
           <br />
-          Saved as a square {kind} in Wave.
+          {t(
+            kind === 'photo'
+              ? 'Saved as a square photo in Wave.'
+              : 'Saved as a square cover in Wave.',
+          )}
         </p>
       </div>
       <input
@@ -55,7 +65,7 @@ export function ArtworkPicker({
         type="file"
         accept={ARTWORK_ACCEPT}
         disabled={disabled || busy}
-        aria-label={kind === 'photo' ? 'Artist photo file' : 'Artwork file'}
+        aria-label={t(kind === 'photo' ? 'Artist photo file' : 'Artwork file')}
         onChange={async (event) => {
           const file = event.target.files?.[0];
           event.target.value = '';
@@ -66,7 +76,9 @@ export function ArtworkPicker({
           try {
             onChange(await readArtwork(file));
           } catch (reason) {
-            setError(reason instanceof Error ? reason.message : 'This image could not be read.');
+            setError(
+              reason instanceof Error ? t(reason.message) : t('This image could not be read.'),
+            );
           } finally {
             setBusy(false);
             onBusy(false);

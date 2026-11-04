@@ -116,7 +116,7 @@ export function MigrationSheet({
             library now, in the list&apos;s order.
           </p>
           <button className="filled-button" onClick={onClose}>
-            Back to playlists
+            {t('Back to playlists')}
           </button>
         </div>
       ) : !report || !list ? (
@@ -233,7 +233,7 @@ export function MigrationSheet({
           <div className="migration-actions">
             <button className="tonal-button" onClick={() => setReport(null)} disabled={saving}>
               <ArrowLeft size={18} aria-hidden="true" />
-              Back
+              {t('Back')}
             </button>
             <button
               className="filled-button"

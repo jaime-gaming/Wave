@@ -86,8 +86,8 @@ fun WaveTextField(
         value = value,
         onValueChange = onValueChange,
         modifier = modifier,
-        label = label?.let { { Text(it, fontSize = 13.sp) } },
-        placeholder = placeholder?.let { { Text(it, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) } },
+        label = label?.let { { Text(Loc.t(it), fontSize = 13.sp) } },
+        placeholder = placeholder?.let { { Text(Loc.t(it), fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) } },
         supportingText = supportingText,
         singleLine = singleLine,
         minLines = minLines,
@@ -120,7 +120,7 @@ fun WaveSearchField(
         value = value,
         onValueChange = onValueChange,
         modifier = modifier,
-        placeholder = { Text(placeholder, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) },
+        placeholder = { Text(Loc.t(placeholder), fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) },
         leadingIcon = { WaveIcon("search", 18.dp, MaterialTheme.colorScheme.onSurfaceVariant) },
         singleLine = true,
         textStyle = MaterialTheme.typography.bodyMedium,
@@ -166,7 +166,7 @@ fun ScreenTitle(title: String, subtitle: String? = null, trailing: (@Composable 
     ) {
         Column(Modifier.weight(1f)) {
             Text(
-                text = title,
+                text = Loc.t(title),
                 style = MaterialTheme.typography.displaySmall,
                 fontSize = 40.sp,
                 lineHeight = 44.sp,
@@ -176,7 +176,7 @@ fun ScreenTitle(title: String, subtitle: String? = null, trailing: (@Composable 
             )
             if (subtitle != null) {
                 Text(
-                    text = subtitle,
+                    text = Loc.t(subtitle),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
                     modifier = Modifier.padding(top = 4.dp),
@@ -201,7 +201,7 @@ fun SectionTitle(text: String, action: String? = null, onAction: (() -> Unit)? =
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = text,
+            text = Loc.t(text),
             style = MaterialTheme.typography.titleLarge,
             fontSize = 19.sp,
             fontWeight = FontWeight.Bold,
@@ -210,7 +210,7 @@ fun SectionTitle(text: String, action: String? = null, onAction: (() -> Unit)? =
         )
         if (action != null && onAction != null) {
             Text(
-                text = action,
+                text = Loc.t(action),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
@@ -244,7 +244,7 @@ fun SongRow(
             .pressScale(pressed)
             .clip(shape)
             .background(if (playing) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer)
-            .semantics { contentDescription = "Play ${song.title} by ${song.artist}" }
+            .semantics { contentDescription = Loc.t("Play {title} by {artist}", mapOf("title" to song.title, "artist" to song.artist)) }
             .clickable(interactionSource = interaction, indication = null, onClick = onPlay)
             .padding(start = 12.dp, end = 6.dp, top = 9.dp, bottom = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -271,10 +271,10 @@ fun SongRow(
         if (trailing != null) {
             Text(trailing, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        IconButton(onClick = onFavorite, modifier = Modifier.semantics { contentDescription = if (song.favorite) "Remove from favorites" else "Add to favorites" }) {
+        IconButton(onClick = onFavorite, modifier = Modifier.semantics { contentDescription = Loc.t(if (song.favorite) "Remove from favorites" else "Add to favorites") }) {
             WaveIcon("favorite", 20.dp, if (song.favorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        IconButton(onClick = onMore, modifier = Modifier.semantics { contentDescription = "More options for ${song.title}" }) {
+        IconButton(onClick = onMore, modifier = Modifier.semantics { contentDescription = Loc.t("More options for {title}", mapOf("title" to song.title)) }) {
             WaveIcon("more", 20.dp, MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
@@ -291,20 +291,20 @@ fun EmptyState(title: String, body: String, actionLabel: String? = null, onActio
     ) {
         WaveMark(size = 30)
         Text(
-            text = title,
+            text = Loc.t(title),
             style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.padding(top = 14.dp),
         )
         Text(
-            text = body,
+            text = Loc.t(body),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 6.dp),
         )
         if (actionLabel != null && onAction != null) {
             Text(
-                text = actionLabel,
+                text = Loc.t(actionLabel),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
@@ -351,12 +351,12 @@ fun SettingSwitch(title: String, detail: String, checked: Boolean, onChange: (Bo
     ) {
         Column(Modifier.weight(1f)) {
             Text(
-                text = title,
+                text = Loc.t(title),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onBackground,
             )
             Text(
-                text = detail,
+                text = Loc.t(detail),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -382,7 +382,7 @@ fun StatRow(vararg pairs: Pair<String, String>) {
                     color = MaterialTheme.colorScheme.onBackground,
                 )
                 Text(
-                    text = label.uppercase(),
+                    text = Loc.t(label).uppercase(),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -404,7 +404,7 @@ fun Divider() {
 @Composable
 fun Body(text: String, modifier: Modifier = Modifier) {
     Text(
-        text = text,
+        text = Loc.t(text),
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = modifier,
@@ -414,7 +414,7 @@ fun Body(text: String, modifier: Modifier = Modifier) {
 @Composable
 fun Label(text: String) {
     Text(
-        text = text.uppercase(),
+        text = Loc.t(text).uppercase(),
         style = MaterialTheme.typography.labelSmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         fontWeight = FontWeight.Medium,

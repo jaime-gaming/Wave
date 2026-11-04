@@ -4,6 +4,7 @@ import console from 'node:console';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, URL } from 'node:url';
+import { buildI18n } from './build-i18n.mjs';
 
 /** Validate source metadata before any tag, merge or public release operation. */
 export function checkRelease(root, tag) {
@@ -78,6 +79,15 @@ export function checkRelease(root, tag) {
     'm',
   );
   assert.ok(dated.test(read('CHANGELOG.md')), `Changelog has no dated ${pkg.version} section`);
+  // The generated language tables travel with the dictionary: a phrase added to
+  // `i18n/es.json` without re-running the generator would ship the phone and the
+  // window behind the site, which is exactly the drift nobody sees until after.
+  const { stale } = buildI18n(root, { check: true });
+  assert.deepEqual(
+    stale,
+    [],
+    'Language tables are stale; run `npm run build:i18n` and commit the result',
+  );
   return { version: pkg.version, tag: `v${pkg.version}` };
 }
 

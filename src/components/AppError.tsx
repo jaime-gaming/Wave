@@ -23,7 +23,7 @@ export class AppError extends Component<{ children: ReactNode }, { crashed: bool
 
   componentDidCatch(error: unknown) {
     // The console keeps the trace; the page keeps the person calm and moving.
-    console.error('Wave could not draw this screen:', error);
+    console.error(translateNow('Wave could not draw this screen:'), error);
   }
 
   render() {
@@ -39,12 +39,13 @@ export class AppError extends Component<{ children: ReactNode }, { crashed: bool
         </span>
         <h1>{translateNow('This screen stopped. Your music didn’t.')}</h1>
         <p>
-          Nothing on this device was changed. Reload to carry on where you were — the player picks
-          up from the same place.
+          {translateNow(
+            'Nothing on this device was changed. Reload to carry on where you were — the player picks up from the same place.',
+          )}
         </p>
         <div className="app-crash-actions">
           <button className="primary-button" onClick={() => location.reload()}>
-            Reload
+            {translateNow('Reload')}
           </button>
           <button
             className="tonal-button"
@@ -54,7 +55,7 @@ export class AppError extends Component<{ children: ReactNode }, { crashed: bool
               this.setState({ crashed: false });
             }}
           >
-            Try this screen again
+            {translateNow('Try this screen again')}
           </button>
         </div>
       </div>

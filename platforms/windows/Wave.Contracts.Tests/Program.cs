@@ -72,3 +72,13 @@ Check(week.Hours.Count == 24 && week.Hours.Sum() == week.Plays, "the week has an
 Check(Listening.Recap(weekPlays, new List<Song> { a with { Genre = "Ambient" }, b }, weekNow).Genres.First().Genre == "Ambient", "the week names its most played genre");
 var thinWeek = Listening.Recap(new List<Play> { new("a", DaysAgo(0), 120, true) }, new List<Song> { a, b }, weekNow);
 Check(thinWeek.Songs.Select(s => s.Id).Distinct().Count() == thinWeek.Songs.Count, "a topped-up Remix never repeats a song");
+
+// The language table: Spanish answers a known line, placeholders fill, English
+// keeps the original wording, and an unknown line falls back to itself.
+Localization.Init("es");
+Check(Localization.T("Play") == "Reproducir", "the Spanish table answers a known line");
+Check(Localization.T("Daily mix {number}", new Dictionary<string, string> { ["number"] = "3" }) == "Mezcla diaria 3", "placeholders fill in Spanish");
+Localization.Init("en");
+Check(Localization.T("Play") == "Play", "the English choice keeps the original wording");
+Check(Localization.T("A line nobody translated") == "A line nobody translated", "an unknown line falls back to itself");
+Localization.Init("system");

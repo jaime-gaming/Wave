@@ -59,7 +59,9 @@ export const SearchPage = memo(function SearchPage({
   onCreatePlaylist,
 }: Props) {
   const t = useT();
-  const [kind, setKind] = useState(t('All'));
+  // The filter is a stable id, never a translated label: the comparisons below
+  // must keep working whichever language the chips are drawn in.
+  const [kind, setKind] = useState<'All' | 'Songs' | 'Artists' | 'Albums' | 'Playlists'>('All');
   const [recent, setRecent] = useState<string[]>(loadRecentSearches);
   useEffect(() => {
     inputRef.current?.focus();
@@ -157,15 +159,15 @@ export const SearchPage = memo(function SearchPage({
         )}
       </div>
       <div className="search-kinds" aria-label={t('Search categories')}>
-        {[t('All'), t('Songs'), t('Artists'), t('Albums'), t('Playlists')].map((label) => (
+        {(['All', 'Songs', 'Artists', 'Albums', 'Playlists'] as const).map((id) => (
           <motion.button
-            key={label}
-            aria-pressed={kind === label}
-            onClick={() => setKind(label)}
+            key={id}
+            aria-pressed={kind === id}
+            onClick={() => setKind(id)}
             whileTap={animation.enabled ? { scale: 0.94 } : undefined}
             transition={animation.fast}
           >
-            {label}
+            {t(id)}
           </motion.button>
         ))}
       </div>
@@ -184,7 +186,7 @@ export const SearchPage = memo(function SearchPage({
                     setRecent([]);
                   }}
                 >
-                  Clear
+                  {t('Clear')}
                 </button>
               </div>
               <div className="search-recent-chips">
@@ -229,7 +231,7 @@ export const SearchPage = memo(function SearchPage({
               >
                 <Icon size={30} />
                 <strong>{label}</strong>
-                <span>{count} in your collection</span>
+                <span>{t('{count} in your collection', { count })}</span>
                 <ArrowUpRight size={18} />
               </motion.button>
             ))}
@@ -238,12 +240,14 @@ export const SearchPage = memo(function SearchPage({
       ) : (
         <>
           <p className="search-result-count" role="status">
-            {count} {count === 1 ? 'result' : 'results'} for “{query}”
+            {count === 1
+              ? t('{count} result for “{query}”', { count, query })
+              : t('{count} results for “{query}”', { count, query })}
           </p>
           {(kind === 'All' || kind === 'Songs') && (
             <section className="search-results-section" aria-label={t('Song results')}>
               <h2>
-                Songs <span>{songs.length}</span>
+                {t('Songs')} <span>{songs.length}</span>
               </h2>
               <LibraryContent
                 loading={loading}
@@ -265,8 +269,8 @@ export const SearchPage = memo(function SearchPage({
                 onAlbum={(t) => onAlbum(JSON.stringify([t.artist, t.album]))}
               />
               {kind === 'All' && songs.length > 12 && (
-                <button className="text-button" onClick={() => setKind(t('Songs'))}>
-                  Show all {songs.length} songs
+                <button className="text-button" onClick={() => setKind('Songs')}>
+                  {t('Show all {count} songs', { count: songs.length })}
                 </button>
               )}
             </section>
@@ -274,7 +278,7 @@ export const SearchPage = memo(function SearchPage({
           {(kind === 'All' || kind === 'Artists') && artists.length > 0 && (
             <section className="search-results-section" aria-label={t('Artist results')}>
               <h2>
-                Artists <span>{artists.length}</span>
+                {t('Artists')} <span>{artists.length}</span>
               </h2>
               <div className="search-artist-grid">
                 {artists.map((a) => (
@@ -302,7 +306,7 @@ export const SearchPage = memo(function SearchPage({
           {(kind === 'All' || kind === 'Albums') && albums.length > 0 && (
             <section className="search-results-section" aria-label={t('Album results')}>
               <h2>
-                Albums <span>{albums.length}</span>
+                {t('Albums')} <span>{albums.length}</span>
               </h2>
               <div className="group-grid">
                 {albums.map((a) => (
@@ -321,7 +325,9 @@ export const SearchPage = memo(function SearchPage({
             />
           )}
           {!count && kind !== 'All' && kind !== 'Songs' && (
-            <p className="search-no-results">No matching {kind.toLowerCase()}. Try another name.</p>
+            <p className="search-no-results">
+              {t('No matching {kind}. Try another name.', { kind: t(kind.toLowerCase()) })}
+            </p>
           )}
         </>
       )}

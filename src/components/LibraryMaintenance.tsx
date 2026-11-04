@@ -21,7 +21,7 @@ export function LibraryMaintenance({
   return (
     <section className="maintenance-card">
       <h3>{t('Duplicate tracks')}</h3>
-      <p>Same names can be different recordings. Only byte-identical files can be merged.</p>
+      <p>{t('Same names can be different recordings. Only byte-identical files can be merged.')}</p>
       <button
         className="tonal-button"
         disabled={busy || !tracks.length}
@@ -39,7 +39,7 @@ export function LibraryMaintenance({
             setGroups(found);
             setMessage(
               found.length
-                ? `${found.length} identical groups found.`
+                ? t('{count} identical groups found.', { count: found.length })
                 : t('No byte-identical duplicates.'),
             );
           } catch {
@@ -54,7 +54,7 @@ export function LibraryMaintenance({
       {groups.map((group) => (
         <div className="duplicate-group" key={group[0].id}>
           <strong>
-            {group[0].title} · {group.length} copies
+            {group[0].title} · {t('{count} copies', { count: group.length })}
           </strong>
           <p>{group.map((track) => track.fileName).join(' · ')}</p>
           <button
@@ -73,20 +73,22 @@ export function LibraryMaintenance({
                   t('Identical copies merged; favorites and playlist references retained.'),
                 );
               } catch (error) {
-                setMessage(error instanceof Error ? error.message : t('Merge failed.'));
+                setMessage(error instanceof Error ? t(error.message) : t('Merge failed.'));
               } finally {
                 setBusy(false);
               }
             }}
           >
-            Merge identical copies
+            {t('Merge identical copies')}
           </button>
         </div>
       ))}
       <p role="status">{message}</p>
       {names.length > 0 && (
         <details>
-          <summary>{names.length} same-name groups · review versions</summary>
+          <summary>
+            {t('{count} same-name groups · review versions', { count: names.length })}
+          </summary>
           {names.map((group) => (
             <div className="duplicate-group" key={group[0].id}>
               <strong>

@@ -90,7 +90,7 @@ fun HomeScreen(state: WaveState, onAddMusic: () -> Unit, onOpenSong: (Song) -> U
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = "Your collection",
+                    text = Loc.t("Your collection"),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
                     fontSize = 18.sp,
@@ -106,7 +106,7 @@ fun HomeScreen(state: WaveState, onAddMusic: () -> Unit, onOpenSong: (Song) -> U
                 ) {
                     WaveIcon("plus", 16.dp, MaterialTheme.colorScheme.onSurface)
                     Spacer(Modifier.width(8.dp))
-                    Text("Add music", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
+                    Text(Loc.t("Add music"), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
                 }
             }
             // The five places the collection can be seen. On a phone the site
@@ -200,7 +200,7 @@ private fun ShortcutRow(shelf: Shelf, icon: String, amount: Int, first: Boolean,
         WaveIcon(icon, 18.dp, MaterialTheme.colorScheme.primary)
         Spacer(Modifier.width(10.dp))
         Text(
-            text = shelf.label,
+            text = Loc.t(shelf.label),
             fontSize = 13.sp,
             color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
@@ -231,7 +231,7 @@ private fun DailyMixRow(mix: DailyMix, number: Int, onOpen: () -> Unit) {
         Cover(mix.songs.first(), size = 64.dp, radius = 14.dp)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text("Daily mix $number", style = MaterialTheme.typography.titleMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+            Text(Loc.t("Daily mix {number}", mapOf("number" to number.toString())), style = MaterialTheme.typography.titleMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
             Text(mix.label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         WaveIcon("arrow", 20.dp, MaterialTheme.colorScheme.primary)
@@ -318,7 +318,7 @@ fun SearchScreen(state: WaveState, onOpenSong: (Song) -> Unit) {
                     val selected = kind == label
                     val (interaction, pressed) = rememberPress()
                     Text(
-                        text = label,
+                        text = Loc.t(label),
                         color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 14.sp,
                         fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
@@ -335,13 +335,13 @@ fun SearchScreen(state: WaveState, onOpenSong: (Song) -> Unit) {
         if (words.isBlank()) {
             item {
                 Text(
-                    text = "Browse your collection",
+                    text = Loc.t("Browse your collection"),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
                     modifier = Modifier.padding(top = 14.dp),
                 )
                 Text(
-                    text = "Find something in your collection. Search ignores accents and matches words in any order, and puts the closest name first.",
+                    text = Loc.t("Find something in your collection. Search ignores accents and matches words in any order, and puts the closest name first."),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 6.dp),
@@ -354,12 +354,12 @@ fun SearchScreen(state: WaveState, onOpenSong: (Song) -> Unit) {
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            "Recent searches",
+                            Loc.t("Recent searches"),
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.weight(1f),
                         )
-                        TextButton(onClick = { state.clearRecentSearches() }) { Text("Clear") }
+                        TextButton(onClick = { state.clearRecentSearches() }) { Text(Loc.t("Clear")) }
                     }
                 }
             }
@@ -389,7 +389,7 @@ fun SearchScreen(state: WaveState, onOpenSong: (Song) -> Unit) {
             item {
                 EmptyState(
                     title = "No match",
-                    body = "Nothing in the library answers to \"$words\".",
+                    body = Loc.t("Nothing in the library answers to \"{words}\".", mapOf("words" to words)),
                     actionLabel = "Clear",
                     onAction = { state.query = "" },
                 )
@@ -470,7 +470,7 @@ fun LibraryScreen(state: WaveState, onAddMusic: () -> Unit, onOpenSong: (Song) -
             ScreenTitle(
                 title = "Library",
                 subtitle = when {
-                    state.songs.isEmpty() -> "Empty"
+                    state.songs.isEmpty() -> Loc.t("Empty")
                     state.query.isBlank() ->
                         "${count(state.songs.size, "song")} · ${count(state.albums().size, "album")}"
                     else -> "${state.visible().size} of ${state.songs.size} songs"
@@ -693,7 +693,7 @@ private fun PlaylistRow(playlist: Playlist, songs: List<Song>, onOpen: () -> Uni
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = if (songs.isEmpty()) "Empty" else count(songs.size, "song"),
+                text = if (songs.isEmpty()) Loc.t("Empty") else count(songs.size, "song"),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -733,14 +733,14 @@ private fun CollectionScreen(state: WaveState, onOpenSong: (Song) -> Unit) {
             ) {
                 WaveIcon("back", 18.dp, MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.width(8.dp))
-                Text(if (mix != null) "Back to Home" else "Back", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                Text(Loc.t(if (mix != null) "Back to Home" else "Back"), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
             }
             if (mix != null && songs.isNotEmpty()) {
                 Row(Modifier.fillMaxWidth().padding(vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                     Cover(songs.first(), size = 120.dp, radius = 18.dp)
                     Spacer(Modifier.width(16.dp))
                     Column(Modifier.weight(1f)) {
-                        Text("Daily mix $mixNumber", style = MaterialTheme.typography.headlineMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                        Text(Loc.t("Daily mix {number}", mapOf("number" to mixNumber.toString())), style = MaterialTheme.typography.headlineMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
                         Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 4.dp))
                         Body(count(songs.size, "song"))
                     }
@@ -750,7 +750,7 @@ private fun CollectionScreen(state: WaveState, onOpenSong: (Song) -> Unit) {
             }
             if (playlist != null) {
                 Text(
-                    text = "Rename or delete",
+                    text = Loc.t("Rename or delete"),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { state.playlistEditor = playlist }.padding(vertical = 8.dp),
@@ -759,7 +759,7 @@ private fun CollectionScreen(state: WaveState, onOpenSong: (Song) -> Unit) {
             if (songs.isNotEmpty()) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
                     Text(
-                        text = if (mix != null) "Play mix" else "Play",
+                        text = Loc.t(if (mix != null) "Play mix" else "Play"),
                         style = MaterialTheme.typography.labelLarge,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                         color = MaterialTheme.colorScheme.onPrimary,
@@ -767,7 +767,7 @@ private fun CollectionScreen(state: WaveState, onOpenSong: (Song) -> Unit) {
                             .clickable { state.playAll(songs) }.padding(horizontal = 8.dp, vertical = 12.dp),
                     )
                     Text(
-                        text = "Shuffle",
+                        text = Loc.t("Shuffle"),
                         style = MaterialTheme.typography.labelLarge,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                         color = MaterialTheme.colorScheme.onSurface,
@@ -776,7 +776,7 @@ private fun CollectionScreen(state: WaveState, onOpenSong: (Song) -> Unit) {
                     )
                     if (mix != null) {
                         Text(
-                            text = "Save as playlist",
+                            text = Loc.t("Save as playlist"),
                             style = MaterialTheme.typography.labelLarge,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                             color = MaterialTheme.colorScheme.onSurface,
@@ -834,7 +834,7 @@ fun RemixScreen(state: WaveState) {
                 // the second thought belongs where the first one was.
                 if (confirming) {
                     Text(
-                        "Yes, clear",
+                        Loc.t("Yes, clear"),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.clip(RoundedCornerShape(10.dp))
@@ -842,7 +842,7 @@ fun RemixScreen(state: WaveState) {
                             .padding(horizontal = 8.dp, vertical = 8.dp),
                     )
                     Text(
-                        "Keep it",
+                        Loc.t("Keep it"),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.clip(RoundedCornerShape(10.dp))
@@ -851,7 +851,7 @@ fun RemixScreen(state: WaveState) {
                     )
                 } else {
                     Text(
-                        "Clear history",
+                        Loc.t("Clear history"),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.clip(RoundedCornerShape(10.dp))
@@ -897,7 +897,7 @@ fun RemixScreen(state: WaveState) {
                     ) {
                         Cover(hero, size = 92.dp, radius = 18.dp)
                         Text(
-                            "Most played",
+                            Loc.t("Most played"),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(top = 6.dp),
@@ -921,7 +921,7 @@ fun RemixScreen(state: WaveState) {
             item {
                 Column(Modifier.fillMaxWidth().padding(bottom = 2.dp)) {
                     Text(
-                        "Your Remix",
+                        Loc.t("Your Remix"),
                         style = MaterialTheme.typography.titleLarge,
                         fontSize = 20.sp,
                         fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
@@ -949,10 +949,10 @@ fun RemixScreen(state: WaveState) {
                     ) {
                         WaveIcon("play", 17.dp, MaterialTheme.colorScheme.onPrimary)
                         Spacer(Modifier.width(7.dp))
-                        Text("Play Remix", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onPrimary)
+                        Text(Loc.t("Play Remix"), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onPrimary)
                     }
                     Text(
-                        text = "Save as playlist",
+                        text = Loc.t("Save as playlist"),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier
@@ -1015,7 +1015,7 @@ fun RemixScreen(state: WaveState) {
         if (earlier.isNotEmpty()) {
             item {
                 Text(
-                    "The weeks before",
+                    Loc.t("The weeks before"),
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(top = 18.dp, bottom = 4.dp),
                 )
@@ -1035,7 +1035,7 @@ fun RemixScreen(state: WaveState) {
                     }
                     if (week.songs.isNotEmpty()) {
                         Text(
-                            "Play that week",
+                            Loc.t("Play that week"),
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier
@@ -1071,14 +1071,14 @@ private fun NotesLine(recap: WeekRecap, peakHour: Int?, onArtist: (String) -> Un
     ) {
         recap.genres.firstOrNull()?.let { genre ->
             Text(
-                "Mostly ${genre.genre.lowercase()}",
+                Loc.t("Mostly {genre}", mapOf("genre" to genre.genre.lowercase())),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         if (peakHour != null && recap.hours.any { it > 0 }) {
             Text(
-                "Usually around " + peakHour.toString().padStart(2, '0') + ":00",
+                Loc.t("Usually around {hour}:00", mapOf("hour" to peakHour.toString().padStart(2, '0'))),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -1220,6 +1220,7 @@ private fun RemixRow(song: Song, position: Int, plays: Int?, playing: Boolean, o
 fun SettingsScreen(state: WaveState, version: String, onAddMusic: () -> Unit, onBack: () -> Unit) {
     var selected by rememberSaveable { mutableStateOf<String?>(null) }
     val appearance = LocalAppearanceChoice.current
+    val languageContext = androidx.compose.ui.platform.LocalContext.current
     BackHandler(enabled = true) { if (selected != null) selected = null else onBack() }
     LazyColumn(
         modifier = Modifier.wavePage(),
@@ -1234,7 +1235,7 @@ fun SettingsScreen(state: WaveState, version: String, onAddMusic: () -> Unit, on
                 ) {
                     WaveIcon("back", 18.dp, MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.width(8.dp))
-                    Text("All settings", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+                    Text(Loc.t("All settings"), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
                 }
             }
         }
@@ -1257,8 +1258,8 @@ fun SettingsScreen(state: WaveState, version: String, onAddMusic: () -> Unit, on
                     WaveIcon(icon, 22.dp, MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.width(14.dp))
                     Column(Modifier.weight(1f)) {
-                        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
-                        Text(note, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(Loc.t(title), style = MaterialTheme.typography.titleMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                        Text(Loc.t(note), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     WaveIcon("chevron", 20.dp, MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -1272,13 +1273,31 @@ fun SettingsScreen(state: WaveState, version: String, onAddMusic: () -> Unit, on
                             listOf("dark", "light", "system").forEach { mode ->
                                 val active = appearance?.mode == mode
                                 Text(
-                                    mode.replaceFirstChar { it.uppercase() },
+                                    Loc.t(mode.replaceFirstChar { it.uppercase() }),
                                     color = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
                                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                                     style = MaterialTheme.typography.labelLarge,
                                     modifier = Modifier.weight(1f).clip(RoundedCornerShape(14.dp))
                                         .background(if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainer)
                                         .clickable { appearance?.select?.invoke(mode) }.padding(vertical = 12.dp),
+                                )
+                            }
+                        }
+                        Divider()
+                        SectionTitle("Language")
+                        // Sistema · English · Español, exactly like the row on the site:
+                        // follow the device, or pin one language; the pin is remembered.
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                            listOf("system", "en", "es").forEach { option ->
+                                val active = Loc.choice == option
+                                Text(
+                                    if (option == "system") Loc.t("System") else if (option == "en") "English" else "Español",
+                                    color = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    modifier = Modifier.weight(1f).clip(RoundedCornerShape(14.dp))
+                                        .background(if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainer)
+                                        .clickable { Loc.setChoice(languageContext, option) }.padding(vertical = 12.dp),
                                 )
                             }
                         }
@@ -1291,7 +1310,7 @@ fun SettingsScreen(state: WaveState, version: String, onAddMusic: () -> Unit, on
                             listOf(0, 15, 30, 60).forEach { minutes ->
                                 val active = state.sleepMinutes == minutes
                                 Text(
-                                    if (minutes == 0) "Off" else "$minutes min",
+                                    if (minutes == 0) Loc.t("Off") else "$minutes min",
                                     style = MaterialTheme.typography.labelLarge,
                                     color = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.clip(RoundedCornerShape(10.dp))
@@ -1308,11 +1327,11 @@ fun SettingsScreen(state: WaveState, version: String, onAddMusic: () -> Unit, on
                     ) { state.setLyricsOnline(it) }
                     "Library" -> {
                         StatRow(state.songs.size.toString() to "songs", state.albums().size.toString() to "albums", state.favorites().size.toString() to "favorites")
-                        Text("Add music", color = MaterialTheme.colorScheme.primary, modifier = Modifier.clickable(onClick = onAddMusic).padding(vertical = 14.dp))
+                        Text(Loc.t("Add music"), color = MaterialTheme.colorScheme.primary, modifier = Modifier.clickable(onClick = onAddMusic).padding(vertical = 14.dp))
                     }
                     "Storage" -> {
                         Body("Your music and listening history stay on this device.")
-                        Text("Manage listening history", color = MaterialTheme.colorScheme.primary, modifier = Modifier.clickable { state.destination = Destination.Remix }.padding(vertical = 14.dp))
+                        Text(Loc.t("Manage listening history"), color = MaterialTheme.colorScheme.primary, modifier = Modifier.clickable { state.destination = Destination.Remix }.padding(vertical = 14.dp))
                     }
                     "About" -> {
                         Body("Wave $version")

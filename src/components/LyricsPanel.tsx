@@ -85,7 +85,7 @@ const LyricRow = memo(function LyricRow({
       aria-label={
         readOnly
           ? line.text || t('Instrumental')
-          : `Seek to lyric: ${line.text || t('Instrumental')}`
+          : t('Seek to lyric: {line}', { line: line.text || t('Instrumental') })
       }
       onClick={readOnly ? undefined : () => onSeek(line.time!)}
       animate={
@@ -270,7 +270,7 @@ export function LyricsPanel({
         <div className="lyrics-heading">
           <h3>
             <Captions size={22} />
-            Lyrics
+            {t('Lyrics')}
           </h3>
           <button className="icon-button" aria-label={t('Edit lyrics')} onClick={onEdit}>
             <Pencil size={20} />

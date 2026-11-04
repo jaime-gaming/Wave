@@ -48,7 +48,7 @@ fun MiniPlayer(player: Player, song: Song, onOpen: () -> Unit, onQueue: () -> Un
             .padding(horizontal = 12.dp, vertical = 5.dp)
             .clip(RoundedCornerShape(22.dp))
             .background(MaterialTheme.colorScheme.primaryContainer)
-            .semantics { contentDescription = "Open now playing" }
+            .semantics { contentDescription = Loc.t("Open now playing") }
             .clickable(onClick = onOpen),
     ) {
         Row(
@@ -69,10 +69,10 @@ fun MiniPlayer(player: Player, song: Song, onOpen: () -> Unit, onQueue: () -> Un
                 background = MaterialTheme.colorScheme.primary,
                 tint = MaterialTheme.colorScheme.onPrimary,
             )
-            IconButton(onClick = { player.next() }, modifier = Modifier.size(40.dp).semantics { contentDescription = "Next song" }) {
+            IconButton(onClick = { player.next() }, modifier = Modifier.size(40.dp).semantics { contentDescription = Loc.t("Next song") }) {
                 WaveIcon("next", 20.dp, MaterialTheme.colorScheme.onSurface)
             }
-            IconButton(onClick = onQueue, modifier = Modifier.size(40.dp).semantics { contentDescription = "Open queue" }) {
+            IconButton(onClick = onQueue, modifier = Modifier.size(40.dp).semantics { contentDescription = Loc.t("Open queue") }) {
                 WaveIcon("queue", 20.dp, MaterialTheme.colorScheme.onSurface)
             }
         }
@@ -104,7 +104,7 @@ fun Transport(player: Player) {
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconButton(onClick = { player.previous() }, modifier = Modifier.size(56.dp).semantics { contentDescription = "Previous song" }) {
+        IconButton(onClick = { player.previous() }, modifier = Modifier.size(56.dp).semantics { contentDescription = Loc.t("Previous song") }) {
             WaveIcon("previous", 23.dp, MaterialTheme.colorScheme.onSurface)
         }
         Spacer(Modifier.width(12.dp))
@@ -117,7 +117,7 @@ fun Transport(player: Player) {
             tint = MaterialTheme.colorScheme.onPrimary,
         )
         Spacer(Modifier.width(12.dp))
-        IconButton(onClick = { player.next() }, modifier = Modifier.size(56.dp).semantics { contentDescription = "Next song" }) {
+        IconButton(onClick = { player.next() }, modifier = Modifier.size(56.dp).semantics { contentDescription = Loc.t("Next song") }) {
             WaveIcon("next", 23.dp, MaterialTheme.colorScheme.onSurface)
         }
     }

@@ -7,7 +7,7 @@ Release 0.2.0 · 3 November 2026. Historical run dates are retained below.
 ### 0.2.0 at the release (3 November 2026)
 
 - `npx tsc -b`, `npx eslint .`, `npx prettier --check .`, `npm run test:release`,
-  `npm run release:check` and `npm run build:pages`: clean. `npm test`: **664 tests across 101
+  `npm run release:check` and `npm run build:pages`: clean. `npm test`: **668 tests across 102
   files**, all passing — the same suite runs in CI on Node 22 against the committed tree.
 - `npm run test:e2e` runs on every push and is not part of the release gate: nine of its tests are
   known to be flaky on a loaded runner (they pass alone and fail together) and are tracked
@@ -47,18 +47,32 @@ Release 0.2.0 · 3 November 2026. Historical run dates are retained below.
   library._ on both the web and the Windows window. `PLATFORMS.md` no longer claims what the
   installed builds cannot do: device linking is marked half-done, the web client pairs on a phone
   and a desktop, and the two native builds do not.
-- **La app habla el idioma del dispositivo, y todavía no entero.** El cliente web resuelve el
+- **La app habla el idioma del dispositivo, y ahora entera.** El cliente web resuelve el
   idioma con `src/i18n/dictionary.ts` (`navigator.languages`, español si aparece en la lista,
   inglés en cualquier otro caso), lo persiste en `wave-language` y lo escribe en `<html lang>`; la
   fila «Language» de Ajustes → Apariencia permite fijar inglés o español en vez de seguir al
   sistema, y no hay ningún aviso ni pregunta al arrancar. `src/i18n/i18n.test.tsx` cubre la
   detección, la prioridad de la elección, el respaldo al inglés cuando falta una entrada y el
-  re-render al cambiar de idioma. El diccionario `i18n/es.json` tiene 395 frases y el código usa 321 de
-  ellas: la barra de navegación, Inicio, Ajustes, el reproductor, la cola, la búsqueda, la
-  biblioteca, Remix, Dispositivos, la migración, los editores y los diálogos están traducidos. Las
-  frases que quedan sueltas son interpolaciones (`Seek to lyric: …`, nombres de archivo) y
-  Android y Windows siguen en inglés porque aún no llevan la tabla. Hasta que eso termine, la fila «Interface language» de `PLATFORMS.md` dice la
-  verdad y no se publica la versión.
+  re-render al cambiar de idioma. El diccionario `i18n/es.json` tiene 657 frases y no queda
+  ninguna cadena visible suelta en las tres plataformas: las interpolaciones que faltaban
+  (`Seek to lyric: …`, `{count}`, `{name}`, `{words}`, `{genre}`, `{hour}`, `{number}`) se
+  cerraron, y lo que sigue en inglés es lo que debe: recuentos y unidades (`3 songs`), fechas,
+  marcas y tokens técnicos, y los datos persistidos que crea el código (nombres y descripciones
+  de listas generadas).
+- **Android y Windows llevan la misma tabla, generada.** `scripts/build-i18n.mjs` escribe
+  `platforms/android/app/src/main/java/io/github/jaimegaming/wave/ui/Loc.kt` y
+  `platforms/windows/Wave.Windows/Localization.cs` desde `i18n/es.json` (`npm run
+build:i18n`); las dos tablas se commitean generadas y `npm run release:check` rechaza que se
+  queden atrás del diccionario. El teléfono sigue a `Locale.getDefault().language` y la ventana
+  a `CultureInfo.CurrentUICulture`, cada uno con la fila Sistema · English · Español en Ajustes
+  → Apariencia, recordada en la clave `wave-language` (SharedPreferences «wave») y en el campo
+  `Language` de `preferences.json`. Toda cadena visible nativa pasa por `Loc.t(...)` /
+  `Localization.T(...)`: navegación, inicio, búsqueda, biblioteca, listas, reproductor, cola,
+  hojas, diálogos, avisos, la notificación de reproducción, ajustes y sus secciones. Los tests
+  de contratos de Windows comprueban la tabla (traducción, relleno de placeholders y respaldo
+  al inglés) y el smoke de WPF sigue afirmando sus textos en inglés byte a byte. La fila
+  «Interface language» de `PLATFORMS.md` dice «Yes, Spanish and English» en las tres columnas,
+  y es verdad.
 
 - **The film was reviewed frame by frame.** Frames decoded from the rendered MP4 were inspected at
   the release: the title card, the version card, the collection, the typo search, the playlist

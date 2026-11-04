@@ -79,7 +79,7 @@ export const HomePage = memo(function HomePage({
           <h2>{t('Your collection')}</h2>
           <button className="tonal-button" disabled={busy} onClick={onAdd}>
             <Plus size={18} />
-            Add music
+            {t('Add music')}
           </button>
         </div>
         <div className="home-shortcuts">
@@ -132,7 +132,7 @@ export const HomePage = memo(function HomePage({
           <div className="section-heading">
             <h2>{t('Recently added albums')}</h2>
             <button className="text-button" onClick={() => onView('albums')}>
-              All albums
+              {t('All albums')}
               <ArrowUpRight size={18} />
             </button>
           </div>
@@ -151,7 +151,7 @@ export const HomePage = memo(function HomePage({
             <h2>{tracks.length ? t('Recently added songs') : t('Your music')}</h2>
             {tracks.length > 0 && (
               <button className="text-button" onClick={() => onView('songs')}>
-                All songs
+                {t('All songs')}
                 <ArrowUpRight size={18} />
               </button>
             )}
@@ -183,7 +183,7 @@ export const HomePage = memo(function HomePage({
                 <div className="section-heading">
                   <h2>{t('Your playlists')}</h2>
                   <button className="text-button" onClick={() => onView('playlists')}>
-                    All playlists
+                    {t('All playlists')}
                     <ArrowUpRight size={18} />
                   </button>
                 </div>
@@ -207,7 +207,7 @@ export const HomePage = memo(function HomePage({
                 <div className="section-heading">
                   <h2>{t('Artists')}</h2>
                   <button className="text-button" onClick={() => onView('artists')}>
-                    All artists
+                    {t('All artists')}
                     <ArrowUpRight size={18} />
                   </button>
                 </div>

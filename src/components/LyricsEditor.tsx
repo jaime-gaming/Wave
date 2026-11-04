@@ -198,7 +198,7 @@ export function LyricsEditor({
           }}
         />
         <label className="form-field lyrics-field">
-          Lyrics
+          {t('Lyrics')}
           <textarea
             value={raw}
             disabled={busy}

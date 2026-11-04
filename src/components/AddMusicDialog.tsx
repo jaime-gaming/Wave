@@ -176,7 +176,9 @@ export function AddMusicDialog({
               aria-label={t('Add a whole folder')}
             >
               <FolderSearch size={24} aria-hidden="true" />
-              <strong>{folderBusy ? `Reading ${folderBusy}…` : t('A whole folder')}</strong>
+              <strong>
+                {folderBusy ? t('Reading {name}…', { name: folderBusy }) : t('A whole folder')}
+              </strong>
               <span>
                 {canChooseDirectory
                   ? canPick
@@ -207,7 +209,9 @@ export function AddMusicDialog({
                     <strong>{folder.name}</strong>
                     <small>
                       {folder.scannedAt
-                        ? `Read ${new Date(folder.scannedAt).toLocaleDateString()}`
+                        ? t('Read {date}', {
+                            date: new Date(folder.scannedAt).toLocaleDateString(),
+                          })
                         : t('Not read yet')}
                     </small>
                   </span>
@@ -227,9 +231,9 @@ export function AddMusicDialog({
                         setFolders((current) => current.filter((entry) => entry.id !== folder.id)),
                       );
                     }}
-                    aria-label={`Forget ${folder.name}`}
+                    aria-label={t('Forget {name}', { name: folder.name })}
                   >
-                    Forget
+                    {t('Forget')}
                   </button>
                 </div>
               ))}
@@ -296,7 +300,7 @@ export function AddMusicDialog({
           )}
           <div className="add-music-footer">
             <button type="button" className="text-button" onClick={() => setMode('choose')}>
-              Back
+              {t('Back')}
             </button>
           </div>
         </>

@@ -33,7 +33,7 @@ fun EditSongDialog(song: Song, onDismiss: () -> Unit, onSave: (Song) -> Unit) {
     var lyrics by remember(song.id) { mutableStateOf(song.lyrics) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Edit song") },
+        title = { Text(Loc.t("Edit song")) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 WaveTextField(
@@ -66,7 +66,7 @@ fun EditSongDialog(song: Song, onDismiss: () -> Unit, onSave: (Song) -> Unit) {
                     minLines = 6,
                     supportingText = {
                         Text(
-                            text = "Timed lyrics (LRC) are read as they are; plain lines work too.",
+                            text = Loc.t("Timed lyrics (LRC) are read as they are; plain lines work too."),
                             style = MaterialTheme.typography.labelSmall,
                         )
                     },
@@ -93,8 +93,8 @@ fun EditSongDialog(song: Song, onDismiss: () -> Unit, onSave: (Song) -> Unit) {
                     )
                     onDismiss()
                 },
-            ) { Text("Save") }
+            ) { Text(Loc.t("Save")) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(Loc.t("Cancel")) } },
     )
 }

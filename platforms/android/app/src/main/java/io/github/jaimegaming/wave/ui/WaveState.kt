@@ -209,7 +209,7 @@ class WaveState(
                 sleepMinutes--
             }
             player.pause()
-            notice = "The sleep timer stopped the music."
+            notice = Loc.t("The sleep timer stopped the music.")
         }
     }
 
@@ -220,7 +220,7 @@ class WaveState(
             summary = listeningSummary(plays, songs, System.currentTimeMillis())
             recap = weekRecap(plays, songs, System.currentTimeMillis())
             recaps = weeklyRecaps(plays, songs, System.currentTimeMillis())
-            notice = "Listening history cleared."
+            notice = Loc.t("Listening history cleared.")
         }
     }
 
@@ -360,7 +360,7 @@ class WaveState(
         val playlist = repository.createPlaylist(name)
         repository.updatePlaylist(playlist.copy(trackIds = songs.map { it.id }))
         playlists = repository.loadPlaylists()
-        notice = "Remix saved as a playlist."
+        notice = Loc.t("Remix saved as a playlist.")
     }
 
     /** Saves a daily mix without modifying its songs or the original files. */
@@ -369,7 +369,7 @@ class WaveState(
         val playlist = repository.createPlaylist("Daily mix · $label")
         repository.updatePlaylist(playlist.copy(trackIds = songs.map { it.id }))
         playlists = repository.loadPlaylists()
-        notice = "Daily mix saved as a playlist."
+        notice = Loc.t("Daily mix saved as a playlist.")
     }
 
     fun createPlaylist(name: String) {
@@ -394,12 +394,12 @@ class WaveState(
 
     fun putInPlaylist(playlist: Playlist, song: Song) {
         if (song.id in playlist.trackIds) {
-            notice = "Already in ${playlist.name}."
+            notice = Loc.t("Already in {name}.", mapOf("name" to playlist.name))
             return
         }
         repository.updatePlaylist(playlist.copy(trackIds = playlist.trackIds + song.id))
         playlists = repository.loadPlaylists()
-        notice = "Added to ${playlist.name}."
+        notice = Loc.t("Added to {name}.", mapOf("name" to playlist.name))
     }
 
     fun removeFromPlaylist(playlist: Playlist, song: Song) {
@@ -436,13 +436,13 @@ class WaveState(
             recap = weekRecap(plays, songs, System.currentTimeMillis())
             recaps = weeklyRecaps(plays, songs, System.currentTimeMillis())
                 notice = when (added) {
-                    0 -> "Nothing new: those files are already here."
-                    1 -> "One song added."
-                    else -> "$added songs added."
+                    0 -> Loc.t("Nothing new: those files are already here.")
+                    1 -> Loc.t("One song added.")
+                    else -> Loc.t("{count} songs added.", mapOf("count" to added.toString()))
                 }
             } catch (error: Exception) {
                 songs = repository.load()
-                notice = error.message ?: "The import did not finish."
+                notice = error.message ?: Loc.t("The import did not finish.")
             } finally {
                 busy = false
             }
@@ -467,9 +467,9 @@ class WaveState(
                 } else {
                     latest?.let { update(it.copy(checkedAt = System.currentTimeMillis())) }
                 }
-                notice = if (raw.isEmpty()) "No lyrics found for this song." else ""
+                notice = if (raw.isEmpty()) Loc.t("No lyrics found for this song.") else ""
             } catch (error: Exception) {
-                notice = error.message ?: "The lyrics lookup failed."
+                notice = error.message ?: Loc.t("The lyrics lookup failed.")
             } finally {
                 busy = false
             }

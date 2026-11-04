@@ -34,6 +34,7 @@ function QueueRow({
 }) {
   const controls = useDragControls(),
     animation = useWaveMotion(),
+    t = useT(),
     current = track.id === player.current?.id;
   return (
     <Reorder.Item
@@ -50,7 +51,7 @@ function QueueRow({
       {editing && (
         <button
           className="icon-button queue-drag"
-          aria-label={`Drag ${track.title} to reorder`}
+          aria-label={t('Drag {title} to reorder', { title: track.title })}
           onPointerDown={(e) => controls.start(e)}
           onKeyDown={(e) => {
             if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
@@ -65,7 +66,7 @@ function QueueRow({
       <button
         className="queue-entry__play"
         onClick={() => player.dispatch({ type: 'jump', id: track.id })}
-        aria-label={`Play ${track.title} from queue`}
+        aria-label={t('Play {title} from queue', { title: track.title })}
       >
         {!editing && (
           <span className="queue-entry__number" aria-hidden="true">
@@ -110,7 +111,7 @@ function QueueRow({
         <button
           className="icon-button queue-entry__remove"
           onClick={() => player.dispatch({ type: 'remove', id: track.id })}
-          aria-label={`Remove ${track.title} from queue`}
+          aria-label={t('Remove {title} from queue', { title: track.title })}
         >
           <span aria-hidden="true">×</span>
         </button>
@@ -161,7 +162,7 @@ export function QueuePanel({
         </button>
         <button className="tonal-button" onClick={onAdd}>
           <Plus size={18} />
-          Add songs to queue
+          {t('Add songs to queue')}
         </button>
       </div>
       {editing && (
@@ -203,7 +204,11 @@ export function QueuePanel({
                 const ids = moveId(player.state.queue, track.id, direction);
                 player.reorderQueue(ids);
                 setAnnouncement(
-                  `${track.title}, position ${ids.indexOf(track.id) + 1} of ${ids.length}`,
+                  t('{title}, position {index} of {count}', {
+                    title: track.title,
+                    index: ids.indexOf(track.id) + 1,
+                    count: ids.length,
+                  }),
                 );
               }}
             />

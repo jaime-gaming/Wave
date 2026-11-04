@@ -73,7 +73,7 @@ fun ChromeButton(
             .pressScale(pressed, amount = 0.9f)
             .clip(RoundedCornerShape(50))
             .background(background)
-            .semantics { contentDescription = label }
+            .semantics { contentDescription = Loc.t(label) }
             .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
@@ -124,7 +124,7 @@ fun WaveNavigation(destination: Destination, onDestination: (Destination) -> Uni
                     WaveIcon(place.icon, 22.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Text(
-                    text = place.label,
+                    text = Loc.t(place.label),
                     color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 11.sp,
                     fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,

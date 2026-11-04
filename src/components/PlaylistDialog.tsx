@@ -56,7 +56,7 @@ export function PlaylistDialog({
           />
         )}
         <label className="form-field">
-          Playlist name
+          {t('Playlist name')}
           <input
             autoFocus
             value={name}
@@ -69,7 +69,7 @@ export function PlaylistDialog({
         </label>
         {editorEnabled && (
           <label className="form-field">
-            Description
+            {t('Description')}
             <textarea
               value={description}
               maxLength={1000}
@@ -87,7 +87,7 @@ export function PlaylistDialog({
         )}
         <div className="modal-actions">
           <button type="button" className="tonal-button" disabled={busy} onClick={onClose}>
-            Cancel
+            {t('Cancel')}
           </button>
           <button type="submit" className="filled-button" disabled={busy || !name.trim()}>
             <Check size={19} />
@@ -127,7 +127,7 @@ export function AddSongsDialog({
   const visible = filterTracks(available, query);
   return (
     <Modal
-      title={title}
+      title={t(title)}
       closeDisabled={saving}
       className="picker-modal"
       onClose={() => {
@@ -135,7 +135,9 @@ export function AddSongsDialog({
       }}
     >
       <p className="modal-description">
-        Add songs to {playlist?.name ?? destination ?? 'your collection'}.
+        {t('Add songs to {destination}.', {
+          destination: playlist?.name ?? (destination ? t(destination) : t('your collection')),
+        })}
       </p>
       <div className="search-box picker-search">
         <Search size={20} />
@@ -177,7 +179,9 @@ export function AddSongsDialog({
             {available.length
               ? t('No songs match your search.')
               : tracks.length
-                ? `All your songs are already in ${playlist ? 'this playlist' : 'the queue'}.`
+                ? t('All your songs are already in {destination}.', {
+                    destination: playlist ? t('this playlist') : t('the queue'),
+                  })
                 : t('Import audio files into your library first.')}
           </p>
         )}
@@ -189,7 +193,7 @@ export function AddSongsDialog({
       )}
       <div className="modal-actions">
         <button className="tonal-button" disabled={saving} onClick={onClose}>
-          Cancel
+          {t('Cancel')}
         </button>
         <button
           className="filled-button"
@@ -235,7 +239,9 @@ export function AddToPlaylistDialog({
         if (!busy) onClose();
       }}
     >
-      <p className="modal-description">Choose a playlist for {track.title}.</p>
+      <p className="modal-description">
+        {t('Choose a playlist for {title}.', { title: track.title })}
+      </p>
       <div className="playlist-picker">
         {playlists.map((playlist) => (
           <button
@@ -268,7 +274,7 @@ export function AddToPlaylistDialog({
       )}
       <button className="tonal-button" disabled={busy} onClick={onCreate}>
         <Plus size={19} />
-        Create playlist
+        {t('Create playlist')}
       </button>
     </Modal>
   );

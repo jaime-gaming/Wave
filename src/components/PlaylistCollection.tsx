@@ -32,18 +32,18 @@ export function PlaylistCollection({
     <section aria-label={t('Playlists')}>
       <div className="collection-heading">
         <h2>
-          Your playlists <span>{playlists.length}</span>
+          {t('Your playlists')} <span>{playlists.length}</span>
         </h2>
         <div className="collection-actions">
           {onImport && (
             <button className="tonal-button" onClick={onImport}>
               <FolderInput size={19} />
-              Bring playlists over
+              {t('Bring playlists over')}
             </button>
           )}
           <button className="filled-button" onClick={onCreate}>
             <Plus size={20} />
-            Create playlist
+            {t('Create playlist')}
           </button>
         </div>
       </div>
@@ -107,7 +107,7 @@ export function PlaylistHeader({
         <div className="playlist-detail-actions">
           <button className="tonal-button" onClick={onAdd}>
             <Plus size={19} />
-            Add songs
+            {t('Add songs')}
           </button>
           <button className="icon-button" onClick={onEdit} aria-label={t('Edit playlist')}>
             <Pencil size={20} />

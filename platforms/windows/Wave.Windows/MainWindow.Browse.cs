@@ -21,10 +21,10 @@ public partial class MainWindow
         if (page == "Home") RenderHome();
         else if (page == "Remix") RenderRemix();
         else if (page == "Search") {
-            searchBox = new TextBox { Text = searchQuery, Margin = new Thickness(0, 0, 0, 20), ToolTip = "Search songs, artists and albums", MinHeight = 48 };
+            searchBox = new TextBox { Text = searchQuery, Margin = new Thickness(0, 0, 0, 20), ToolTip = Localization.T("Search songs, artists and albums"), MinHeight = 48 };
             searchBox.TextChanged += (_, _) => { searchQuery = searchBox.Text; UpdateSongs(); };
             CollectionHeader.Children.Add(searchBox);
-            CollectionHeader.Children.Add(Label("Search your music", 22));
+            CollectionHeader.Children.Add(Label(Localization.T("Search your music"), 22));
         } else {
             // One row that scrolls sideways, as the site does, rather than a row
             // that wraps: a wrapped tab loses its place in the order.
@@ -73,7 +73,7 @@ public partial class MainWindow
         var old = CollectionHeader.Children.OfType<TextBlock>().FirstOrDefault(t => Equals(t.Tag, "empty"));
         if (old != null) CollectionHeader.Children.Remove(old);
         if (visible.Count == 0 && !(page is "Albums" or "Artists" or "Playlists" && collection == null)) {
-            var empty = Label(tracks.Count == 0 ? "Your music belongs here. Add audio files from your device to get started." : "No songs in this selection yet.", 21);
+            var empty = Label(Localization.T(tracks.Count == 0 ? "Your music belongs here. Add audio files from your device to get started." : "No songs in this selection yet."), 21);
             empty.Tag = "empty"; CollectionHeader.Children.Add(empty);
         }
     }
@@ -97,7 +97,7 @@ public partial class MainWindow
             var rows = found.ToList();
             if (rows.Count == 0) return;
             panel.Children.Add(new TextBlock {
-                Text = $"{title} · {rows.Count}", FontSize = 13, FontWeight = FontWeights.Bold,
+                Text = $"{Localization.T(title)} · {rows.Count}", FontSize = 13, FontWeight = FontWeights.Bold,
                 Foreground = (Brush)Application.Current.Resources["MutedBrush"], Margin = new Thickness(4, 10, 4, 6),
             });
             foreach (var row in rows) panel.Children.Add(MatchRow(title == "Artists" ? "artist" : title == "Albums" ? "disc" : "queue", row.Name, row.Detail, row.Open));
@@ -139,7 +139,7 @@ public partial class MainWindow
     /// </summary>
     private void RenderHome()
     {
-        CollectionHeader.Children.Add(SectionHeading("Your collection", AddMusicButton()));
+        CollectionHeader.Children.Add(SectionHeading(Localization.T("Your collection"), AddMusicButton()));
 
         var shortcuts = new UniformGrid { Columns = 5, Margin = new Thickness(0, 0, 0, 4) };
         var collection = new[] {
@@ -151,20 +151,20 @@ public partial class MainWindow
         };
         for (int i = 0; i < collection.Length; i++) {
             var (destination, label, count, icon) = collection[i];
-            shortcuts.Children.Add(Shortcut(icon, count, label, destination, i == 0));
+            shortcuts.Children.Add(Shortcut(icon, count, Localization.T(label), destination, i == 0));
         }
         CollectionHeader.Children.Add(shortcuts);
 
         var daily = DailyGroups();
         if (daily.Count > 0) {
-            CollectionHeader.Children.Add(SectionHeading("Daily mixes"));
+            CollectionHeader.Children.Add(SectionHeading(Localization.T("Daily mixes")));
             for (int i = 0; i < daily.Count; i++) {
                 var mix = daily[i];
-                CollectionHeader.Children.Add(MixRow($"Daily mix {i + 1}", mix.Label, mix.Songs.FirstOrDefault()?.Artwork, () => ShowPage("Daily mix", mix.Id)));
+                CollectionHeader.Children.Add(MixRow(Localization.T("Daily mix {number}", new Dictionary<string, string> { ["number"] = (i + 1).ToString() }), mix.Label, mix.Songs.FirstOrDefault()?.Artwork, () => ShowPage("Daily mix", mix.Id)));
             }
         }
 
-        CollectionHeader.Children.Add(SectionHeading("Recently added albums"));
+        CollectionHeader.Children.Add(SectionHeading(Localization.T("Recently added albums")));
         var shelf = new StackPanel { Orientation = Orientation.Horizontal };
         foreach (var album in tracks.GroupBy(AlbumKey).Reverse().Take(6)) {
             var song = album.First(); shelf.Children.Add(Card(song.Album, song.Artist, song.Artwork, () => ShowPage("Albums", album.Key)));
@@ -173,7 +173,7 @@ public partial class MainWindow
 
         var recent = tracks.TakeLast(6).Reverse().ToList();
         if (recent.Count > 0) {
-            CollectionHeader.Children.Add(SectionHeading("Recently added songs"));
+            CollectionHeader.Children.Add(SectionHeading(Localization.T("Recently added songs")));
             foreach (var song in recent) CollectionHeader.Children.Add(SongRow(song, () => PlayCollection(recent, song.Id)));
         }
     }
@@ -218,7 +218,7 @@ public partial class MainWindow
     private Button BackLink(string destination)
     {
         var button = new Button { Style = (Style)FindResource("TextButton"), Foreground = (Brush)Application.Current.Resources["MutedBrush"], Margin = new Thickness(4, 2, 4, 10), Padding = new Thickness(2, 4, 6, 4) };
-        button.Content = Iconography.With("chevron-left", "Back", 15, 6);
+        button.Content = Iconography.With("chevron-left", Localization.T("Back"), 15, 6);
         button.Click += (_, _) => Safe(() => ShowPage(destination));
         return button;
     }
@@ -232,8 +232,8 @@ public partial class MainWindow
     }
     private Button AddMusicButton()
     {
-        var button = new Button { Style = (Style)FindResource("AccentButton"), Padding = new Thickness(16, 9, 18, 9), ToolTip = "Add music" };
-        button.Content = Iconography.With("plus", "Add music", 17, 8);
+        var button = new Button { Style = (Style)FindResource("AccentButton"), Padding = new Thickness(16, 9, 18, 9), ToolTip = Localization.T("Add music") };
+        button.Content = Iconography.With("plus", Localization.T("Add music"), 17, 8);
         button.Click += ImportClick;
         return button;
     }
@@ -375,7 +375,7 @@ public partial class MainWindow
     }
     private void RenderPlaylists()
     {
-        CollectionHeader.Children.Add(ActionButton("+ Create playlist", () => EditPlaylist(null)));
+        CollectionHeader.Children.Add(ActionButton("+ " + Localization.T("Create playlist"), () => EditPlaylist(null)));
         var cards = new WrapPanel();
         foreach (var playlist in playlists) cards.Children.Add(Card(playlist.Name, NativeCollections.Count(playlist.TrackIds.Count, "song"), NativeCollections.Resolve(playlist.TrackIds, tracks).FirstOrDefault()?.Artwork, () => ShowPage("Playlists", playlist.Id)));
         CollectionHeader.Children.Add(cards);
@@ -393,20 +393,20 @@ public partial class MainWindow
         CollectionHeader.Children.Add(counts);
         if (!string.IsNullOrWhiteSpace(playlist?.Description)) CollectionHeader.Children.Add(Label(playlist.Description));
         var actions = new WrapPanel { Margin = new Thickness(0, 2, 0, 10) };
-        var play = new Button { Style = (Style)FindResource("AccentButton"), Padding = new Thickness(18, 9, 22, 9), ToolTip = "Play" };
-        play.Content = Iconography.With("play", "Play", 16, 8);
+        var play = new Button { Style = (Style)FindResource("AccentButton"), Padding = new Thickness(18, 9, 22, 9), ToolTip = Localization.T("Play") };
+        play.Content = Iconography.With("play", Localization.T("Play"), 16, 8);
         play.Click += (_, _) => Safe(() => { if (songs.Count > 0) PlayCollection(songs, songs[0].Id); });
         actions.Children.Add(play);
-        var shuffle = new Button { Padding = new Thickness(16, 9, 20, 9), ToolTip = "Shuffle" };
-        shuffle.Content = Iconography.With("shuffle", "Shuffle", 16, 8);
+        var shuffle = new Button { Padding = new Thickness(16, 9, 20, 9), ToolTip = Localization.T("Shuffle") };
+        shuffle.Content = Iconography.With("shuffle", Localization.T("Shuffle"), 16, 8);
         shuffle.Click += (_, _) => Safe(() => { var shuffled = songs.OrderBy(_ => Random.Shared.Next()).ToList(); if (shuffled.Count > 0) PlayCollection(shuffled, shuffled[0].Id); });
         actions.Children.Add(shuffle);
-        if (page == "Daily mix") actions.Children.Add(ActionButton("Save as playlist", () => { var saved = new NativePlaylist(Guid.NewGuid().ToString(), $"Daily mix · {title}", "Saved from your local daily selection.", songs.Select(s => s.Id).ToList()); SavePlaylists(playlists.Append(saved).ToList()); ShowPage("Playlists", saved.Id); }));
+        if (page == "Daily mix") actions.Children.Add(ActionButton(Localization.T("Save as playlist"), () => { var saved = new NativePlaylist(Guid.NewGuid().ToString(), $"Daily mix · {title}", "Saved from your local daily selection.", songs.Select(s => s.Id).ToList()); SavePlaylists(playlists.Append(saved).ToList()); ShowPage("Playlists", saved.Id); }));
         if (playlist != null) {
-            actions.Children.Add(ActionButton("Add songs", () => PickPlaylistSongs(playlist)));
-            actions.Children.Add(ActionButton("Edit playlist", () => EditPlaylist(playlist)));
+            actions.Children.Add(ActionButton(Localization.T("Add songs"), () => PickPlaylistSongs(playlist)));
+            actions.Children.Add(ActionButton(Localization.T("Edit playlist"), () => EditPlaylist(playlist)));
             // (Delete stays at the end of the row, apart from the actions that build.)
-            actions.Children.Add(ActionButton("Delete playlist", () => { if (MessageBox.Show(this, "Delete this playlist? Your songs will remain in your library.", "Wave", MessageBoxButton.YesNo) == MessageBoxResult.Yes) Safe(() => { SavePlaylists(playlists.Where(p => p.Id != playlist.Id).ToList()); ShowPage("Playlists"); }); }));
+            actions.Children.Add(ActionButton(Localization.T("Delete playlist"), () => { if (MessageBox.Show(this, Localization.T("Delete this playlist? Your songs will remain in your library."), "Wave", MessageBoxButton.YesNo) == MessageBoxResult.Yes) Safe(() => { SavePlaylists(playlists.Where(p => p.Id != playlist.Id).ToList()); ShowPage("Playlists"); }); }));
         }
         CollectionHeader.Children.Add(actions);
     }
@@ -422,8 +422,8 @@ public partial class MainWindow
         head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         head.Children.Add(Label(Listening.WeekRange(recap.Start, recap.End), 13));
-        var clear = ActionButton("Clear history", () => {
-            if (MessageBox.Show(this, "Clear the listening history? The songs stay in your library.", "Wave", MessageBoxButton.YesNo) != MessageBoxResult.Yes) return;
+        var clear = ActionButton(Localization.T("Clear history"), () => {
+            if (MessageBox.Show(this, Localization.T("Clear the listening history? The songs stay in your library."), "Wave", MessageBoxButton.YesNo) != MessageBoxResult.Yes) return;
             Listening.Clear(repository.Folder);
             plays = [];
             Refresh();
@@ -437,7 +437,7 @@ public partial class MainWindow
         CollectionHeader.Children.Add(head);
 
         if (plays.Count == 0) {
-            CollectionHeader.Children.Add(Label("No week to look back on yet. Play a song and this page fills in: your week in one number, and a list of what you actually played.", 19));
+            CollectionHeader.Children.Add(Label(Localization.T("No week to look back on yet. Play a song and this page fills in: your week in one number, and a list of what you actually played."), 19));
             return;
         }
 
@@ -453,7 +453,7 @@ public partial class MainWindow
         copy.Children.Add(Label($"{NativeCollections.Count(recap.Plays, "play")} \u00b7 {NativeCollections.Count(recap.Tracks, "song")} \u00b7 {NativeCollections.Count(recap.Artists, "artist")}", 13));
         if (recap.PreviousSeconds > 0) {
             int delta = recap.Seconds - recap.PreviousSeconds;
-            var compare = Label($"{(delta >= 0 ? "+" : "\u2212")}{Listening.Time(Math.Abs(delta))} vs last week", 12);
+            var compare = Label(Localization.T("{time} vs last week", new Dictionary<string, string> { ["time"] = $"{(delta >= 0 ? "+" : "\u2212")}{Listening.Time(Math.Abs(delta))}" }), 12);
             if (delta >= 0) compare.Foreground = (Brush)Application.Current.Resources["AccentBrush"];
             copy.Children.Add(compare);
         }
@@ -463,7 +463,7 @@ public partial class MainWindow
         var cover = new Border { Width = 116, Height = 116, CornerRadius = new CornerRadius(18), Background = ArtworkBrush(top.Song?.Artwork) };
         if (top.Song?.Artwork == null) cover.Child = new TextBlock { Text = "\u266a", FontSize = 38, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Foreground = (Brush)Application.Current.Resources["AccentBrush"] };
         sleeve.Children.Add(cover);
-        var caption = Label("MOST PLAYED", 11);
+        var caption = Label(Localization.T("Most played").ToUpperInvariant(), 11);
         caption.SetResourceReference(TextBlock.ForegroundProperty, "MutedBrush");
         caption.HorizontalAlignment = HorizontalAlignment.Right;
         caption.Margin = new Thickness(2, 7, 2, 0);
@@ -481,10 +481,10 @@ public partial class MainWindow
             block.SetResourceReference(TextBlock.ForegroundProperty, "MutedBrush");
             note.Children.Add(block);
         }
-        if (recap.Genres.Count > 0) Fact($"Mostly {recap.Genres[0].Genre.ToLowerInvariant()}  \u00b7");
-        if (recap.Hours.Any(hour => hour > 0)) Fact($"Usually around {recap.Hours.IndexOf(recap.Hours.Max()):00}:00  \u00b7");
+        if (recap.Genres.Count > 0) Fact($"{Localization.T("Mostly {genre}", new Dictionary<string, string> { ["genre"] = recap.Genres[0].Genre.ToLowerInvariant() })}  \u00b7");
+        if (recap.Hours.Any(hour => hour > 0)) Fact($"{Localization.T("Usually around {hour}:00", new Dictionary<string, string> { ["hour"] = recap.Hours.IndexOf(recap.Hours.Max()).ToString("00") })}  \u00b7");
         if (recap.TopArtists.Count > 0) {
-            var artist = ActionButton($"{recap.TopArtists[0].Artist} most of all", () => ShowPage("Artists", recap.TopArtists[0].Artist));
+            var artist = ActionButton(Localization.T("{artist} most of all", new Dictionary<string, string> { ["artist"] = recap.TopArtists[0].Artist }), () => ShowPage("Artists", recap.TopArtists[0].Artist));
             artist.Style = (Style)FindResource("TextButton");
             note.Children.Add(artist);
         }
@@ -495,17 +495,17 @@ public partial class MainWindow
             mixHead.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             mixHead.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             var words = new StackPanel();
-            words.Children.Add(Label("Your Remix", 21));
-            var sub = Label($"{NativeCollections.Count(recap.Songs.Count, "song")} you played this week.", 13);
+            words.Children.Add(Label(Localization.T("Your Remix"), 21));
+            var sub = Label($"{NativeCollections.Count(recap.Songs.Count, "song")} {Localization.T("you played this week.")}", 13);
             sub.SetResourceReference(TextBlock.ForegroundProperty, "MutedBrush");
             words.Children.Add(sub);
             mixHead.Children.Add(words);
             var actions = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Bottom };
-            var play = new Button { Style = (Style)FindResource("AccentButton"), Padding = new Thickness(18, 9, 22, 9), ToolTip = "Play Remix" };
-            play.Content = Iconography.With("play", "Play Remix", 16, 8);
+            var play = new Button { Style = (Style)FindResource("AccentButton"), Padding = new Thickness(18, 9, 22, 9), ToolTip = Localization.T("Play Remix") };
+            play.Content = Iconography.With("play", Localization.T("Play Remix"), 16, 8);
             play.Click += (_, _) => Safe(() => PlayCollection(recap.Songs, recap.Songs[0].Id));
             actions.Children.Add(play);
-            actions.Children.Add(ActionButton("Save as playlist", () => {
+            actions.Children.Add(ActionButton(Localization.T("Save as playlist"), () => {
                 var saved = new NativePlaylist(Guid.NewGuid().ToString(),
                     $"Remix \u00b7 {DateTimeOffset.FromUnixTimeMilliseconds(recap.End).LocalDateTime:d MMM}",
                     "Saved from Remix, the songs you played most this week.", recap.Songs.Select(s => s.Id).ToList());
@@ -548,7 +548,7 @@ public partial class MainWindow
         var earlier = Listening.Recaps(plays, tracks, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()).Skip(1).ToList();
         if (earlier.Count > 0) {
             var past = new StackPanel { Margin = new Thickness(2, 16, 2, 4) };
-            past.Children.Add(Label("The weeks before", 21));
+            past.Children.Add(Label(Localization.T("The weeks before"), 21));
             foreach (var week in earlier) {
                 var row = new Grid { Margin = new Thickness(0, 0, 0, 2) };
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -560,7 +560,7 @@ public partial class MainWindow
                 pastCopy.Children.Add(playsLabel);
                 row.Children.Add(pastCopy);
                 if (week.Songs.Count > 0) {
-                    var again = ActionButton("Play that week", () => PlayCollection(week.Songs, week.Songs[0].Id));
+                    var again = ActionButton(Localization.T("Play that week"), () => PlayCollection(week.Songs, week.Songs[0].Id));
                     again.Style = (Style)FindResource("TextButton");
                     again.Foreground = (Brush)Application.Current.Resources["MutedBrush"];
                     again.HorizontalAlignment = HorizontalAlignment.Right;
@@ -574,7 +574,7 @@ public partial class MainWindow
         }
 
         var all = Listening.Summarise(plays, tracks, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
-        var foot = Label($"{Listening.Time(all.TotalSeconds)} listened all time \u00b7 {NativeCollections.Count(all.WeekPlays, "play")} this week \u00b7 counted on this device, never uploaded.", 12.5);
+        var foot = Label($"{Listening.Time(all.TotalSeconds)} {Localization.T("listened all time")} \u00b7 {NativeCollections.Count(all.WeekPlays, "play")} {Localization.T("this week")} \u00b7 {Localization.T("counted on this device, never uploaded.")}", 12.5);
         foot.SetResourceReference(TextBlock.ForegroundProperty, "MutedBrush");
         foot.Margin = new Thickness(2, 8, 2, 4);
         CollectionHeader.Children.Add(foot);
@@ -617,8 +617,8 @@ public partial class MainWindow
         // way the browser does, instead of titling a chart.
         var busiest = days.OrderByDescending(day => day.Seconds).First();
         var caption = Label(busiest.Seconds > 0
-            ? $"Most on {DateTimeOffset.FromUnixTimeMilliseconds(busiest.At).LocalDateTime:dddd}, {Listening.Time(busiest.Seconds)}"
-            : "Quiet week", 12.5);
+            ? Localization.T("Most on {day}, {time}", new Dictionary<string, string> { ["day"] = DateTimeOffset.FromUnixTimeMilliseconds(busiest.At).LocalDateTime.ToString("dddd", System.Globalization.CultureInfo.CurrentCulture), ["time"] = Listening.Time(busiest.Seconds) })
+            : Localization.T("Quiet week"), 12.5);
         caption.SetResourceReference(TextBlock.ForegroundProperty, "MutedBrush");
         caption.Margin = new Thickness(4, 2, 4, 0);
         return new StackPanel { Margin = new Thickness(0, 6, 0, 0), Children = { bars, labels, caption } };
@@ -629,52 +629,52 @@ public partial class MainWindow
     private Window Dialog(string title, double height = 540) => new() { Owner = this, Title = title, Width = 520, Height = height, MinWidth = 400, MinHeight = 320, WindowStartupLocation = WindowStartupLocation.CenterOwner, Background = (Brush)Application.Current.Resources["SurfaceBrush"], Foreground = (Brush)Application.Current.Resources["InkBrush"], FontFamily = FontFamily, FontSize = FontSize };
     private void EditPlaylist(NativePlaylist? playlist)
     {
-        var window = Dialog(playlist == null ? "Create playlist" : "Edit playlist", 380); var body = new StackPanel { Margin = new Thickness(24) };
+        var window = Dialog(Localization.T(playlist == null ? "Create playlist" : "Edit playlist"), 380); var body = new StackPanel { Margin = new Thickness(24) };
         var name = new TextBox { Text = playlist?.Name ?? "", MaxLength = 100 }; var description = new TextBox { Text = playlist?.Description ?? "", MaxLength = 1000, AcceptsReturn = true, Height = 90 };
-        body.Children.Add(Label("Name")); body.Children.Add(name); body.Children.Add(Label("Description")); body.Children.Add(description);
-        body.Children.Add(ActionButton("Save playlist", () => Safe(() => { if (name.Text.Trim().Length == 0) return; var saved = new NativePlaylist(playlist?.Id ?? Guid.NewGuid().ToString(), name.Text.Trim(), description.Text.Trim(), playlist?.TrackIds ?? []); SavePlaylists(playlist == null ? playlists.Append(saved).ToList() : playlists.Select(p => p.Id == saved.Id ? saved : p).ToList()); window.Close(); ShowPage("Playlists", saved.Id); })));
+        body.Children.Add(Label(Localization.T("Name"))); body.Children.Add(name); body.Children.Add(Label(Localization.T("Description"))); body.Children.Add(description);
+        body.Children.Add(ActionButton(Localization.T("Save playlist"), () => Safe(() => { if (name.Text.Trim().Length == 0) return; var saved = new NativePlaylist(playlist?.Id ?? Guid.NewGuid().ToString(), name.Text.Trim(), description.Text.Trim(), playlist?.TrackIds ?? []); SavePlaylists(playlist == null ? playlists.Append(saved).ToList() : playlists.Select(p => p.Id == saved.Id ? saved : p).ToList()); window.Close(); ShowPage("Playlists", saved.Id); })));
         window.Content = body; window.ShowDialog();
     }
     private void PickPlaylistSongs(NativePlaylist playlist)
     {
-        var window = Dialog("Add songs"); var root = new DockPanel { Margin = new Thickness(20) }; var list = new ListBox { SelectionMode = SelectionMode.Multiple, ItemsSource = tracks, DisplayMemberPath = "Title" };
-        var save = ActionButton("Add selected songs", () => Safe(() => { var updated = playlist with { TrackIds = playlist.TrackIds.Concat(list.SelectedItems.Cast<Song>().Select(s => s.Id)).Distinct().ToList() }; SavePlaylists(playlists.Select(p => p.Id == updated.Id ? updated : p).ToList()); window.Close(); Refresh(); }));
+        var window = Dialog(Localization.T("Add songs")); var root = new DockPanel { Margin = new Thickness(20) }; var list = new ListBox { SelectionMode = SelectionMode.Multiple, ItemsSource = tracks, DisplayMemberPath = "Title" };
+        var save = ActionButton(Localization.T("Add selected songs"), () => Safe(() => { var updated = playlist with { TrackIds = playlist.TrackIds.Concat(list.SelectedItems.Cast<Song>().Select(s => s.Id)).Distinct().ToList() }; SavePlaylists(playlists.Select(p => p.Id == updated.Id ? updated : p).ToList()); window.Close(); Refresh(); }));
         DockPanel.SetDock(save, Dock.Bottom); root.Children.Add(save); root.Children.Add(list); window.Content = root; window.ShowDialog();
     }
     private void Enqueue(Song song, bool next)
     {
         if (Current == null) { PlayCollection(new[] { song }, song.Id); return; }
         string current = Current.Id;
-        if (song.Id == current) { Notify("This song is already playing."); return; }
+        if (song.Id == current) { Notify(Localization.T("This song is already playing.")); return; }
         queue.RemoveAll(s => s.Id == song.Id); index = queue.FindIndex(s => s.Id == current);
         if (next) queue.Insert(index + 1, song); else queue.Add(song);
-        PrepareNext(); SaveSession(); Notify(next ? "Added next in queue." : "Added to queue.");
+        PrepareNext(); SaveSession(); Notify(Localization.T(next ? "Added next in queue." : "Added to queue."));
     }
     private void SongOptionsClick(object sender, RoutedEventArgs e)
     {
         if (sender is not Button { Tag: Song song } button) return;
         var menu = new ContextMenu();
         void Item(string text, Action action) { var item = new MenuItem { Header = text }; item.Click += (_, _) => Safe(action); menu.Items.Add(item); }
-        Item("Play next", () => Enqueue(song, true));
-        Item("Add to queue", () => Enqueue(song, false));
-        Item(song.Favorite ? "Remove favorite" : "Add favorite", () => Update(song with { Favorite = !song.Favorite }));
-        Item("Edit song / lyrics", () => EditSong(song));
-        foreach (var playlist in playlists) Item("Add to " + playlist.Name, () => { var updated = playlist with { TrackIds = playlist.TrackIds.Append(song.Id).Distinct().ToList() }; SavePlaylists(playlists.Select(p => p.Id == updated.Id ? updated : p).ToList()); Refresh(); });
+        Item(Localization.T("Play next"), () => Enqueue(song, true));
+        Item(Localization.T("Add to queue"), () => Enqueue(song, false));
+        Item(Localization.T(song.Favorite ? "Remove favorite" : "Add favorite"), () => Update(song with { Favorite = !song.Favorite }));
+        Item(Localization.T("Edit song / lyrics"), () => EditSong(song));
+        foreach (var playlist in playlists) Item(Localization.T("Add to {name}", new Dictionary<string, string> { ["name"] = playlist.Name }), () => { var updated = playlist with { TrackIds = playlist.TrackIds.Append(song.Id).Distinct().ToList() }; SavePlaylists(playlists.Select(p => p.Id == updated.Id ? updated : p).ToList()); Refresh(); });
         if (page == "Playlists" && playlists.Find(p => p.Id == collection) is { } selected) {
-            Item("Remove from playlist", () => { SavePlaylists(playlists.Select(p => p.Id == selected.Id ? p with { TrackIds = p.TrackIds.Where(id => id != song.Id).ToList() } : p).ToList()); Refresh(); });
+            Item(Localization.T("Remove from playlist"), () => { SavePlaylists(playlists.Select(p => p.Id == selected.Id ? p with { TrackIds = p.TrackIds.Where(id => id != song.Id).ToList() } : p).ToList()); Refresh(); });
             void Move(int direction) { var ids = selected.TrackIds.ToList(); int from = ids.IndexOf(song.Id), to = from + direction; if (from < 0 || to < 0 || to >= ids.Count) return; (ids[from], ids[to]) = (ids[to], ids[from]); SavePlaylists(playlists.Select(p => p.Id == selected.Id ? p with { TrackIds = ids } : p).ToList()); Refresh(); }
-            Item("Move up in playlist", () => Move(-1)); Item("Move down in playlist", () => Move(1));
+            Item(Localization.T("Move up in playlist"), () => Move(-1)); Item(Localization.T("Move down in playlist"), () => Move(1));
         }
         menu.PlacementTarget = button; menu.IsOpen = true;
     }
     private void QueueClick(object sender, RoutedEventArgs e)
     {
-        var window = Dialog("Playback queue"); var root = new DockPanel { Margin = new Thickness(20) }; var list = new ListBox { DisplayMemberPath = "Title" };
+        var window = Dialog(Localization.T("Playback queue")); var root = new DockPanel { Margin = new Thickness(20) }; var list = new ListBox { DisplayMemberPath = "Title" };
         void Reload(int selected) { list.ItemsSource = queue.ToList(); list.SelectedIndex = Math.Clamp(selected, -1, queue.Count - 1); }
         void Move(int direction) { int from = list.SelectedIndex; var id = Current?.Id; queue = NativeCollections.Move(queue, from, from + direction); index = queue.FindIndex(s => s.Id == id); CancelFade(); PrepareNext(); Reload(from + direction); SaveSession(); }
-        var actions = new WrapPanel(); actions.Children.Add(ActionButton("Move up", () => Move(-1))); actions.Children.Add(ActionButton("Move down", () => Move(1)));
-        actions.Children.Add(ActionButton("Remove", () => { int selected = list.SelectedIndex; if (selected < 0) return; if (selected == index) { Notify("Select another song before removing the current one."); return; } queue.RemoveAt(selected); if (selected < index) index--; PrepareNext(); Reload(Math.Min(selected, queue.Count - 1)); SaveSession(); }));
-        actions.Children.Add(ActionButton("Play selected", () => { if (list.SelectedIndex >= 0) Play(list.SelectedIndex); }));
+        var actions = new WrapPanel(); actions.Children.Add(ActionButton(Localization.T("Move up"), () => Move(-1))); actions.Children.Add(ActionButton(Localization.T("Move down"), () => Move(1)));
+        actions.Children.Add(ActionButton(Localization.T("Remove"), () => { int selected = list.SelectedIndex; if (selected < 0) return; if (selected == index) { Notify(Localization.T("Select another song before removing the current one.")); return; } queue.RemoveAt(selected); if (selected < index) index--; PrepareNext(); Reload(Math.Min(selected, queue.Count - 1)); SaveSession(); }));
+        actions.Children.Add(ActionButton(Localization.T("Play selected"), () => { if (list.SelectedIndex >= 0) Play(list.SelectedIndex); }));
         DockPanel.SetDock(actions, Dock.Bottom); root.Children.Add(actions); root.Children.Add(list); Reload(index); window.Content = root; window.ShowDialog();
     }
 }

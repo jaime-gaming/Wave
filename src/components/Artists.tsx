@@ -147,7 +147,7 @@ export function ArtistHeader({
               aria-label={`Play artist ${artist.name}`}
             >
               <Play size={19} />
-              Play
+              {t('Play')}
             </button>
             <button
               className="tonal-button"
@@ -156,11 +156,11 @@ export function ArtistHeader({
               aria-label={`Shuffle artist ${artist.name}`}
             >
               <Shuffle size={19} />
-              Shuffle
+              {t('Shuffle')}
             </button>
             <button className="tonal-button" onClick={onEditPhoto}>
               <ImagePlus size={18} />
-              Edit artist photo
+              {t('Edit artist photo')}
             </button>
           </div>
         </div>

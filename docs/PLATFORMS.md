@@ -14,8 +14,8 @@
 | Automatic Mix / local Autoplay            | Analyzed pair timing / weighted variety  | Bounded duration timing / local variety           | Two players, same staged gains, constant power |
 | Lyrics                                    | Enhanced LRC, fill, optional lookup      | Line LRC/fill, sung line scrolled into view       | Line LRC, word stamps, optional lookup         |
 | Settings                                  | Seven menus                              | Six menus                                         | Six menus                                      |
-| Appearance                                | Dark/light/system, language, larger text | Dark/light, larger text, motion                   | Dark/light/system                              |
-| Interface language                        | Device language; Spanish and English     | English only, not yet                             | English only, not yet                          |
+| Appearance                                | Dark/light/system, language, larger text | Dark/light, language, larger text, motion         | Dark/light/system, language                    |
+| Interface language                        | Yes, Spanish and English                 | Yes, Spanish and English                          | Yes, Spanish and English                       |
 | Cover editing                             | Song/playlist/artist                     | Song covers                                       | Embedded artwork only                          |
 | System media controls                     | Browser-dependent                        | Not yet                                           | Media session, focus, widget, tile, shortcuts  |
 | YouTube songs, video clips                | Yes                                      | Not yet                                           | Not yet                                        |

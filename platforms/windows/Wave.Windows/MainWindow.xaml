@@ -21,32 +21,32 @@
           </Canvas>
         </Viewbox>
         <Button Style="{StaticResource NavButton}" Tag="Home" Click="NavigateClick">
-          <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconHome}"/><TextBlock Text="Home" Margin="12,0,0,0" VerticalAlignment="Center"/></StackPanel>
+          <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconHome}"/><TextBlock x:Name="NavHomeText" Text="Home" Margin="12,0,0,0" VerticalAlignment="Center"/></StackPanel>
         </Button>
         <Button Style="{StaticResource NavButton}" Tag="Search" Click="NavigateClick">
-          <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconSearch}"/><TextBlock Text="Search" Margin="12,0,0,0" VerticalAlignment="Center"/></StackPanel>
+          <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconSearch}"/><TextBlock x:Name="NavSearchText" Text="Search" Margin="12,0,0,0" VerticalAlignment="Center"/></StackPanel>
         </Button>
         <Button Style="{StaticResource NavButton}" Tag="Library" Click="NavigateClick">
-          <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconLibrary}"/><TextBlock Text="Library" Margin="12,0,0,0" VerticalAlignment="Center"/></StackPanel>
+          <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconLibrary}"/><TextBlock x:Name="NavLibraryText" Text="Library" Margin="12,0,0,0" VerticalAlignment="Center"/></StackPanel>
         </Button>
         <Button Style="{StaticResource NavButton}" Tag="Remix" Click="NavigateClick">
-          <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconRemix}"/><TextBlock Text="Remix" Margin="12,0,0,0" VerticalAlignment="Center"/></StackPanel>
+          <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconRemix}"/><TextBlock x:Name="NavRemixText" Text="Remix" Margin="12,0,0,0" VerticalAlignment="Center"/></StackPanel>
         </Button>
-        <TextBlock Text="YOUR COLLECTION" Foreground="{DynamicResource MutedBrush}" Margin="14,24,0,8" FontSize="11" FontWeight="Bold" Opacity="0.85"/>
+        <TextBlock x:Name="NavCollectionText" Text="YOUR COLLECTION" Foreground="{DynamicResource MutedBrush}" Margin="14,24,0,8" FontSize="11" FontWeight="Bold" Opacity="0.85"/>
         <Button Style="{StaticResource NavButton}" Tag="Albums" Click="NavigateClick">
-          <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconDisc}"/><TextBlock Text="Albums" Margin="12,0,0,0" VerticalAlignment="Center"/></StackPanel>
+          <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconDisc}"/><TextBlock x:Name="NavAlbumsText" Text="Albums" Margin="12,0,0,0" VerticalAlignment="Center"/></StackPanel>
         </Button>
         <Button Style="{StaticResource NavButton}" Tag="Artists" Click="NavigateClick">
-          <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconArtist}"/><TextBlock Text="Artists" Margin="12,0,0,0" VerticalAlignment="Center"/></StackPanel>
+          <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconArtist}"/><TextBlock x:Name="NavArtistsText" Text="Artists" Margin="12,0,0,0" VerticalAlignment="Center"/></StackPanel>
         </Button>
         <Button Style="{StaticResource NavButton}" Tag="Playlists" Click="NavigateClick">
-          <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconQueue}"/><TextBlock Text="Playlists" Margin="12,0,0,0" VerticalAlignment="Center"/></StackPanel>
+          <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconQueue}"/><TextBlock x:Name="NavPlaylistsText" Text="Playlists" Margin="12,0,0,0" VerticalAlignment="Center"/></StackPanel>
         </Button>
         <Button Style="{StaticResource NavButton}" Tag="Favorites" Click="NavigateClick">
-          <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconHeart}"/><TextBlock Text="Favorites" Margin="12,0,0,0" VerticalAlignment="Center"/></StackPanel>
+          <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconHeart}"/><TextBlock x:Name="NavFavoritesText" Text="Favorites" Margin="12,0,0,0" VerticalAlignment="Center"/></StackPanel>
         </Button>
         <Button Style="{StaticResource NavButton}" Tag="Settings" Click="NavigateClick" Margin="0,20,0,0">
-          <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconSettings}"/><TextBlock Text="Settings" Margin="12,0,0,0" VerticalAlignment="Center"/></StackPanel>
+          <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IconPath}" Data="{StaticResource IconSettings}"/><TextBlock x:Name="NavSettingsText" Text="Settings" Margin="12,0,0,0" VerticalAlignment="Center"/></StackPanel>
         </Button>
       </StackPanel>
     </ScrollViewer>
@@ -63,10 +63,10 @@
           <TextBlock x:Name="Summary" Foreground="{DynamicResource MutedBrush}" FontSize="13" Margin="1,2,0,0"/>
         </StackPanel>
         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
-          <Button Style="{StaticResource HeaderIconButton}" Click="ImportClick" ToolTip="Add music" Margin="0,0,8,0">
+          <Button x:Name="ImportButton" Style="{StaticResource HeaderIconButton}" Click="ImportClick" ToolTip="Add music" Margin="0,0,8,0">
             <Path Style="{StaticResource IconPath}" Data="{StaticResource IconPlus}"/>
           </Button>
-          <Button Style="{StaticResource HeaderIconButton}" Tag="Settings" Click="NavigateClick" ToolTip="Settings">
+          <Button x:Name="HeaderSettingsButton" Style="{StaticResource HeaderIconButton}" Tag="Settings" Click="NavigateClick" ToolTip="Settings">
             <Path Style="{StaticResource IconPath}" Data="{StaticResource IconSettings}"/>
           </Button>
         </StackPanel>
@@ -155,13 +155,13 @@
             <Grid x:Name="NowView" Visibility="Collapsed" Margin="14,6,12,6">
               <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
               <DockPanel>
-                <Button Style="{StaticResource IconButton}" Click="CollapseClick" ToolTip="Close the player" DockPanel.Dock="Left">
+                <Button x:Name="ClosePlayerButton" Style="{StaticResource IconButton}" Click="CollapseClick" ToolTip="Close the player" DockPanel.Dock="Left">
                   <Path Style="{StaticResource IconPath}" Data="{StaticResource IconChevronDown}"/>
                 </Button>
-                <Button Style="{StaticResource IconButton}" Click="QueueClick" ToolTip="Queue" DockPanel.Dock="Right" HorizontalAlignment="Right">
+                <Button x:Name="NowQueueButton" Style="{StaticResource IconButton}" Click="QueueClick" ToolTip="Queue" DockPanel.Dock="Right" HorizontalAlignment="Right">
                   <Path Style="{StaticResource IconPath}" Data="{StaticResource IconQueue}"/>
                 </Button>
-                <TextBlock Text="Now playing" FontSize="19" FontWeight="Bold" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                <TextBlock x:Name="NowPlayingText" Text="Now playing" FontSize="19" FontWeight="Bold" VerticalAlignment="Center" Margin="6,0,0,0"/>
               </DockPanel>
               <Grid Grid.Row="1" Margin="0,10">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition x:Name="LyricsWidth" Width="*"/></Grid.ColumnDefinitions>
@@ -200,21 +200,21 @@
                     </Button>
                   </StackPanel>
                   <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button Style="{StaticResource IconButton}" Click="PreviousClick" ToolTip="Previous">
+                    <Button x:Name="PreviousButton" Style="{StaticResource IconButton}" Click="PreviousClick" ToolTip="Previous">
                       <Path Style="{StaticResource IconPath}" Data="{StaticResource IconPrevious}"/>
                     </Button>
                     <Button x:Name="NowToggle" Style="{StaticResource PlayButton}" Click="ToggleClick" ToolTip="Play" Margin="8,0">
                       <Path Style="{StaticResource IconPath}" Data="{StaticResource IconPlay}" Width="22" Height="22"/>
                     </Button>
-                    <Button Style="{StaticResource IconButton}" Click="NextClick" ToolTip="Next">
+                    <Button x:Name="NextButton" Style="{StaticResource IconButton}" Click="NextClick" ToolTip="Next">
                       <Path Style="{StaticResource IconPath}" Data="{StaticResource IconNext}"/>
                     </Button>
                   </StackPanel>
                   <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
-                    <Button Style="{StaticResource IconButton}" Click="LyricsToggleClick" ToolTip="Lyrics">
+                    <Button x:Name="LyricsButton" Style="{StaticResource IconButton}" Click="LyricsToggleClick" ToolTip="Lyrics">
                       <Path Style="{StaticResource IconPath}" Data="{StaticResource IconLyrics}"/>
                     </Button>
-                    <Button Style="{StaticResource IconButton}" Click="EditClick" ToolTip="Edit song and lyrics">
+                    <Button x:Name="EditButton" Style="{StaticResource IconButton}" Click="EditClick" ToolTip="Edit song and lyrics">
                       <Path Style="{StaticResource IconPath}" Data="{StaticResource IconEdit}"/>
                     </Button>
                   </StackPanel>
@@ -230,7 +230,7 @@
     <Border x:Name="MiniPlayer" Grid.Row="1" Grid.Column="1" Background="{DynamicResource TonalBrush}" CornerRadius="22" Margin="10,0,22,10" Visibility="Collapsed">
       <Grid Margin="10,8">
         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-        <Button Click="NowClick" Background="Transparent" HorizontalContentAlignment="Stretch" Padding="4,2" Margin="0" ToolTip="Open the player">
+        <Button x:Name="MiniOpenButton" Click="NowClick" Background="Transparent" HorizontalContentAlignment="Stretch" Padding="4,2" Margin="0" ToolTip="Open the player">
           <Grid>
             <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
             <Border x:Name="MiniArt" Width="40" Height="40" CornerRadius="12" Background="{DynamicResource SurfaceBrush}">
@@ -246,10 +246,10 @@
           <Button x:Name="MiniToggle" Style="{StaticResource PlayButton}" Click="ToggleClick" ToolTip="Play" Width="44" Height="44" MinWidth="44" MinHeight="44" Margin="4,0">
             <Path Style="{StaticResource IconPath}" Data="{StaticResource IconPlay}" Width="18" Height="18"/>
           </Button>
-          <Button Style="{StaticResource IconButton}" Click="NextClick" ToolTip="Next">
+          <Button x:Name="MiniNextButton" Style="{StaticResource IconButton}" Click="NextClick" ToolTip="Next">
             <Path Style="{StaticResource IconPath}" Data="{StaticResource IconNext}"/>
           </Button>
-          <Button Style="{StaticResource IconButton}" Click="QueueClick" ToolTip="Queue">
+          <Button x:Name="MiniQueueButton" Style="{StaticResource IconButton}" Click="QueueClick" ToolTip="Queue">
             <Path Style="{StaticResource IconPath}" Data="{StaticResource IconQueue}"/>
           </Button>
           <Slider x:Name="Volume" Style="{StaticResource WaveSlider}" Width="96" Minimum="0" Maximum="1" ValueChanged="VolumeChanged" VerticalAlignment="Center" Margin="10,0,4,0" ToolTip="Volume"/>

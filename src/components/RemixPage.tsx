@@ -101,7 +101,7 @@ export function RemixPage({
     return (
       <div className="remix-page">
         <h2 className="sr-only" tabIndex={-1} ref={heading}>
-          Remix
+          {t('Remix')}
         </h2>
         <EmptyState
           icon={<AudioLines size={40} strokeWidth={1.4} />}
@@ -110,7 +110,7 @@ export function RemixPage({
           hint={t('Kept on this device, never uploaded')}
           actions={
             <button className="tonal-button" onClick={onAdd}>
-              Add music
+              {t('Add music')}
             </button>
           }
         />
@@ -133,7 +133,7 @@ export function RemixPage({
   return (
     <div className="remix-page">
       <h2 className="sr-only" tabIndex={-1} ref={heading}>
-        Remix
+        {t('Remix')}
       </h2>
 
       <header className="remix-head">

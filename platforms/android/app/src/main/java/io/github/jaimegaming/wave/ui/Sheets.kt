@@ -50,13 +50,13 @@ private fun SheetAction(label: String, detail: String? = null, dim: Boolean = fa
     ) {
         Column(Modifier.weight(1f)) {
             Text(
-                text = label,
+                text = Loc.t(label),
                 style = MaterialTheme.typography.titleMedium,
                 color = if (dim) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onBackground,
             )
             if (detail != null) {
                 Text(
-                    text = detail,
+                    text = Loc.t(detail),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -76,7 +76,7 @@ private fun Sheet(title: String, onDismiss: () -> Unit, content: @Composable Col
     ) {
         Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 28.dp)) {
             Text(
-                text = title,
+                text = Loc.t(title),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(start = 8.dp, bottom = 4.dp),
@@ -107,7 +107,7 @@ fun AddMusicSheet(
     Sheet("Add music", onDismiss) {
         if (busy) {
             Text(
-                text = "Working through the files…",
+                text = Loc.t("Working through the files…"),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(start = 8.dp, bottom = 6.dp),
@@ -139,12 +139,12 @@ fun SongOptionsSheet(state: WaveState, onQueue: () -> Unit) {
     if (confirmRemoval) {
         AlertDialog(
             onDismissRequest = { confirmRemoval = false },
-            title = { Text("Remove ${song.title}?") },
-            text = { Text("This removes the song from Wave and its playlists. The original file outside Wave is not deleted.") },
+            title = { Text(Loc.t("Remove {title}?", mapOf("title" to song.title))) },
+            text = { Text(Loc.t("This removes the song from Wave and its playlists. The original file outside Wave is not deleted.")) },
             confirmButton = {
-                TextButton(onClick = { confirmRemoval = false; state.delete(song); state.options = null }) { Text("Remove") }
+                TextButton(onClick = { confirmRemoval = false; state.delete(song); state.options = null }) { Text(Loc.t("Remove")) }
             },
-            dismissButton = { TextButton(onClick = { confirmRemoval = false }) { Text("Keep it") } },
+            dismissButton = { TextButton(onClick = { confirmRemoval = false }) { Text(Loc.t("Keep it")) } },
         )
     }
     Sheet(song.title, { state.options = null }) {
@@ -176,7 +176,7 @@ fun SongOptionsSheet(state: WaveState, onQueue: () -> Unit) {
         }
         val playlist = state.optionsPlaylist
         if (playlist != null) {
-            SheetAction("Remove from ${playlist.name}") {
+            SheetAction(Loc.t("Remove from {name}", mapOf("name" to playlist.name))) {
                 state.removeFromPlaylist(playlist, song)
                 state.options = null
             }
@@ -194,7 +194,7 @@ fun AddToPlaylistSheet(state: WaveState) {
     Sheet("Add to a playlist", { state.addToPlaylist = null }) {
         if (state.playlists.isEmpty()) {
             Text(
-                text = "No playlists yet.",
+                text = Loc.t("No playlists yet."),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(start = 8.dp, bottom = 8.dp),
@@ -263,7 +263,7 @@ fun QueueSheet(state: WaveState, onDismiss: () -> Unit) {
         }
         Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(
-                text = "Shuffle the queue",
+                text = Loc.t("Shuffle the queue"),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
@@ -284,7 +284,7 @@ fun NewPlaylistDialog(onDismiss: () -> Unit, onCreate: (String) -> Unit) {
     var name by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("New playlist") },
+        title = { Text(Loc.t("New playlist")) },
         text = {
             WaveTextField(
                 value = name,
@@ -294,9 +294,9 @@ fun NewPlaylistDialog(onDismiss: () -> Unit, onCreate: (String) -> Unit) {
             )
         },
         confirmButton = {
-            TextButton(onClick = { onCreate(name.ifBlank { "New playlist" }) }) { Text("Create") }
+            TextButton(onClick = { onCreate(name.ifBlank { "New playlist" }) }) { Text(Loc.t("Create")) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(Loc.t("Cancel")) } },
     )
 }
 
@@ -306,12 +306,12 @@ fun PlaylistEditorDialog(playlist: Playlist, onDismiss: () -> Unit, onRename: (S
     var confirming by remember(playlist.id) { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (confirming) "Delete ${playlist.name}?" else "Playlist") },
+        title = { Text(if (confirming) Loc.t("Delete {name}?", mapOf("name" to playlist.name)) else Loc.t("Playlist")) },
         text = {
             Column {
                 if (confirming) {
                     Text(
-                        text = "The songs stay in your library; only the list goes.",
+                        text = Loc.t("The songs stay in your library; only the list goes."),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -323,7 +323,7 @@ fun PlaylistEditorDialog(playlist: Playlist, onDismiss: () -> Unit, onRename: (S
                     )
                     Box(Modifier.height(10.dp))
                     Text(
-                        text = "Delete this playlist",
+                        text = Loc.t("Delete this playlist"),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.error,
                         modifier = Modifier
@@ -337,8 +337,8 @@ fun PlaylistEditorDialog(playlist: Playlist, onDismiss: () -> Unit, onRename: (S
         confirmButton = {
             TextButton(
                 onClick = { if (confirming) onDelete() else onRename(name) },
-            ) { Text(if (confirming) "Delete" else "Save") }
+            ) { Text(Loc.t(if (confirming) "Delete" else "Save")) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(Loc.t("Cancel")) } },
     )
 }

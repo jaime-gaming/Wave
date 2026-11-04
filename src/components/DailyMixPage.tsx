@@ -84,7 +84,7 @@ export function DailyMixPage({
         </button>
         <button className="tonal-button" disabled={!songs.length} onClick={() => onShuffle(songs)}>
           <Shuffle size={20} />
-          Shuffle
+          {t('Shuffle')}
         </button>
         <button
           className="tonal-button"

@@ -33,7 +33,10 @@ type I18nValue = {
   t: (english: string, values?: Record<string, string | number>) => string;
 };
 
-const fallback = (english: string) => english;
+// Outside the provider the app still speaks English — and placeholders still
+// get filled, so a component rendered on its own reads like the real thing.
+const fallback = (english: string, values?: Record<string, string | number>) =>
+  translate('en', english, values);
 const I18nContext = createContext<I18nValue>({
   language: 'en',
   choice: 'system',

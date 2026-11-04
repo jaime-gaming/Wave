@@ -249,7 +249,7 @@ function PlayerDetails({
               <button
                 className={state.repeat !== 'off' ? 'active' : ''}
                 onClick={() => dispatch({ type: 'repeat' })}
-                aria-label={`Repeat: ${state.repeat}`}
+                aria-label={t(`Repeat: ${state.repeat}`)}
                 disabled={!current}
               >
                 {state.repeat === 'one' ? <Repeat1 size={22} /> : <Repeat size={22} />}
@@ -325,7 +325,7 @@ function PlayerDetails({
               onClick={() => onDisclosure?.(!lyricsOpen)}
             >
               <Captions size={19} />
-              Lyrics
+              {t('Lyrics')}
               <ChevronDown size={18} />
             </button>
             <AnimatePresence initial={false}>

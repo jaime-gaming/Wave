@@ -104,6 +104,12 @@ desktop as well as in a tab.
   a tab: the pairing lives in the web client, which is the same client on all three, and the
   exchange is written down in `docs/PAIRING.md`. The installed Android and Windows builds cannot
   pair on their own yet, and `PLATFORMS.md` says so instead of implying otherwise.
+- The three clients speak Spanish and English from one dictionary. The site follows the browser,
+  the phone follows the device and the window follows Windows, and each keeps the row in
+  Settings → Appearance that pins one language instead; the pin is remembered (`wave-language` in
+  the browser and in SharedPreferences, `Language` in the Windows preferences file).
+  `i18n/es.json` is the single source: `npm run build:i18n` writes the phone's `Loc.kt` and the
+  window's `Localization.cs` from it, and the release check refuses tables that lag behind.
 - The error screen is for a person: a stopped waveform, one sentence and the two honest ways out.
 - After an hour and a half of actual playing the music stops and Wave asks whether to take a break.
 - The product film for this version is rendered by the `Promo film` workflow from the app itself:
@@ -114,9 +120,9 @@ desktop as well as in a tab.
 
 ### Verification
 
-- 664 unit and component tests in 101 files, the release-metadata check (which now also refuses a
-  changelog without a dated section for the version being released), lint, formatting and the Pages
-  build are green. The browser suite runs on every push and gains its first measurement of the clip
+- 668 unit and component tests in 102 files, the release-metadata check (which now also refuses a
+  changelog without a dated section for the version being released, and language tables that lag
+  behind the dictionary), lint, formatting and the Pages build are green. The browser suite runs on every push and gains its first measurement of the clip
   view's layout, added because a stylesheet cascade is not something a person can review; nine of its
   older tests remain flaky on a loaded runner and are tracked separately.
 

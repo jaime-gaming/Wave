@@ -6,6 +6,7 @@ import {
   youtubeEmbedUrl,
 } from '../domain/youtube';
 import type { Track } from '../domain/types';
+import { useT } from '../i18n';
 
 export interface YouTubeSeek {
   seconds: number;
@@ -60,6 +61,7 @@ export function YouTubeStage({
   onEnded: () => void;
   onError: (message: string) => void;
 }) {
+  const t = useT();
   const frame = useRef<HTMLIFrameElement | null>(null);
   const [ready, setReady] = useState(false);
   const [started, setStarted] = useState(false);
@@ -241,12 +243,12 @@ export function YouTubeStage({
   return (
     <div
       className={`video-backdrop video-backdrop--source${silent ? ' youtube-silent' : ''}`}
-      aria-label={silent ? undefined : 'YouTube song'}
+      aria-label={silent ? undefined : t('YouTube song')}
       aria-hidden={silent || undefined}
     >
       <iframe
         ref={frame}
-        title={`YouTube video for ${track.title}`}
+        title={t('YouTube video for {title}', { title: track.title })}
         className="video-backdrop-frame"
         src={youtubeEmbedUrl(videoId, {
           origin: typeof location === 'undefined' ? undefined : location.origin,

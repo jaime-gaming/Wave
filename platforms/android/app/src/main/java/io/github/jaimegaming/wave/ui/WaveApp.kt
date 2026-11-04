@@ -67,7 +67,7 @@ fun WaveApp(version: String, opening: Opening = Opening.Default) {
     // refusal is answered in words rather than by an empty list.
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { grants ->
         if (grants.values.any { it }) state.importFromDevice()
-        else state.notice = "Wave needs permission to read the music on this device."
+        else state.notice = Loc.t("Wave needs permission to read the music on this device.")
     }
     val importDevice: () -> Unit = {
         val audio = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -207,7 +207,7 @@ fun WaveApp(version: String, opening: Opening = Opening.Default) {
                 onDismiss = { state.editing = null },
                 onSave = { updated ->
                     state.update(updated)
-                    state.notice = "Song updated."
+                    state.notice = Loc.t("Song updated.")
                 },
             )
         }

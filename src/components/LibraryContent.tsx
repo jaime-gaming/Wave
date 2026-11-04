@@ -90,7 +90,7 @@ export const LibraryContent = memo(function LibraryContent({
         actions={
           <button className="filled-button" disabled={busy} onClick={onAdd}>
             <Plus size={20} />
-            Add music
+            {t('Add music')}
           </button>
         }
       />
@@ -129,7 +129,7 @@ export const LibraryContent = memo(function LibraryContent({
         actions={
           query ? (
             <button className="tonal-button" onClick={onClearSearch}>
-              Clear search
+              {t('Clear search')}
             </button>
           ) : undefined
         }

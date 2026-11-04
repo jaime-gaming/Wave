@@ -79,7 +79,10 @@ export function DevicesPage({
     }
     try {
       await onAddLoaned(blob, borrowedName(title, blob.type));
-      setLoaned({ text: `Kept “${title ?? 'the song'}” in your library.`, failed: false });
+      setLoaned({
+        text: t('Kept “{title}” in your library.', { title: title ?? t('the song') }),
+        failed: false,
+      });
     } catch {
       setLoaned({ text: t('The song could not be added. Nothing was changed.'), failed: true });
     }
@@ -155,9 +158,9 @@ export function DevicesPage({
   return (
     <div className="devices-page">
       <p className="devices-intro">
-        Link two devices to listen to each other's songs. Nothing is uploaded: the two browsers talk
-        directly, and only the songs you pick are copied. A link is remembered, so you will not have
-        to do this again.
+        {t(
+          "Link two devices to listen to each other's songs. Nothing is uploaded: the two browsers talk directly, and only the songs you pick are copied. A link is remembered, so you will not have to do this again.",
+        )}
       </p>
 
       {devices.confirmCode && (
@@ -169,8 +172,9 @@ export function DevicesPage({
         >
           <strong>{t('Check both screens')}</strong>
           <p>
-            Both devices must show the same six digits. If they differ, close this and show a fresh
-            code.
+            {t(
+              'Both devices must show the same six digits. If they differ, close this and show a fresh code.',
+            )}
           </p>
           <div className="devices-code" aria-label={t('Pairing code')}>
             {devices.confirmCode.split('').map((digit, index) => (
@@ -179,10 +183,10 @@ export function DevicesPage({
           </div>
           <div className="devices-actions">
             <button className="primary-button" onClick={devices.confirm}>
-              They match
+              {t('They match')}
             </button>
             <button className="text-button" onClick={devices.reset}>
-              Cancel
+              {t('Cancel')}
             </button>
           </div>
         </motion.section>
@@ -192,18 +196,20 @@ export function DevicesPage({
         <div className="devices-grid">
           <section className="devices-card">
             <h3>
-              <QrCode size={18} aria-hidden="true" /> Show a code
+              <QrCode size={18} aria-hidden="true" /> {t('Show a code')}
             </h3>
-            <p>Put this screen in front of the other device. It reads the code; you scan back.</p>
+            <p>
+              {t('Put this screen in front of the other device. It reads the code; you scan back.')}
+            </p>
             <div className="devices-actions">
               <button className="primary-button" disabled={devices.busy} onClick={devices.invite}>
-                <QrCode size={16} /> Show my code
+                <QrCode size={16} /> {t('Show my code')}
               </button>
             </div>
           </section>
           <section className="devices-card">
             <h3>
-              <Camera size={18} aria-hidden="true" /> Read a code
+              <Camera size={18} aria-hidden="true" /> {t('Read a code')}
             </h3>
             <p>{t('Already have a code on the other screen? Point this camera at it.')}</p>
             <div className="devices-actions">
@@ -212,7 +218,7 @@ export function DevicesPage({
                 disabled={devices.busy}
                 onClick={() => setScanning('invite')}
               >
-                <Camera size={16} /> Scan a code
+                <Camera size={16} /> {t('Scan a code')}
               </button>
             </div>
           </section>
@@ -222,11 +228,12 @@ export function DevicesPage({
       {devices.stage === 'idle' && (
         <section className="devices-card devices-paste">
           <h3>
-            <Link2 size={18} aria-hidden="true" /> Paste a code
+            <Link2 size={18} aria-hidden="true" /> {t('Paste a code')}
           </h3>
           <p>
-            No camera on hand? Copy the code from the other device and put it here. On two computers
-            this is the quickest way.
+            {t(
+              'No camera on hand? Copy the code from the other device and put it here. On two computers this is the quickest way.',
+            )}
           </p>
           <label className="devices-paste-field">
             <span className="sr-only">{t('Pairing code from the other device')}</span>
@@ -249,13 +256,14 @@ export function DevicesPage({
               disabled={!pasted.trim() || devices.busy}
               onClick={submitPaste}
             >
-              Use it
+              {t('Use it')}
             </button>
           </label>
           {pasteError && (
             <p className="devices-error" role="alert">
-              That does not look like a Wave code. Copy all of it, including the part that starts
-              with wave1.
+              {t(
+                'That does not look like a Wave code. Copy all of it, including the part that starts with wave1.',
+              )}
             </p>
           )}
         </section>
@@ -281,11 +289,11 @@ export function DevicesPage({
             </button>
             {devices.stage === 'show-code' ? (
               <button className="primary-button" onClick={() => setScanning('reply')}>
-                <Camera size={16} /> Scan their reply
+                <Camera size={16} /> {t('Scan their reply')}
               </button>
             ) : null}
             <button className="text-button" onClick={devices.reset}>
-              Start over
+              {t('Start over')}
             </button>
           </div>
         </section>
@@ -298,7 +306,7 @@ export function DevicesPage({
       )}
       {devices.status.kind === 'failed' && (
         <p className="devices-error" role="alert">
-          {failureText(devices.status.reason)}
+          {t(failureText(devices.status.reason))}
         </p>
       )}
 
@@ -308,17 +316,21 @@ export function DevicesPage({
             <span className="devices-dot" aria-hidden="true" />
             <strong>{devices.peerName || t('Linked device')}</strong>
             <button className="text-button" onClick={devices.reset}>
-              Disconnect
+              {t('Disconnect')}
             </button>
           </div>
           <p className="devices-note">
-            The link stays remembered. Next time, scanning one code is enough. The six digits are
-            skipped because the two devices already know each other.
+            {t(
+              'The link stays remembered. Next time, scanning one code is enough. The six digits are skipped because the two devices already know each other.',
+            )}
           </p>
           {devices.progress && (
             <p className="devices-note" role="status">
               {devices.progress.total > 0
-                ? `Receiving songs… ${devices.progress.received} of ${devices.progress.total}`
+                ? t('Receiving songs… {received} of {total}', {
+                    received: devices.progress.received,
+                    total: devices.progress.total,
+                  })
                 : t('Preparing the songs…')}
             </p>
           )}
@@ -326,7 +338,7 @@ export function DevicesPage({
           {!!entries.length && (
             <>
               <div className="devices-list-head">
-                <span>{entries.length} songs on the other device</span>
+                <span>{t('{count} songs on the other device', { count: entries.length })}</span>
                 <button
                   className="primary-button"
                   disabled={!selected.size}
@@ -335,7 +347,7 @@ export function DevicesPage({
                     setSelected(new Set());
                   }}
                 >
-                  {selected.size ? `Bring ${selected.size}` : t('Select songs')}
+                  {selected.size ? t('Bring {count}', { count: selected.size }) : t('Select songs')}
                 </button>
               </div>
               <ul className="devices-songs">
@@ -364,11 +376,11 @@ export function DevicesPage({
 
       <section className="devices-card">
         <h3>
-          <Link2 size={18} aria-hidden="true" /> Remembered devices
+          <Link2 size={18} aria-hidden="true" /> {t('Remembered devices')}
         </h3>
         {!devices.devices.length && (
           <p className="devices-note">
-            No device linked yet. Devices you link stay in this list until you remove them.
+            {t('No device linked yet. Devices you link stay in this list until you remove them.')}
           </p>
         )}
         {!!devices.devices.length && (
@@ -381,8 +393,8 @@ export function DevicesPage({
                     <strong>{device.name}</strong>
                     <small>
                       {summary
-                        ? `${summary.tracks} borrowed · ${kb(summary.bytes)}`
-                        : 'nothing borrowed'}
+                        ? `${t('{count} borrowed', { count: summary.tracks })} · ${kb(summary.bytes)}`
+                        : t('nothing borrowed')}
                     </small>
                   </span>
                   {confirming === device.deviceId ? (
@@ -394,24 +406,24 @@ export function DevicesPage({
                           setConfirming(null);
                         }}
                       >
-                        Remove for good
+                        {t('Remove for good')}
                       </button>
                       <button className="text-button" onClick={() => setConfirming(null)}>
-                        Keep
+                        {t('Keep')}
                       </button>
                     </>
                   ) : (
                     <>
                       <button
                         className="icon-button"
-                        aria-label={`Link to ${device.name} again`}
+                        aria-label={t('Link to {name} again', { name: device.name })}
                         onClick={devices.invite}
                       >
                         <RotateCcw size={17} />
                       </button>
                       <button
                         className="icon-button"
-                        aria-label={`Forget ${device.name}`}
+                        aria-label={t('Forget {name}', { name: device.name })}
                         onClick={() => setConfirming(device.deviceId)}
                       >
                         <Trash2 size={17} />
@@ -428,8 +440,10 @@ export function DevicesPage({
       <section className="devices-card">
         <h3>{t('Borrowed songs')}</h3>
         <p className="devices-note">
-          {kb(devices.usedBytes)} of {kb(devices.capacityBytes)} used. Nothing here is ever removed
-          automatically: a song that does not fit is refused, and you decide what to hand back.
+          {t(
+            '{used} of {capacity} used. Nothing here is ever removed automatically: a song that does not fit is refused, and you decide what to hand back.',
+            { used: kb(devices.usedBytes), capacity: kb(devices.capacityBytes) },
+          )}
         </p>
         {loaned && (
           <p className={loaned.failed ? 'devices-error' : 'devices-note'} role="status">
@@ -451,11 +465,13 @@ export function DevicesPage({
                   className="text-button"
                   onClick={() => void keepLoan(loan.loanId, loan.title)}
                 >
-                  <Check size={15} /> Add to library
+                  <Check size={15} /> {t('Add to library')}
                 </button>
                 <button
                   className="icon-button"
-                  aria-label={`Remove ${loan.title ?? 'borrowed song'}`}
+                  aria-label={t('Remove {title}', {
+                    title: loan.title ?? t('Borrowed song'),
+                  })}
                   onClick={() => void devices.removeLoan(loan.loanId)}
                 >
                   <Trash2 size={17} />
@@ -468,7 +484,7 @@ export function DevicesPage({
 
       {!devices.connected && !devices.confirmCode && devices.stage === 'idle' && (
         <p className="devices-note">
-          On the other device, open Wave → Settings → Devices and scan this screen.{' '}
+          {t('On the other device, open Wave → Settings → Devices and scan this screen.')}{' '}
           <ArrowRight size={14} aria-hidden="true" />
         </p>
       )}

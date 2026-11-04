@@ -71,6 +71,10 @@ player, and accepting it only changes where playback starts and stops — the fi
   afterwards: the join between two songs, a search with a letter in the wrong place and the offer to
   skip dead air are all shown happening.
 - Opening any dialog now locks the page behind it, so a full-screen player has no scrollbar beside it.
+- The site, the phone and the window all speak Spanish and English now: each follows its device
+  by default, and Settings → Appearance keeps a row — Sistema · English · Español — that pins one
+  language instead. One dictionary (`i18n/es.json`) feeds the three, and the release check
+  refuses to ship native tables that lag behind it.
 
 ## What this release is not
 

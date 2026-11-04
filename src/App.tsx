@@ -718,12 +718,12 @@ function WaveApp({
       }}
     >
       <a className="skip-link" href="#main">
-        Skip to library
+        {t('Skip to library')}
       </a>
       <input
         ref={input}
         className="file-input"
-        aria-label="Import audio files"
+        aria-label={t('Import audio files')}
         type="file"
         accept={AUDIO_ACCEPT}
         multiple
@@ -785,13 +785,13 @@ function WaveApp({
                 className="icon-button import-header"
                 disabled={busy}
                 onClick={() => setAddOpen(true)}
-                aria-label="Add music"
+                aria-label={t('Add music')}
               >
                 <Plus size={24} />
               </button>
               <button
                 className="icon-button settings-button"
-                aria-label="Open settings"
+                aria-label={t('Open settings')}
                 onClick={() => openSettings()}
               >
                 <Settings size={24} />
@@ -799,7 +799,7 @@ function WaveApp({
             </div>
           </div>
           {page === 'library' && (
-            <div ref={categoryStrip} className="library-tabs" aria-label="Browse library">
+            <div ref={categoryStrip} className="library-tabs" aria-label={t('Browse library')}>
               {(
                 [
                   { id: 'songs', label: t('Songs'), icon: Music2, count: library.tracks.length },
@@ -882,13 +882,13 @@ function WaveApp({
                       </div>
                       <div className="settings-switch-row">
                         <div>
-                          <strong>Larger text</strong>
+                          <strong>{t('Larger text')}</strong>
                         </div>
                         <button
                           type="button"
                           className="material-switch"
                           role="switch"
-                          aria-label="Larger text"
+                          aria-label={t('Larger text')}
                           aria-checked={largeText}
                           onClick={() => setLargeText(!largeText)}
                         >
@@ -899,13 +899,13 @@ function WaveApp({
                       </div>
                       <div className="settings-switch-row">
                         <div>
-                          <strong>Animations</strong>
+                          <strong>{t('Animations')}</strong>
                         </div>
                         <button
                           type="button"
                           className="material-switch"
                           role="switch"
-                          aria-label="Animations"
+                          aria-label={t('Animations')}
                           aria-checked={animations}
                           onClick={() => onAnimations(!animations)}
                         >
@@ -920,13 +920,13 @@ function WaveApp({
                     <>
                       <div className="settings-switch-row">
                         <div>
-                          <strong>Mix</strong>
+                          <strong>{t('Mix')}</strong>
                         </div>
                         <button
                           type="button"
                           className="material-switch"
                           role="switch"
-                          aria-label="Mix"
+                          aria-label={t('Mix')}
                           aria-checked={player.mixEnabled}
                           onClick={() => player.setMixEnabled(!player.mixEnabled)}
                         >
@@ -937,13 +937,13 @@ function WaveApp({
                       </div>
                       <div className="settings-switch-row">
                         <div>
-                          <strong>Video clip</strong>
+                          <strong>{t('Video clip')}</strong>
                         </div>
                         <button
                           type="button"
                           className="material-switch"
                           role="switch"
-                          aria-label="Video clip"
+                          aria-label={t('Video clip')}
                           aria-checked={videoClip}
                           onClick={() => setVideoClip(!videoClip)}
                         >
@@ -954,13 +954,13 @@ function WaveApp({
                       </div>
                       <div className="settings-switch-row">
                         <div>
-                          <strong>Autoplay</strong>
+                          <strong>{t('Autoplay')}</strong>
                         </div>
                         <button
                           type="button"
                           className="material-switch"
                           role="switch"
-                          aria-label="Autoplay"
+                          aria-label={t('Autoplay')}
                           aria-checked={player.autoplay}
                           onClick={() => player.setAutoplay(!player.autoplay)}
                         >
@@ -975,16 +975,16 @@ function WaveApp({
                     <>
                       <div className="settings-switch-row">
                         <div>
-                          <strong>Word-level lyric sources</strong>
+                          <strong>{t('Word-level lyric sources')}</strong>
                           <p className="settings-warning">
-                            Unofficial sources. Only the title and artist are sent.
+                            {t('Unofficial sources. Only the title and artist are sent.')}
                           </p>
                         </div>
                         <button
                           type="button"
                           className="material-switch"
                           role="switch"
-                          aria-label="Word-level lyric sources"
+                          aria-label={t('Word-level lyric sources')}
                           aria-checked={wordSources}
                           onClick={() => {
                             const next = !wordSources;
@@ -999,12 +999,12 @@ function WaveApp({
                       </div>
                       <div className="settings-switch-row">
                         <div>
-                          <strong>Automatic lyrics</strong>
+                          <strong>{t('Automatic lyrics')}</strong>
                         </div>
                         <button
                           className="material-switch"
                           role="switch"
-                          aria-label="Automatic lyrics"
+                          aria-label={t('Automatic lyrics')}
                           aria-checked={automaticLyrics}
                           onClick={() => {
                             setAutomaticLyrics((value) => !value);
@@ -1027,13 +1027,13 @@ function WaveApp({
                       {' '}
                       <div className="settings-switch-row">
                         <div>
-                          <strong>Library editing</strong>
+                          <strong>{t('Library editing')}</strong>
                         </div>
                         <button
                           type="button"
                           className="material-switch"
                           role="switch"
-                          aria-label="Library editing"
+                          aria-label={t('Library editing')}
                           aria-checked={editorEnabled}
                           onClick={() => setEditorEnabled(!editorEnabled)}
                         >
@@ -1057,9 +1057,11 @@ function WaveApp({
                       */}
                       <div className="settings-switch-row">
                         <div>
-                          <strong>Bring your playlists over</strong>
+                          <strong>{t('Bring your playlists over')}</strong>
                           <span className="settings-row-note">
-                            Paste a link from another service and Wave finds those songs here.
+                            {t(
+                              'Paste a link from another service and Wave finds those songs here.',
+                            )}
                           </span>
                         </div>
                         <button
@@ -1068,7 +1070,7 @@ function WaveApp({
                           onClick={() => setMigrationOpen(true)}
                         >
                           <FolderInput size={18} />
-                          Open
+                          {t('Open')}
                         </button>
                       </div>
                     </>
@@ -1102,7 +1104,7 @@ function WaveApp({
                         className="settings-source"
                         onClick={() => setAndroidSheet(true)}
                       >
-                        Wave for Android
+                        {t('Wave for Android')}
                         <ArrowUpRight size={16} />
                       </button>
                       <a
@@ -1111,7 +1113,7 @@ function WaveApp({
                         target="_blank"
                         rel="noreferrer"
                       >
-                        Wave {__WAVE_VERSION__} · Source code
+                        Wave {__WAVE_VERSION__} · {t('Source code')}
                         <ArrowUpRight size={16} />
                       </a>
                     </>
@@ -1233,7 +1235,7 @@ function WaveApp({
             ) : view === 'playlists' && !selectedPlaylist ? (
               collections.loading ? (
                 <div className="empty-state">
-                  <h2>Loading playlists</h2>
+                  <h2>{t('Loading playlists')}</h2>
                 </div>
               ) : (
                 <PlaylistCollection
@@ -1291,16 +1293,16 @@ function WaveApp({
                   <div className="library-play-actions">
                     <button
                       className="tonal-button shuffle-all"
-                      aria-label="Shuffle all songs"
+                      aria-label={t('Shuffle all songs')}
                       disabled={!visible.length}
                       onClick={playShuffle}
                     >
                       <Shuffle size={20} />
-                      Shuffle
+                      {t('Shuffle')}
                     </button>
                     <button
                       className="icon-button play-all"
-                      aria-label="Play all songs"
+                      aria-label={t('Play all songs')}
                       disabled={!visible.length}
                       onClick={() => player.play(visible, visible[0].id)}
                     >
@@ -1335,21 +1337,23 @@ function WaveApp({
                         });
                       }}
                     >
-                      Reorder songs
+                      {t('Reorder songs')}
                     </button>
                   )}
                   <label className="sort-control">
                     <SlidersHorizontal size={20} />
                     <select
-                      aria-label="Sort tracks"
+                      aria-label={t('Sort tracks')}
                       value={sort}
                       onChange={(event) => setSort(event.target.value)}
                     >
-                      {selectedPlaylist && <option value="playlist">Playlist order</option>}
-                      {view === 'albums' && group && <option value="album">Album order</option>}
-                      <option value="recent">Recently added</option>
-                      <option value="title">Title A–Z</option>
-                      <option value="artist">Artist A–Z</option>
+                      {selectedPlaylist && <option value="playlist">{t('Playlist order')}</option>}
+                      {view === 'albums' && group && (
+                        <option value="album">{t('Album order')}</option>
+                      )}
+                      <option value="recent">{t('Recently added')}</option>
+                      <option value="title">{t('Title A–Z')}</option>
+                      <option value="artist">{t('Artist A–Z')}</option>
                     </select>
                     <ChevronDown size={16} />
                   </label>
@@ -1442,7 +1446,7 @@ function WaveApp({
         {queueOpen && (
           <Modal
             key="queue"
-            title="Queue"
+            title={t('Queue')}
             className="queue-sheet"
             onClose={() => setQueueOpen(false)}
           >
@@ -1457,7 +1461,7 @@ function WaveApp({
         {trackOptions && (
           <Modal
             key="song-options"
-            title="Song options"
+            title={t('Song options')}
             className="song-options-modal"
             onClose={() => setTrackOptions(null)}
           >
@@ -1486,7 +1490,7 @@ function WaveApp({
               }}
             >
               <ListMusic size={22} />
-              Add to playlist
+              {t('Add to playlist')}
             </button>
             <button
               className="options-action"
@@ -1510,7 +1514,7 @@ function WaveApp({
             >
               {' '}
               <Pencil size={22} />
-              Edit lyrics
+              {t('Edit lyrics')}
             </button>
             {trackOptions.videoId && (
               <a
@@ -1520,7 +1524,7 @@ function WaveApp({
                 rel="noreferrer noopener"
               >
                 <ArrowUpRight size={22} />
-                Open on YouTube
+                {t('Open on YouTube')}
               </a>
             )}
             {!!getClip(trackOptions.id, clipsForOptions) && (
@@ -1532,7 +1536,7 @@ function WaveApp({
                 }}
               >
                 <Film size={22} />
-                Remove video clip
+                {t('Remove video clip')}
               </button>
             )}
             {editorEnabled && (
@@ -1544,7 +1548,7 @@ function WaveApp({
                 }}
               >
                 <Pencil size={22} />
-                Edit song
+                {t('Edit song')}
               </button>
             )}
             {selectedPlaylist && (
@@ -1562,7 +1566,7 @@ function WaveApp({
                   }}
                 >
                   <ArrowUp size={22} />
-                  Move up in playlist
+                  {t('Move up in playlist')}
                 </button>
                 <button
                   className="options-action"
@@ -1580,7 +1584,7 @@ function WaveApp({
                   }}
                 >
                   <ArrowDown size={22} />
-                  Move down in playlist
+                  {t('Move down in playlist')}
                 </button>
                 <button
                   className="options-action"
@@ -1593,7 +1597,7 @@ function WaveApp({
                   }}
                 >
                   <X size={22} />
-                  Remove from playlist
+                  {t('Remove from playlist')}
                 </button>
               </>
             )}
@@ -1605,21 +1609,23 @@ function WaveApp({
               }}
             >
               <Trash2 size={22} />
-              Remove from library
+              {t('Remove from library')}
             </button>
           </Modal>
         )}
         {removeTarget && (
           <Modal
             key="remove-track"
-            title="Remove this track?"
+            title={t('Remove this track?')}
             onClose={() => {
               if (!removing) setRemoveTarget(null);
             }}
           >
             <p className="modal-description">
-              Remove “{removeTarget.title}” from your library and queue? The original file on your
-              device won’t be changed.
+              {t(
+                'Remove “{title}” from your library and queue? The original file on your device won’t be changed.',
+                { title: removeTarget.title },
+              )}
             </p>
             <div className="modal-actions">
               <button
@@ -1627,7 +1633,7 @@ function WaveApp({
                 disabled={removing}
                 onClick={() => setRemoveTarget(null)}
               >
-                Keep track
+                {t('Keep track')}
               </button>
               <button
                 className="danger-button"
@@ -1642,7 +1648,7 @@ function WaveApp({
                   setRemoving(false);
                 }}
               >
-                Remove track
+                {t('Remove track')}
               </button>
             </div>
           </Modal>
@@ -1763,13 +1769,15 @@ function WaveApp({
         {deletingPlaylist && selectedPlaylist && (
           <Modal
             key="delete-playlist"
-            title="Delete playlist?"
+            title={t('Delete playlist?')}
             onClose={() => {
               if (!removing) setDeletingPlaylist(false);
             }}
           >
             <p className="modal-description">
-              Delete “{selectedPlaylist.name}”? Your songs will stay in the library.
+              {t('Delete “{name}”? Your songs will stay in the library.', {
+                name: selectedPlaylist.name,
+              })}
             </p>
             <div className="modal-actions">
               <button
@@ -1777,7 +1785,7 @@ function WaveApp({
                 disabled={removing}
                 onClick={() => setDeletingPlaylist(false)}
               >
-                Keep playlist
+                {t('Keep playlist')}
               </button>
               <button
                 className="danger-button"
@@ -1791,7 +1799,7 @@ function WaveApp({
                   setRemoving(false);
                 }}
               >
-                Delete playlist
+                {t('Delete playlist')}
               </button>
             </div>
           </Modal>
@@ -1802,13 +1810,16 @@ function WaveApp({
           <span>
             {error ||
               (library.progress
-                ? `Importing ${library.progress.done} of ${library.progress.total} files…`
+                ? t('Importing {done} of {total} files…', {
+                    done: library.progress.done,
+                    total: library.progress.total,
+                  })
                 : library.message)}
           </span>
           {!library.progress && (
             <button
               className="icon-button"
-              aria-label="Dismiss notification"
+              aria-label={t('Dismiss notification')}
               onClick={() => {
                 library.setError('');
                 collections.setError('');
@@ -1826,7 +1837,7 @@ function WaveApp({
         <div className="drop-overlay">
           <FolderOpen size={48} />
           <h2>{busy ? t('Import in progress') : t('Add music')}</h2>
-          <p>{busy ? 'Wait for this import to finish.' : 'Drop your audio files here.'}</p>
+          <p>{busy ? t('Wait for this import to finish.') : t('Drop your audio files here.')}</p>
         </div>
       )}
     </div>

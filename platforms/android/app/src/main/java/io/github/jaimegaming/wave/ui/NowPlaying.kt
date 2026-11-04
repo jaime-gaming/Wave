@@ -127,7 +127,7 @@ private fun NowPlayingHeader(state: WaveState, onCollapse: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            "Now playing",
+            Loc.t("Now playing"),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,
@@ -198,7 +198,7 @@ private fun LyricsHeading(state: WaveState, modifier: Modifier = Modifier) {
     ) {
         WaveIcon("lyrics", 17.dp, MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.width(8.dp))
-        Text(if (state.lyricsOpen) "Lyrics" else "Show lyrics", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+        Text(Loc.t(if (state.lyricsOpen) "Lyrics" else "Show lyrics"), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
         WaveIcon("collapse", 16.dp, MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
@@ -220,10 +220,10 @@ private fun LyricsBody(
     }
     if (song.lyrics.isBlank()) {
         Column(modifier, verticalArrangement = Arrangement.Center) {
-            Text("No lyrics yet", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
-            Text("Add them yourself, or search online.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+            Text(Loc.t("No lyrics yet"), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+            Text(Loc.t("Add them yourself, or search online."), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
             Text(
-                if (state.busy) "Looking…" else "Search online",
+                Loc.t(if (state.busy) "Looking…" else "Search online"),
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { if (!state.busy) state.lookupLyrics(song) }.padding(vertical = 12.dp),
             )
@@ -265,11 +265,11 @@ private fun LyricsBody(
 @Composable
 private fun SongActions(song: Song, state: WaveState, onEdit: () -> Unit, modifier: Modifier) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = onEdit, modifier = Modifier.size(42.dp).semantics { contentDescription = "Edit lyrics" }) {
+        IconButton(onClick = onEdit, modifier = Modifier.size(42.dp).semantics { contentDescription = Loc.t("Edit lyrics") }) {
             WaveIcon("edit", 20.dp, MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Spacer(Modifier.weight(1f))
-        IconButton(onClick = { state.toggleFavorite(song) }, modifier = Modifier.size(42.dp).semantics { contentDescription = if (song.favorite) "Remove from favorites" else "Add to favorites" }) {
+        IconButton(onClick = { state.toggleFavorite(song) }, modifier = Modifier.size(42.dp).semantics { contentDescription = Loc.t(if (song.favorite) "Remove from favorites" else "Add to favorites") }) {
             WaveIcon("favorite", 20.dp, if (song.favorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
@@ -292,7 +292,7 @@ private fun TransportDeck(song: Song, player: Player) {
             value = player.time.coerceIn(0.0, duration).toFloat(),
             onValueChange = { player.seek(it.toDouble()) },
             valueRange = 0f..duration.toFloat(),
-            modifier = Modifier.fillMaxWidth().height(36.dp).semantics { contentDescription = "Song position" },
+            modifier = Modifier.fillMaxWidth().height(36.dp).semantics { contentDescription = Loc.t("Song position") },
             thumb = {
                 Box(Modifier.size(width = 6.dp, height = 24.dp).clip(RoundedCornerShape(3.dp)).background(MaterialTheme.colorScheme.primary))
             },

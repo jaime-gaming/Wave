@@ -51,8 +51,8 @@ public partial class MainWindow : Window
             tracks = repository.Load(); preferences = repository.LoadPreferences();
             playlists = NativeCollections.Load<List<NativePlaylist>>(repository.Folder, "playlists.json") ?? [];
             plays = Listening.Load(repository.Folder);
-        } catch (Exception error) { Notify("Could not open local storage: " + error.Message); }
-        ApplyTheme(); volume = Math.Clamp(preferences.Volume, 0, 1); Volume.Value = volume;
+        } catch (Exception error) { Notify(Localization.T("Could not open local storage: {message}", new Dictionary<string, string> { ["message"] = error.Message })); }
+        ApplyTheme(); Localization.Init(preferences.Language); ApplyLanguage(); volume = Math.Clamp(preferences.Volume, 0, 1); Volume.Value = volume;
         initialized = true; Loaded += (_, _) => FitRail(); ShowPage("Home"); timer.Tick += Tick; timer.Start();
         try {
             var session = NativeCollections.Load<ListeningSession>(repository.Folder, "session.json");
@@ -61,7 +61,7 @@ public partial class MainWindow : Window
                 int restored = queue.FindIndex(s => s.Id == session.CurrentId);
                 if (restored >= 0) StartSong(restored, false, session.Position);
             }
-        } catch (Exception error) { Notify("Could not restore your listening session: " + error.Message); }
+        } catch (Exception error) { Notify(Localization.T("Could not restore your listening session: {message}", new Dictionary<string, string> { ["message"] = error.Message })); }
     }
     /// <summary>
     /// The line under the title says what the page is showing. Settings and Remix
@@ -71,9 +71,9 @@ public partial class MainWindow : Window
     private void UpdateSummary()
     {
         Summary.Text = page switch {
-            "Search" => "Songs, albums and artists on this device",
-            "Settings" => "Playback, appearance, lyrics and storage",
-            "Remix" => "The songs you played this week",
+            "Search" => Localization.T("Songs, albums and artists on this device"),
+            "Settings" => Localization.T("Playback, appearance, lyrics and storage"),
+            "Remix" => Localization.T("The songs you played this week"),
             "Albums" when collection == null => NativeCollections.Count(tracks.Select(AlbumKey).Distinct().Count(), "album"),
             "Artists" when collection == null => NativeCollections.Count(tracks.Select(s => s.Artist).Distinct().Count(), "artist"),
             "Playlists" when collection == null => NativeCollections.Count(playlists.Count, "playlist"),
@@ -82,6 +82,50 @@ public partial class MainWindow : Window
             // the card itself counts the collection it is showing.
             _ => $"{NativeCollections.Count(tracks.Count, "song")} · {NativeCollections.Count(tracks.Select(AlbumKey).Distinct().Count(), "album")}",
         };
+    }
+    /// <summary>
+    /// One pass over the window's own words: the rail, the header, the player and
+    /// the dock take the current language, then the page in view is rebuilt so its
+    /// headings and rows follow. Called at start-up and whenever the choice changes.
+    /// </summary>
+    private void ApplyLanguage()
+    {
+        NavHomeText.Text = Localization.T("Home");
+        NavSearchText.Text = Localization.T("Search");
+        NavLibraryText.Text = Localization.T("Library");
+        NavRemixText.Text = Localization.T("Remix");
+        NavCollectionText.Text = Localization.T("Your collection").ToUpperInvariant();
+        NavAlbumsText.Text = Localization.T("Albums");
+        NavArtistsText.Text = Localization.T("Artists");
+        NavPlaylistsText.Text = Localization.T("Playlists");
+        NavFavoritesText.Text = Localization.T("Favorites");
+        NavSettingsText.Text = Localization.T("Settings");
+        ImportButton.ToolTip = Localization.T("Add music");
+        HeaderSettingsButton.ToolTip = Localization.T("Settings");
+        ClosePlayerButton.ToolTip = Localization.T("Close the player");
+        NowQueueButton.ToolTip = MiniQueueButton.ToolTip = Localization.T("Queue");
+        NowPlayingText.Text = Localization.T("Now playing");
+        NowHint.Text = Localization.T("Choose a song from your library.");
+        ShuffleButton.ToolTip = Localization.T("Shuffle");
+        FavoriteButton.ToolTip = Localization.T("Favorite");
+        PreviousButton.ToolTip = Localization.T("Previous");
+        NextButton.ToolTip = MiniNextButton.ToolTip = Localization.T("Next");
+        LyricsButton.ToolTip = Localization.T("Lyrics");
+        EditButton.ToolTip = Localization.T("Edit song and lyrics");
+        MiniOpenButton.ToolTip = Localization.T("Open the player");
+        Volume.ToolTip = Localization.T("Volume");
+        Heading.Text = collection ?? Localization.T(page);
+        UpdateSummary(); UpdateRepeat(); UpdatePlaybackLabels();
+        if (initialized) { if (page == "Settings") RenderSettings(); else Refresh(); }
+    }
+    /// <summary>The language row: remember the choice, then repaint the window.</summary>
+    private void SetLanguage(string choice)
+    {
+        preferences = preferences with { Language = choice };
+        preferencesDirty = true;
+        Localization.Init(choice);
+        ApplyLanguage();
+        SaveSession();
     }
     private void Notify(string text) { Message.Text = text; Message.Visibility = text.Length == 0 ? Visibility.Collapsed : Visibility.Visible; }
     private void Safe(Action action) { try { action(); } catch (Exception error) { Notify(error.Message); } }
@@ -93,7 +137,7 @@ public partial class MainWindow : Window
         bool expanded = page == "Now playing";
         ApplyRailWidth();
         NavigationPanel.Visibility = PageHeader.Visibility = expanded ? Visibility.Collapsed : Visibility.Visible;
-        Heading.Text = collection ?? page;
+        Heading.Text = collection ?? Localization.T(page);
         UpdateSummary();
         LibraryView.Visibility = page is "Now playing" or "Settings" ? Visibility.Collapsed : Visibility.Visible;
         NowView.Visibility = expanded ? Visibility.Visible : Visibility.Collapsed;
@@ -117,7 +161,7 @@ public partial class MainWindow : Window
             // The player can be opened with nothing behind it; say so, and let the
             // record have the whole width instead of half of it beside an empty
             // column that only exists when there are lyrics to show.
-            NowTitle.Text = "Nothing playing";
+            NowTitle.Text = Localization.T("Nothing playing");
             NowArtist.Content = "";
             NowHint.Visibility = Visibility.Visible;
         }
@@ -202,9 +246,9 @@ public partial class MainWindow : Window
     private void ImportClick(object sender, RoutedEventArgs e)
     {
         var menu = new ContextMenu();
-        var files = new MenuItem { Header = "Choose files…" };
+        var files = new MenuItem { Header = Localization.T("Choose files…") };
         files.Click += async (_, _) => await ImportFiles();
-        var folder = new MenuItem { Header = "Choose a folder…" };
+        var folder = new MenuItem { Header = Localization.T("Choose a folder…") };
         folder.Click += async (_, _) => await ImportFolder();
         menu.Items.Add(files);
         menu.Items.Add(folder);
@@ -221,7 +265,7 @@ public partial class MainWindow : Window
 
     private async Task ImportFolder()
     {
-        var picker = new OpenFolderDialog { Title = "Choose a folder of music", Multiselect = false };
+        var picker = new OpenFolderDialog { Title = Localization.T("Choose a folder of music"), Multiselect = false };
         if (picker.ShowDialog() != true) return;
         string[] found;
         try { found = Directory.EnumerateFiles(picker.FolderName, "*", SearchOption.AllDirectories).ToArray(); }
@@ -232,7 +276,7 @@ public partial class MainWindow : Window
             .Where(path => AudioExtensions.Contains(System.IO.Path.GetExtension(path).ToLowerInvariant()))
             .Where(path => { try { var length = new FileInfo(path).Length; return length > 0 && length <= 209715200; } catch { return false; } })
             .ToArray();
-        if (usable.Length == 0) { Notify("No music files in that folder."); return; }
+        if (usable.Length == 0) { Notify(Localization.T("No music files in that folder.")); return; }
         await ImportPaths(usable);
     }
 
@@ -240,9 +284,9 @@ public partial class MainWindow : Window
     {
         var list = paths.ToArray();
         try {
-            Notify($"Adding {list.Length} {(list.Length == 1 ? "file" : "files")}…");
+            Notify(Localization.T("Adding {count}…", new Dictionary<string, string> { ["count"] = $"{list.Length} {(list.Length == 1 ? Localization.T("file") : Localization.T("files"))}" }));
             int added = await repository.Import(list);
-            tracks = repository.Load(); Notify($"{added} tracks added; identical files skipped."); Refresh();
+            tracks = repository.Load(); Notify(Localization.T("{count} tracks added; identical files skipped.", new Dictionary<string, string> { ["count"] = added.ToString() })); Refresh();
         } catch (Exception error) { tracks = repository.Load(); Refresh(); Notify(error.Message); }
     }
     private void ArtworkPlayClick(object sender, MouseButtonEventArgs e) { if (sender is Border { Tag: Song song }) { PlayCollection(visible, song.Id); e.Handled = true; } }
@@ -259,7 +303,7 @@ public partial class MainWindow : Window
     {
         var player = new MediaPlayer();
         player.MediaEnded += (_, _) => { if (ReferenceEquals(active, player)) Advance(true); };
-        player.MediaFailed += (_, args) => { if (!ReferenceEquals(active, player)) return; playing = false; UpdatePlaybackLabels(); Notify("This file cannot be decoded: " + args.ErrorException.Message); };
+        player.MediaFailed += (_, args) => { if (!ReferenceEquals(active, player)) return; playing = false; UpdatePlaybackLabels(); Notify(Localization.T("This file cannot be decoded: {message}", new Dictionary<string, string> { ["message"] = args.ErrorException.Message })); };
         return player;
     }
     private void StartSong(int position, bool startPlaying, double restored)
@@ -378,7 +422,7 @@ public partial class MainWindow : Window
     {
         Iconography.Set(NowToggle, playing ? "pause" : "play", 22);
         Iconography.Set(MiniToggle, playing ? "pause" : "play", 18);
-        NowToggle.ToolTip = MiniToggle.ToolTip = playing ? "Pause" : "Play";
+        NowToggle.ToolTip = MiniToggle.ToolTip = Localization.T(playing ? "Pause" : "Play");
     }
     private void UpdateCurrent()
     {
@@ -416,12 +460,12 @@ public partial class MainWindow : Window
     private void SeekToSlider() { if (!ready) return; CancelFade(); active.Position = TimeSpan.FromSeconds(Seek.Value); }
     private void VolumeChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { if (!initialized) return; volume = e.NewValue; preferences = preferences with { Volume = volume }; preferencesDirty = true; if (outgoing == null) active.Volume = volume; }
     private void FavoriteClick(object sender, RoutedEventArgs e) { if (Current != null) Safe(() => Update(Current with { Favorite = !Current.Favorite })); }
-    private void ShuffleClick(object sender, RoutedEventArgs e) { if (Current == null) return; var id = Current.Id; queue = new[] { Current }.Concat(queue.Where(s => s.Id != id).OrderBy(_ => Random.Shared.Next())).ToList(); index = 0; CancelFade(); PrepareNext(); Notify("Upcoming songs shuffled."); }
+    private void ShuffleClick(object sender, RoutedEventArgs e) { if (Current == null) return; var id = Current.Id; queue = new[] { Current }.Concat(queue.Where(s => s.Id != id).OrderBy(_ => Random.Shared.Next())).ToList(); index = 0; CancelFade(); PrepareNext(); Notify(Localization.T("Upcoming songs shuffled.")); }
     private void RepeatClick(object sender, RoutedEventArgs e) { repeat = repeat == "off" ? "all" : repeat == "all" ? "one" : "off"; UpdateRepeat(); PrepareNext(); }
     /// <summary>Repeat is a state, so the button says which one it is in.</summary>
     private void UpdateRepeat()
     {
-        RepeatButton.ToolTip = "Repeat: " + repeat;
+        RepeatButton.ToolTip = Localization.T("Repeat: " + repeat);
         var icon = Iconography.Draw("repeat", 20);
         if (repeat == "one") {
             var stack = new Grid();
@@ -449,7 +493,7 @@ public partial class MainWindow : Window
         if (lookingUp) return; lookingUp = true;
         try { string text = await client.Find(song); var latest = tracks.Find(s => s.Id == song.Id);
             if (latest != null && latest.Title == song.Title && latest.Artist == song.Artist && latest.Lyrics.Length == 0) Update(latest with { Lyrics = text, CheckedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() });
-            Notify(text.Length == 0 ? "No matching lyrics." : "Lyrics saved for offline listening.");
+            Notify(Localization.T(text.Length == 0 ? "No matching lyrics." : "Lyrics saved for offline listening."));
         } catch (Exception error) { Notify(error.Message); } finally { lookingUp = false; }
     }
     private void RenderLyrics()

@@ -21,7 +21,8 @@ function OrderRow({
   onMove: (direction: -1 | 1) => void;
 }) {
   const controls = useDragControls(),
-    animation = useWaveMotion();
+    animation = useWaveMotion(),
+    t = useT();
   return (
     <Reorder.Item
       value={track.id}
@@ -34,7 +35,7 @@ function OrderRow({
       <button
         className="icon-button drag-handle"
         disabled={busy}
-        aria-label={`Drag ${track.title} to reorder`}
+        aria-label={t('Drag {title} to reorder', { title: track.title })}
         onPointerDown={(event) => {
           if (!busy) controls.start(event);
         }}
@@ -55,7 +56,7 @@ function OrderRow({
       <button
         className="icon-button"
         disabled={busy || index === 0}
-        aria-label={`Move ${track.title} up`}
+        aria-label={t('Move {title} up', { title: track.title })}
         onClick={() => onMove(-1)}
       >
         <ArrowUp size={18} />
@@ -63,7 +64,7 @@ function OrderRow({
       <button
         className="icon-button"
         disabled={busy || index === count - 1}
-        aria-label={`Move ${track.title} down`}
+        aria-label={t('Move {title} down', { title: track.title })}
         onClick={() => onMove(1)}
       >
         <ArrowDown size={18} />
@@ -94,8 +95,10 @@ export function ReorderSongs({
       onClose={onClose}
     >
       <p className="modal-description">
-        {name} · Drag the handle, use the arrow buttons, or press Alt + ↑ / ↓ on a handle. This
-        changes collection order, not your current queue or original files.
+        {name} ·{' '}
+        {t(
+          'Drag the handle, use the arrow buttons, or press Alt + ↑ / ↓ on a handle. This changes collection order, not your current queue or original files.',
+        )}
       </p>
       <Reorder.Group
         axis="y"
@@ -129,7 +132,7 @@ export function ReorderSongs({
       )}
       <div className="modal-actions">
         <button className="tonal-button" disabled={busy} onClick={onClose}>
-          Cancel
+          {t('Cancel')}
         </button>
         <button
           className="filled-button"
@@ -147,7 +150,7 @@ export function ReorderSongs({
           }}
         >
           <Save size={18} />
-          Save order
+          {t('Save order')}
         </button>
       </div>
     </Modal>

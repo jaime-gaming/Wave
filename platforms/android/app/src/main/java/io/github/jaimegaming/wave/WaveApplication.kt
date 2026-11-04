@@ -1,6 +1,7 @@
 package io.github.jaimegaming.wave
 
 import android.app.Application
+import io.github.jaimegaming.wave.ui.Loc
 
 /**
  * One library and one player for the whole process.
@@ -19,6 +20,9 @@ class WaveApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // The language follows the device until Settings pins it; every screen
+        // reads its sentences through Loc.t from here on.
+        Loc.init(this)
         library = Library(this)
         player = Player(this)
         player.volume = preferences().getInt("volume", 100) / 100f

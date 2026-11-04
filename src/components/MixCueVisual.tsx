@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
 import { Artwork } from './Artwork';
 import type { MixCue } from '../ui/mixCue';
+import { useT } from '../i18n';
 
 const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
 const smooth = (value: number) => {
@@ -54,14 +55,18 @@ export function MixCueVisual({
  * Reduced motion stops it on the first frame.
  */
 export function MixCueLabel({ cue }: { cue: MixCue }) {
+  const t = useT();
   return (
     <span
       className="mix-cue-label"
       role="status"
-      aria-label={`Mixing into ${cue.to.title} by ${cue.to.artist}`}
+      aria-label={t('Mixing into {title} by {artist}', {
+        title: cue.to.title,
+        artist: cue.to.artist,
+      })}
     >
       <span className="mix-cue-word" aria-hidden="true">
-        Mixing
+        {t('Mixing')}
       </span>
     </span>
   );

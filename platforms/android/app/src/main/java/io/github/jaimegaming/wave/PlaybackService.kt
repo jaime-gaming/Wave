@@ -20,6 +20,7 @@ import android.os.Build
 import android.os.IBinder
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
+import io.github.jaimegaming.wave.ui.Loc
 
 /**
  * Music that keeps playing when the screen goes off.
@@ -234,9 +235,9 @@ class PlaybackService : Service() {
             .setOnlyAlertOnce(true)
             .setShowWhen(false)
             .setVisibility(Notification.VISIBILITY_PUBLIC)
-            .addAction(toggle(1, "Previous", action(1, ACTION_PREVIOUS)))
-            .addAction(toggle(2, if (player?.playing == true) "Pause" else "Play", action(2, ACTION_TOGGLE)))
-            .addAction(toggle(3, "Next", action(3, ACTION_NEXT)))
+            .addAction(toggle(1, Loc.t("Previous"), action(1, ACTION_PREVIOUS)))
+            .addAction(toggle(2, Loc.t(if (player?.playing == true) "Pause" else "Play"), action(2, ACTION_TOGGLE)))
+            .addAction(toggle(3, Loc.t("Next"), action(3, ACTION_NEXT)))
             .setStyle(
                 Notification.MediaStyle()
                     .setMediaSession(session.sessionToken)
@@ -261,8 +262,8 @@ class PlaybackService : Service() {
     }
 
     private fun createChannel() {
-        val channel = NotificationChannel(CHANNEL, "Playback", NotificationManager.IMPORTANCE_LOW).apply {
-            description = "The song that is playing"
+        val channel = NotificationChannel(CHANNEL, Loc.t("Playback"), NotificationManager.IMPORTANCE_LOW).apply {
+            description = Loc.t("The song that is playing")
             setShowBadge(false)
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
         }
