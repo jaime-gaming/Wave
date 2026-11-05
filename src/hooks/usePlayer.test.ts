@@ -246,3 +246,15 @@ it('signals an actual repeat only after restarting a playing song', async () => 
   expect(result.current.repeatSerial).toBe(serial + 1);
   expect(result.current.state.playing).toBe(true);
 });
+
+it('pauses native playback immediately when an editor takes audio ownership', async () => {
+  const tracks = [makeTrack()];
+  const { result } = renderHook(() => usePlayer(tracks));
+  await act(async () => {
+    result.current.play(tracks, tracks[0].id);
+  });
+  const pause = vi.spyOn(element, 'pause');
+  act(() => result.current.pauseForPreview());
+  expect(pause).toHaveBeenCalled();
+  expect(result.current.state.playing).toBe(false);
+});

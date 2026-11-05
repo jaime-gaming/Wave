@@ -12,12 +12,18 @@ export function AudioTrimEditor({
   onChange,
   value,
   onPreview,
+  volume = 1,
 }: {
   onPreview?: () => void;
+  volume?: number;
   value?: { start: number; end: number } | null;
   track: Track;
   onChange: (bounds: { start: number; end: number }) => void;
 }) {
+  const previewOwner = useRef(onPreview);
+  useEffect(() => {
+    if (track.blob && track.duration) previewOwner.current?.();
+  }, [track.blob, track.duration]);
   const [peaks, setPeaks] = useState<number[]>([]);
   const [unavailable, setUnavailable] = useState(false);
   const [start, setStart] = useState(
@@ -50,11 +56,16 @@ export function AudioTrimEditor({
     [],
   );
   const audio = useRef<HTMLAudioElement>(null);
+  useEffect(() => {
+    if (audio.current)
+      audio.current.volume = Number.isFinite(volume) ? Math.max(0, Math.min(1, volume)) : 1;
+  }, [volume]);
   const [previewEnd, setPreviewEnd] = useState<number | null>(null);
   useEffect(() => {
     if (!track.blob) return;
     const objectUrl = URL.createObjectURL(track.blob);
-    if (audio.current) audio.current.src = objectUrl;
+    const element = audio.current;
+    if (element) element.src = objectUrl;
     let cancelled = false;
     const tooLarge = track.blob.size > MAX_ANALYSIS_BYTES || track.duration > MAX_ANALYSIS_SECONDS;
     const context = !tooLarge && typeof AudioContext !== 'undefined' ? new AudioContext() : null;
@@ -91,6 +102,9 @@ export function AudioTrimEditor({
       });
     return () => {
       cancelled = true;
+      element?.pause();
+      element?.removeAttribute('src');
+      element?.load();
       URL.revokeObjectURL(objectUrl);
       void context?.close().catch(() => {});
     };

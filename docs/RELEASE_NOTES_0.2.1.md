@@ -9,7 +9,7 @@ Release date: 5 November 2026.
 - AutoPlay queues its continuation early enough for the next transition to prepare.
 - Silence review opens an audio preview with the real decoded waveform, editable start/end bounds and separate previews of the removed edges. Edit song opens a dedicated themed trim submenu, with draggable edges, keyboard adjustments and hold-to-zoom. Original files remain unchanged.
 - Custom YouTube clips no longer use an invalid nested form. Links without a URL scheme and bare video IDs work; timestamps are preserved.
-- Remix leads with three highlights — listening time, top artist and top song — each with its own animated detail menu.
+- Web Remix uses a responsive three-card grid with artist artwork and the top song cover. Each detail menu opens directly inside its card. Explore up to 52 weeks of retained history with complete statistics/rankings and correctly dated saved playlists.
 - Home recommendations balance favourites, artist affinity, daily discovery and recently played songs. Daily Mixes prioritise familiar artists while preserving coherent groups and show layered sleeves.
 - Library imports publish tracks in batches with live file/progress feedback, without interrupting playback.
 - Word-level lyric search tries several recording matches, has bounded timeouts, preserves word timestamps when saved and can upgrade the current LRCLIB lyric when opted in.
@@ -32,6 +32,14 @@ Release date: 5 November 2026.
 - A deliberately rare, dismissible feature-opinion card stores only local structured answers, with a long cooldown and opt-out. Nothing is transmitted or used for automatic changes.
 - Bring your playlists now tries public Spotify/YouTube URLs through the same-origin Worker before falling back to export files. Public lists can be partial; matching and confirmation remain local, with no audio download.
 - Cloudflare Workers owns production hosting and the bounded metadata endpoint. Remove the old compiled `docs/` mirror and its CI drift check; validate the actual Worker bundle with `deploy:check` instead. Documentation and six web screenshots are refreshed.
+
+## Release-candidate polish
+
+- Opening Trim audio synchronously pauses the main native deck and pauses the playback state (including embeds). Preview volume follows the master; closing/back navigation stops and detaches the preview. Main playback stays paused until explicitly resumed.
+- Daily Mixes are limited to three concurrent generated mixes and twenty songs each on web, Android and Windows. Add web/native contract coverage; saved playlists remain normal independent snapshots.
+- Restore a consistent image geometry, separate editor menu titles from subtitles, and improve ranked song/artist rows. Android shared song and Daily Mix rows have more space; Windows song rows keep fixed sleeves, separated credits, bounded album columns and matching drawn placeholders.
+- Improve the local opinion card with a privacy heading, distinct icon-led response choices, a clearer dismissal footer and Escape handling. Frequency, storage and opt-out remain local-only and unchanged.
+- Refresh eight web screenshots, including expanded Remix and feedback. Native screenshots/build verification still require the native CI runners and device review.
 
 ## Devices
 

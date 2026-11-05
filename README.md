@@ -194,3 +194,11 @@ The expanded player simplifies after **30 seconds** without interaction, includi
 A feature-opinion prompt is optional and deliberately rare: only after sustained use, with a long cooldown. Answers stay in your browser, are never sent anywhere, and do not change playback. “Do not ask again” opts out.
 
 Android polish in this source includes less bouncy press feedback, animated navigation tint/indicators and a short artwork reveal decoded off the UI thread. Native compilation and real-device inspection remain necessary; web screenshots are not Android verification.
+
+### Release-candidate polish
+
+Remix on the web is a responsive three-card grid with a saved artist portrait (or local sleeve fallback), the top song's cover and listening time. Details open inside their own card. Explore up to 52 weeks of retained history with full charts and rankings; older playlists contain that week's songs, not tracks borrowed from later weeks. The history window does not restore records already removed by retention limits.
+
+Entering **Trim audio** pauses the main player. The editor alone owns the preview, follows the master volume and stops when closed; it never resumes the main song automatically or rewrites original audio. Daily Mix generation is bounded on web, Android and Windows: **at most three mixes, each at most twenty songs**. Explicitly saved playlists remain independent snapshots.
+
+The local-only opinion card now has clearer response choices, dismiss/opt-out actions and keyboard dismissal. The web gallery includes [Remix details](docs/media/remix-details-desktop.png) and [the opinion card](docs/media/feedback-desktop.png). Shared song rows have more deliberate title/subtitle spacing; native source changes still need device validation before release.

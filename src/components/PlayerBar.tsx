@@ -472,7 +472,7 @@ export function PlayerBar(props: PlayerProps) {
           text={player.silenceNotice?.text ?? null}
           track={player.current ?? undefined}
           onTrim={player.trimSilence}
-          onPreview={() => player.dispatch({ type: 'pause' })}
+          onPreview={player.pauseForPreview}
           onRemove={player.removeSilence}
           onKeep={player.keepSilence}
         />
@@ -758,7 +758,7 @@ export function PlayerBar(props: PlayerProps) {
               text={player.silenceNotice?.text ?? null}
               track={player.current ?? undefined}
               onTrim={player.trimSilence}
-              onPreview={() => player.dispatch({ type: 'pause' })}
+              onPreview={player.pauseForPreview}
               onRemove={player.removeSilence}
               onKeep={player.keepSilence}
             />

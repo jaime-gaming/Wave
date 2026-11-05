@@ -718,6 +718,22 @@ object Loc {
             "Paste a public Spotify or YouTube link, a song list, or choose an exported file." to "Pega un enlace público de Spotify o YouTube, una lista de canciones o elige un archivo exportado.",
             "Reading a URL sends that link to the Wave Worker and its provider for public metadata only. No audio or library is uploaded. Private lists need an export." to "Al leer una URL se envía el enlace al Worker de Wave y a su proveedor, sólo para obtener datos públicos. No se sube audio ni tu biblioteca. Las listas privadas necesitan una exportación.",
             "Only the publicly visible songs could be read. The list may be incomplete; review before saving. No audio was downloaded." to "Sólo se pudieron leer las canciones visibles públicamente. La lista puede estar incompleta; revísala antes de guardar. No se ha descargado audio.",
+            "Selected week" to "Semana seleccionada",
+            "Explore a week" to "Explorar una semana",
+            "Explore week" to "Explorar semana",
+            "Show more weeks" to "Mostrar más semanas",
+            "Private feedback" to "Opinión privada",
+            "Not now" to "Ahora no",
+            "played in this week." to "escuchadas en esta semana.",
+            "played this week." to "escuchadas esta semana.",
+            "Listening time" to "Tiempo de escucha",
+            "Top artist" to "Artista más escuchado",
+            "Top song" to "Canción más escuchada",
+            "play" to "reproducción",
+            "plays" to "reproducciones",
+            "song" to "canción",
+            "artist" to "artista",
+            "Saved from Remix for {date}." to "Guardada desde Remix para el {date}.",
         )
 
     /** What the person chose: "system", "en" or "es". */

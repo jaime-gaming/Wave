@@ -191,6 +191,7 @@ await seedDemoLibrary(seed);
 await seed.close();
 
 const shot = async (page: Page, name: string) => {
+  await page.locator('.boot-screen').waitFor({ state: 'hidden' });
   await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(700);
   await page.screenshot({ path: path.join(output, name) });
@@ -206,6 +207,10 @@ await shot(home, 'home-desktop.png');
 await home.getByRole('button', { name: 'Remix', exact: true }).click();
 await home.waitForTimeout(900);
 await shot(home, 'remix-desktop.png');
+await home.getByRole('button', { name: /Listening time/ }).click();
+await home.setViewportSize({ width: 1440, height: 1100 });
+await shot(home, 'remix-details-desktop.png');
+await home.setViewportSize({ width: 1440, height: 900 });
 await home.getByRole('button', { name: 'Home', exact: true }).click();
 await home.waitForTimeout(600);
 
@@ -297,6 +302,22 @@ if (process.env.WAVE_REVIEW) {
     await shot(mobile, `review-${width}.png`);
   }
 }
+
+// Demo-only eligibility seeding: production has no manual feedback trigger.
+const feedback = await context.newPage();
+await feedback.goto(origin);
+await feedback.getByRole('heading', { name: 'Your collection' }).waitFor();
+await feedback.evaluate(() => {
+  localStorage.setItem(
+    'wave-local-feature-feedback-v1',
+    JSON.stringify({ firstSeen: Date.now() - 8 * 86_400_000, nextAt: 0, uses: 12, ratings: [] }),
+  );
+  Math.random = () => 0;
+  window.dispatchEvent(new CustomEvent('wave:feature-used', { detail: 'Remix' }));
+});
+await feedback.getByRole('dialog', { name: 'A moment for your opinion' }).waitFor();
+await shot(feedback, 'feedback-desktop.png');
+await feedback.close();
 
 await mobileContext.close();
 await context.close();

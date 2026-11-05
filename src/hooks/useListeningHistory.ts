@@ -164,10 +164,10 @@ export function useListeningHistory({
     () => weeklyRecap(plays, tracks, Math.max(today, 0)),
     [plays, tracks, today],
   );
-  // Four weeks, newest first: Remix keeps the weeks before this one instead of
+  // Up to a year, newest first: Remix keeps the weeks before this one instead of
   // forgetting them every Monday.
   const history = useMemo(
-    () => weeklyRecaps(plays, tracks, Math.max(today, 0)),
+    () => weeklyRecaps(plays, tracks, Math.max(today, 0), 52),
     [plays, tracks, today],
   );
   return { plays, summary, recap, history, loaded, forget };

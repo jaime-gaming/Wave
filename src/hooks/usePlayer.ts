@@ -852,7 +852,13 @@ export function usePlayer(tracks: Track[], libraryReady = true, silenceStore?: S
     for (const track of tracks) if (track.blob) engine.current?.setBounds(track.blob, track.trim);
   }, [tracks]);
 
+  const pauseForPreview = useCallback(() => {
+    // Stop native decks synchronously, before a preview can start playing.
+    engine.current?.pause();
+    dispatch({ type: 'pause' });
+  }, []);
   return {
+    pauseForPreview,
     breakOpen,
     repeatSerial,
     keepListening,

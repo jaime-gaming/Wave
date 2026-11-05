@@ -137,7 +137,7 @@ export function dailyMixes(
         b.tracks.length - a.tracks.length ||
         a.id.localeCompare(b.id),
     )
-    .slice(0, 4)
+    .slice(0, 3)
     .map((group) => {
       const bpmOf = (track: Track) => features[track.id]?.bpm;
       const energyOf = (track: Track) => features[track.id]?.energy ?? 0;
@@ -151,7 +151,7 @@ export function dailyMixes(
           (a, b) => (bpmOf(a) ?? 0) - (bpmOf(b) ?? 0) || energyOf(a) - energyOf(b),
         );
       }
-      ordered = spreadArtists(ordered).slice(0, 40);
+      ordered = spreadArtists(ordered).slice(0, 20);
 
       const enoughMeasured = measured >= Math.ceil(ordered.length / 2);
       const bpms = enoughMeasured

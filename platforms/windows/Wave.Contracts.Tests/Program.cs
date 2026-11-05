@@ -82,3 +82,7 @@ Localization.Init("en");
 Check(Localization.T("Play") == "Play", "the English choice keeps the original wording");
 Check(Localization.T("A line nobody translated") == "A line nobody translated", "an unknown line falls back to itself");
 Localization.Init("system");
+
+var crowdedMixes = Enumerable.Range(0, 5).SelectMany(g => Enumerable.Range(0, 35).Select(i => a with { Id = $"mix-{g}-{i}", Genre = $"Style {g}" }));
+var boundedMixes = NativeCollections.DailyMixes(crowdedMixes, new DateOnly(2026, 11, 6));
+Check(boundedMixes.Count == 3 && boundedMixes.All(mix => mix.Songs.Count == 20), "daily mixes are capped at three lists and twenty songs");

@@ -6,9 +6,19 @@ test.beforeEach(async ({ page }) => {
     localStorage.setItem('wave-animations-enabled', 'false');
     localStorage.setItem('wave-editor-enabled', 'true');
     localStorage.setItem('wave-automatic-lyrics', 'false');
+    const Native = window.Audio;
+    const sources: HTMLAudioElement[] = [];
+    Object.defineProperty(window, '__trimSources', { value: sources });
+    window.Audio = class extends Native {
+      constructor(src?: string) {
+        super(src);
+        sources.push(this);
+      }
+    };
   });
   await page.route('https://lrclib.net/**', (route) => route.abort());
   await page.goto('/Library');
+  await expect(page.getByLabel('Import audio files')).toBeEnabled();
   await page
     .getByLabel('Import audio files')
     .setInputFiles({ name: 'Signal.wav', mimeType: 'audio/wav', buffer: wav('Signal', 30) });
@@ -107,3 +117,43 @@ for (const width of [360, 1280]) {
     );
   });
 }
+
+test('Trim owns the audio while editing and releases its preview on close', async ({ page }) => {
+  await page.getByRole('button', { name: 'Play Signal by Wave Tests' }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        (window as unknown as { __trimSources: HTMLAudioElement[] }).__trimSources.some(
+          (audio) => !audio.paused,
+        ),
+      ),
+    )
+    .toBe(true);
+  await page.getByRole('button', { name: 'Options for Signal' }).click();
+  await page.getByRole('button', { name: 'Edit song', exact: true }).click();
+  await page.getByRole('button', { name: /Trim audio/ }).click();
+  const trim = page.getByRole('dialog', { name: 'Trim audio', exact: true });
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        (window as unknown as { __trimSources: HTMLAudioElement[] }).__trimSources.every(
+          (audio) => audio.paused,
+        ),
+      ),
+    )
+    .toBe(true);
+  await trim.getByRole('button', { name: 'Listen to selection' }).click();
+  await expect
+    .poll(() => trim.locator('audio').evaluate((audio: HTMLAudioElement) => audio.paused))
+    .toBe(false);
+  const preview = await trim.locator('audio').elementHandle();
+  await trim.getByRole('button', { name: 'Close dialog' }).click();
+  await expect.poll(() => preview!.evaluate((audio: HTMLAudioElement) => audio.paused)).toBe(true);
+  expect(
+    await page.evaluate(() =>
+      (window as unknown as { __trimSources: HTMLAudioElement[] }).__trimSources.every(
+        (audio) => audio.paused,
+      ),
+    ),
+  ).toBe(true);
+});

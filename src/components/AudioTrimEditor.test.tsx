@@ -41,3 +41,17 @@ it('zooms on a held edge and resets on release without native controls', async (
   unmount();
   vi.useRealTimers();
 });
+
+it('takes audio ownership on entry and stops its preview when leaving', () => {
+  const pauseMain = vi.fn();
+  const { container, unmount } = render(
+    <AudioTrimEditor track={makeTrack()} onChange={vi.fn()} onPreview={pauseMain} volume={0.35} />,
+  );
+  const audio = container.querySelector('audio')!;
+  const pausePreview = vi.spyOn(audio, 'pause');
+  expect(pauseMain).toHaveBeenCalledOnce();
+  expect(audio.volume).toBe(0.35);
+  unmount();
+  expect(pausePreview).toHaveBeenCalledOnce();
+  expect(audio.hasAttribute('src')).toBe(false);
+});

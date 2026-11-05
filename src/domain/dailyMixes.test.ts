@@ -36,8 +36,8 @@ it('caps results, does not mutate originals, deduplicates IDs and uses local cal
   const many = Array.from({ length: 60 }, (_, i) => makeTrack({ id: String(i), genres: ['Rock'] }));
   const ids = many.map((t) => t.id);
   const result = dailyMixes([...many, many[0]], '2026-10-15');
-  expect(result[0].tracks).toHaveLength(40);
-  expect(new Set(result[0].tracks.map((t) => t.id)).size).toBe(40);
+  expect(result[0].tracks).toHaveLength(20);
+  expect(new Set(result[0].tracks.map((t) => t.id)).size).toBe(20);
   expect(many.map((t) => t.id)).toEqual(ids);
   expect(localDayKey(new Date(2026, 9, 5, 23, 59))).toBe('2026-10-05');
 });
@@ -76,4 +76,18 @@ it('does not turn punctuation-only artist tags into a daily mix', () => {
     makeTrack({ id: String(i), artist, genres: undefined }),
   );
   expect(dailyMixes(source, '2026-10-15')).toEqual([]);
+});
+
+it('offers at most three simultaneous mixes with no more than twenty songs each', () => {
+  const source = Array.from({ length: 5 }, (_, genre) =>
+    Array.from({ length: 35 }, (_, index) =>
+      makeTrack({ id: `${genre}-${index}`, genres: [`Style ${genre}`] }),
+    ),
+  ).flat();
+  const result = dailyMixes(source, '2026-11-06');
+  expect(result).toHaveLength(3);
+  expect(result.every((mix) => mix.tracks.length === 20)).toBe(true);
+  expect(result.every((mix) => new Set(mix.tracks.map((track) => track.id)).size === 20)).toBe(
+    true,
+  );
 });

@@ -714,6 +714,22 @@ public static partial class Localization {
             ["Paste a public Spotify or YouTube link, a song list, or choose an exported file."] = "Pega un enlace público de Spotify o YouTube, una lista de canciones o elige un archivo exportado.",
             ["Reading a URL sends that link to the Wave Worker and its provider for public metadata only. No audio or library is uploaded. Private lists need an export."] = "Al leer una URL se envía el enlace al Worker de Wave y a su proveedor, sólo para obtener datos públicos. No se sube audio ni tu biblioteca. Las listas privadas necesitan una exportación.",
             ["Only the publicly visible songs could be read. The list may be incomplete; review before saving. No audio was downloaded."] = "Sólo se pudieron leer las canciones visibles públicamente. La lista puede estar incompleta; revísala antes de guardar. No se ha descargado audio.",
+            ["Selected week"] = "Semana seleccionada",
+            ["Explore a week"] = "Explorar una semana",
+            ["Explore week"] = "Explorar semana",
+            ["Show more weeks"] = "Mostrar más semanas",
+            ["Private feedback"] = "Opinión privada",
+            ["Not now"] = "Ahora no",
+            ["played in this week."] = "escuchadas en esta semana.",
+            ["played this week."] = "escuchadas esta semana.",
+            ["Listening time"] = "Tiempo de escucha",
+            ["Top artist"] = "Artista más escuchado",
+            ["Top song"] = "Canción más escuchada",
+            ["play"] = "reproducción",
+            ["plays"] = "reproducciones",
+            ["song"] = "canción",
+            ["artist"] = "artista",
+            ["Saved from Remix for {date}."] = "Guardada desde Remix para el {date}.",
         };
 
     /// <summary>What the person chose: "system", "en" or "es".</summary>

@@ -57,7 +57,7 @@ describe('the Remix page', () => {
     await user.click(screen.getByRole('button', { name: /Play Remix/i }));
     expect(props.onPlay).toHaveBeenCalledWith(recap.mix, recap.mix[0].id);
     await user.click(screen.getByRole('button', { name: /Save as playlist/i }));
-    expect(props.onSave).toHaveBeenCalledWith(recap.mix);
+    expect(props.onSave).toHaveBeenCalledWith(recap.mix, recap);
     // The most played song leads the list, and its count is shown as a fact.
     expect(screen.getAllByText('2×').length).toBe(1);
   });
@@ -172,4 +172,48 @@ describe('the weeks before', () => {
     const section = screen.getByRole('region', { name: 'Weeks before this one' });
     expect(within(section).getAllByText('A quiet week').length).toBeGreaterThan(0);
   });
+});
+
+it('keeps details under their own card and displays saved artist and song images', async () => {
+  const photo = 'data:image/png;base64,artist';
+  const artwork = 'data:image/png;base64,song';
+  const richRecap = {
+    ...recap,
+    topTracks: [
+      { ...recap.topTracks[0], track: { ...signal, artwork } },
+      ...recap.topTracks.slice(1),
+    ],
+  };
+  const { container } = render(
+    <RemixPage {...props} recap={richRecap} artistPhotos={new Map([['Wave Tests', photo]])} />,
+  );
+  expect(container.querySelector('.remix-highlight-artist img')).toHaveAttribute('src', photo);
+  expect(container.querySelector('.remix-highlight-song img')).toHaveAttribute('src', artwork);
+  await userEvent.click(screen.getByRole('button', { name: /Top song/ }));
+  const button = screen.getByRole('button', { name: /Top song/ });
+  expect(button.parentElement?.querySelector('#remix-song-panel')).toBeInTheDocument();
+  expect(
+    container
+      .querySelector('.remix-highlight-time')
+      ?.parentElement?.querySelector('#remix-song-panel'),
+  ).toBeNull();
+});
+
+it('explores an earlier week with its full chart, artists and songs', async () => {
+  const olderPlays = [...plays, makePlay('later', now - 10 * 86_400_000, 190, true)];
+  const weeks = weeklyRecaps(olderPlays, tracks, now, 12);
+  render(<RemixPage {...props} history={weeks} />);
+  await userEvent.selectOptions(
+    screen.getByRole('combobox', { name: 'Explore a week' }),
+    String(weeks[1].start),
+  );
+  await userEvent.click(screen.getByRole('button', { name: /Listening time/ }));
+  expect(screen.getByText('1 play · 1 song · 1 artist')).toBeInTheDocument();
+  expect(screen.getByRole('region', { name: 'Listening per day' })).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: /Top song/ }));
+  expect(
+    await screen.findByRole('button', { name: /1.*Later still.*Wave Tests.*1 play/ }),
+  ).toBeInTheDocument();
+  expect(screen.getAllByRole('option')).toHaveLength(12);
+  expect(screen.getByRole('region', { name: 'Your Remix' })).not.toHaveTextContent('Signal');
 });

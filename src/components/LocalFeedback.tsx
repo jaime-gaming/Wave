@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Info, X } from './Glyphs';
+import { Check, ShieldCheck, SlidersHorizontal, X } from './Glyphs';
 import { useT } from '../i18n';
+import { motion } from 'motion/react';
+import { useWaveMotion } from '../ui/motion';
 
 import { FEEDBACK_KEY, feedbackEligible, type RecordState } from '../ui/localFeedback';
 const DAY = 86_400_000;
@@ -33,6 +35,7 @@ function write(value: RecordState): boolean {
 /** Occasional reflection, never a survey service. No network request or analytics. */
 export function LocalFeedback() {
   const t = useT();
+  const animation = useWaveMotion();
   const [feature, setFeature] = useState<string | null>(null);
   const [thanks, setThanks] = useState(false);
   useEffect(() => {
@@ -78,7 +81,16 @@ export function LocalFeedback() {
     setFeature(null);
   };
   return (
-    <aside
+    <motion.aside
+      initial={animation.enabled ? { opacity: 0, y: 12 } : false}
+      animate={{ opacity: 1, y: 0 }}
+      transition={animation.effects}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') {
+          event.stopPropagation();
+          close();
+        }
+      }}
       className="local-feedback"
       role="dialog"
       aria-label={t('A moment for your opinion')}
@@ -92,7 +104,12 @@ export function LocalFeedback() {
       >
         <X size={18} />
       </button>
-      <Info size={20} aria-hidden="true" />
+      <div className="feedback-heading">
+        <span className="feedback-symbol">
+          <ShieldCheck size={22} aria-hidden="true" />
+        </span>
+        <span>{t('Private feedback')}</span>
+      </div>
       {thanks ? (
         <p role="status">{t('Saved on this device. Thank you for taking a moment.')}</p>
       ) : (
@@ -107,7 +124,7 @@ export function LocalFeedback() {
             {[true, false].map((helpful) => (
               <button
                 key={String(helpful)}
-                className="tonal-button"
+                className="feedback-choice"
                 onClick={() => {
                   const record = read(Date.now());
                   record.ratings = [
@@ -118,15 +135,25 @@ export function LocalFeedback() {
                   else close();
                 }}
               >
-                {helpful ? t('Works well') : t('Needs work')}
+                {helpful ? (
+                  <Check size={22} aria-hidden="true" />
+                ) : (
+                  <SlidersHorizontal size={22} aria-hidden="true" />
+                )}
+                <span>{helpful ? t('Works well') : t('Needs work')}</span>
               </button>
             ))}
           </div>
-          <button className="text-button" onClick={() => close(true)}>
-            {t('Do not ask again')}
-          </button>
+          <div className="feedback-footer">
+            <button className="text-button" onClick={() => close()}>
+              {t('Not now')}
+            </button>
+            <button className="text-button" onClick={() => close(true)}>
+              {t('Do not ask again')}
+            </button>
+          </div>
         </>
       )}
-    </aside>
+    </motion.aside>
   );
 }

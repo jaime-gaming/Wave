@@ -1135,6 +1135,8 @@ function WaveApp({
               <RemixPage
                 summary={listening.summary}
                 recap={listening.recap}
+                artists={artists}
+                artistPhotos={artistPhotos}
                 history={listening.history}
                 loaded={listening.loaded}
                 currentId={player.current?.id}
@@ -1143,16 +1145,19 @@ function WaveApp({
                 onArtist={openArtist}
                 onAdd={openAddMusic}
                 onManageHistory={() => openSettings('storage')}
-                onSave={async (songs) => {
+                onSave={async (songs, week) => {
                   // Saving is explicit: the list becomes an ordinary playlist and
                   // nothing about the history changes.
                   const saved = await collections.create(
                     {
-                      name: `Remix · ${new Date().toLocaleDateString(undefined, {
+                      name: `Remix · ${new Date(week.end).toLocaleDateString(undefined, {
                         day: 'numeric',
                         month: 'short',
+                        year: 'numeric',
                       })}`.slice(0, 100),
-                      description: t('Saved from Remix, the songs you played most this week.'),
+                      description: t('Saved from Remix for {date}.', {
+                        date: new Date(week.end).toLocaleDateString(),
+                      }),
                     },
                     songs.map((track) => track.id),
                   );
@@ -1687,7 +1692,8 @@ function WaveApp({
             onRestore={library.restoreMetadata}
             onRestoreSilence={(id) => library.silence(id, 'restore')}
             onTrim={(bounds) => library.silence(editingTrack.id, 'trim', bounds)}
-            onPreview={() => dispatch({ type: 'pause' })}
+            onPreview={player.pauseForPreview}
+            previewVolume={player.volume}
           />
         )}
         {playlistForm && (

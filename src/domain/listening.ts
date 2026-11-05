@@ -444,7 +444,7 @@ export function weeklyRecap(
   // The week first, then whatever is still worth hearing from before it, until
   // the list is long enough to be a playlist rather than a footnote.
   const mix: Track[] = ranked.map((entry) => entry.track);
-  if (mix.length < REMIX_LENGTH) {
+  if (mix.length < REMIX_LENGTH && weeksAgo === 0) {
     const seen = new Set(mix.map((track) => track.id));
     const allTime = listeningSummary(plays, tracks, now).topTracks;
     for (const entry of allTime) {

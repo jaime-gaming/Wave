@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { AudioLines, Disc3, Play, Users, Music2, ChevronDown } from './Glyphs';
+import { ArtistPortrait } from './Artists';
+import type { ArtistGroup } from '../domain/collections';
 import { Artwork } from './Artwork';
 import { EmptyState } from './EmptyState';
 import { useWaveMotion } from '../ui/motion';
@@ -57,8 +59,10 @@ const dayNumber = (at: number) => new Date(at).getDate();
 /** A seven-day listening recap and a playable selection, made on this device. */
 export function RemixPage({
   summary,
-  recap,
+  recap: currentRecap,
   history,
+  artists = [],
+  artistPhotos,
   loaded,
   currentId,
   playing,
@@ -72,6 +76,8 @@ export function RemixPage({
   summary: ListeningSummary;
   /** The week and its Remix list, built where the plays and the library both are. */
   recap: WeekRecap;
+  artists?: ArtistGroup[];
+  artistPhotos?: Map<string, string | undefined>;
   /** This week and the three before it, newest first. */
   history: WeekRecap[];
   loaded: boolean;
@@ -79,7 +85,7 @@ export function RemixPage({
   playing: boolean;
   onPlay: (tracks: Track[], id: string) => void;
   onArtist: (name: string) => void;
-  onSave: (tracks: Track[]) => Promise<boolean> | boolean;
+  onSave: (tracks: Track[], week: WeekRecap) => Promise<boolean> | boolean;
   onClear: () => Promise<void> | void;
   onAdd: () => void;
   /** Opens Settings on the section that shows what Wave keeps on this device. */
@@ -89,6 +95,23 @@ export function RemixPage({
   const animation = useWaveMotion();
   const heading = useRef<HTMLHeadingElement>(null);
   const [section, setSection] = useState<'time' | 'artist' | 'song' | null>(null);
+  const [selectedWeek, setSelectedWeek] = useState<number | null>(null);
+  const [visibleWeeks, setVisibleWeeks] = useState(4);
+  const recap = history.find((week) => week.start === selectedWeek) ?? currentRecap;
+  const historical = recap.start !== currentRecap.start;
+  const portrait = (name: string) => (
+    <ArtistPortrait
+      artist={
+        artists.find((artist) => artist.name === name) ?? {
+          name,
+          tracks: [],
+          albums: [],
+          duration: 0,
+        }
+      }
+      photo={artistPhotos?.get(name)}
+    />
+  );
   const [confirming, setConfirming] = useState(false);
   const [saving, setSaving] = useState(false);
   const [hoveredDay, setHoveredDay] = useState<number | null>(null);
@@ -118,7 +141,7 @@ export function RemixPage({
       </div>
     );
 
-  const hero = recap.mix;
+  const hero = recap.plays ? recap.mix : [];
   const delta = recap.seconds - recap.previousSeconds;
   const peak = Math.max(1, ...recap.days.map((day) => day.seconds));
   const busiestDay = [...recap.days].sort((a, b) => b.seconds - a.seconds)[0];
@@ -156,10 +179,34 @@ export function RemixPage({
         )}
       </header>
 
+      <label className="remix-week-select form-field">
+        {t('Explore a week')}
+        <select
+          value={recap.start}
+          onChange={(event) => {
+            setSelectedWeek(Number(event.target.value));
+            setSection(null);
+            setHoveredDay(null);
+          }}
+        >
+          {history.map((week, index) => (
+            <option key={week.start} value={week.start}>
+              {index === 0 ? t('This week') + ' · ' : ''}
+              {weekRange(week.start, week.end)} · {new Date(week.end).getFullYear()} · {week.plays}{' '}
+              {t(week.plays === 1 ? 'play' : 'plays')}
+            </option>
+          ))}
+        </select>
+      </label>
       <div className="remix-highlights">
         {(
           [
-            { id: 'time', label: 'Listening time', value: seconds, hint: 'This week' },
+            {
+              id: 'time',
+              label: 'Listening time',
+              value: seconds,
+              hint: historical ? t('Selected week') : t('This week'),
+            },
             {
               id: 'artist',
               label: 'Top artist',
@@ -174,155 +221,180 @@ export function RemixPage({
             },
           ] as const
         ).map((card) => (
-          <motion.button
-            type="button"
-            key={card.id}
-            className={`remix-highlight remix-highlight-${card.id}`}
-            aria-expanded={section === card.id}
-            aria-controls={`remix-${card.id}-panel`}
-            onClick={() => {
-              setSection(section === card.id ? null : card.id);
-              window.dispatchEvent(new CustomEvent('wave:feature-used', { detail: 'Remix' }));
-            }}
-            initial={false}
-            animate={{ opacity: 1, y: 0 }}
-            transition={animation.fast}
-            whileTap={animation.enabled ? { scale: 0.98 } : undefined}
-          >
-            <span className="remix-highlight-label">
-              {card.id === 'time' ? (
-                <AudioLines size={20} />
-              ) : card.id === 'artist' ? (
-                <Users size={20} />
-              ) : (
-                <Music2 size={20} />
+          <section className="remix-feature" key={card.id}>
+            <motion.button
+              type="button"
+              className={`remix-highlight remix-highlight-${card.id}`}
+              aria-expanded={section === card.id}
+              aria-controls={`remix-${card.id}-panel`}
+              onClick={() => {
+                setSection(section === card.id ? null : card.id);
+                window.dispatchEvent(new CustomEvent('wave:feature-used', { detail: 'Remix' }));
+              }}
+              initial={false}
+              animate={{ opacity: 1, y: 0 }}
+              transition={animation.fast}
+              whileTap={animation.enabled ? { scale: 0.98 } : undefined}
+            >
+              <span className="remix-highlight-label">
+                {card.id === 'time' ? (
+                  <AudioLines size={20} />
+                ) : card.id === 'artist' ? (
+                  <Users size={20} />
+                ) : (
+                  <Music2 size={20} />
+                )}
+                {t(card.label)}
+              </span>
+              <div className="remix-feature-image" aria-hidden="true">
+                {card.id === 'artist' && topArtist ? (
+                  portrait(topArtist.artist)
+                ) : card.id === 'song' ? (
+                  <Artwork track={mostPlayed?.track} />
+                ) : (
+                  <AudioLines size={52} strokeWidth={1.3} />
+                )}
+              </div>
+              <strong>{card.value}</strong>
+              <small>{card.hint}</small>
+              <span className="remix-highlight-more">
+                {section === card.id ? t('Hide details') : t('View details')}
+                <ChevronDown size={16} />
+              </span>
+            </motion.button>
+            <AnimatePresence initial={false}>
+              {section === card.id && (
+                <motion.div
+                  key={section}
+                  id={`remix-${section}-panel`}
+                  className="remix-mini-panel"
+                  initial={animation.enabled ? { opacity: 0, height: 0 } : false}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={animation.expressive}
+                >
+                  {section === 'time' && (
+                    <>
+                      <p className="remix-line">
+                        {recap.plays} {t(recap.plays === 1 ? 'play' : 'plays')} · {recap.tracks}{' '}
+                        {t(recap.tracks === 1 ? 'song' : 'songs')} · {recap.artists}{' '}
+                        {t(recap.artists === 1 ? 'artist' : 'artists')}
+                      </p>
+                      {recap.previousSeconds > 0 && (
+                        <p className="remix-compare">
+                          {delta >= 0 ? '+' : '−'}
+                          {listeningTime(Math.abs(delta))} vs last week
+                        </p>
+                      )}
+                      {/* Seven columns, one per day, under the figure they add up to. */}
+                      <section className="remix-week" aria-label={t('Listening per day')}>
+                        <div className="remix-bars" role="group" aria-label={t('Select a day')}>
+                          {recap.days.map((day, index) => {
+                            const today = index === recap.days.length - 1;
+                            const empty = day.seconds === 0;
+                            return (
+                              <button
+                                key={day.key}
+                                className={`remix-bar${today ? ' today' : ''}${hoveredDay === index ? ' hovered' : ''}`}
+                                onMouseEnter={() => setHoveredDay(index)}
+                                onMouseLeave={() => setHoveredDay(null)}
+                                onFocus={() => setHoveredDay(index)}
+                                onBlur={() => setHoveredDay(null)}
+                                onClick={() => setHoveredDay(index)}
+                                aria-label={`${weekday(day.at)} ${dayNumber(day.at)}: ${listeningTime(day.seconds)}`}
+                              >
+                                <motion.span
+                                  className="remix-bar-fill"
+                                  data-empty={empty ? 'true' : 'false'}
+                                  initial={{
+                                    height: animation.enabled
+                                      ? 0
+                                      : `${(day.seconds / peak) * 100}%`,
+                                  }}
+                                  animate={{
+                                    height: `${Math.max(empty ? 2 : 6, (day.seconds / peak) * 100)}%`,
+                                  }}
+                                  transition={{
+                                    ...animation.wobble,
+                                    delay: animation.enabled ? 0.05 * index : 0,
+                                  }}
+                                />
+                                <span className="remix-bar-day">{weekday(day.at).slice(0, 1)}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <p className="remix-caption">
+                          {hoveredDay === null
+                            ? busiestDay && busiestDay.seconds > 0
+                              ? `Most on ${weekday(busiestDay.at)}, ${listeningTime(busiestDay.seconds)}`
+                              : t('Quiet week')
+                            : `${listeningTime(recap.days[hoveredDay].seconds)} · ${recap.days[hoveredDay].plays} plays`}
+                        </p>
+                      </section>
+                    </>
+                  )}
+                  {section === 'artist' && (
+                    <div className="remix-mini-list">
+                      {recap.topArtists.slice(0, 5).map((artist, index) => (
+                        <button
+                          type="button"
+                          key={artist.artist}
+                          onClick={() => onArtist(artist.artist)}
+                        >
+                          <span>{index + 1}</span>
+                          {portrait(artist.artist)}
+                          <strong>{artist.artist}</strong>
+                          <small>
+                            {artist.plays} {t(artist.plays === 1 ? 'play' : 'plays')}
+                          </small>
+                          <span>↗</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {section === 'song' && (
+                    <div className="remix-mini-list">
+                      {recap.topTracks.slice(0, 5).map(({ track, plays }, index) => (
+                        <button
+                          type="button"
+                          key={track.id}
+                          onClick={() =>
+                            onPlay(
+                              recap.topTracks.map((item) => item.track),
+                              track.id,
+                            )
+                          }
+                        >
+                          <span>{index + 1}</span>
+                          <Artwork track={track} />
+                          <strong>
+                            {track.title}
+                            <small>{track.artist}</small>
+                          </strong>
+                          <small>
+                            {plays} {t(plays === 1 ? 'play' : 'plays')}
+                          </small>
+                          <Play size={18} />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </motion.div>
               )}
-              {card.label}
-            </span>
-            <strong>{card.value}</strong>
-            <small>{card.hint}</small>
-            <span className="remix-highlight-more">
-              {section === card.id ? t('Hide details') : t('View details')}
-              <ChevronDown size={16} />
-            </span>
-          </motion.button>
+            </AnimatePresence>
+          </section>
         ))}
       </div>
-      <AnimatePresence initial={false} mode="wait">
-        {section && (
-          <motion.div
-            key={section}
-            id={`remix-${section}-panel`}
-            className="remix-mini-panel"
-            initial={animation.enabled ? { opacity: 0, height: 0 } : false}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={animation.expressive}
-          >
-            {section === 'time' && (
-              <>
-                <p className="remix-line">
-                  {recap.plays} plays · {recap.tracks} songs · {recap.artists}{' '}
-                  {recap.artists === 1 ? 'artist' : 'artists'}
-                </p>
-                {recap.previousSeconds > 0 && (
-                  <p className="remix-compare">
-                    {delta >= 0 ? '+' : '−'}
-                    {listeningTime(Math.abs(delta))} vs last week
-                  </p>
-                )}
-                {/* Seven columns, one per day, under the figure they add up to. */}
-                <section className="remix-week" aria-label={t('Listening per day')}>
-                  <div className="remix-bars" role="group" aria-label={t('Select a day')}>
-                    {recap.days.map((day, index) => {
-                      const today = index === recap.days.length - 1;
-                      const empty = day.seconds === 0;
-                      return (
-                        <button
-                          key={day.key}
-                          className={`remix-bar${today ? ' today' : ''}${hoveredDay === index ? ' hovered' : ''}`}
-                          onMouseEnter={() => setHoveredDay(index)}
-                          onMouseLeave={() => setHoveredDay(null)}
-                          onFocus={() => setHoveredDay(index)}
-                          onBlur={() => setHoveredDay(null)}
-                          onClick={() => setHoveredDay(index)}
-                          aria-label={`${weekday(day.at)} ${dayNumber(day.at)}: ${listeningTime(day.seconds)}`}
-                        >
-                          <motion.span
-                            className="remix-bar-fill"
-                            data-empty={empty ? 'true' : 'false'}
-                            initial={{
-                              height: animation.enabled ? 0 : `${(day.seconds / peak) * 100}%`,
-                            }}
-                            animate={{
-                              height: `${Math.max(empty ? 2 : 6, (day.seconds / peak) * 100)}%`,
-                            }}
-                            transition={{
-                              ...animation.wobble,
-                              delay: animation.enabled ? 0.05 * index : 0,
-                            }}
-                          />
-                          <span className="remix-bar-day">{weekday(day.at).slice(0, 1)}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <p className="remix-caption">
-                    {hoveredDay === null
-                      ? busiestDay && busiestDay.seconds > 0
-                        ? `Most on ${weekday(busiestDay.at)}, ${listeningTime(busiestDay.seconds)}`
-                        : t('Quiet week')
-                      : `${listeningTime(recap.days[hoveredDay].seconds)} · ${recap.days[hoveredDay].plays} plays`}
-                  </p>
-                </section>
-              </>
-            )}
-            {section === 'artist' && (
-              <div className="remix-mini-list">
-                {recap.topArtists.slice(0, 5).map((artist, index) => (
-                  <button type="button" key={artist.artist} onClick={() => onArtist(artist.artist)}>
-                    <span>{index + 1}</span>
-                    <strong>{artist.artist}</strong>
-                    <small>{artist.plays} plays</small>
-                    <span>↗</span>
-                  </button>
-                ))}
-              </div>
-            )}
-            {section === 'song' && (
-              <div className="remix-mini-list">
-                {recap.topTracks.slice(0, 5).map(({ track, plays }, index) => (
-                  <button
-                    type="button"
-                    key={track.id}
-                    onClick={() =>
-                      onPlay(
-                        recap.topTracks.map((item) => item.track),
-                        track.id,
-                      )
-                    }
-                  >
-                    <span>{index + 1}</span>
-                    <Artwork track={track} />
-                    <strong>
-                      {track.title}
-                      <small>{track.artist}</small>
-                    </strong>
-                    <small>{plays} plays</small>
-                    <Play size={18} />
-                  </button>
-                ))}
-              </div>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
       {hero.length > 0 && (
         <section className="remix-mix" aria-label={t('Your Remix')}>
           <div className="remix-mix-head">
             <div>
               <h3>{t('Your Remix')}</h3>
-              <p>{hero.length === 1 ? '1 song' : `${hero.length} songs`} you played this week.</p>
+              <p>
+                {hero.length === 1 ? '1 song' : `${hero.length} songs`}{' '}
+                {historical ? t('played in this week.') : t('played this week.')}
+              </p>
             </div>
             <div className="remix-mix-actions">
               <button className="filled-button" onClick={() => onPlay(hero, hero[0].id)}>
@@ -334,7 +406,7 @@ export function RemixPage({
                 onClick={async () => {
                   setSaving(true);
                   try {
-                    await onSave(hero);
+                    await onSave(hero, recap);
                   } finally {
                     setSaving(false);
                   }
@@ -387,14 +459,14 @@ export function RemixPage({
 
       {/*
         The weeks before this one. Remix used to forget everything on Monday; now
-        four weeks are kept, so a quiet week can be compared with the week that
+        up to a year can be explored, so a quiet week can be compared with the week that
         earned it, and any of them can be played again.
       */}
       {history.length > 1 && (
         <section className="remix-history" aria-label={t('Weeks before this one')}>
           <h3>{t('The weeks before')}</h3>
           <ol>
-            {history.slice(1).map((week) => {
+            {history.slice(1, visibleWeeks + 1).map((week) => {
               const top = week.topTracks[0];
               const quiet = week.plays === 0;
               return (
@@ -412,6 +484,21 @@ export function RemixPage({
                           top ? ` · ${top.track.title}` : ''
                         }`}
                   </span>
+                  <button
+                    type="button"
+                    className="text-button remix-history-explore"
+                    onClick={() => {
+                      setSelectedWeek(week.start);
+                      setSection(null);
+                      setHoveredDay(null);
+                      heading.current?.scrollIntoView({
+                        behavior: animation.enabled ? 'smooth' : 'instant',
+                        block: 'start',
+                      });
+                    }}
+                  >
+                    {t('Explore week')}
+                  </button>
                   {!quiet && (
                     <button
                       className="text-button remix-history-play"
@@ -425,6 +512,11 @@ export function RemixPage({
               );
             })}
           </ol>
+          {visibleWeeks < history.length - 1 && (
+            <button className="tonal-button" onClick={() => setVisibleWeeks((count) => count + 4)}>
+              {t('Show more weeks')}
+            </button>
+          )}
         </section>
       )}
 

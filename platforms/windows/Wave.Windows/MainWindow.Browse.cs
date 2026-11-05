@@ -258,9 +258,9 @@ public partial class MainWindow
         body.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         body.Children.Add(Iconography.Draw(icon, 18, 1.7, (Brush)Application.Current.Resources["AccentBrush"]));
-        var number = new TextBlock { Text = count.ToString(), FontSize = 24, FontWeight = FontWeights.Bold, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, -6, 0, 0) };
+        var number = new TextBlock { Text = count.ToString(), FontSize = 24, FontWeight = FontWeights.Bold, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0) };
         Grid.SetColumn(number, 1); body.Children.Add(number);
-        var name = new TextBlock { Text = label, FontSize = 13, Foreground = (Brush)Application.Current.Resources["MutedBrush"], Margin = new Thickness(-6, 14, 0, 0) };
+        var name = new TextBlock { Text = label, FontSize = 13, Foreground = (Brush)Application.Current.Resources["MutedBrush"], Margin = new Thickness(0, 14, 0, 0) };
         Grid.SetRow(name, 1); Grid.SetColumn(name, 0); Grid.SetColumnSpan(name, 2); body.Children.Add(name);
         var button = new Button {
             Content = body,
@@ -320,14 +320,14 @@ public partial class MainWindow
             row.Children.Add(number);
             column = 1;
         }
-        var art = new Border { Width = 44, Height = 44, CornerRadius = new CornerRadius(12), Background = ArtworkBrush(song.Artwork) };
-        if (song.Artwork == null) art.Child = new TextBlock { Text = "\u266a", FontSize = 19, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Foreground = (Brush)Application.Current.Resources["AccentBrush"] };
+        var art = new Border { Width = 48, Height = 48, CornerRadius = new CornerRadius(12), Background = ArtworkBrush(song.Artwork) };
+        if (song.Artwork == null) art.Child = Iconography.Draw("song", 20, brush: (Brush)Application.Current.Resources["AccentBrush"]);
         Grid.SetColumn(art, column); row.Children.Add(art);
         var words = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 12, 0) };
-        words.Children.Add(new TextBlock { Text = song.Title, FontWeight = FontWeights.SemiBold, FontSize = 15, TextTrimming = TextTrimming.CharacterEllipsis });
-        words.Children.Add(new TextBlock { Text = song.Artist, FontSize = 13, Foreground = (Brush)Application.Current.Resources["MutedBrush"], TextTrimming = TextTrimming.CharacterEllipsis });
+        words.Children.Add(new TextBlock { ToolTip = song.Title, Text = song.Title, FontWeight = FontWeights.SemiBold, FontSize = 15, TextTrimming = TextTrimming.CharacterEllipsis });
+        words.Children.Add(new TextBlock { Margin = new Thickness(0, 5, 0, 0), ToolTip = song.Artist, Text = song.Artist, FontSize = 13, Foreground = (Brush)Application.Current.Resources["MutedBrush"], TextTrimming = TextTrimming.CharacterEllipsis });
         Grid.SetColumn(words, column + 1); row.Children.Add(words);
-        var album = new TextBlock { Text = song.Album, FontSize = 12.5, Foreground = (Brush)Application.Current.Resources["MutedBrush"], VerticalAlignment = VerticalAlignment.Center, MaxWidth = 200, TextTrimming = TextTrimming.CharacterEllipsis };
+        var album = new TextBlock { Text = song.Album, FontSize = 12.5, Foreground = (Brush)Application.Current.Resources["MutedBrush"], VerticalAlignment = VerticalAlignment.Center, MaxWidth = Math.Clamp(ActualWidth * .14, 60, 160), Margin = new Thickness(8, 0, 0, 0), ToolTip = song.Album, TextTrimming = TextTrimming.CharacterEllipsis };
         Grid.SetColumn(album, column + 2); row.Children.Add(album);
         if (plays > 0) {
             var times = new TextBlock { Text = plays + "\u00d7", FontSize = 12.5, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(14, 0, 4, 0) };
@@ -337,8 +337,9 @@ public partial class MainWindow
         var button = new Button {
             Content = row,
             Background = Brushes.Transparent,
-            Padding = new Thickness(8, 6, 8, 6),
-            Margin = new Thickness(2, 1, 2, 1),
+            Padding = new Thickness(12, 10, 12, 10),
+            Margin = new Thickness(2, 3, 2, 3),
+            MinHeight = 68,
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
             ToolTip = song.Title,
         };
@@ -461,7 +462,7 @@ public partial class MainWindow
         var top = recap.TopSongs.FirstOrDefault();
         var sleeve = new StackPanel { VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(20, 0, 2, 2) };
         var cover = new Border { Width = 116, Height = 116, CornerRadius = new CornerRadius(18), Background = ArtworkBrush(top.Song?.Artwork) };
-        if (top.Song?.Artwork == null) cover.Child = new TextBlock { Text = "\u266a", FontSize = 38, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Foreground = (Brush)Application.Current.Resources["AccentBrush"] };
+        if (top.Song?.Artwork == null) cover.Child = Iconography.Draw("song", 40, brush: (Brush)Application.Current.Resources["AccentBrush"]);
         sleeve.Children.Add(cover);
         var caption = Label(Localization.T("Most played").ToUpperInvariant(), 11);
         caption.SetResourceReference(TextBlock.ForegroundProperty, "MutedBrush");

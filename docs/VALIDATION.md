@@ -2,6 +2,14 @@
 
 Development target: 0.2.1. Released baseline: 0.2.0 · 3 November 2026. Historical run dates are retained below.
 
+## 0.2.1 release-candidate polish — 6 November 2026
+
+- Full web suite: **708 tests across 111 files passed**. Added regression coverage for per-card disclosure placement and saved artwork, full older-week navigation, main-deck pause ownership/preview teardown, volume and the three-by-twenty Daily Mix limits.
+- Chromium: **16 targeted tests passed** across quality, Remix, videoclip and mobile ergonomics. A final nine-test layout/trim/mobile pass also passed after the spacing adjustments. The new browser test checks real native decoder state before/after entering Trim, preview-only playback and actual preview shutdown on close.
+- Build, lint, format, release metadata and native-only packaging checks are run for this candidate. The whole historical browser suite is not claimed green. External-provider availability and headphone listening remain separate checks.
+- Regenerated eight actual web screenshots from the disposable demo library; inspected the grid, per-card details and opinion card. Capture now waits for the startup overlay to leave, rather than photographing a loading screen. Artist photos require locally saved customizations; library sleeves are explicitly the fallback.
+- Android and Windows shared row styling and three-by-twenty generator contracts are updated in source. Their SDKs are absent here: no native compilation/device pass or fresh native screenshots are claimed. Native CI runs on the branch push, but its eventual outcome must be checked before release. This change does not publish a release or deploy production.
+
 ## 0.2.1 follow-up — 6 November 2026
 
 - `npm test`: **703 tests across 111 files passed**. Focused tests cover a bounded repeat attack, public URL attempt/preview/fallback, same-origin/allowlisted upstream handling, public page parsing and local-only feedback eligibility/persistence.

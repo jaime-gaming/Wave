@@ -15,8 +15,10 @@ export function TrackEditor({
   onRestoreSilence,
   onTrim,
   onPreview,
+  previewVolume,
 }: {
   onPreview?: () => void;
+  previewVolume?: number;
   onTrim?: (bounds: { start: number; end: number }) => Promise<void>;
   track: Track;
   onClose: () => void;
@@ -73,6 +75,7 @@ export function TrackEditor({
               value={bounds}
               onChange={setBounds}
               onPreview={onPreview}
+              volume={previewVolume}
             />
             <button type="button" className="tonal-button" onClick={() => setTrimming(false)}>
               ← Back to song details
