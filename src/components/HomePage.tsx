@@ -1,3 +1,6 @@
+import { PlatformLinks } from './PlatformLinks';
+import { homeRecommendations } from '../domain/homeRecommendations';
+import type { ListeningSummary } from '../domain/listening';
 import type { DailyMix } from '../domain/dailyMixes';
 import { DailyMixes } from './DailyMixes';
 import { memo, useMemo } from 'react';
@@ -16,6 +19,7 @@ import { LibraryContent } from './LibraryContent';
 import { useT } from '../i18n';
 export const HomePage = memo(function HomePage({
   tracks,
+  listening,
   playlists,
   current,
   playing,
@@ -34,6 +38,7 @@ export const HomePage = memo(function HomePage({
   onDevices,
 }: {
   tracks: Track[];
+  listening?: ListeningSummary;
   artistPhotos?: Map<string, string | undefined>;
   /** Opens the device screen: the first thing a phone should offer. */
   onDevices?: () => void;
@@ -54,14 +59,25 @@ export const HomePage = memo(function HomePage({
 }) {
   const t = useT();
   const animation = useWaveMotion();
-  const albums = useMemo(
-    () => collectAlbums(tracks).sort((a, b) => b.addedAt - a.addedAt),
-    [tracks],
-  );
+  const albums = useMemo(() => {
+    const picks = homeRecommendations(tracks, listening);
+    const weight = (ids: string[]) =>
+      ids.reduce(
+        (sum, id) =>
+          sum +
+          Math.max(0, 12 - picks.findIndex((track) => track.id === id)) *
+            Number(picks.some((track) => track.id === id)),
+        0,
+      );
+    return collectAlbums(tracks).sort(
+      (a, b) =>
+        weight(b.tracks.map((track) => track.id)) - weight(a.tracks.map((track) => track.id)),
+    );
+  }, [tracks, listening]);
   const artists = useMemo(() => collectArtists(tracks), [tracks]);
   const recent = useMemo(
-    () => [...tracks].sort((a, b) => b.addedAt - a.addedAt).slice(0, 6),
-    [tracks],
+    () => homeRecommendations(tracks, listening).slice(0, 8),
+    [tracks, listening],
   );
   const favorites = tracks.filter((track) => track.favorite);
   const counts = [tracks.length, albums.length, artists.length, playlists.length, favorites.length];
@@ -126,11 +142,12 @@ export const HomePage = memo(function HomePage({
           <ArrowUpRight size={18} aria-hidden="true" />
         </motion.button>
       )}
-      <DailyMixes tracks={tracks} onOpen={onMix} />
+      <PlatformLinks compact />
+      <DailyMixes tracks={tracks} listening={listening} onOpen={onMix} />
       {albums.length > 0 && (
-        <section aria-label={t('Recently added albums')} className="home-albums">
+        <section aria-label={t('Albums to get lost in')} className="home-albums">
           <div className="section-heading">
-            <h2>{t('Recently added albums')}</h2>
+            <h2>{t('Albums to get lost in')}</h2>
             <button className="text-button" onClick={() => onView('albums')}>
               {t('All albums')}
               <ArrowUpRight size={18} />
@@ -146,9 +163,9 @@ export const HomePage = memo(function HomePage({
       <div
         className={`home-dashboard ${playlists.length || artists.length ? 'has-secondary' : ''}`}
       >
-        <section aria-label={t('Recently added songs')} className="home-recent-songs">
+        <section aria-label={t('Picked for you')} className="home-recent-songs">
           <div className="section-heading">
-            <h2>{tracks.length ? t('Recently added songs') : t('Your music')}</h2>
+            <h2>{tracks.length ? t('Picked for you') : t('Your music')}</h2>
             {tracks.length > 0 && (
               <button className="text-button" onClick={() => onView('songs')}>
                 {t('All songs')}

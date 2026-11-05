@@ -59,7 +59,9 @@ export function AndroidAppSheet({
       <div className="android-app-text">
         <strong id="android-app-title">{t('Wave for Android')}</strong>
         <p id="android-app-copy">
-          The same music, built for your phone: faster, and it keeps playing with the screen off.
+          {t(
+            'Play your local music with lock-screen controls, a home-screen widget and quick settings. Download the Android APK from Releases.',
+          )}
         </p>
       </div>
       <div className="android-app-actions">

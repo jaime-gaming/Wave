@@ -2186,3 +2186,40 @@
     padding-bottom: max(12px, env(safe-area-inset-bottom));
   }
 }
+
+/* A record remains a record through the overlap; transforms must not expose corners. */
+.mix-artwork,
+.mix-artwork .mix-outgoing,
+.mix-artwork .mix-incoming {
+  border-radius: 50%;
+  clip-path: circle(50%);
+}
+.player-modal .stage-record,
+.player-modal .stage-controls,
+.player-modal .stage-lyrics-toggle {
+  transition:
+    opacity 420ms ease,
+    transform 420ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.player-modal.is-idle .clip-live .stage-record:not(:focus-within),
+.player-modal.is-idle .clip-live .stage-controls:not(:focus-within),
+.player-modal.is-idle .clip-live .stage-lyrics-toggle:not(:focus-visible) {
+  opacity: 0;
+}
+.player-modal.is-idle .clip-live .stage-lyrics:not(:focus-within) {
+  opacity: 0.18;
+  transition: opacity 420ms ease;
+}
+.player-normal-view.clip-live .stage-layout .stage-record {
+  max-width: min(340px, 60vw);
+}
+.video-backdrop.is-revealed .video-backdrop-frame {
+  filter: saturate(1.03);
+}
+@media (prefers-reduced-motion: reduce) {
+  .player-modal .stage-record,
+  .player-modal .stage-controls,
+  .player-modal .stage-lyrics-toggle {
+    transition: none;
+  }
+}

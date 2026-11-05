@@ -34,12 +34,16 @@ const props = {
 };
 
 describe('the Remix page', () => {
-  it('leads with the week in one number, not a dashboard', async () => {
+  it('leads with three highlights and opens listening details on request', async () => {
     render(<RemixPage {...props} />);
     expect(screen.getByRole('heading', { name: 'Remix' })).toBeInTheDocument();
     // 450 seconds this week, rounded the way the rest of the app rounds.
     // The figure climbs to its value rather than appearing at it.
     expect(await screen.findByText('8 min')).toBeInTheDocument();
+    expect(screen.queryByText('3 plays · 2 songs · 1 artist')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Top artist/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Top song/ })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /Listening time/ }));
     expect(screen.getByText('3 plays · 2 songs · 1 artist')).toBeInTheDocument();
     // The old page's detail sections are gone on purpose.
     expect(screen.queryByRole('region', { name: /last two weeks/i })).not.toBeInTheDocument();
@@ -58,17 +62,19 @@ describe('the Remix page', () => {
     expect(screen.getAllByText('2×').length).toBe(1);
   });
 
-  it('shows the week as seven days and the artists behind it', () => {
+  it('opens the day, artist and song mini menus separately', async () => {
     render(<RemixPage {...props} />);
+    await userEvent.click(screen.getByRole('button', { name: /Listening time/ }));
     const week = screen.getByRole('region', { name: 'Listening per day' });
-    // One column per day, each named with its own total for screen readers.
     expect(within(week).getAllByRole('button')).toHaveLength(7);
-    const artists = screen.getByRole('region', { name: 'Artists this week' });
-    expect(within(artists).getByText('Wave Tests')).toBeInTheDocument();
-    expect(within(artists).getByText('3 plays')).toBeInTheDocument();
-    // The genre and the hour are a line of type now, not a section with charts.
-    expect(screen.getByText(/Usually around|Mostly/)).toBeInTheDocument();
-    expect(screen.queryByRole('img', { name: /0:00:/ })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /Top artist/ }));
+    await screen.findByText('3 plays');
+    await userEvent.click(screen.getByRole('button', { name: /1.*Wave Tests.*3 plays/ }));
+    expect(props.onArtist).toHaveBeenCalledWith('Wave Tests');
+    await userEvent.click(screen.getByRole('button', { name: /Top song/ }));
+    const top = await screen.findByRole('button', { name: /1.*Signal.*Wave Tests.*2 plays/ });
+    await userEvent.click(top);
+    expect(props.onPlay).toHaveBeenCalledWith(expect.any(Array), 'signal');
   });
 
   it('does not clear listening history without confirmation', async () => {
@@ -83,10 +89,11 @@ describe('the Remix page', () => {
     expect(onClear).toHaveBeenCalledOnce();
   });
 
-  it('says how the week compares with the one before it', () => {
+  it('says how the week compares with the one before it', async () => {
     const before = makePlay('signal', new Date(2026, 9, 20, 21, 0).getTime(), 60, true);
     const withHistory = weeklyRecap([...plays, before], tracks, now);
     const { rerender } = render(<RemixPage {...props} recap={withHistory} />);
+    await userEvent.click(screen.getByRole('button', { name: /Listening time/ }));
     expect(screen.getByText(/vs last week/)).toBeInTheDocument();
     rerender(<RemixPage {...props} recap={recap} />);
   });

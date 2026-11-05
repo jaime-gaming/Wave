@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.1 — 5 November 2026
+
+- Add web page routes, single-switch peak-safe centred mixing and earlier AutoPlay continuation.
+- Preview and edit non-destructive trims in a themed waveform submenu with draggable edges and hold-to-zoom.
+- Fix custom clip forms and preserve video timestamps.
+- Add local Home recommendations, personalised Daily Mix ordering, three Remix highlight menus and batched library updates.
+- Improve word-by-word search and preserve saved timing data; fix Privacy & rights text.
+- Keep mix artwork circular and simplify the videoclip stage during inactivity.
+- Fix device ICE gathering timing and validate pairing signals.
+- Publish only tagged Android test APKs and unsigned Windows portable builds in releases, without web assets.
+
 ## 0.2.0 — 3 November 2026
 
 Wave 0.2.0 is the release where the Mix learned to behave, a videoclip became part of the player

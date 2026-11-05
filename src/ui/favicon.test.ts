@@ -16,7 +16,8 @@ describe('the tab, in the colour of the music', () => {
     expect(blue).toContain('hsl(226');
     expect(orange).toContain('hsl(28');
     // Same path as the interface draws, on a tile that survives a tab strip.
-    expect(blue).toContain('<rect');
+    expect(blue).not.toContain('<rect');
+    expect(faviconSvg(226, 24, true)).toContain('<rect');
     expect(blue).toContain('stroke-linecap');
     expect(faviconHref(226)).toMatch(/^data:image\/svg\+xml,/u);
   });

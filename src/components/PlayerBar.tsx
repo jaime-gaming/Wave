@@ -1,3 +1,4 @@
+import { RepeatNotice } from './RepeatNotice';
 import { MusicLighting } from './MusicLighting';
 import { VideoBackdrop } from './VideoBackdrop';
 import { YouTubeStage } from './YouTubeStage';
@@ -423,6 +424,29 @@ export function PlayerBar(props: PlayerProps) {
    * is at the root — the same place the palette and the motion preference live.
    */
   const clipShowing = clipLive && videoClip && expanded;
+  const [idle, setIdle] = useState(false);
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    const wake = () => {
+      setIdle(false);
+      clearTimeout(timer);
+      if (expanded && player.state.playing) timer = setTimeout(() => setIdle(true), 5500);
+    };
+    // Never open the player automatically: only simplify an already open stage.
+    const initial = setTimeout(wake, 0);
+    window.addEventListener('pointermove', wake);
+    window.addEventListener('pointerdown', wake);
+    window.addEventListener('keydown', wake);
+    window.addEventListener('focusin', wake);
+    return () => {
+      clearTimeout(initial);
+      clearTimeout(timer);
+      window.removeEventListener('pointermove', wake);
+      window.removeEventListener('pointerdown', wake);
+      window.removeEventListener('keydown', wake);
+      window.removeEventListener('focusin', wake);
+    };
+  }, [expanded, player.state.playing, player.current?.id]);
   useEffect(() => {
     const root = document.documentElement;
     if (clipShowing) root.dataset.clip = 'live';
@@ -443,9 +467,14 @@ export function PlayerBar(props: PlayerProps) {
         onContinue={player.keepListening}
         onStop={player.stopForNow}
       />
+      {!showing && <RepeatNotice serial={player.repeatSerial} />}
       {!showing && (
         <SilenceNotice
+          key={player.current?.id}
           text={player.silenceNotice?.text ?? null}
+          track={player.current ?? undefined}
+          onTrim={player.trimSilence}
+          onPreview={() => player.dispatch({ type: 'pause' })}
           onRemove={player.removeSilence}
           onKeep={player.keepSilence}
         />
@@ -664,7 +693,7 @@ export function PlayerBar(props: PlayerProps) {
             }
             closeIcon={<ChevronDown size={24} />}
             returnFocusRef={expanded ? returnFocusRef : undefined}
-            className="player-modal"
+            className={`player-modal${idle ? ' is-idle' : ''}`}
             style={{ ...colors, transformOrigin: 'bottom center' }}
             onClose={() => {
               setStageGone(false);
@@ -726,11 +755,16 @@ export function PlayerBar(props: PlayerProps) {
             {/* The same question, in the open player: a long silence at the
                 edge of a file is not a fact about the bar. */}
             <SilenceNotice
+              key={player.current?.id}
               className="silence-notice--stage"
               text={player.silenceNotice?.text ?? null}
+              track={player.current ?? undefined}
+              onTrim={player.trimSilence}
+              onPreview={() => player.dispatch({ type: 'pause' })}
               onRemove={player.removeSilence}
               onKeep={player.keepSilence}
             />
+            <RepeatNotice serial={player.repeatSerial} />
             <MusicLighting className="stage-aura" />
             <div
               data-track-id={player.current?.id}

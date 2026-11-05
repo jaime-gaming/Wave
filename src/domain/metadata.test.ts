@@ -48,3 +48,25 @@ describe('roles that were filed in the wrong place', () => {
     );
   });
 });
+
+it('remembers a listener confirmation only for the current title, artist and filename', async () => {
+  const { rolesReviewKey } = await import('./metadata');
+  const track = makeTrack({
+    title: 'Nils Frahm',
+    artist: 'Says',
+    fileName: 'Nils Frahm - Says.mp3',
+  });
+  expect(metadataIssues(track)).toContain('roles');
+  const confirmed = { ...track, rolesReviewed: rolesReviewKey(track) };
+  expect(metadataIssues(confirmed)).not.toContain('roles');
+  expect(metadataIssues({ ...confirmed, fileName: '01 - Nils Frahm - Says.mp3' })).toContain(
+    'roles',
+  );
+});
+it('never calls equal title/artist tags swapped, even with a self-titled filename', () => {
+  expect(
+    metadataIssues(
+      makeTrack({ title: 'Talk Talk', artist: 'Talk Talk', fileName: 'Talk Talk - Talk Talk.mp3' }),
+    ),
+  ).not.toContain('roles');
+});

@@ -116,5 +116,9 @@ export function rolesSwapped(track: { title: string; artist: string; fileName?: 
   const same = (left: string, right: string) =>
     left.normalize('NFC').toLocaleLowerCase().trim() ===
     right.normalize('NFC').toLocaleLowerCase().trim();
-  return same(track.title, fromName.artist) && same(track.artist, fromName.title);
+  return (
+    !same(track.title, track.artist) &&
+    same(track.title, fromName.artist) &&
+    same(track.artist, fromName.title)
+  );
 }

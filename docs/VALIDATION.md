@@ -1,6 +1,18 @@
 # Validation record
 
-Release 0.2.0 · 3 November 2026. Historical run dates are retained below.
+Development target: 0.2.1. Released baseline: 0.2.0 · 3 November 2026. Historical run dates are retained below.
+
+## 0.2.1 development validation — 5 November 2026
+
+- `npm test`: **695 passing tests across 110 files**.
+- `npm run lint`, `npm run build`, `npm run release:check`: pass. The build retains the existing bundle-size and mixed static/dynamic import warnings.
+- `npm run test:release`: 12 passing checks, including native-only asset publication contracts. Python packaging tests: 6 passing.
+- Final targeted Chromium browser checks pass with `--workers=1`: `quality-021.spec.ts` (6), `clip-stage.spec.ts` (3), `remix.spec.ts` (4) and `mobile-ergonomics.spec.ts` (2). These cover actual waveform drag/hold-zoom/save, route reload/back, mobile layouts, Remix, video geometry and waking an idle stage. An earlier two-worker run failed two real-time Remix cases while unit tests were also running; the harness now waits for import readiness and an additional playback sample before pausing. The final sequential run passed all 15 cases. This is **not** a claim that the entire historical browser suite passes.
+- Screens were also inspected in Chromium. Audio gain tests cover the summed level and resuming the graph mid-mix; listening with real headphones and varied recordings remains necessary.
+- Native Android/Windows builds and real external lyric providers were not executed in this environment. The release workflow requires their GitHub runners. The new music surfaces and trim interactions are web features; native UI parity remains outstanding.
+
+- Follow-up tests exercise persisted artist/title swap and confirmation, filename-only warning suppression, conservative catalogue correction, repeat acknowledgements, transparent browser icons and real word-timing persistence. New interface copy is included in the shared English/Spanish dictionary and regenerated native tables.
+- Android About and Windows About now expose platform/privacy links. Windows import changes were reviewed, not compiled or benchmarked; no Rust migration or speedup is claimed. Installed Android/Windows behavior, native UI parity and platform audio effects still need device validation.
 
 ## Web
 

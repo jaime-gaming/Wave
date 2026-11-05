@@ -59,3 +59,39 @@ it('retains manual text on failure, respects cooldowns and aborts on unmount', a
   );
   expect(screen.getByRole('button', { name: 'Search online' })).toBeDisabled();
 });
+
+it('keeps real word timings and provider attribution when saving a search result', async () => {
+  const lyrics = {
+    ...parseLyrics('[00:01]Hello world', 0, 'netease'),
+    provider: 'NetEase',
+    providerId: 42,
+    lines: [
+      {
+        text: 'Hello world',
+        time: 1,
+        words: [
+          { text: 'Hello ', time: 1, end: 1.5 },
+          { text: 'world', time: 1.5, end: 2 },
+        ],
+      },
+    ],
+  };
+  vi.mocked(lookupLyrics).mockResolvedValue({
+    lookup: { status: 'found', key: 'word', checkedAt: 1 },
+    lyrics,
+  });
+  const save = vi.fn().mockResolvedValue(true);
+  render(<LyricsEditor track={makeTrack()} onSave={save} onClose={vi.fn()} />);
+  await userEvent.click(screen.getByRole('button', { name: 'Search online' }));
+  await userEvent.click(await screen.findByRole('button', { name: 'Use found lyrics' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Save lyrics' }));
+  expect(save).toHaveBeenCalledWith(
+    'signal',
+    expect.objectContaining({
+      source: 'netease',
+      provider: 'NetEase',
+      providerId: 42,
+      lines: lyrics.lines,
+    }),
+  );
+});

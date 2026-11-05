@@ -1220,6 +1220,7 @@ private fun RemixRow(song: Song, position: Int, plays: Int?, playing: Boolean, o
 fun SettingsScreen(state: WaveState, version: String, onAddMusic: () -> Unit, onBack: () -> Unit) {
     var selected by rememberSaveable { mutableStateOf<String?>(null) }
     val appearance = LocalAppearanceChoice.current
+    val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
     val languageContext = androidx.compose.ui.platform.LocalContext.current
     BackHandler(enabled = true) { if (selected != null) selected = null else onBack() }
     LazyColumn(
@@ -1336,6 +1337,11 @@ fun SettingsScreen(state: WaveState, version: String, onAddMusic: () -> Unit, on
                     "About" -> {
                         Body("Wave $version")
                         Body("Your files stay on this phone. Mix changes only how playback is joined.")
+                        Text(Loc.t("Wave on the web"), color = MaterialTheme.colorScheme.primary, modifier = Modifier.clickable { uriHandler.openUri("https://wave.jaime-gaming.com/") }.padding(vertical = 14.dp))
+                        Text(Loc.t("Link devices in the web player"), color = MaterialTheme.colorScheme.primary, modifier = Modifier.clickable { uriHandler.openUri("https://wave.jaime-gaming.com/Settings") }.padding(vertical = 14.dp))
+                        Body("Each app keeps its own library. Device linking currently uses the web player.")
+                        Text(Loc.t("Wave for Windows"), color = MaterialTheme.colorScheme.primary, modifier = Modifier.clickable { uriHandler.openUri("https://github.com/jaime-gaming/Wave/releases/latest") }.padding(vertical = 14.dp))
+                        Text(Loc.t("Privacy & rights"), color = MaterialTheme.colorScheme.primary, modifier = Modifier.clickable { uriHandler.openUri("https://wave.jaime-gaming.com/privacy.html") }.padding(vertical = 14.dp))
                     }
                 }
             }

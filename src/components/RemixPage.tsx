@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { motion } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import { AudioLines, Disc3, Play } from './Glyphs';
 import { Artwork } from './Artwork';
 import { EmptyState } from './EmptyState';
@@ -88,6 +88,7 @@ export function RemixPage({
   const t = useT();
   const animation = useWaveMotion();
   const heading = useRef<HTMLHeadingElement>(null);
+  const [section, setSection] = useState<'time' | 'artist' | 'song' | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [saving, setSaving] = useState(false);
   const [hoveredDay, setHoveredDay] = useState<number | null>(null);
@@ -121,13 +122,7 @@ export function RemixPage({
   const delta = recap.seconds - recap.previousSeconds;
   const peak = Math.max(1, ...recap.days.map((day) => day.seconds));
   const busiestDay = [...recap.days].sort((a, b) => b.seconds - a.seconds)[0];
-  const peakHour = recap.hours.reduce(
-    (best, plays, hour) => (plays > recap.hours[best] ? hour : best),
-    0,
-  );
-  const hasHours = recap.hours.some((plays) => plays > 0);
   const mostPlayed = recap.topTracks[0];
-  const cover = mostPlayed?.track ?? hero[0];
   const topArtist = recap.topArtists[0];
 
   return (
@@ -161,89 +156,154 @@ export function RemixPage({
         )}
       </header>
 
-      {/* The week in one figure, with the sleeve of the song that earned it: a
-          recap page, not a stack of stat cards. */}
-      <section className="remix-lede" aria-label={t('This week')}>
-        <div className="remix-lede-copy">
-          <motion.p
-            className="remix-figure"
-            initial={animation.enabled ? { opacity: 0, y: 10 } : { opacity: 1 }}
+      <div className="remix-highlights">
+        {(
+          [
+            { id: 'time', label: 'Listening time', value: seconds, hint: 'This week' },
+            {
+              id: 'artist',
+              label: 'Top artist',
+              value: topArtist?.artist ?? 'Still discovering',
+              hint: t('Most played artist'),
+            },
+            {
+              id: 'song',
+              label: 'Top song',
+              value: mostPlayed?.track.title ?? 'Still discovering',
+              hint: mostPlayed?.track.artist ?? 'No plays yet',
+            },
+          ] as const
+        ).map((card) => (
+          <motion.button
+            type="button"
+            key={card.id}
+            className={`remix-highlight remix-highlight-${card.id}`}
+            aria-expanded={section === card.id}
+            aria-controls={`remix-${card.id}-panel`}
+            onClick={() => setSection(section === card.id ? null : card.id)}
+            initial={false}
             animate={{ opacity: 1, y: 0 }}
-            transition={animation.wobble}
+            transition={animation.fast}
+            whileTap={animation.enabled ? { scale: 0.98 } : undefined}
           >
-            {seconds}
-          </motion.p>
-          <p className="remix-line">
-            {recap.plays} {recap.plays === 1 ? 'play' : 'plays'} · {recap.tracks}{' '}
-            {recap.tracks === 1 ? 'song' : 'songs'} · {recap.artists}{' '}
-            {recap.artists === 1 ? 'artist' : 'artists'}
-          </p>
-          {recap.previousSeconds > 0 && (
-            <p className="remix-compare" data-up={delta >= 0 ? 'true' : 'false'}>
-              {delta >= 0 ? '+' : '−'}
-              {listeningTime(Math.abs(delta))} vs last week
-            </p>
-          )}
-        </div>
-        {cover && (
-          <button
-            className="remix-lede-art"
-            onClick={() => onPlay(hero, cover.id)}
-            aria-label={`Play ${cover.title}`}
+            <span>{card.label}</span>
+            <strong>{card.value}</strong>
+            <small>{card.hint}</small>
+            <span className="remix-highlight-more">
+              {section === card.id ? t('Hide details') : t('View details')}
+            </span>
+          </motion.button>
+        ))}
+      </div>
+      <AnimatePresence initial={false} mode="wait">
+        {section && (
+          <motion.div
+            key={section}
+            id={`remix-${section}-panel`}
+            className="remix-mini-panel"
+            initial={animation.enabled ? { opacity: 0, height: 0 } : false}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={animation.expressive}
           >
-            <Artwork track={cover} />
-            <span>{t('Most played')}</span>
-          </button>
+            {section === 'time' && (
+              <>
+                <p className="remix-line">
+                  {recap.plays} plays · {recap.tracks} songs · {recap.artists}{' '}
+                  {recap.artists === 1 ? 'artist' : 'artists'}
+                </p>
+                {recap.previousSeconds > 0 && (
+                  <p className="remix-compare">
+                    {delta >= 0 ? '+' : '−'}
+                    {listeningTime(Math.abs(delta))} vs last week
+                  </p>
+                )}
+                {/* Seven columns, one per day, under the figure they add up to. */}
+                <section className="remix-week" aria-label={t('Listening per day')}>
+                  <div className="remix-bars" role="group" aria-label={t('Select a day')}>
+                    {recap.days.map((day, index) => {
+                      const today = index === recap.days.length - 1;
+                      const empty = day.seconds === 0;
+                      return (
+                        <button
+                          key={day.key}
+                          className={`remix-bar${today ? ' today' : ''}${hoveredDay === index ? ' hovered' : ''}`}
+                          onMouseEnter={() => setHoveredDay(index)}
+                          onMouseLeave={() => setHoveredDay(null)}
+                          onFocus={() => setHoveredDay(index)}
+                          onBlur={() => setHoveredDay(null)}
+                          onClick={() => setHoveredDay(index)}
+                          aria-label={`${weekday(day.at)} ${dayNumber(day.at)}: ${listeningTime(day.seconds)}`}
+                        >
+                          <motion.span
+                            className="remix-bar-fill"
+                            data-empty={empty ? 'true' : 'false'}
+                            initial={{
+                              height: animation.enabled ? 0 : `${(day.seconds / peak) * 100}%`,
+                            }}
+                            animate={{
+                              height: `${Math.max(empty ? 2 : 6, (day.seconds / peak) * 100)}%`,
+                            }}
+                            transition={{
+                              ...animation.wobble,
+                              delay: animation.enabled ? 0.05 * index : 0,
+                            }}
+                          />
+                          <span className="remix-bar-day">{weekday(day.at).slice(0, 1)}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="remix-caption">
+                    {hoveredDay === null
+                      ? busiestDay && busiestDay.seconds > 0
+                        ? `Most on ${weekday(busiestDay.at)}, ${listeningTime(busiestDay.seconds)}`
+                        : t('Quiet week')
+                      : `${listeningTime(recap.days[hoveredDay].seconds)} · ${recap.days[hoveredDay].plays} plays`}
+                  </p>
+                </section>
+              </>
+            )}
+            {section === 'artist' && (
+              <div className="remix-mini-list">
+                {recap.topArtists.slice(0, 5).map((artist, index) => (
+                  <button type="button" key={artist.artist} onClick={() => onArtist(artist.artist)}>
+                    <span>{index + 1}</span>
+                    <strong>{artist.artist}</strong>
+                    <small>{artist.plays} plays</small>
+                    <span>↗</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {section === 'song' && (
+              <div className="remix-mini-list">
+                {recap.topTracks.slice(0, 5).map(({ track, plays }, index) => (
+                  <button
+                    type="button"
+                    key={track.id}
+                    onClick={() =>
+                      onPlay(
+                        recap.topTracks.map((item) => item.track),
+                        track.id,
+                      )
+                    }
+                  >
+                    <span>{index + 1}</span>
+                    <Artwork track={track} />
+                    <strong>
+                      {track.title}
+                      <small>{track.artist}</small>
+                    </strong>
+                    <small>{plays} plays</small>
+                    <Play size={18} />
+                  </button>
+                ))}
+              </div>
+            )}
+          </motion.div>
         )}
-      </section>
-
-      {/* Seven columns, one per day, under the figure they add up to. */}
-      <section className="remix-week" aria-label={t('Listening per day')}>
-        <div className="remix-bars" role="group" aria-label={t('Select a day')}>
-          {recap.days.map((day, index) => {
-            const today = index === recap.days.length - 1;
-            const empty = day.seconds === 0;
-            return (
-              <button
-                key={day.key}
-                className={`remix-bar${today ? ' today' : ''}${hoveredDay === index ? ' hovered' : ''}`}
-                onMouseEnter={() => setHoveredDay(index)}
-                onMouseLeave={() => setHoveredDay(null)}
-                onFocus={() => setHoveredDay(index)}
-                onBlur={() => setHoveredDay(null)}
-                onClick={() => setHoveredDay(index)}
-                aria-label={`${weekday(day.at)} ${dayNumber(day.at)}: ${listeningTime(day.seconds)}`}
-              >
-                <motion.span
-                  className="remix-bar-fill"
-                  data-empty={empty ? 'true' : 'false'}
-                  initial={{ height: animation.enabled ? 0 : `${(day.seconds / peak) * 100}%` }}
-                  animate={{ height: `${Math.max(empty ? 2 : 6, (day.seconds / peak) * 100)}%` }}
-                  transition={{ ...animation.wobble, delay: animation.enabled ? 0.05 * index : 0 }}
-                />
-                <span className="remix-bar-day">{weekday(day.at).slice(0, 1)}</span>
-              </button>
-            );
-          })}
-        </div>
-        <p className="remix-caption">
-          {hoveredDay === null
-            ? busiestDay && busiestDay.seconds > 0
-              ? `Most on ${weekday(busiestDay.at)}, ${listeningTime(busiestDay.seconds)}`
-              : t('Quiet week')
-            : `${listeningTime(recap.days[hoveredDay].seconds)} · ${recap.days[hoveredDay].plays} plays`}
-        </p>
-      </section>
-
-      {/* Three things worth knowing, as one line of type rather than three cards. */}
-      <p className="remix-notes">
-        {recap.genres[0] && <span>Mostly {recap.genres[0].genre.toLowerCase()}</span>}
-        {hasHours && <span>Usually around {String(peakHour).padStart(2, '0')}:00</span>}
-        {topArtist && (
-          <button onClick={() => onArtist(topArtist.artist)}>{topArtist.artist} most of all</button>
-        )}
-      </p>
-
+      </AnimatePresence>
       {hero.length > 0 && (
         <section className="remix-mix" aria-label={t('Your Remix')}>
           <div className="remix-mix-head">
@@ -352,19 +412,6 @@ export function RemixPage({
               );
             })}
           </ol>
-        </section>
-      )}
-
-      {recap.topArtists.length > 0 && (
-        <section className="remix-people" aria-label={t('Artists this week')}>
-          {recap.topArtists.slice(0, 6).map((artist) => (
-            <button key={artist.artist} onClick={() => onArtist(artist.artist)}>
-              {artist.artist}
-              <span>
-                {artist.plays} {artist.plays === 1 ? 'play' : 'plays'}
-              </span>
-            </button>
-          ))}
         </section>
       )}
 

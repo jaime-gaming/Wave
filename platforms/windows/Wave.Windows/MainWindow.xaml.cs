@@ -280,14 +280,18 @@ public partial class MainWindow : Window
         await ImportPaths(usable);
     }
 
+    private bool importingFiles;
     private async Task ImportPaths(IEnumerable<string> paths)
     {
+        if (importingFiles) return;
+        importingFiles = true;
         var list = paths.ToArray();
         try {
             Notify(Localization.T("Adding {count}…", new Dictionary<string, string> { ["count"] = $"{list.Length} {(list.Length == 1 ? Localization.T("file") : Localization.T("files"))}" }));
             int added = await repository.Import(list);
             tracks = repository.Load(); Notify(Localization.T("{count} tracks added; identical files skipped.", new Dictionary<string, string> { ["count"] = added.ToString() })); Refresh();
         } catch (Exception error) { tracks = repository.Load(); Refresh(); Notify(error.Message); }
+        finally { importingFiles = false; }
     }
     private void ArtworkPlayClick(object sender, MouseButtonEventArgs e) { if (sender is Border { Tag: Song song }) { PlayCollection(visible, song.Id); e.Handled = true; } }
     private void ToggleArtwork(object sender, MouseButtonEventArgs e) { ToggleClick(sender, e); e.Handled = true; }
@@ -443,7 +447,7 @@ public partial class MainWindow : Window
     private void ToggleClick(object sender, RoutedEventArgs e) { if (!ready) return; CancelFade(); if (playing) active.Pause(); else { if (active.Position.TotalSeconds >= Seek.Maximum - .1) active.Position = TimeSpan.Zero; active.Play(); PrepareNext(); } playing = !playing; UpdatePlaybackLabels(); }
     private void Advance(bool ended = false)
     {
-        if (ended && repeat == "one") { active.Position = TimeSpan.Zero; active.Play(); return; }
+        if (ended && repeat == "one") { active.Position = TimeSpan.Zero; active.Play(); Notify("Playing again"); return; }
         if (index + 1 < queue.Count) Play(index + 1);
         else if (repeat == "all" && queue.Count > 0) Play(0);
         else if (preferences.Autoplay && tracks.Any(s => s.Id != Current?.Id)) {

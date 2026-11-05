@@ -1,6 +1,5 @@
 import { mixCues, type MixCues } from '../domain/mix';
 import {
-  panSpread,
   handoverGains,
   levelTrim,
   planGains,
@@ -63,6 +62,7 @@ export class MixAudio {
    */
   private settling?: { deck: Deck; from: number; start: number; seconds: number };
   private mixEnabled = false;
+
   private graph: MixGraph | null = null;
   private analyses = new WeakMap<Blob, TrackAnalysis>();
   private profiles = new WeakMap<Blob, MixCues>();
@@ -227,7 +227,7 @@ export class MixAudio {
     return Math.min(this.element.duration, this.cues(this.active).end) - this.element.currentTime;
   }
   private attachGraph(deck: Deck) {
-    if (!this.graph?.running) return;
+    if (!this.graph?.running || this.attached.has(deck.element)) return;
     const chain = this.graph.chain(deck.element);
     if (!chain) return;
     this.attached.add(deck.element);
@@ -501,6 +501,7 @@ export class MixAudio {
           this.pending = false;
           return;
         }
+        const outgoingTime = outgoing.element.currentTime;
         this.pending = false;
         this.active = incoming;
         this.spare = outgoing;
@@ -511,7 +512,7 @@ export class MixAudio {
             // Where the two songs are actually heard together: the outgoing one
             // from the point its tail begins, the incoming one from its cue.
             {
-              outgoing: this.element.currentTime,
+              outgoing: outgoingTime,
               incoming: cue,
             },
           ),
@@ -528,6 +529,7 @@ export class MixAudio {
           bassSwapAt: options.bassSwapAt ?? 0.5,
           filterOut: options.filterOut ?? this.eqAvailable,
         };
+        this.applyGains();
         this.callbacks.buffering(false);
         this.report();
         onStarted();
@@ -651,13 +653,20 @@ export class MixAudio {
     const gains = this.fading.mixed ? handoverGains(progress) : planGains(progress);
     // The level match rides on top of the curve, so a quieter record is not
     // heard as the mix going quiet.
-    this.applyDeckGain(this.fading.outgoing, gains.outgoing * this.fading.trim.outgoing);
-    this.applyDeckGain(this.fading.incoming, gains.incoming * this.fading.trim.incoming);
+    // Equal-power alone can add +3 dB on correlated recordings. Bound the sum
+    // as well as each deck; this also protects the element-only fallback.
+    const outgoingGain =
+      gains.outgoing *
+      (1 + (this.fading.trim.outgoing - 1) * smoothstep(Math.min(1, progress / 0.2)));
+    const incomingGain = gains.incoming * this.fading.trim.incoming;
+    const headroom = Math.max(1, outgoingGain + incomingGain);
+    this.applyDeckGain(this.fading.outgoing, outgoingGain / headroom);
+    this.applyDeckGain(this.fading.incoming, incomingGain / headroom);
     // Two records in one space: they separate in the stereo field as they meet
     // and come back to the centre together. No level is touched.
     if (this.fading.mixed && this.graph) {
-      this.graph.setPan(this.fading.outgoing.element, panSpread(progress, 'outgoing'));
-      this.graph.setPan(this.fading.incoming.element, panSpread(progress, 'incoming'));
+      this.graph.setPan(this.fading.outgoing.element, 0);
+      this.graph.setPan(this.fading.incoming.element, 0);
     }
     if (this.fading.bassSwap && this.graph) {
       // A's lows close as B's open, so the kick never disappears between the two

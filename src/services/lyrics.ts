@@ -228,7 +228,13 @@ export function lookupLyrics(track: Track, signal: AbortSignal): Promise<LyricsR
   if (signal.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'));
   // Include inferred identity and exact duration; never coalesce different recording identities.
   const metadata = lookupMetadata(track);
-  const key = JSON.stringify([lyricsKey(track), metadata.title, metadata.artist, track.duration]);
+  const key = JSON.stringify([
+    lyricsKey(track),
+    metadata.title,
+    metadata.artist,
+    track.duration,
+    extendedLyricsEnabled(),
+  ]);
   let entry = pending.get(key);
   if (!entry) {
     const controller = new AbortController();

@@ -104,7 +104,7 @@ export function SettingsPage(
         </div>
       )}
       <footer className="settings-hub-footer">
-        <a href={`${import.meta.env.BASE_URL}privacy.html`}>{t('Privacy &amp; rights')}</a>
+        <a href={`${import.meta.env.BASE_URL}privacy.html`}>{t('Privacy & rights')}</a>
         <span>Wave {__WAVE_VERSION__}</span>
       </footer>
     </section>

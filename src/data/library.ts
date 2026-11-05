@@ -1,3 +1,4 @@
+import { rolesReviewKey } from '../domain/metadata';
 import { contentIdentity } from './import';
 import { lyricsKey } from '../domain/lyricsLookup';
 import type { LyricsResult } from '../services/lyrics';
@@ -207,10 +208,33 @@ export function editTrackMetadata(id: string, metadata: TrackMetadata): Promise<
       title: metadata.title.trim(),
       artist: metadata.artist.trim() || 'Unknown artist',
       album: metadata.album.trim() || 'Unknown album',
+      rolesReviewed: rolesReviewKey({ ...track, ...metadata }),
       editedAt: Date.now(),
     }),
   );
 }
+/** Resolve a filename disagreement without rewriting the source file. */
+export function reviewTrackRoles(id: string, action: 'swap' | 'keep'): Promise<Track> {
+  return mutateTrack(id, (track) => {
+    const next =
+      action === 'swap'
+        ? {
+            ...track,
+            title: track.artist,
+            artist: track.title,
+            originalMetadata: track.originalMetadata ?? {
+              title: track.title,
+              artist: track.artist,
+              album: track.album,
+              artwork: track.artwork,
+            },
+          }
+        : { ...track };
+    next.rolesReviewed = rolesReviewKey(next);
+    return action === 'swap' ? invalidateOnlineLyrics(track, next) : next;
+  });
+}
+
 /**
  * Writes what an online catalogue filled in, and remembers that the song was
  * asked about.
@@ -392,7 +416,9 @@ export async function saveAlbumOrder(id: string, trackIds: string[]): Promise<Al
 }
 
 function compactTrack(track: Track): Track {
-  return track.lyrics ? { ...track, lyrics: { ...track.lyrics, lines: [] } } : track;
+  return track.lyrics && !track.lyrics.lines.some((line) => line.words?.length)
+    ? { ...track, lyrics: { ...track.lyrics, lines: [] } }
+    : track;
 }
 function hydrateTrack(track: Track): Track {
   if (!track.lyrics) return track;
@@ -401,6 +427,10 @@ function hydrateTrack(track: Track): Track {
       ...track,
       lyrics: {
         ...parseLyrics(track.lyrics.raw, track.lyrics.offsetMs, track.lyrics.source),
+        ...(track.lyrics.lines?.some((line) => line.words?.length)
+          ? { lines: track.lyrics.lines }
+          : {}),
+        provider: track.lyrics.provider,
         providerId: track.lyrics.providerId,
       },
     };
@@ -412,7 +442,10 @@ function invalidateOnlineLyrics(before: Track, after: Track): Track {
   if (lyricsKey(before) === lyricsKey(after)) return after;
   return {
     ...after,
-    lyrics: after.lyrics?.source === 'lrclib' ? undefined : after.lyrics,
+    lyrics:
+      after.lyrics && ['lrclib', 'netease', 'kugou'].includes(after.lyrics.source)
+        ? undefined
+        : after.lyrics,
     lyricsLookup: undefined,
   };
 }

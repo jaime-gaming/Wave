@@ -1,6 +1,6 @@
 {
   "name": "wave",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -14,7 +14,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "release:check": "node scripts/check-release.mjs",
-    "test:release": "node --test scripts/check-release.test.mjs",
+    "test:release": "node --test scripts/check-release.test.mjs scripts/native-release.test.mjs",
     "build:i18n": "node scripts/build-i18n.mjs",
     "build:pages": "node scripts/build-pages.mjs",
     "capture:docs": "node --experimental-strip-types scripts/capture-docs.ts"

@@ -9,7 +9,9 @@ export function useAutomaticLyrics(
   busy: boolean,
   onResult: (id: string, result: LyricsResult) => Promise<void>,
   priority?: string,
+  wordSources = false,
 ) {
+  const upgrades = useRef(new Set<string>());
   const [loading, setLoading] = useState<string | null>(null),
     [retry, setRetry] = useState(0);
   const forced = useRef<string | null>(null),
@@ -34,12 +36,23 @@ export function useAutomaticLyrics(
         clearTimeout(notify);
       };
     const forcedId = forced.current;
+    const upgrade =
+      wordSources && priority
+        ? latest.current.find(
+            (track) =>
+              track.id === priority &&
+              track.lyrics?.source === 'lrclib' &&
+              !track.lyrics.lines.some((line) => line.words?.length) &&
+              !upgrades.current.has(lyricsKey(track)),
+          )
+        : undefined;
     const track =
       (!enabled && !forcedId) || busy
         ? undefined
         : forcedId
           ? latest.current.find((t) => t.id === forcedId)
-          : (latest.current.find((t) => t.id === priority && needsLyrics(t)) ??
+          : (upgrade ??
+            latest.current.find((t) => t.id === priority && needsLyrics(t)) ??
             latest.current.find((t) => needsLyrics(t)));
     if (!track || !canLookup(track) || (track.lyrics && track.lyrics.source !== 'lrclib')) {
       if (forced.current === forcedId) forced.current = null;
@@ -62,13 +75,15 @@ export function useAutomaticLyrics(
       lyricsCooldown() - Date.now(),
     );
     const start = setTimeout(() => {
+      if (upgrade?.id === track.id) upgrades.current.add(lyricsKey(track));
       void lookupLyrics(track, controller.signal)
         .then(async (result) => {
           if (controller.signal.aborted || generation.current !== requestId) return;
           if (forced.current === forcedId) forced.current = null;
           if (result.lookup.status === 'error')
             nextAllowed.current = result.lookup.retryAt ?? Date.now() + 60_000;
-          await onResult(track.id, result);
+          if (!upgrade || result.lyrics?.lines.some((line) => line.words?.length))
+            await onResult(track.id, result);
         })
         .catch(() => {
           // A canceled lookup or failed local write must never overwrite local lyrics.
@@ -82,7 +97,7 @@ export function useAutomaticLyrics(
       clearTimeout(notify);
       controller.abort();
     };
-  }, [signature, enabled, busy, retry, onResult, priority]);
+  }, [signature, enabled, busy, retry, onResult, priority, wordSources]);
   useEffect(() => {
     if (!enabled || busy) return;
     const now = Date.now();

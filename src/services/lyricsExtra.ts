@@ -17,7 +17,7 @@ import {
   parseKugouLyric,
   parseNetEaseLyric,
   parseNetEaseSongs,
-  pickProviderSong,
+  rankProviderSongs,
 } from '../domain/wordProviders';
 import {
   decodeKrc,
@@ -30,7 +30,7 @@ import {
 import type { LyricLine } from '../domain/lyrics';
 
 export const EXTENDED_LYRICS_KEY = 'wave-lyrics-extended';
-export const PROVIDER_TIMEOUT_MS = 6_000;
+export const PROVIDER_TIMEOUT_MS = 2_500;
 
 export type WordProviderId = 'netease' | 'kugou';
 
@@ -69,6 +69,7 @@ export function setExtendedLyrics(enabled: boolean): void {
 }
 
 async function getJson(url: string, context: Context): Promise<unknown> {
+  if (context.signal?.aborted) return undefined;
   const fetcher = context.fetcher ?? (typeof fetch === 'function' ? fetch : undefined);
   if (!fetcher) return undefined;
   const controller = new AbortController();
@@ -77,9 +78,8 @@ async function getJson(url: string, context: Context): Promise<unknown> {
   context.signal?.addEventListener('abort', abort);
   // Abort covers a normal fetch; the race covers an implementation that ignores
   // the signal, so a dead provider can never keep a lookup pending.
-  let timerHandle: ReturnType<typeof setTimeout> | undefined;
   const deadline = new Promise<undefined>((resolve) => {
-    timerHandle = setTimeout(() => resolve(undefined), context.timeoutMs ?? PROVIDER_TIMEOUT_MS);
+    controller.signal.addEventListener('abort', () => resolve(undefined), { once: true });
   });
   try {
     const request = fetcher(url, {
@@ -95,9 +95,8 @@ async function getJson(url: string, context: Context): Promise<unknown> {
   } catch {
     return undefined;
   } finally {
-    clearTimeout(timerHandle);
     clearTimeout(timer);
-    clearTimeout(timer);
+    controller.abort();
     context.signal?.removeEventListener('abort', abort);
   }
 }
@@ -115,33 +114,24 @@ async function fromNetEase(
     )}&type=1&limit=10`,
     context,
   );
-  const song = pickProviderSong(parseNetEaseSongs(search), track);
-  if (!song) return undefined;
-  const payload = await getJson(
-    `https://music.163.com/api/song/lyric?id=${encodeURIComponent(song.id)}&lv=-1&kv=-1&tv=-1`,
-    context,
-  );
-  const { yrc, lrc } = parseNetEaseLyric(payload);
-  const wordLines = yrc ? parseYrc(yrc) : [];
-  if (wordLines.length && wordTimelinePlausible(wordLines, track.duration))
-    return {
-      provider: 'netease',
-      lines: wordLines,
-      offsetMs: yrc ? headerOffsetMs(yrc) : 0,
-      providerId: song.id,
-      wordLevel: hasWordTimings(wordLines),
-    };
-  if (lrc) {
-    const lines = parseYrc(lrc);
-    if (lines.length && wordTimelinePlausible(lines, track.duration))
+  for (const song of rankProviderSongs(parseNetEaseSongs(search), track).slice(0, 3)) {
+    if (context.signal?.aborted) return undefined;
+    const payload = await getJson(
+      `https://music.163.com/api/song/lyric?id=${encodeURIComponent(song.id)}&lv=-1&kv=-1&tv=-1`,
+      context,
+    );
+    const { yrc } = parseNetEaseLyric(payload);
+    const wordLines = yrc ? parseYrc(yrc) : [];
+    if (hasWordTimings(wordLines) && wordTimelinePlausible(wordLines, track.duration))
       return {
         provider: 'netease',
-        lines,
-        offsetMs: headerOffsetMs(lrc),
+        lines: wordLines,
+        offsetMs: yrc ? headerOffsetMs(yrc) : 0,
         providerId: song.id,
-        wordLevel: false,
+        wordLevel: hasWordTimings(wordLines),
       };
   }
+
   return undefined;
 }
 
@@ -156,26 +146,30 @@ async function fromKugou(
     )}`,
     context,
   );
-  const song = pickProviderSong(parseKugouCandidates(search), track);
-  if (!song?.accessKey) return undefined;
-  const payload = await getJson(
-    `https://lyrics.kugou.com/download?ver=1&client=pc&id=${encodeURIComponent(
-      song.id,
-    )}&accesskey=${encodeURIComponent(song.accessKey)}&fmt=krc&charset=utf8`,
-    context,
-  );
-  const { krc } = parseKugouLyric(payload);
-  if (!krc) return undefined;
-  const decoded = decodeKrc(krc) || krc;
-  const lines = parseKrc(decoded);
-  if (!lines.length || !wordTimelinePlausible(lines, track.duration)) return undefined;
-  return {
-    provider: 'kugou',
-    lines,
-    offsetMs: headerOffsetMs(decoded),
-    providerId: song.id,
-    wordLevel: hasWordTimings(lines),
-  };
+  for (const song of rankProviderSongs(parseKugouCandidates(search), track)
+    .filter((song) => song.accessKey)
+    .slice(0, 3)) {
+    if (context.signal?.aborted) return undefined;
+    const payload = await getJson(
+      `https://lyrics.kugou.com/download?ver=1&client=pc&id=${encodeURIComponent(
+        song.id,
+      )}&accesskey=${encodeURIComponent(song.accessKey!)}&fmt=krc&charset=utf8`,
+      context,
+    );
+    const { krc } = parseKugouLyric(payload);
+    if (!krc) continue;
+    const decoded = decodeKrc(krc) || krc;
+    const lines = parseKrc(decoded);
+    if (!hasWordTimings(lines) || !wordTimelinePlausible(lines, track.duration)) continue;
+    return {
+      provider: 'kugou',
+      lines,
+      offsetMs: headerOffsetMs(decoded),
+      providerId: song.id,
+      wordLevel: hasWordTimings(lines),
+    };
+  }
+  return undefined;
 }
 
 /**
@@ -187,13 +181,25 @@ export async function fetchWordLyrics(
   track: { title: string; artist: string; duration: number },
   context: Context = {},
 ): Promise<WordLyrics | undefined> {
-  if (!isOnline() || !track.title || !track.artist) return undefined;
-  for (const provider of [fromNetEase, fromKugou]) {
-    if (context.signal?.aborted) return undefined;
-    const result = await provider(track, context);
-    if (result?.wordLevel) return result;
+  if (!isOnline() || !track.title || !track.artist || context.signal?.aborted) return undefined;
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  context.signal?.addEventListener('abort', abort, { once: true });
+  // Reserve time for line-sync fallback instead of letting several uploads use
+  // the entire outer lookup deadline. Cancellation also settles uncooperative fetches.
+  const timer = setTimeout(abort, 7000);
+  try {
+    for (const provider of [fromNetEase, fromKugou]) {
+      if (controller.signal.aborted) return undefined;
+      const result = await provider(track, { ...context, signal: controller.signal });
+      if (result?.wordLevel && !controller.signal.aborted) return result;
+    }
+    return undefined;
+  } finally {
+    clearTimeout(timer);
+    context.signal?.removeEventListener('abort', abort);
+    controller.abort();
   }
-  return undefined;
 }
 
 /** Human-readable provider name for attribution in the lyrics panel. */

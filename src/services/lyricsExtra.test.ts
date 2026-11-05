@@ -134,3 +134,26 @@ describe('word-level lyric providers', () => {
     ).toBe('2');
   });
 });
+
+it('tries the next matching upload when the first has no word timings', async () => {
+  const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    return {
+      ok: true,
+      json: async () =>
+        url.includes('/search')
+          ? {
+              result: {
+                songs: [
+                  { id: 111, name: track.title, ar: [{ name: track.artist }], dt: 244_000 },
+                  { id: 222, name: track.title, ar: [{ name: track.artist }], dt: 244_000 },
+                ],
+              },
+            }
+          : url.includes('id=222')
+            ? netEaseLyric
+            : { lrc: { lyric: '[00:01]Line only' } },
+    } as Response;
+  });
+  expect((await fetchWordLyrics(track, { fetcher }))?.providerId).toBe('222');
+});

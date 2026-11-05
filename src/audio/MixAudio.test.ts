@@ -54,10 +54,10 @@ it('overlaps two native sources, advances their identity and applies complementa
   expect(engine.outgoingBlob).toBe(a);
   elements[1].currentTime = 1;
   vi.advanceTimersByTime(1000);
-  expect(elements[0].volume).toBeCloseTo(Math.SQRT1_2);
-  expect(elements[1].volume).toBeCloseTo(Math.SQRT1_2);
+  expect(elements[0].volume).toBeCloseTo(0.5);
+  expect(elements[1].volume).toBeCloseTo(0.5);
   engine.setVolume(0.37);
-  expect(Math.hypot(elements[0].volume, elements[1].volume)).toBeCloseTo(0.37);
+  expect(elements[0].volume + elements[1].volume).toBeCloseTo(0.37);
   engine.setVolume(0);
   expect(elements.map((element) => element.volume)).toEqual([0, 0]);
   expect(elements.every((element) => element.muted)).toBe(true);
@@ -221,7 +221,7 @@ it('ignores outgoing ended/errors and switches current lyric clock to the incomi
   elements[1].dispatchEvent(new Event('timeupdate'));
   expect(events.time).toHaveBeenLastCalledWith(0.25);
 });
-it('uses equal-power gains and reports real mix progress, clearing it on cancellation', async () => {
+it('uses peak-safe complementary gains and reports real mix progress, clearing it on cancellation', async () => {
   const events = { ...callbacks(), blend: vi.fn() };
   engine = new MixAudio(events);
   const a = new Blob(['a']),
@@ -239,9 +239,13 @@ it('uses equal-power gains and reports real mix progress, clearing it on cancell
   await Promise.resolve();
   elements[1].currentTime = 0.5;
   vi.advanceTimersByTime(500);
-  expect(elements[1].volume).toBeCloseTo(Math.sin(Math.PI / 8));
-  expect(elements[0].volume).toBeCloseTo(Math.cos(Math.PI / 8));
-  expect(Math.hypot(elements[0].volume, elements[1].volume)).toBeCloseTo(1);
+  expect(elements[1].volume).toBeCloseTo(
+    Math.sin(Math.PI / 8) / (Math.sin(Math.PI / 8) + Math.cos(Math.PI / 8)),
+  );
+  expect(elements[0].volume).toBeCloseTo(
+    Math.cos(Math.PI / 8) / (Math.sin(Math.PI / 8) + Math.cos(Math.PI / 8)),
+  );
+  expect(elements[0].volume + elements[1].volume).toBeCloseTo(1);
   expect(events.blend).toHaveBeenLastCalledWith(
     expect.objectContaining({ outgoing: a, incoming: b, seconds: 2, progress: expect.any(Number) }),
   );
@@ -326,8 +330,10 @@ it('mixes from conservative cue points with the unshifted recording clock and or
   expect(engine.active.blob).toBe(b);
   elements[1].currentTime = 2.15;
   vi.advanceTimersByTime(100);
-  expect(elements[1].volume).toBeCloseTo(handoverGains(0.15).incoming);
-  expect(Math.hypot(...elements.map((a) => a.volume))).toBeCloseTo(1);
+  expect(elements[1].volume).toBeCloseTo(
+    handoverGains(0.15).incoming / (handoverGains(0.15).incoming + handoverGains(0.15).outgoing),
+  );
+  expect(elements.reduce((sum, a) => sum + a.volume, 0)).toBeCloseTo(1);
   expect(events.time).toHaveBeenLastCalledWith(2.15);
   expect(events.blend).toHaveBeenLastCalledWith(
     expect.objectContaining({ progress: expect.closeTo(0.15), outgoing: a, incoming: b }),
@@ -378,7 +384,7 @@ it('executes a beat-matched plan at the tempo the song was recorded at', async (
   // Halfway through, both decks sit at equal power.
   elements[1].currentTime = 14.5;
   vi.advanceTimersByTime(100);
-  expect(Math.hypot(elements[0].volume, elements[1].volume)).toBeCloseTo(1, 4);
+  expect(elements[0].volume + elements[1].volume).toBeCloseTo(1, 4);
   expect(events.blend).toHaveBeenLastCalledWith(
     expect.objectContaining({ incoming: b, outgoing: a }),
   );
@@ -583,4 +589,51 @@ it('keeps the arriving song silent while the blend is still being set up', async
   await Promise.resolve();
   await Promise.resolve();
   expect(engine.transitioning).toBe(true);
+});
+
+it('never resets a live deck gain on resume and bounds the summed level across the whole mix', async () => {
+  const gains: { value: number }[] = [];
+  const param = () => ({ value: 0, setTargetAtTime: vi.fn() });
+  const node = () => ({ connect: vi.fn(), disconnect: vi.fn() });
+  vi.stubGlobal('AudioContext', function () {
+    return {
+      state: 'running',
+      currentTime: 0,
+      destination: node(),
+      resume: vi.fn(async () => {}),
+      close: vi.fn(async () => {}),
+      createMediaElementSource: () => node(),
+      createBiquadFilter: () => ({ ...node(), frequency: param(), gain: param() }),
+      createGain: () => {
+        const gain = param();
+        gains.push(gain);
+        return { ...node(), gain };
+      },
+    };
+  });
+  engine = new MixAudio(callbacks());
+  engine.setMixEnabled(true);
+  const a = new Blob(['first']),
+    b = new Blob(['second']);
+  engine.load(a);
+  await engine.play();
+  engine.prepare(b);
+  elements[0].currentTime = 2;
+  engine.transition(
+    b,
+    2,
+    () => true,
+    () => {},
+  );
+  await Promise.resolve();
+  elements[1].currentTime = 0.5;
+  vi.advanceTimersByTime(100);
+  const before = gains.map((gain) => gain.value);
+  await engine.resumeAudio();
+  expect(gains.map((gain) => gain.value)).toEqual(before);
+  for (let i = 26; i <= 100; i++) {
+    elements[1].currentTime = i / 50;
+    vi.advanceTimersByTime(20);
+    expect(gains.reduce((sum, gain) => sum + gain.value, 0)).toBeLessThanOrEqual(1.00001);
+  }
 });

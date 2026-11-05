@@ -46,7 +46,8 @@ export function scoreProviderSong(
   if (titleScore < 0.4) return 0;
   const artistScore = similarity(song.artist, wanted.artist);
   const title = strip(song.title);
-  if (VERSION_WORDS.some((word) => title.includes(word) && !strip(wanted.title).includes(word)))
+  if (artistScore < 0.35) return 0;
+  if (VERSION_WORDS.some((word) => tokens(title).has(word) !== tokens(wanted.title).has(word)))
     return 0;
   let score = titleScore * 0.55 + artistScore * 0.25;
   if (wanted.duration > 30 && song.duration > 0) {
@@ -55,6 +56,23 @@ export function scoreProviderSong(
     score += 0.2 * (1 - difference / 12);
   } else score += 0.05;
   return Math.min(1, score);
+}
+
+/** Ranked recording matches: a missing lyric on the first upload should not end the search. */
+export function rankProviderSongs(
+  songs: ProviderSong[],
+  wanted: { title: string; artist: string; duration: number },
+  floor = 0.6,
+): ProviderSong[] {
+  return songs
+    .map((song) => ({ song, score: scoreProviderSong(song, wanted) }))
+    .filter((item) => item.score >= floor)
+    .sort(
+      (a, b) =>
+        b.score - a.score ||
+        Math.abs(a.song.duration - wanted.duration) - Math.abs(b.song.duration - wanted.duration),
+    )
+    .map((item) => item.song);
 }
 
 /** Best candidate above the floor, or null. Higher score wins, then closer length. */

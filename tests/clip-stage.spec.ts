@@ -173,3 +173,14 @@ for (const [width, height] of [
     }
   });
 }
+
+test('an idle videoclip keeps playing and wakes immediately on interaction', async ({ page }) => {
+  const stage = await setup(page);
+  await expect(stage).toHaveClass(/is-idle/, { timeout: 10000 });
+  await expect(stage.locator('.stage-controls')).toHaveCSS('opacity', '0');
+  await expect(page.locator('.video-backdrop')).toHaveCount(1);
+  await page.mouse.move(80, 80);
+  await expect(stage).not.toHaveClass(/is-idle/);
+  await expect(stage.locator('.stage-controls')).toHaveCSS('opacity', '1');
+  await expect(page.locator('.player-normal-view.clip-live')).toHaveCount(1);
+});

@@ -1,6 +1,6 @@
 # Privacy and local storage
 
-Updated: 28 October 2026. Applies to Wave's current development source. Deployment operators must provide their own legal identity and privacy contact before a public release; this file is not a completed GDPR operator notice.
+Updated: 5 November 2026. Applies to Wave's current development source. Deployment operators must provide their own legal identity and privacy contact before a public release; this file is not a completed GDPR operator notice.
 
 ## On your device
 

@@ -4,6 +4,11 @@ on:
     paths: ['platforms/**', '.github/workflows/native.yml']
   pull_request:
     paths: ['platforms/**', '.github/workflows/native.yml']
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
   workflow_dispatch:
 permissions:
   contents: read
@@ -16,6 +21,9 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.tag || github.sha }}
+          persist-credentials: ${{ !inputs.tag }}
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -103,12 +111,25 @@ jobs:
         with:
           name: wave-android-debug-test-only
           path: platforms/android/app/build/outputs/apk/debug/*.apk
+      - name: Attach Android test build to release
+        if: inputs.tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        shell: bash
+        run: |
+          cp platforms/android/app/build/outputs/apk/debug/app-debug.apk Wave-Android-test-only.apk
+          sha256sum Wave-Android-test-only.apk > Wave-Android-test-only.apk.sha256
+          gh release upload "$RELEASE_TAG" Wave-Android-test-only.apk Wave-Android-test-only.apk.sha256 --clobber
   windows:
     runs-on: windows-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.tag || github.sha }}
+          persist-credentials: ${{ !inputs.tag }}
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
@@ -204,3 +225,12 @@ jobs:
         with:
           name: wave-windows-unsigned-test-only
           path: artifacts/Wave-Windows-x64-unsigned.zip
+      - name: Attach Windows portable build to release
+        if: inputs.tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        shell: pwsh
+        run: |
+          gh release upload "$env:RELEASE_TAG" artifacts/Wave-Windows-x64-unsigned.zip --clobber
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

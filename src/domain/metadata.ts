@@ -21,6 +21,7 @@ export const missingTag = (value: string) =>
 export function metadataIssues(
   track: Pick<Track, 'title' | 'artist' | 'album' | 'duration' | 'artwork'> & {
     fileName?: string;
+    rolesReviewed?: string;
   },
 ): MetadataIssue[] {
   const issues: MetadataIssue[] = [];
@@ -30,7 +31,7 @@ export function metadataIssues(
   // for it: the file name itself disagrees with the tags in exactly that way.
   // Comparing two tags for equality flagged every song whose title repeats its
   // artist — self-titled albums, "X by X" singles — which is not a mistake.
-  if (rolesSwapped(track)) issues.push('roles');
+  if (rolesSwapped(track) && track.rolesReviewed !== rolesReviewKey(track)) issues.push('roles');
   if (!Number.isFinite(track.duration) || track.duration <= 0) issues.push('duration');
   if (!track.artwork) issues.push('artwork');
   return issues;
@@ -54,4 +55,13 @@ export function describeIssues(issues: MetadataIssue[]): string {
   if (issues.includes('roles') && list) return `Needs ${list} · the artist and title look swapped`;
   if (issues.includes('roles')) return 'The artist and title look swapped';
   return list ? `Needs ${list}` : '';
+}
+
+/** A confirmation expires if any of the evidence changes. */
+export function rolesReviewKey(track: {
+  title: string;
+  artist: string;
+  fileName?: string;
+}): string {
+  return JSON.stringify([track.title.trim(), track.artist.trim(), track.fileName ?? '']);
 }

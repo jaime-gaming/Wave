@@ -1,3 +1,4 @@
+import { metadataIssues } from './metadata';
 import type { Track } from './types';
 
 /**
@@ -77,6 +78,7 @@ export function needsDetails(track: Track): boolean {
   // is called, which album it belongs to and which cover it wears. A year or a
   // genre missing is normal in a private library and never worth a request.
   return (
+    metadataIssues(track).includes('roles') ||
     !track.artwork ||
     isPlaceholderArtist(track.artist) ||
     isPlaceholderAlbum(track.album) ||
@@ -206,6 +208,22 @@ export function bestRelease(
   return bestScore >= accept ? best : undefined;
 }
 
+/** A filename alone cannot determine artist/title order; a matching recording can. */
+export function confirmedRoleRelease(
+  track: Track,
+  releases: CatalogueRelease[],
+): CatalogueRelease | undefined {
+  if (track.editedAt || !metadataIssues(track).includes('roles') || track.duration <= 0)
+    return undefined;
+  return releases.find(
+    (release) =>
+      letters(release.title) === letters(track.artist) &&
+      letters(release.artist) === letters(track.title) &&
+      !!release.duration &&
+      Math.abs(release.duration - track.duration) <= 3,
+  );
+}
+
 export interface DetailsPatch {
   patch: Partial<
     Pick<
@@ -227,6 +245,11 @@ export function detailsPatch(track: Track, release: CatalogueRelease): DetailsPa
   if (track.editedAt) return { patch: {}, filled: [] };
   const patch: DetailsPatch['patch'] = {};
   const filled: string[] = [];
+  if (confirmedRoleRelease(track, [release])) {
+    patch.title = release.title.trim();
+    patch.artist = release.artist.trim();
+    filled.push('title', 'artist');
+  }
 
   // A title that is really a filename is the one thing worth replacing, and it
   // does not depend on the album being known: a nameless album used to block the

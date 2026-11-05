@@ -334,7 +334,7 @@ test('home uses real albums and keyboard search works from focused controls', as
   await page.getByLabel('Import audio files').setInputFiles(path);
   await expect(page.getByRole('button', { name: 'Play Signal by Wave Tests' })).toBeVisible();
   await page.getByRole('navigation').getByRole('button', { name: 'Home', exact: true }).click();
-  await expect(page.getByRole('region', { name: 'Recently added albums' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Albums to get lost in' })).toBeVisible();
   await page.getByRole('button', { name: 'First light Wave Tests' }).click();
   await expect(page.getByRole('heading', { name: 'Library', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Albums', exact: true })).toHaveAttribute(
@@ -1671,7 +1671,7 @@ test('collapsed player stays compact, sidebar shortcuts navigate and Home preser
     .getByRole('navigation', { name: 'Main navigation' })
     .getByRole('button', { name: 'Home', exact: true })
     .click();
-  await expect(page.getByRole('region', { name: 'Recently added albums' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Albums to get lost in' })).toBeVisible();
   await page.getByRole('button', { name: 'Open now playing', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Now playing' })).toHaveCSS('width', '1440px');
 });
