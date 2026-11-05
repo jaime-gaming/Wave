@@ -1,6 +1,6 @@
 <p align="center"><img src="public/wave-wordmark.svg" alt="Wave" width="270" /></p>
 <p align="center"><strong>Your music files, played properly.</strong></p>
-<p align="center"><a href="https://wave.jaime-gaming.com">wave.jaime-gaming.com</a> · Version <strong>0.2.0</strong> · <a href="#get-started">Get started</a> · <a href="docs/WHY_WAVE.md">Why Wave</a> · <a href="docs/media/wave-promo.mp4">Watch the demo</a> · <a href="docs/RELEASE_NOTES_0.2.0.md">What's new</a></p>
+<p align="center"><a href="https://wave.jaime-gaming.com">wave.jaime-gaming.com</a> · Development <strong>0.2.1</strong> · <a href="#get-started">Get started</a> · <a href="docs/WHY_WAVE.md">Why Wave</a> · <a href="docs/media/wave-promo.mp4">Watch the demo</a> · <a href="docs/RELEASE_NOTES_0.2.1.md">What's new</a></p>
 
 ![Wave Home on the web: a local collection, album artwork and daily mixes](docs/media/home-desktop.png)
 
@@ -50,7 +50,7 @@ builds, so Windows may show a SmartScreen warning and Android asks you to allow 
   with no YouTube interface showing. A still picture is not a clip, so a song either has a moving
   one or none.
 - **YouTube songs** by link, for the ones you do not own yet.
-- **Brings playlists over** from another app: paste a list or choose its exported `.m3u` or
+- **Brings playlists over** from another app: try a public Spotify/YouTube URL, paste a list or choose its exported `.m3u` or
   `.csv`, see which songs you already have, and turn the confirmed ones into a playlist.
 - **Device linking** with a QR code and no server, so two of your devices can share a song by
   transfer. Nothing already saved is ever deleted.
@@ -152,7 +152,7 @@ feature and device-testing gaps are listed in [Platforms](docs/PLATFORMS.md#andr
 
 ## Your files and your privacy
 
-- Everything stays on your device. There is no backend, no analytics, no account.
+- Music and library storage stay on your device. There are no accounts or analytics; the optional public-link reader uses the Wave Worker for metadata only.
 - Lyric search is off until you turn it on. It sends the song title and artist to LRCLIB.
 - Clip discovery sends the song title and artist to public YouTube front-ends. Video and YouTube
   songs stream from YouTube.
@@ -184,3 +184,13 @@ own rights.
 <p align="center"><img src="public/wave.svg" alt="" width="30" /></p>
 
 Maintained by [Jaime Gaming](https://github.com/jaime-gaming).
+
+### Worker hosting and private opinions
+
+Production uses Cloudflare Workers (`wrangler.jsonc`), not GitHub Pages. Run `npm run build && npm run deploy:check` to validate the Worker without publishing. `npm run dev:worker` serves the built app and metadata endpoint in the Worker runtime. The normal Vite dev server also includes the endpoint. Public URL import reads only visible metadata, may return an incomplete list, and never downloads audio; review matches before saving. Private/blocked lists still need an export.
+
+The expanded player simplifies after **30 seconds** without interaction, including videoclips. Lyrics remain readable while controls step back; pointer, touch or keyboard input brings them back. Repeats use a short audio fade-in, not a screen effect. Remix retains its three expandable highlights, now with coherent line icons.
+
+A feature-opinion prompt is optional and deliberately rare: only after sustained use, with a long cooldown. Answers stay in your browser, are never sent anywhere, and do not change playback. “Do not ask again” opts out.
+
+Android polish in this source includes less bouncy press feedback, animated navigation tint/indicators and a short artwork reveal decoded off the UI thread. Native compilation and real-device inspection remain necessary; web screenshots are not Android verification.

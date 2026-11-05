@@ -637,3 +637,18 @@ it('never resets a live deck gain on resume and bounds the summed level across t
     expect(gains.reduce((sum, gain) => sum + gain.value, 0)).toBeLessThanOrEqual(1.00001);
   }
 });
+
+it('softens a repeat with a short bounded attack, independently of Mix', async () => {
+  engine = new MixAudio(callbacks());
+  engine.load(new Blob(['repeat']));
+  engine.setVolume(0.4);
+  elements[0].currentTime = 3;
+  await engine.restart();
+  expect(elements[0].currentTime).toBe(0);
+  expect(elements[0].volume).toBe(0);
+  vi.advanceTimersByTime(100);
+  expect(elements[0].volume).toBeGreaterThan(0);
+  expect(elements[0].volume).toBeLessThan(0.4);
+  vi.advanceTimersByTime(200);
+  expect(elements[0].volume).toBeCloseTo(0.4);
+});

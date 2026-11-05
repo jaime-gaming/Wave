@@ -1,3 +1,4 @@
+import { LocalFeedback } from './components/LocalFeedback';
 import { PlatformLinks } from './components/PlatformLinks';
 import { usePageRoute } from './hooks/usePageRoute';
 import type { MixSelection } from './components/DailyMixPage';
@@ -94,13 +95,6 @@ import { Artwork } from './components/Artwork';
 import { LibraryContent } from './components/LibraryContent';
 import { Navigation, type Page } from './components/Navigation';
 import { Modal } from './components/Modal';
-import { AndroidAppSheet } from './components/AndroidAppSheet';
-import {
-  isAndroidBrowser,
-  isStandalone,
-  promptAlreadyAnswered,
-  rememberPromptAnswer,
-} from './ui/androidApp';
 import { PlayerBar } from './components/PlayerBar';
 import { getClip, loadClips, removeClip } from './domain/videoClips';
 import { AddMusicDialog } from './components/AddMusicDialog';
@@ -240,17 +234,6 @@ function WaveApp({
   const [sort, setSort] = useState('recent');
   const [group, setGroup] = useState<string | null>(null);
   const [queueOpen, setQueueOpen] = useState(false);
-  /**
-   * A phone browsing the web is offered the Android app once. It is asked after
-   * the interface has settled, so the first thing on screen is still the music,
-   * and never on a device that answered already or that already runs the app.
-   */
-  const [androidSheet, setAndroidSheet] = useState(false);
-  useEffect(() => {
-    if (!isAndroidBrowser(undefined, isStandalone()) || promptAlreadyAnswered()) return;
-    const timer = setTimeout(() => setAndroidSheet(true), 4_000);
-    return () => clearTimeout(timer);
-  }, []);
   /** Listening history is counted from the playback clock and shown in Remix. */
   const listening = useListeningHistory({
     track: player.current,
@@ -723,6 +706,7 @@ function WaveApp({
         importFiles([...event.dataTransfer.files]);
       }}
     >
+      <LocalFeedback />
       <a className="skip-link" href="#main">
         {t('Skip to library')}
       </a>
@@ -934,7 +918,12 @@ function WaveApp({
                           role="switch"
                           aria-label={t('Mix')}
                           aria-checked={player.mixEnabled}
-                          onClick={() => player.setMixEnabled(!player.mixEnabled)}
+                          onClick={() => {
+                            player.setMixEnabled(!player.mixEnabled);
+                            window.dispatchEvent(
+                              new CustomEvent('wave:feature-used', { detail: 'Mix' }),
+                            );
+                          }}
                         >
                           <motion.span layout transition={animation.fast}>
                             {player.mixEnabled && <Check size={15} />}
@@ -1384,21 +1373,6 @@ function WaveApp({
           </LibrarySurface>
         </AnimatePresence>
       </main>
-      <AnimatePresence>
-        {androidSheet && (
-          <AndroidAppSheet
-            key="android-app"
-            onDismiss={() => {
-              rememberPromptAnswer('dismissed');
-              setAndroidSheet(false);
-            }}
-            onKeepWeb={() => {
-              rememberPromptAnswer('web');
-              setAndroidSheet(false);
-            }}
-          />
-        )}
-      </AnimatePresence>
       <PlayerBar
         player={player}
         expanded={playerOpen}

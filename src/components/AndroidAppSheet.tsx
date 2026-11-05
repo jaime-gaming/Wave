@@ -6,7 +6,7 @@ import { ANDROID_APP_URL } from '../ui/androidApp';
 
 import { useT } from '../i18n';
 /**
- * "Wave is also an app on Android", asked once on a phone.
+ * Legacy standalone download sheet. The main web app no longer mounts it or prompts on Home.
  *
  * It is a small sheet above the player, not a modal: the song keeps playing and
  * nothing is blocked. Either answer is remembered, so the question is asked

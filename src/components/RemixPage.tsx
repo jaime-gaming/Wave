@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { AudioLines, Disc3, Play } from './Glyphs';
+import { AudioLines, Disc3, Play, Users, Music2, ChevronDown } from './Glyphs';
 import { Artwork } from './Artwork';
 import { EmptyState } from './EmptyState';
 import { useWaveMotion } from '../ui/motion';
@@ -180,17 +180,30 @@ export function RemixPage({
             className={`remix-highlight remix-highlight-${card.id}`}
             aria-expanded={section === card.id}
             aria-controls={`remix-${card.id}-panel`}
-            onClick={() => setSection(section === card.id ? null : card.id)}
+            onClick={() => {
+              setSection(section === card.id ? null : card.id);
+              window.dispatchEvent(new CustomEvent('wave:feature-used', { detail: 'Remix' }));
+            }}
             initial={false}
             animate={{ opacity: 1, y: 0 }}
             transition={animation.fast}
             whileTap={animation.enabled ? { scale: 0.98 } : undefined}
           >
-            <span>{card.label}</span>
+            <span className="remix-highlight-label">
+              {card.id === 'time' ? (
+                <AudioLines size={20} />
+              ) : card.id === 'artist' ? (
+                <Users size={20} />
+              ) : (
+                <Music2 size={20} />
+              )}
+              {card.label}
+            </span>
             <strong>{card.value}</strong>
             <small>{card.hint}</small>
             <span className="remix-highlight-more">
               {section === card.id ? t('Hide details') : t('View details')}
+              <ChevronDown size={16} />
             </span>
           </motion.button>
         ))}

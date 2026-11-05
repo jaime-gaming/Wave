@@ -20,10 +20,18 @@ Release date: 5 November 2026.
 - Resolve artist/title disagreements with a persisted swap or confirmation. Filenames are only a hint; automatic correction requires an exact independent catalogue match within three seconds of the recording duration.
 - Use a restrained Remix layout with separators, remove the decorative sparkle icon and button glow.
 - Keep browser favicons transparent while installed app and Windows icons retain their backgrounds.
-- Make Android downloads and capabilities easier to find from Home and About; add honest cross-platform links in Android and Windows without claiming native library synchronization.
-- Acknowledge successful repeats briefly and reduce held-edge trim zoom to at most 2.5×.
+- Keep platform download links quietly in About, not Home. Remove automatic Android promotion in the web app; polish native Android presses, navigation, artwork, lyric focus and scrubbing instead. Native libraries remain independent.
+- Smooth repeats with a short audio attack, without an on-screen notice. Reduce held-edge trim zoom to at most 2.5×.
 - Correct the privacy revision date and remove its obsolete hard-coded app version.
 - Keep the Windows implementation in C#/WPF: use a hash set for duplicate detection, move metadata parsing off the UI thread, refresh stored rows before appending, and guard concurrent imports. No Rust migration or measured performance claim is made.
+
+## Latest interaction and hosting follow-up
+
+- Remix retains line icons and detail chevrons within its three expandable highlights.
+- Expanded playback, including videoclips, simplifies after 30 seconds of inactivity. Clip lyrics keep a high-contrast reading surface rather than fading away with the controls.
+- A deliberately rare, dismissible feature-opinion card stores only local structured answers, with a long cooldown and opt-out. Nothing is transmitted or used for automatic changes.
+- Bring your playlists now tries public Spotify/YouTube URLs through the same-origin Worker before falling back to export files. Public lists can be partial; matching and confirmation remain local, with no audio download.
+- Cloudflare Workers owns production hosting and the bounded metadata endpoint. Remove the old compiled `docs/` mirror and its CI drift check; validate the actual Worker bundle with `deploy:check` instead. Documentation and six web screenshots are refreshed.
 
 ## Devices
 

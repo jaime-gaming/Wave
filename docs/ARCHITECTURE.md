@@ -6,7 +6,7 @@
 
 Wave's first implementation is a browser application built with React and TypeScript. It is now accompanied by independent Kotlin/Compose Android and C#/WPF Windows projects; see PLATFORMS.md for native architecture and verified build status and remaining parity differences. PixelPlayer remains a reference for local-library organization and playback interactions, not an implementation dependency.
 
-The first milestone is a working vertical slice: import local music, persist it, browse and search it, then play it, organize playlists, and optionally edit local metadata. There is no backend or authentication. Optional automatic lyrics uses LRCLIB directly from the browser; audio remains local.
+The first milestone is a working vertical slice: import local music, persist it, browse and search it, then play it, organize playlists, and optionally edit local metadata. There is no cloud library or authentication. The optional public-playlist URL reader uses one bounded Cloudflare Worker endpoint; playback and matching stay local. Optional automatic lyrics uses LRCLIB directly from the browser; audio remains local.
 
 ## Layers and responsibilities
 

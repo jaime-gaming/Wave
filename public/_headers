@@ -1,4 +1,4 @@
-# Cloudflare Pages response headers.
+# Cloudflare Workers static-asset response headers.
 /*
   X-Content-Type-Options: nosniff
   Referrer-Policy: no-referrer
@@ -6,7 +6,7 @@
   X-Frame-Options: SAMEORIGIN
 
 # Hashed build output never changes, so it can be cached for a year.
-/site-assets/*
+/assets/*
   Cache-Control: public, max-age=31536000, immutable
 
 # The shell and the service worker must be revalidated, or a new release is

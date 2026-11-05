@@ -175,8 +175,10 @@ for (const [width, height] of [
 }
 
 test('an idle videoclip keeps playing and wakes immediately on interaction', async ({ page }) => {
+  test.setTimeout(50_000);
   const stage = await setup(page);
-  await expect(stage).toHaveClass(/is-idle/, { timeout: 10000 });
+  await expect(stage).toHaveClass(/is-idle/, { timeout: 35_000 });
+  await expect(stage.locator('.stage-lyrics')).toHaveCSS('opacity', '1');
   await expect(stage.locator('.stage-controls')).toHaveCSS('opacity', '0');
   await expect(page.locator('.video-backdrop')).toHaveCount(1);
   await page.mouse.move(80, 80);

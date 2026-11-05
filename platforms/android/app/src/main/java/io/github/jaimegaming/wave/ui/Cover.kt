@@ -6,6 +6,10 @@ import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.util.LruCache
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.draw.alpha
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -86,6 +90,7 @@ fun rememberArtwork(song: Song, maxSide: Int = 512): Bitmap? {
 @Composable
 fun Cover(song: Song, size: Dp, radius: Dp = 12.dp) {
     val bitmap = rememberArtwork(song)
+    val reveal by animateFloatAsState(if (bitmap == null) 0f else 1f, tween(180), label = "artwork reveal")
     Box(
         modifier = Modifier
             .size(size)
@@ -98,7 +103,7 @@ fun Cover(song: Song, size: Dp, radius: Dp = 12.dp) {
                 bitmap = bitmap.asImageBitmap(),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().alpha(reveal),
             )
         } else {
             WaveIcon("song", size = size * 0.38f, tint = MaterialTheme.colorScheme.onSurfaceVariant)

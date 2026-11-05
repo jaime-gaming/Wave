@@ -1,4 +1,3 @@
-import { PlatformLinks } from './PlatformLinks';
 import { homeRecommendations } from '../domain/homeRecommendations';
 import type { ListeningSummary } from '../domain/listening';
 import type { DailyMix } from '../domain/dailyMixes';
@@ -142,7 +141,6 @@ export const HomePage = memo(function HomePage({
           <ArrowUpRight size={18} aria-hidden="true" />
         </motion.button>
       )}
-      <PlatformLinks compact />
       <DailyMixes tracks={tracks} listening={listening} onOpen={onMix} />
       {albums.length > 0 && (
         <section aria-label={t('Albums to get lost in')} className="home-albums">

@@ -700,6 +700,20 @@ public static partial class Localization {
             ["Each app keeps its own library. Device linking currently uses the web player."] = "Cada aplicación mantiene su propia biblioteca. La vinculación de dispositivos utiliza actualmente el reproductor web.",
             ["Wave on the web · link devices"] = "Wave en la web · vincular dispositivos",
             ["Wave for Android · APK"] = "Wave para Android · APK",
+            ["A moment for your opinion"] = "Un momento para tu opinión",
+            ["How is {feature} working for you?"] = "¿Qué te parece {feature}?",
+            ["Just for you: your answer stays in this browser. It is not sent to Wave or used to change the feature."] = "Sólo para ti: tu respuesta se queda en este navegador. No se envía a Wave ni se utiliza para cambiar la función.",
+            ["Saved on this device. Thank you for taking a moment."] = "Guardado en este dispositivo. Gracias por dedicarle un momento.",
+            ["Works well"] = "Funciona bien",
+            ["Needs work"] = "Necesita mejoras",
+            ["Do not ask again"] = "No volver a preguntar",
+            ["Playlist import"] = "Importación de listas",
+            ["The public link could not be read. Try an exported playlist file instead."] = "No se pudo leer el enlace público. Prueba con un archivo de lista exportado.",
+            ["Reading public link…"] = "Leyendo el enlace público…",
+            ["Read this list"] = "Leer esta lista",
+            ["Paste a public Spotify or YouTube link, a song list, or choose an exported file."] = "Pega un enlace público de Spotify o YouTube, una lista de canciones o elige un archivo exportado.",
+            ["Reading a URL sends that link to the Wave Worker and its provider for public metadata only. No audio or library is uploaded. Private lists need an export."] = "Al leer una URL se envía el enlace al Worker de Wave y a su proveedor, sólo para obtener datos públicos. No se sube audio ni tu biblioteca. Las listas privadas necesitan una exportación.",
+            ["Only the publicly visible songs could be read. The list may be incomplete; review before saving. No audio was downloaded."] = "Sólo se pudieron leer las canciones visibles públicamente. La lista puede estar incompleta; revísala antes de guardar. No se ha descargado audio.",
         };
 
     /// <summary>What the person chose: "system", "en" or "es".</summary>

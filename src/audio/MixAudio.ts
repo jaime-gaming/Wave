@@ -413,6 +413,9 @@ export class MixAudio {
   restart() {
     this.cancelTransition();
     this.element.currentTime = 0;
+    // A short, unity-bounded attack softens the return without layering audio,
+    // changing pitch or touching the original file. It is independent of Mix.
+    this.fadeIn(0.22);
     return this.play();
   }
   prepare(blob?: Blob) {

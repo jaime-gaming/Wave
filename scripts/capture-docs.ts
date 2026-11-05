@@ -54,6 +54,10 @@ const words = [
 /** Fills the library with the demo albums, their covers and their lyrics. */
 async function seedDemoLibrary(page: Page) {
   await page.goto(origin);
+  await page.getByLabel('Import audio files').waitFor({ state: 'attached' });
+  await page.waitForFunction(
+    () => !document.querySelector<HTMLInputElement>('[aria-label="Import audio files"]')?.disabled,
+  );
   await page.getByLabel('Import audio files').setInputFiles(
     albums.flatMap((entry) =>
       entry.titles.map((title) => ({

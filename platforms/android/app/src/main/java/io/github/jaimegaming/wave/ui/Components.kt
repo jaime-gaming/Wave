@@ -53,7 +53,7 @@ import io.github.jaimegaming.wave.Song
 fun Modifier.pressScale(pressed: Boolean, amount: Float = 0.972f): Modifier {
     val scale by animateFloatAsState(
         targetValue = if (pressed) amount else 1f,
-        animationSpec = spring(dampingRatio = 0.55f, stiffness = 900f),
+        animationSpec = spring(dampingRatio = 0.82f, stiffness = 650f),
         label = "press",
     )
     return this.scale(scale)

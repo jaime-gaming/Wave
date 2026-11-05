@@ -1,5 +1,8 @@
 package io.github.jaimegaming.wave.ui
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.getValue
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -70,7 +73,7 @@ fun ChromeButton(
     Box(
         modifier = Modifier
             .size(size)
-            .pressScale(pressed, amount = 0.9f)
+            .pressScale(pressed, amount = 0.96f)
             .clip(RoundedCornerShape(50))
             .background(background)
             .semantics { contentDescription = Loc.t(label) }
@@ -104,6 +107,14 @@ fun WaveNavigation(destination: Destination, onDestination: (Destination) -> Uni
     ) {
         destinations.forEach { place ->
             val selected = destination == place
+            val indicator by animateColorAsState(
+                if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
+                animationSpec = tween(180), label = "tab indicator",
+            )
+            val tint by animateColorAsState(
+                if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                animationSpec = tween(180), label = "tab tint",
+            )
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -118,14 +129,14 @@ fun WaveNavigation(destination: Destination, onDestination: (Destination) -> Uni
                         .width(66.dp)
                         .height(29.dp)
                         .clip(RoundedCornerShape(50))
-                        .background(if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent),
+                        .background(indicator),
                     contentAlignment = Alignment.Center,
                 ) {
-                    WaveIcon(place.icon, 22.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                    WaveIcon(place.icon, 22.dp, tint)
                 }
                 Text(
                     text = Loc.t(place.label),
-                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = tint,
                     fontSize = 11.sp,
                     fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                     maxLines = 1,

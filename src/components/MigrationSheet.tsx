@@ -1,9 +1,9 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Check, CircleDashed, FileUp, ListMusic, Upload, X } from './Glyphs';
 import { motion } from 'motion/react';
 import { Modal } from './Modal';
 import { isLink, parsePlaylistText, type ParsedList } from '../domain/importFile';
-import { PROVIDER_LIMITS, parseImportLink, providerLabel } from '../domain/linkImport';
+import { parseImportLink } from '../domain/linkImport';
 import {
   DEFAULT_MATCH_OPTIONS,
   matchEntries,
@@ -39,9 +39,19 @@ export function MigrationSheet({
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [reading, setReading] = useState(false);
+  const [fromUrl, setFromUrl] = useState(false);
+  const request = useRef(0);
   const [saved, setSaved] = useState(false);
   const file = useRef<HTMLInputElement>(null);
   const motionProps = useWaveMotion();
+
+  useEffect(
+    () => () => {
+      request.current++;
+    },
+    [],
+  );
 
   const candidates: MatchCandidate[] = tracks.map((track) => ({
     id: track.id,
@@ -52,7 +62,9 @@ export function MigrationSheet({
   }));
 
   /** Reads whatever was pasted or chosen, and stages the proposal. */
-  const inspect = (raw: string, fromFile?: string) => {
+  const inspect = async (raw: string, fromFile?: string) => {
+    const attempt = ++request.current;
+    setFromUrl(false);
     setError('');
     setSaved(false);
     if (isLink(raw)) {
@@ -61,15 +73,26 @@ export function MigrationSheet({
         setError(link.message);
         return;
       }
-      // The list behind a link lives in the provider's account area, which Wave
-      // cannot reach without an account and a server of its own.
-      const limits = PROVIDER_LIMITS[link.target.provider];
-      setList(null);
-      setReport(null);
-      setError(
-        `A ${providerLabel(link.target.provider)} ${link.target.kind} cannot be read from the link: ${limits.limitation} Export the list instead — a playlist file, a CSV from your account export, or the songs copied as text — and Wave will match it against the music already here.`,
-      );
-      return;
+      setReading(true);
+      try {
+        const response = await fetch('/api/import-playlist', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: raw.trim() }),
+          signal: AbortSignal.timeout(12_000),
+        });
+        const payload = await response.json();
+        if (attempt !== request.current) return;
+        if (!response.ok || typeof payload.text !== 'string') throw new Error('unavailable');
+        raw = payload.text;
+        setFromUrl(true);
+      } catch {
+        if (attempt === request.current)
+          setError(t('The public link could not be read. Try an exported playlist file instead.'));
+        return;
+      } finally {
+        if (attempt === request.current) setReading(false);
+      }
     }
     const parsed = parsePlaylistText(raw);
     if (!parsed.entries.length) {
@@ -84,6 +107,7 @@ export function MigrationSheet({
     setList(parsed);
     setReport(result);
     setName(parsed.name ?? suggestedPlaylistName(fromFile, 'the other app'));
+    window.dispatchEvent(new CustomEvent('wave:feature-used', { detail: 'Playlist import' }));
   };
 
   const status = (value: 'matched' | 'ambiguous' | 'missing') =>
@@ -122,7 +146,7 @@ export function MigrationSheet({
       ) : !report || !list ? (
         <div className="migration-input">
           <p className="modal-description">
-            {t('Paste a playlist, or choose the file it exported.')}
+            {t('Paste a public Spotify or YouTube link, a song list, or choose an exported file.')}
           </p>
           <label className="form-field">
             Playlist, song list or link
@@ -138,13 +162,17 @@ export function MigrationSheet({
           <div className="migration-actions">
             <button
               className="filled-button"
-              disabled={!text.trim()}
+              disabled={reading || !text.trim()}
               onClick={() => inspect(text, 'pasted list')}
             >
               <ListMusic size={18} aria-hidden="true" />
-              Read this list
+              {reading ? t('Reading public link…') : t('Read this list')}
             </button>
-            <button className="tonal-button" onClick={() => file.current?.click()}>
+            <button
+              className="tonal-button"
+              disabled={reading}
+              onClick={() => file.current?.click()}
+            >
               <FileUp size={18} aria-hidden="true" />
               Choose a file
             </button>
@@ -170,12 +198,20 @@ export function MigrationSheet({
             />
           </div>
           <p className="migration-hint">
-            <code>.m3u</code>, <code>.csv</code> or one song per line. A Spotify or YouTube link
-            opens nothing on its own: those lists belong to an account.
+            {t(
+              'Reading a URL sends that link to the Wave Worker and its provider for public metadata only. No audio or library is uploaded. Private lists need an export.',
+            )}
           </p>
         </div>
       ) : (
         <div className="migration-review">
+          {fromUrl && (
+            <p className="migration-hint">
+              {t(
+                'Only the publicly visible songs could be read. The list may be incomplete; review before saving. No audio was downloaded.',
+              )}
+            </p>
+          )}
           <div className="migration-summary">
             <div>
               <strong>

@@ -7671,30 +7671,6 @@ h1 {
 .platform-links-compact header {
   display: none;
 }
-.repeat-notice {
-  position: fixed;
-  z-index: 60;
-  left: 50%;
-  bottom: 112px;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 16px;
-  border-radius: 12px;
-  background: var(--container-high);
-  color: var(--text);
-  border: 1px solid var(--outline);
-  font-size: 13px;
-  pointer-events: none;
-}
-.repeat-notice > span {
-  display: flex;
-  color: var(--primary);
-}
-.player-modal .repeat-notice {
-  bottom: 28px;
-}
 @media (max-width: 600px) {
   .remix-highlight {
     grid-template-columns: minmax(0, 1fr) auto;
@@ -7724,7 +7700,73 @@ h1 {
   .platform-android > a {
     margin-left: 40px;
   }
-  .repeat-notice {
-    bottom: 144px;
+}
+
+.remix-highlight-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+.remix-highlight-label svg {
+  color: var(--primary);
+  flex-shrink: 0;
+}
+.remix-highlight-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.remix-highlight-more svg {
+  transition: transform 180ms ease;
+}
+.remix-highlight[aria-expanded='true'] .remix-highlight-more svg {
+  transform: rotate(180deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .remix-highlight-more svg {
+    transition: none;
+  }
+}
+
+.local-feedback {
+  max-height: calc(100dvh - 180px);
+  overflow-y: auto;
+  position: fixed;
+  right: 24px;
+  bottom: 112px;
+  z-index: 65;
+  width: min(360px, calc(100vw - 32px));
+  padding: 24px;
+  border: 1px solid var(--outline);
+  border-radius: 20px;
+  background: var(--container-high);
+  color: var(--text);
+  box-shadow: 0 12px 36px rgb(0 0 0 / 18%);
+}
+.local-feedback h3 {
+  margin-block: 12px 8px;
+  font-size: 18px;
+  padding-right: 20px;
+}
+.local-feedback p {
+  color: var(--muted);
+  line-height: 1.6;
+  font-size: 13px;
+}
+.feedback-close {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+}
+.feedback-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-block: 16px 8px;
+}
+@media (max-width: 600px) {
+  .local-feedback {
+    right: 16px;
+    bottom: 154px;
   }
 }

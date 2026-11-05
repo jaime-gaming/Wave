@@ -22,11 +22,8 @@ jobs:
       - run: npm run format:check
       - run: npm run lint
       - run: npm test
-      - run: npm run build:pages
-      - name: Verify the committed static mirror
-        run: |
-          git diff --exit-code -- docs
-          test -z "$(git ls-files --others --exclude-standard docs)"
+      - run: npm run build
+      - run: npm run deploy:check
       - run: npx playwright install --with-deps chromium
       # The browser suite is known red and tracked on its own: it was already failing
       # before this release and the failures are a mix of stale selectors, tests that

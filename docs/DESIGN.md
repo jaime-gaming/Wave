@@ -6,7 +6,7 @@
 
 Wave's first implementation is a browser application built with React and TypeScript. It is now accompanied by independent Kotlin/Compose Android and C#/WPF Windows projects; see PLATFORMS.md for native architecture and verified build status and remaining parity differences. PixelPlayer remains a reference for local-library organization and playback interactions, not an implementation dependency.
 
-The first milestone is a working vertical slice: import local music, persist it, browse and search it, then play it, organize playlists, and optionally edit local metadata. There is no backend or authentication. Optional automatic lyrics uses LRCLIB directly from the browser; audio remains local.
+The first milestone is a working vertical slice: import local music, persist it, browse and search it, then play it, organize playlists, and optionally edit local metadata. There is no cloud library or authentication. The optional public-playlist URL reader uses one bounded Cloudflare Worker endpoint; playback and matching stay local. Optional automatic lyrics uses LRCLIB directly from the browser; audio remains local.
 
 ## Layers and responsibilities
 
@@ -171,7 +171,7 @@ The light lives in the letters rather than beside them: a wider gradient highlig
 
 ## Pairing, told honestly
 
-Devices starts by admitting there is no server. One device shows a code, the other reads it with the camera or opens
+Devices uses direct browser pairing rather than a library sync server. One device shows a code, the other reads it with the camera or opens
 the same link, and the six-digit check is skipped once the two have met — a pairing that needs a sentence to explain
 is a pairing people do not finish. The camera is opened by the button, never by the page, and closes the moment a code
 is read. A song kept from the other device says so in a line that fades by itself, so the button never works in silence. The page explains what a link is (a live connection between two open windows) and what it is not (a stored login), shows the peer's library as a plain list of songs, and gives borrowed audio a visible price in megabytes that can be handed back at any time.

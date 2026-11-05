@@ -2201,13 +2201,13 @@
     opacity 420ms ease,
     transform 420ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
-.player-modal.is-idle .clip-live .stage-record:not(:focus-within),
-.player-modal.is-idle .clip-live .stage-controls:not(:focus-within),
-.player-modal.is-idle .clip-live .stage-lyrics-toggle:not(:focus-visible) {
+.player-modal.is-idle .stage-record:not(:focus-within),
+.player-modal.is-idle .stage-controls:not(:focus-within),
+.player-modal.is-idle .stage-lyrics-toggle:not(:focus-visible) {
   opacity: 0;
 }
-.player-modal.is-idle .clip-live .stage-lyrics:not(:focus-within) {
-  opacity: 0.18;
+.player-modal.is-idle .stage-lyrics:not(:focus-within) {
+  opacity: 1;
   transition: opacity 420ms ease;
 }
 .player-normal-view.clip-live .stage-layout .stage-record {
@@ -2220,6 +2220,39 @@
   .player-modal .stage-record,
   .player-modal .stage-controls,
   .player-modal .stage-lyrics-toggle {
+    transition: none;
+  }
+}
+
+.player-modal.is-idle .stage-lyrics-toggle:not(:focus-visible) {
+  pointer-events: none;
+}
+/* Clip lyrics stay readable over bright footage, including the idle stage. */
+.player-normal-view.clip-live .stage-layout .stage-lyrics[data-open='true'] {
+  --primary: #f2f4ff;
+  --muted: #c8cad3;
+  --text: #fff;
+  color: #fff;
+  border-radius: 16px;
+  padding: 12px 16px;
+  background: rgb(8 11 17 / 76%);
+  text-shadow: 0 1px 3px #000;
+  backdrop-filter: blur(10px);
+}
+.player-normal-view.clip-live .lyrics-stage .lyric-line {
+  font-size: clamp(16px, 1.5vw, 23px);
+  line-height: 1.45;
+  color: #fff;
+}
+.player-normal-view.clip-live .lyrics-stage .lyric-line:not(.active) {
+  filter: none;
+}
+.player-modal.is-idle .stage-controls:not(:focus-within),
+.player-modal.is-idle .stage-record:not(:focus-within) {
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .player-modal.is-idle .stage-lyrics {
     transition: none;
   }
 }

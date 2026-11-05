@@ -1,4 +1,3 @@
-import { RepeatNotice } from './RepeatNotice';
 import { MusicLighting } from './MusicLighting';
 import { VideoBackdrop } from './VideoBackdrop';
 import { YouTubeStage } from './YouTubeStage';
@@ -430,7 +429,7 @@ export function PlayerBar(props: PlayerProps) {
     const wake = () => {
       setIdle(false);
       clearTimeout(timer);
-      if (expanded && player.state.playing) timer = setTimeout(() => setIdle(true), 5500);
+      if (expanded && player.state.playing) timer = setTimeout(() => setIdle(true), 30_000);
     };
     // Never open the player automatically: only simplify an already open stage.
     const initial = setTimeout(wake, 0);
@@ -467,7 +466,6 @@ export function PlayerBar(props: PlayerProps) {
         onContinue={player.keepListening}
         onStop={player.stopForNow}
       />
-      {!showing && <RepeatNotice serial={player.repeatSerial} />}
       {!showing && (
         <SilenceNotice
           key={player.current?.id}
@@ -764,7 +762,6 @@ export function PlayerBar(props: PlayerProps) {
               onRemove={player.removeSilence}
               onKeep={player.keepSilence}
             />
-            <RepeatNotice serial={player.repeatSerial} />
             <MusicLighting className="stage-aura" />
             <div
               data-track-id={player.current?.id}

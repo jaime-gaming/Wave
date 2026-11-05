@@ -2,6 +2,15 @@
 
 Development target: 0.2.1. Released baseline: 0.2.0 · 3 November 2026. Historical run dates are retained below.
 
+## 0.2.1 follow-up — 6 November 2026
+
+- `npm test`: **703 tests across 111 files passed**. Focused tests cover a bounded repeat attack, public URL attempt/preview/fallback, same-origin/allowlisted upstream handling, public page parsing and local-only feedback eligibility/persistence.
+- `npm run build`, `npm run lint`, `npm run format:check`, `npm run release:check`, `npm run test:release` (12 checks), and Python packaging tests (6) pass. Production build retains the known bundle-size/mixed-import warnings.
+- `npm run deploy:check`: Worker bundles successfully with `ASSETS`; this is a dry run, not a production deployment. The old Pages/static mirror generator and CI drift check are retired. Older validation entries below describe historical commands, not current hosting instructions.
+- Final sequential Chromium run: **15 targeted tests passed**, covering Remix, route navigation, trim controls, mobile layouts, video geometry and the actual 30-second idle/wake path. Clip lyrics remain visible while idle. This does not establish that the whole historical E2E suite passes.
+- Regenerated six real web screenshots using the disposable demo library: Home desktop/mobile, Remix desktop/mobile, Daily Mix and Now Playing. Native screenshots were not regenerated; their SDKs are absent. Native Android motion/lyrics/scrubbing and Windows repeat attack are source-reviewed, not built or device-verified here.
+- Real Spotify/YouTube upstream availability is not verified in this network-restricted environment. Tests use representative public JSON fixtures; private pages, provider markup changes, blocking and incomplete initial pages deliberately fall back to export files. No account bypass, audio download or guaranteed complete import is claimed.
+
 ## 0.2.1 development validation — 5 November 2026
 
 - `npm test`: **695 passing tests across 110 files**.

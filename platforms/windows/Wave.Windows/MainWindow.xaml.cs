@@ -29,6 +29,7 @@ public partial class MainWindow : Window
     private MediaPlayer? spare, outgoing;
     private bool ready, spareReady, playing, initialized, lookingUp, lyricsVisible = true, preferencesDirty;
     private double fadeLength, volume = .8;
+    private DispatcherTimer? repeatAttack;
     private Preferences preferences = new(Mix: true);
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromMilliseconds(50) };
     private DateTime lastSave = DateTime.UtcNow;
@@ -335,7 +336,7 @@ public partial class MainWindow : Window
         next.MediaOpened += (_, _) => { if (ReferenceEquals(spare, next)) spareReady = true; };
         next.Open(new Uri(queue[index + 1].Path));
     }
-    private void CancelFade() { outgoing?.Close(); outgoing = null; active.Volume = volume; }
+    private void CancelFade() { repeatAttack?.Stop(); repeatAttack = null; outgoing?.Close(); outgoing = null; active.Volume = volume; }
     private void Tick(object? sender, EventArgs e)
     {
         if (!ready) return;
@@ -447,7 +448,24 @@ public partial class MainWindow : Window
     private void ToggleClick(object sender, RoutedEventArgs e) { if (!ready) return; CancelFade(); if (playing) active.Pause(); else { if (active.Position.TotalSeconds >= Seek.Maximum - .1) active.Position = TimeSpan.Zero; active.Play(); PrepareNext(); } playing = !playing; UpdatePlaybackLabels(); }
     private void Advance(bool ended = false)
     {
-        if (ended && repeat == "one") { active.Position = TimeSpan.Zero; active.Play(); Notify("Playing again"); return; }
+        if (ended && (repeat == "one" || (repeat == "all" && queue.Count == 1))) {
+            CancelFade();
+            var deck = active;
+            deck.Position = TimeSpan.Zero;
+            deck.Volume = 0;
+            deck.Play();
+            var started = System.Diagnostics.Stopwatch.StartNew();
+            var attack = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
+            repeatAttack = attack;
+            attack.Tick += (_, _) => {
+                if (active != deck || !playing) { attack.Stop(); return; }
+                var progress = Math.Clamp(started.Elapsed.TotalSeconds / .22, 0, 1);
+                deck.Volume = volume * progress;
+                if (progress >= 1) { attack.Stop(); repeatAttack = null; }
+            };
+            attack.Start();
+            return;
+        }
         if (index + 1 < queue.Count) Play(index + 1);
         else if (repeat == "all" && queue.Count > 0) Play(0);
         else if (preferences.Autoplay && tracks.Any(s => s.Id != Current?.Id)) {
