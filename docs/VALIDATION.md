@@ -2,6 +2,14 @@
 
 Development target: 0.2.1. Released baseline: 0.2.0 · 3 November 2026. Historical run dates are retained below.
 
+## 0.2.1 launch candidate — 6 November 2026
+
+- **745 web tests across 116 files passed.** New cases cover indexed genre/year search, immutable metadata edits and bounded ranking; playable/deduplicated AutoPlay sources and bounded entropy/batches; incomplete/nonfinite silence envelopes and valid short-source mix clocks.
+- **21 required release smoke cases passed in one local run, and the required smoke step also passed in CI at 6e57af4.** The suite includes compact unselected Remix bounds at 360/1280 px with full-row natural-order detail, category-aware/IME-safe search, one-result AutoPlay on/off, actual Fix volume worker/bypass, same-recording repeat, exclusive Trim preview, input-capability motion and mobile controls. It is blocking in Checks and Release assets; the wider historical browser suite remains diagnostic and is not claimed wholly green.
+- **15 release/app-surface contract checks and six deterministic packaging tests passed.** No model-service client dependencies/branding or decorative magic icons were found in shipped app surfaces. Existing legal notices are preserved. Optional metadata services remain separate from local selection/audio rules.
+- Native CI for revision **6e57af4** completed **successfully for Android and Windows**: compilation/tests, UI captures and native packaging, including corrected detached-HEAD screenshot publication. This is real runner validation, not a local SDK/device pass. Headphone listening, actual device behavior, provider uptime, signing and final artifact/security review remain explicit human gates.
+- Ten web captures regenerated; inspected compact Remix hierarchy. Documentation/notes/checklist updated without creating a tag, publishing a Release or deploying production. Release artifacts remain clearly labelled test APK/unsigned Windows ZIP, with no web portable attachment.
+
 ## 0.2.1 motion-wide refinement — 6 November 2026
 
 - **739 web tests across 116 files passed.** New ripple cases cover one-per-control/global bounds, rapid replacement, held/inert/disabled controls, safe document targets and immediate cleanup on preference changes. Motion tests verify dynamic fine-pointer capability and listener cleanup.

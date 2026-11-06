@@ -1,6 +1,6 @@
 <p align="center"><img src="public/wave-wordmark.svg" alt="Wave" width="270" /></p>
 <p align="center"><strong>Your music files, played properly.</strong></p>
-<p align="center"><a href="https://wave.jaime-gaming.com">wave.jaime-gaming.com</a> · Development <strong>0.2.1</strong> · <a href="#get-started">Get started</a> · <a href="docs/WHY_WAVE.md">Why Wave</a> · <a href="docs/media/wave-promo.mp4">Watch the demo</a> · <a href="docs/RELEASE_NOTES_0.2.1.md">What's new</a></p>
+<p align="center"><a href="https://wave.jaime-gaming.com">wave.jaime-gaming.com</a> · Candidate <strong>0.2.1</strong> · <a href="#get-started">Get started</a> · <a href="docs/WHY_WAVE.md">Why Wave</a> · <a href="docs/media/wave-promo.mp4">Watch the demo</a> · <a href="docs/RELEASE_NOTES_0.2.1.md">What's new</a></p>
 
 ![Wave Home on the web: a local collection, album artwork and daily mixes](docs/media/home-desktop.png)
 
@@ -25,8 +25,7 @@ Nothing else needs setting up. The same build is published at
 
 Windows and Android builds are on the [Releases](https://github.com/jaime-gaming/Wave/releases)
 page, and neither asks you to install anything else or type a command. The Windows zip carries its
-own runtime; the Android download is a normal APK you tap to install. Both are unsigned test
-builds, so Windows may show a SmartScreen warning and Android asks you to allow the install.
+own runtime; the Android download is a normal APK you tap to install. They are test builds: Windows is unsigned and Android uses debug signing, not a production publisher key. Windows may show a SmartScreen warning and Android asks you to allow the install.
 
 ## What it does
 
@@ -221,3 +220,9 @@ New web captures: [immersive listening](docs/media/immersive-desktop.png), [Fix 
 Fix volume uses the same Settings switch row as Mix, Video clip and Autoplay; only active analysis or skipped sources add visible status. Repeat, shuffle, favorite, clip and sound icons have short, local interaction animations, including keyboard activation. Volume changes also animate the sound icon; no control moves its neighbours and reduced-motion/app-disabled preferences keep them still.
 
 Android adds an animated favorite/upcoming-queue shuffle and an in-player volume/mute row, a persistent Animations preference, directional pages and a scrollable record column on short wide displays. Shuffling preserves the current recording and clock. Audio-focus ducking now changes a separate output multiplier instead of overwriting the user's volume or unmuting them. Windows adds matching icon responses, synchronized dock/expanded volume with remembered mute, directional pages/Settings sections and clearer keyboard focus; same-page updates no longer fade the whole library. Native build/device verification runs separately in CI; this does not add native clip playback or native Fix volume analysis.
+
+### Preparing 0.2.1 for launch
+
+See the [release checklist](docs/RELEASE_READINESS_0.2.1.md) and [publishable notes](docs/RELEASE_NOTES_0.2.1.md). `npm run test:smoke` is a required browser gate in Checks and Release assets. The candidate remains unpublished until explicit approval; a tag does not deploy the website.
+
+Unselected Remix highlights now compact around the open detail. Search adds genre/year matching and category-aware keyboard actions; Mix preserves short or incompletely measured recordings, and AutoPlay filters missing sources, deduplicates batches and balances recent-artist variety. App-surface/runtime dependency checks guard against decorative magic icons, model branding and model-service dependencies.

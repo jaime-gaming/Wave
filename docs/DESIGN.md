@@ -1,6 +1,6 @@
 # Wave Architecture
 
-**Version: 0.2.0 · Release date: 3 November 2026.**
+**Candidate: 0.2.1 · Prepared 6 November 2026. Released baseline: 0.2.0.**
 
 ## Scope and platform decision
 
@@ -239,7 +239,7 @@ a non-bouncing spring, so a screen arrives from a few pixels below rather than d
 
 ## Motion language
 
-Movement is split by purpose, not by size. Springs carry anything the user operates: cards, rows, sheets and artwork, so they settle with a little weight. Eased fades carry pure appearance changes: lyrics, veils, overlays and colour, so they never overshoot. The stage uses the slowest spring (`cinematic`) plus a short blur so a new cover resolves instead of popping; lists use one parent with staggered children so a grid arrives as a group and not as noise. Every token collapses to `{ duration: 0 }` under reduced motion, and the variants drop their blur and offsets, so the layout does not move at all.
+Movement is split by purpose, not by size. Springs carry anything the user operates: cards, rows, sheets and artwork, so they settle with a little weight. Eased fades carry pure appearance changes: lyrics, veils, overlays and colour, so they never overshoot. The stage uses a restrained `cinematic` spring, while ordinary entrances keep text sharp without blur; lists use one parent with staggered children so a grid arrives as a group and not as noise. Every token collapses to `{ duration: 0 }` under reduced motion, and the variants drop their offsets, so the layout does not move at all.
 
 ## Native Mix engine
 
@@ -287,7 +287,7 @@ card floats low and small over a dimmed page rather than taking the screen over,
 question is one sentence above the bar with two answers. Both are `role="dialog"`/`role="status"` with
 no technical text, and both are animated through `useWaveMotion` so reduced motion keeps them still.
 
-`PlayerBar` owns the open lyric disclosure and nothing owns an idle timer: the thirty-second scene that used to take the screen over was removed in 0.1.1, and Now Playing opens only from an explicit action. The bounded listening grid is still separate from the cinematic lyric stage, which is a reading mode inside the open player. No second audio element/clock is introduced by it.
+`PlayerBar` owns lyric disclosure and uses `useIdleListening` for the restored thirty-second artwork/video scene. Focused, visible playback may enter it automatically; input wakes it, and editing/text inputs block entry. Enabled video stays in the same stage behind compact credits and cinematic lyrics. The bounded listening grid is still separate from the cinematic lyric stage, which is a reading mode inside the open player. No second audio element/clock is introduced by it.
 
 Lyric rows use size-container typography and whole-line clamping instead of clipping half-glyphs. The missing-lyrics state removes redundant controls/hints on short screens so import/retry remain reachable. Focused text editors outside dialogs do not stop the lyrics from following, because nothing opens on its own any more.
 
@@ -472,3 +472,7 @@ open the code to know which string they are changing. Placeholders are braces �
 The same file is the source for the phone and the window: `scripts/build-i18n.mjs` turns it into
 the lookup tables those apps compile in, so the three versions cannot drift into three different
 Spanish sentences for the same button.
+
+### Candidate Remix hierarchy
+
+The selected highlight occupies the full natural row. Other summaries become short horizontal cards with 64 px artwork (48 px on mobile), smaller type and all labels/actions retained. This is a hierarchy change, not a reorder: sections before/after the chosen card remain before/after it. Player actions animate their glyphs, not their hit targets; generic icon presses use a restrained 0.96 scale.

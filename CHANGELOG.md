@@ -1,15 +1,18 @@
 # Changelog
 
-## 0.2.1 — 5 November 2026
+## 0.2.1 — 6 November 2026
 
-- Add web page routes, single-switch peak-safe centred mixing and earlier AutoPlay continuation.
-- Preview and edit non-destructive trims in a themed waveform submenu with draggable edges and hold-to-zoom.
-- Fix custom clip forms and preserve video timestamps.
-- Add local Home recommendations, personalised Daily Mix ordering, three Remix highlight menus and batched library updates.
-- Improve word-by-word search and preserve saved timing data; fix Privacy & rights text.
-- Keep mix artwork circular and simplify the videoclip stage during inactivity.
-- Fix device ICE gathering timing and validate pairing signals.
-- Publish only tagged Android test APKs and unsigned Windows portable builds in releases, without web assets.
+Release candidate; publication and the final date are confirmed separately.
+
+- Compact unselected Remix summaries while keeping the selected detail full-width in natural order, with populated-week browsing and saved artwork.
+- Improve keyboard/IME-aware search, genre/year matching, stable cached ranking and category-specific Enter actions.
+- Harden Mix against short clocks and incomplete analysis; retain original tempo, source bytes, safe deck gains and same-recording repeat overlap.
+- Bound local AutoPlay batches, filter missing/invalid sources and add recent-artist variety.
+- Move Fix volume to a uniform global Playback switch covering future imports, with original-level bypass.
+- Refine directional pages, touch-aware button feedback and the artwork/video idle scene after thirty seconds.
+- Polish native volume/mute, queue shuffle, audio focus, keyboard focus and motion preferences.
+- Preserve exclusive non-destructive trim previews, original files, word timing and optional external lookup controls.
+- Require release smoke tests and fix native screenshot publishing from detached checkouts; publish native-only test APK/unsigned Windows packages with checksums.
 
 ## 0.2.0 — 3 November 2026
 

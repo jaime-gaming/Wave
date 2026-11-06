@@ -14,7 +14,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "release:check": "node scripts/check-release.mjs",
-    "test:release": "node --test scripts/check-release.test.mjs scripts/native-release.test.mjs",
+    "test:release": "node --test scripts/check-release.test.mjs scripts/native-release.test.mjs scripts/app-surface.test.mjs",
     "build:i18n": "node scripts/build-i18n.mjs",
     "capture:docs": "node --experimental-strip-types scripts/capture-docs.ts",
     "dev:worker": "wrangler dev --ip 0.0.0.0",
