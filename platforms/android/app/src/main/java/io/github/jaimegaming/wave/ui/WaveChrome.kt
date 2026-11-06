@@ -174,9 +174,9 @@ fun WaveActionButton(icon: String, label: String, onClick: () -> Unit, active: B
     ) {
         Box(Modifier.graphicsLayer {
             val response = if (motionEnabled) pulse.value else 0f
-            scaleX = 1f + response * 0.14f
+            scaleX = 1f + response * 0.09f
             scaleY = scaleX
-            rotationZ = if (icon == "shuffle") response * -14f else 0f
+            rotationZ = if (icon == "shuffle") response * -10f else 0f
         }) { WaveIcon(icon, 21.dp, if (active == true) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant) }
     }
 }

@@ -285,8 +285,8 @@ export const SearchPage = memo(function SearchPage({
                   <motion.button
                     key={a.name}
                     onClick={() => onArtist(a.name)}
-                    whileHover={animation.enabled ? { y: -4 } : undefined}
-                    whileTap={animation.enabled ? { scale: 0.96 } : undefined}
+                    whileHover={animation.hoverEnabled ? { y: -2 } : undefined}
+                    whileTap={animation.enabled ? { scale: 0.975 } : undefined}
                     transition={animation.fast}
                   >
                     <span className="search-artist-image">

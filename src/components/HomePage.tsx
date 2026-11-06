@@ -103,8 +103,8 @@ export const HomePage = memo(function HomePage({
               key={view}
               className="home-shortcut"
               onClick={() => onView(view)}
-              whileHover={animation.enabled ? { y: -3 } : undefined}
-              whileTap={animation.enabled ? { scale: 0.95 } : undefined}
+              whileHover={animation.hoverEnabled ? { y: -2 } : undefined}
+              whileTap={animation.enabled ? { scale: 0.975 } : undefined}
               transition={animation.fast}
             >
               <Icon size={22} />

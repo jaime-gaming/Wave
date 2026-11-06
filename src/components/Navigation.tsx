@@ -44,7 +44,7 @@ export function Navigation({
           <motion.button
             key={id}
             whileTap={animation.enabled ? { scale: 0.94 } : undefined}
-            whileHover={animation.enabled ? { y: -1 } : undefined}
+            whileHover={animation.hoverEnabled ? { y: -1 } : undefined}
             transition={animation.lateral}
             aria-current={page === id ? 'page' : undefined}
             className={page === id ? 'selected' : ''}

@@ -6,6 +6,13 @@ export function useInteractionRipples() {
   useEffect(() => {
     if (!motion.enabled) return;
     const active = new Map<HTMLElement, Animation>();
+    const discard = (node: HTMLElement, animation: Animation) => {
+      animation.cancel();
+      const button = node.parentElement;
+      node.remove();
+      active.delete(node);
+      if (!button?.querySelector('.wave-ripple')) button?.classList.remove('ripple-anchor');
+    };
     const press = (event: PointerEvent | KeyboardEvent) => {
       if (event instanceof KeyboardEvent && (event.repeat || !['Enter', ' '].includes(event.key)))
         return;
@@ -15,16 +22,25 @@ export function useInteractionRipples() {
         event.button !== 0
       )
         return;
-      const button = (event.target as Element)?.closest<HTMLButtonElement>('button');
+      const button =
+        event.target instanceof Element ? event.target.closest<HTMLButtonElement>('button') : null;
       if (
         !button ||
         button.disabled ||
+        button.closest('[inert]') ||
+        button.getAttribute('aria-disabled') === 'true' ||
         !button.matches(
           '.filled-button,.tonal-button,.icon-button,.stage-play,.mini-play,.library-tabs button,.settings-menu-item,.rail-collection button',
         ) ||
         typeof button.animate !== 'function'
       )
         return;
+      // One response per control, eight across the app: rapid input cannot build a ripple wall.
+      for (const [node, animation] of active) {
+        if (node.parentElement === button || active.size >= 8) {
+          discard(node, animation);
+        }
+      }
       const bounds = button.getBoundingClientRect(),
         size = Math.max(bounds.width, bounds.height) * 2;
       const ripple = document.createElement('span');
@@ -40,10 +56,10 @@ export function useInteractionRipples() {
       button.append(ripple);
       const animation = ripple.animate(
         [
-          { transform: 'scale(0)', opacity: 0.18 },
+          { transform: 'scale(0)', opacity: 0.12 },
           { transform: 'scale(1)', opacity: 0 },
         ],
-        { duration: 460, easing: 'cubic-bezier(.2,0,0,1)' },
+        { duration: 340, easing: 'cubic-bezier(.2,0,0,1)' },
       );
       active.set(ripple, animation);
       void animation.finished
@@ -59,10 +75,8 @@ export function useInteractionRipples() {
     return () => {
       document.removeEventListener('pointerdown', press);
       document.removeEventListener('keydown', press);
-      for (const [node, animation] of active) {
-        animation.cancel();
-        node.remove();
-      }
+      for (const [node, animation] of active) discard(node, animation);
+      active.clear();
     };
   }, [motion.enabled]);
 }

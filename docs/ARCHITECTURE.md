@@ -519,3 +519,11 @@ invalid. None of this changes the audio or the on-disk lyric text.
 ### Action icon feedback
 
 `PlayerActionButton` keeps ordinary native button semantics, immediate callbacks and icon-only Motion controls. Each action has a bounded 280 ms response; value changes (including volume sliders) are throttled to avoid restarting feedback on every input event. Nothing animates on initial preference restoration. Disabling motion stops and neutralizes an in-flight icon animation. Existing repeat-boundary icon replacement and audio overlap are retained independently. Library favorites use the same control. Settings volume correction now presents the same single label/switch row as its neighbours, with ready counts still accessible to assistive technology and visible status only when work or skips require attention.
+
+### Motion-wide tuning
+
+Shared spring tokens now settle close to critical damping; CSS movement uses non-overshooting curves rather than a separate bouncy family. Surface entrances keep text sharp (no blur filter), use shorter travel and compact staggering. Modal scale is restrained to 0.98 / 0.99, notices settle without an overshoot, and loading highlights have a small phased offset. Touch screens do not retain pointer-hover row travel. A row favorite has one icon response, not two nested heart animations.
+
+Ripple feedback is bounded to one instance per button and eight globally. Replacement and preference cleanup cancel animations, remove nodes and restore anchor classes synchronously; inert/disabled controls and held keys do not create feedback. Android press springs now use critical damping and smaller icon accents. Windows cover/page settling uses a non-overshooting cubic ease, and disabled motion clears opacity animation clocks and resets transforms.
+
+Hover feedback is separately gated by `(hover: hover) and (pointer: fine)` and updates if input capability changes; touch still retains deliberate press feedback. Cards share a restrained two-pixel hover and 0.975 press scale. Remix artwork no longer floats continuously.

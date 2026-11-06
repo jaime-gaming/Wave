@@ -12,33 +12,26 @@ import { type Transition, type Variants } from 'motion/react';
  */
 export const MotionPreference = createContext(true);
 
-export const spatial: Transition = { type: 'spring', stiffness: 380, damping: 32, mass: 0.85 };
-/**
- * The wobble.
- *
- * A spring that is under-damped on purpose: it arrives, goes a hair past and
- * comes back. Damping is high enough that there is exactly one small overshoot
- * and no visible ring, because a component that visibly bounces is a gimmick and
- * one that settles with weight is a detail.
- */
-export const wobble: Transition = { type: 'spring', stiffness: 460, damping: 27, mass: 0.8 };
-export const fastSpatial: Transition = { type: 'spring', stiffness: 650, damping: 29, mass: 0.7 };
-export const expressive: Transition = { type: 'spring', stiffness: 280, damping: 25, mass: 1 };
+export const spatial: Transition = { type: 'spring', stiffness: 380, damping: 36, mass: 0.85 };
+/** A restrained accent spring: near-critical damping, no visible ringing. */
+export const wobble: Transition = { type: 'spring', stiffness: 460, damping: 34, mass: 0.8 };
+export const fastSpatial: Transition = { type: 'spring', stiffness: 650, damping: 38, mass: 0.7 };
+export const expressive: Transition = { type: 'spring', stiffness: 280, damping: 32, mass: 1 };
 /** Slow, wide movement for the stage: openings and artwork. */
-export const cinematic: Transition = { type: 'spring', stiffness: 150, damping: 24, mass: 1.1 };
-export const lateral: Transition = { type: 'spring', stiffness: 360, damping: 34, mass: 0.85 };
+export const cinematic: Transition = { type: 'spring', stiffness: 150, damping: 27, mass: 1.1 };
+export const lateral: Transition = { type: 'spring', stiffness: 360, damping: 36, mass: 0.85 };
 export const effects: Transition = { duration: 0.16, ease: [0.2, 0, 0, 1] };
 /** Longer cross-fade used when a whole surface changes. */
-export const reveal: Transition = { duration: 0.42, ease: [0.16, 1, 0.3, 1] };
+export const reveal: Transition = { duration: 0.32, ease: [0.16, 1, 0.3, 1] };
 
-/** Entrance for a card or row: rises, settles and loses its blur. */
+/** Entrance for a card or row: a short, sharp rise without expensive text blur. */
 export const riseIn: Variants = {
-  hidden: { opacity: 0, y: 14, filter: 'blur(6px)' },
-  visible: { opacity: 1, y: 0, filter: 'blur(0px)' },
+  hidden: { opacity: 0, y: 8 },
+  visible: { opacity: 1, y: 0 },
 };
 
 /** Parent that releases its children one after another. */
-export const stagger = (delayChildren = 0.04, staggerChildren = 0.05): Variants => ({
+export const stagger = (delayChildren = 0.02, staggerChildren = 0.035): Variants => ({
   hidden: {},
   visible: { transition: { delayChildren, staggerChildren } },
 });
@@ -50,13 +43,22 @@ function subscribe(listener: () => void) {
   return () => media.removeEventListener('change', listener);
 }
 const snapshot = () => window.matchMedia(query).matches;
+const hoverQuery = '(hover: hover) and (pointer: fine)';
+function subscribeHover(listener: () => void) {
+  const media = window.matchMedia(hoverQuery);
+  media.addEventListener('change', listener);
+  return () => media.removeEventListener('change', listener);
+}
+const hoverSnapshot = () => window.matchMedia(hoverQuery).matches;
 
 export function useWaveMotion() {
   const preference = useContext(MotionPreference);
   const reduced = useSyncExternalStore(subscribe, snapshot, () => true);
   const enabled = preference && !reduced;
+  const canHover = useSyncExternalStore(subscribeHover, hoverSnapshot, () => false);
   return {
     enabled,
+    hoverEnabled: enabled && canHover,
     lateral: enabled ? lateral : { duration: 0 },
     spatial: enabled ? spatial : { duration: 0 },
     wobble: enabled ? wobble : { duration: 0 },

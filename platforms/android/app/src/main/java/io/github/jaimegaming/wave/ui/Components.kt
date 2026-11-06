@@ -54,7 +54,7 @@ fun Modifier.pressScale(pressed: Boolean, amount: Float = 0.972f): Modifier {
     val enabled = waveMotionEnabled()
     val scale by animateFloatAsState(
         targetValue = if (pressed && enabled) amount else 1f,
-        animationSpec = if (enabled) spring(dampingRatio = 0.88f, stiffness = 650f) else androidx.compose.animation.core.snap(),
+        animationSpec = if (enabled) spring(dampingRatio = 1f, stiffness = 650f) else androidx.compose.animation.core.snap(),
         label = "press",
     )
     return this.scale(scale)

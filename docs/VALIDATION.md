@@ -2,6 +2,13 @@
 
 Development target: 0.2.1. Released baseline: 0.2.0 · 3 November 2026. Historical run dates are retained below.
 
+## 0.2.1 motion-wide refinement — 6 November 2026
+
+- **739 web tests across 116 files passed.** New ripple cases cover one-per-control/global bounds, rapid replacement, held/inert/disabled controls, safe document targets and immediate cleanup on preference changes. Motion tests verify dynamic fine-pointer capability and listener cleanup.
+- **9 targeted Chromium cases passed**: mouse/touch hover and return-to-rest, complementary route directions, OS/app-disabled action feedback, fixed player-control bounds and small-screen controls/forms. The full historical browser suite is not claimed green.
+- Build, lint, formatting, release metadata and 12 release/package contract checks passed. Spring/CSS tuning, sharper entrances, shorter modal travel and lighter feedback preserve playback semantics and the existing repeat-boundary icon behavior.
+- Android critical-damping/smaller glyph responses and Windows non-overshooting settle/animation-clock cleanup are source updates for native CI. Native SDKs are absent here; no native build/device pass, new native capture, production deployment or release publication is claimed.
+
 ## 0.2.1 controls and native interaction polish — 6 November 2026
 
 - **735 web tests across 115 files passed**, including eight new action-control cases: no entrance/restoration pulse, distinct immediate action feedback, keyboard activation, disabled controls, external volume changes and motion-off reset.

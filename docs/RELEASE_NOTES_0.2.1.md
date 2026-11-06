@@ -73,3 +73,12 @@ The new waveform editor, routing and redesigned music surfaces in this iteration
 - Android gains full-player volume/mute and animated favorite/upcoming shuffle, a saved motion preference, directional pages and better short-wide record scrolling. Queue shuffle retains the current recording; focus ducking preserves master volume and mute rather than resetting to full volume.
 - Windows gains icon responses, keyboard focus outlines, directional Settings/page travel and synchronized sound controls in the dock and expanded player. Same-page updates no longer fade the whole library.
 - Native control tests are added to CI. No native clip/normalization capability, production deployment or release publication is implied.
+
+### Shared animation refinement
+
+- Calmer spring/easing families across pages, cards, controls and native artwork; quicker, shorter modal entrances without large zooms or text blur.
+- Cleaner notices, phased loading highlights, no sticky touch-row hover, and no duplicate library-heart pulse.
+- Faster, quieter press ripples with bounded concurrency and complete cancellation/cleanup on motion-off. Keyboard repeat and inert controls cannot build up effects.
+- Android press/icon responses and Windows settling follow the same restrained direction; motion-off clears Windows animation state.
+
+- Consistent card hover/press responses, with fine-pointer capability detection so touch interactions do not retain hover travel. Removed continuous floating Remix artwork; existing repeat/action feedback is retained.

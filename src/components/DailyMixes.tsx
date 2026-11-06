@@ -98,7 +98,7 @@ export function DailyMixes({
             className="daily-mix-card"
             variants={animation.rise}
             transition={animation.expressive}
-            whileHover={animation.enabled ? { y: -3 } : undefined}
+            whileHover={animation.hoverEnabled ? { y: -2 } : undefined}
             whileTap={animation.enabled ? { scale: 0.99 } : undefined}
             aria-label={`Open Daily mix ${index + 1}: ${mix.label}`}
             onClick={() => onOpen(mix, index + 1)}

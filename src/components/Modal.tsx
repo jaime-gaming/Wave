@@ -70,12 +70,12 @@ export function Modal({
     <motion.dialog
       initial={{
         opacity: animation.enabled && !immediate ? 0 : 1,
-        x: animation.enabled && !immediate && placement === 'side' ? 32 : 0,
-        y: animation.enabled && !immediate && placement !== 'side' ? (fullScreen ? 48 : 24) : 0,
+        x: animation.enabled && !immediate && placement === 'side' ? 24 : 0,
+        y: animation.enabled && !immediate && placement !== 'side' ? (fullScreen ? 28 : 14) : 0,
         // The player grows out of the bar at the bottom of the screen; a small
         // dialog grows out of the point it was opened from.
         scale:
-          animation.enabled && !immediate && placement !== 'side' ? (fullScreen ? 0.975 : 0.96) : 1,
+          animation.enabled && !immediate && placement !== 'side' ? (fullScreen ? 0.99 : 0.98) : 1,
       }}
       animate={{ opacity: 1, x: 0, y: 0, scale: 1 }}
       exit={
@@ -83,8 +83,8 @@ export function Modal({
           ? (exitMotion ?? {
               opacity: 0,
               x: placement === 'side' ? 24 : 0,
-              y: placement === 'side' ? 0 : 16,
-              scale: fullScreen || placement === 'side' ? 1 : 0.97,
+              y: placement === 'side' ? 0 : 10,
+              scale: fullScreen || placement === 'side' ? 1 : 0.99,
             })
           : { opacity: 0 }
       }
