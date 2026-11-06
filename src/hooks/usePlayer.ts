@@ -344,6 +344,31 @@ export function usePlayer(tracks: Track[], libraryReady = true, silenceStore?: S
       tick: () => {
         // Extend before the transition window, not after the last song ends.
         extend();
+        const latest = stateRef.current;
+        const repeatTrack = context.current.tracks.find(
+          (track) => track.id === latest.queue[latest.index],
+        );
+        const singleRepeat =
+          latest.repeat === 'one' || (latest.repeat === 'all' && latest.queue.length === 1);
+        if (singleRepeat && repeatTrack?.blob && latest.playing) {
+          if (!player.transitioning && player.mixRemaining <= 8) player.prepare(repeatTrack.blob);
+          if (!player.transitioning && player.mixRemaining > 0 && player.mixRemaining <= 0.85) {
+            const id = repeatTrack.id;
+            player.repeatTransition(
+              () => {
+                const state = stateRef.current;
+                return (
+                  state.playing &&
+                  state.queue[state.index] === id &&
+                  (state.repeat === 'one' || (state.repeat === 'all' && state.queue.length === 1))
+                );
+              },
+              () => setRepeatSerial((value) => value + 1),
+            );
+          }
+          mixCue.clear();
+          return;
+        }
         const next = target();
         const element = player.element;
         const duration = element.duration;
@@ -849,9 +874,16 @@ export function usePlayer(tracks: Track[], libraryReady = true, silenceStore?: S
 
   /** A trim is playback bounds, so the engine is told whenever they change. */
   useEffect(() => {
-    for (const track of tracks) if (track.blob) engine.current?.setBounds(track.blob, track.trim);
+    for (const track of tracks)
+      if (track.blob) {
+        engine.current?.setBounds(track.blob, track.trim);
+        engine.current?.setVolumeFix(track.blob, track.volumeFix?.gain);
+      }
   }, [tracks]);
 
+  const prepareVolumeFix = useCallback(async () => {
+    await engine.current?.prepareVolumeFix();
+  }, []);
   const pauseForPreview = useCallback(() => {
     // Stop native decks synchronously, before a preview can start playing.
     engine.current?.pause();
@@ -861,6 +893,7 @@ export function usePlayer(tracks: Track[], libraryReady = true, silenceStore?: S
     pauseForPreview,
     breakOpen,
     repeatSerial,
+    prepareVolumeFix,
     keepListening,
     stopForNow,
     silenceNotice,
@@ -879,13 +912,14 @@ export function usePlayer(tracks: Track[], libraryReady = true, silenceStore?: S
     readTime,
     durationTrackId,
     enqueue,
-    blend: blend
-      ? {
-          ...blend,
-          from: tracks.find((track) => track.blob === blend.outgoing),
-          to: tracks.find((track) => track.blob === blend.incoming),
-        }
-      : null,
+    blend:
+      blend && blend.incoming !== blend.outgoing
+        ? {
+            ...blend,
+            from: tracks.find((track) => track.blob === blend.outgoing),
+            to: tracks.find((track) => track.blob === blend.incoming),
+          }
+        : null,
     /** YouTube songs: the embed is the source and the master clock. */
     youTube: youTube
       ? {

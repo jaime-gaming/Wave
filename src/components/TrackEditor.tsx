@@ -16,7 +16,9 @@ export function TrackEditor({
   onTrim,
   onPreview,
   previewVolume,
+  onFixVolume,
 }: {
+  onFixVolume?: (id: string, reset?: boolean) => Promise<Track['volumeFix']>;
   onPreview?: () => void;
   previewVolume?: number;
   onTrim?: (bounds: { start: number; end: number }) => Promise<void>;
@@ -39,7 +41,21 @@ export function TrackEditor({
   const [saving, setSaving] = useState(false);
   const [imageBusy, setImageBusy] = useState(false);
   const [error, setError] = useState('');
-  const busy = saving || imageBusy;
+  const [fixingVolume, setFixingVolume] = useState(false);
+  const [volumeFix, setVolumeFix] = useState(track.volumeFix);
+  const busy = saving || imageBusy || fixingVolume;
+  const adjustVolume = async (reset = false) => {
+    if (!onFixVolume || busy) return;
+    setFixingVolume(true);
+    setError('');
+    try {
+      setVolumeFix(await onFixVolume(track.id, reset));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : t('Volume could not be adjusted.'));
+    } finally {
+      setFixingVolume(false);
+    }
+  };
   return (
     <Modal
       title={trimming ? 'Trim audio' : t('Edit song')}
@@ -85,7 +101,7 @@ export function TrackEditor({
           <>
             <ArtworkPicker
               value={metadata.artwork}
-              disabled={saving}
+              disabled={busy}
               onChange={(artwork) => setMetadata((current) => ({ ...current, artwork }))}
               onBusy={setImageBusy}
             />
@@ -96,7 +112,7 @@ export function TrackEditor({
                   value={metadata[field]}
                   required={field === 'title'}
                   maxLength={200}
-                  disabled={saving}
+                  disabled={busy}
                   onChange={(event) =>
                     setMetadata((current) => ({ ...current, [field]: event.target.value }))
                   }
@@ -104,6 +120,36 @@ export function TrackEditor({
               </label>
             ))}
             <ClipSection track={track} />
+            {track.blob && onFixVolume && (
+              <section className="volume-fix-control" aria-label={t('Fix volume')}>
+                <button
+                  type="button"
+                  className="editor-submenu-button"
+                  disabled={busy}
+                  onClick={() => void adjustVolume()}
+                >
+                  <span>
+                    <strong>{fixingVolume ? t('Measuring volume…') : t('Fix volume')}</strong>
+                    <small>{t('Balance this recording without changing the file')}</small>
+                  </span>
+                  <span aria-hidden="true">↗</span>
+                </button>
+                {volumeFix && (
+                  <p role="status">
+                    {t('Volume adjusted')} · {Math.round(20 * Math.log10(volumeFix.gain) * 10) / 10}{' '}
+                    dB
+                    <button
+                      type="button"
+                      className="text-button"
+                      disabled={busy}
+                      onClick={() => void adjustVolume(true)}
+                    >
+                      {t('Restore original volume')}
+                    </button>
+                  </p>
+                )}
+              </section>
+            )}
             {track.blob && (
               <button
                 type="button"

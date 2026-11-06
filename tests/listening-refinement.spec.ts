@@ -317,7 +317,7 @@ test('a mix is announced before it happens, then the sleeve splits and the join 
     .toBeGreaterThan(before);
 });
 
-test('the transport stays on screen while a song plays, and an idle room opens no scene', async ({
+test('the transport stays visible initially, then the original idle scene opens and wakes', async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -326,16 +326,31 @@ test('the transport stays on screen while a song plays, and an idle room opens n
   const full = page.getByRole('dialog', { name: 'Now playing' });
   await page.clock.install();
   await full.getByRole('button', { name: 'Play' }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        (window as unknown as { __refineAudio: HTMLAudioElement[] }).__refineAudio.some(
+          (audio) => !audio.paused && audio.readyState >= 3,
+        ),
+      ),
+    )
+    .toBe(true);
+  await page.clock.runFor(50);
   // Five still seconds with the song running: the transport does not go away.
   await page.clock.fastForward(5000);
-  await expect(full.getByRole('button', { name: 'Pause' })).toBeVisible();
+  await expect(full.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
   await expect(full.getByRole('slider', { name: 'Seek', exact: true })).toBeVisible();
   await expect(page.locator('.player-modal')).not.toHaveClass(/controls-idle/);
 
-  // The long idle changes nothing: no scene opens over the player and the
-  // transport is still where it was.
+  // The dedicated album/lyrics scene returns after thirty seconds.
   await page.clock.fastForward(26000);
-  await expect(page.locator('.player-modal')).toBeVisible();
+  await expect(full.locator('.immersive-stage')).toBeVisible();
+  await expect(full.locator('.player-normal-view')).toHaveCSS('visibility', 'hidden');
+  await page.mouse.move(80, 80);
   await expect(full.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
-  await expect(full.getByRole('slider', { name: 'Seek', exact: true })).toBeVisible();
+  await full.getByRole('button', { name: 'Close dialog' }).click();
+  await expect(full).toHaveCount(0);
+  await page.clock.runFor(50);
+  await page.clock.fastForward(31000);
+  await expect(page.locator('.immersive-stage')).toBeVisible();
 });

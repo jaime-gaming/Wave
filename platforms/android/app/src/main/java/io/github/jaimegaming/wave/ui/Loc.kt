@@ -734,6 +734,13 @@ object Loc {
             "song" to "canción",
             "artist" to "artista",
             "Saved from Remix for {date}." to "Guardada desde Remix para el {date}.",
+            "Fix volume" to "Ajustar volumen",
+            "Measuring volume…" to "Midiendo volumen…",
+            "Balance this recording without changing the file" to "Equilibra esta grabación sin modificar el archivo",
+            "Volume adjusted" to "Volumen ajustado",
+            "Restore original volume" to "Restaurar volumen original",
+            "Volume could not be adjusted." to "No se pudo ajustar el volumen.",
+            "Immersive listening" to "Escucha inmersiva",
         )
 
     /** What the person chose: "system", "en" or "es". */

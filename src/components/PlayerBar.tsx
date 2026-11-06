@@ -1,3 +1,4 @@
+import { useIdleListening } from '../hooks/useIdleListening';
 import { MusicLighting } from './MusicLighting';
 import { VideoBackdrop } from './VideoBackdrop';
 import { YouTubeStage } from './YouTubeStage';
@@ -252,7 +253,18 @@ function PlayerDetails({
                 aria-label={t(`Repeat: ${state.repeat}`)}
                 disabled={!current}
               >
-                {state.repeat === 'one' ? <Repeat1 size={22} /> : <Repeat size={22} />}
+                <motion.span
+                  key={player.repeatSerial}
+                  className="repeat-symbol"
+                  aria-hidden="true"
+                  initial={
+                    animation.enabled && player.repeatSerial ? { rotate: -180, scale: 0.8 } : false
+                  }
+                  animate={{ rotate: 0, scale: 1 }}
+                  transition={animation.effects}
+                >
+                  {state.repeat === 'one' ? <Repeat1 size={22} /> : <Repeat size={22} />}
+                </motion.span>
               </button>
               <button
                 className={videoClip && !player.youTube ? 'active' : ''}
@@ -397,10 +409,12 @@ export function PlayerBar(props: PlayerProps) {
       : undefined;
   const blendProgress = Math.max(0, Math.min(1, player.blend?.progress ?? 0));
   const blendSeconds = (player.blend?.seconds ?? 0) * blendProgress;
-  // The player opens when it is asked to. It used to take the screen over after
-  // thirty seconds of listening without a click; that scene is gone, so an idle
-  // room now stays exactly as the listener left it.
-  const showing = expanded;
+  const idleListening = useIdleListening(
+    player.state.playing && !player.buffering && !!player.current && !props.queueOpen,
+    player.current?.id,
+  );
+  const idle = idleListening.immersive;
+  const showing = expanded || idle;
   // Only this bar follows the position; the rest of the interface stays still.
   const time = usePlaybackTime(player.clock);
   const colors = usePlayerColors(
@@ -422,30 +436,7 @@ export function PlayerBar(props: PlayerProps) {
    * video, not by the video's container, so the only honest way to switch it off
    * is at the root — the same place the palette and the motion preference live.
    */
-  const clipShowing = clipLive && videoClip && expanded;
-  const [idle, setIdle] = useState(false);
-  useEffect(() => {
-    let timer: ReturnType<typeof setTimeout>;
-    const wake = () => {
-      setIdle(false);
-      clearTimeout(timer);
-      if (expanded && player.state.playing) timer = setTimeout(() => setIdle(true), 30_000);
-    };
-    // Never open the player automatically: only simplify an already open stage.
-    const initial = setTimeout(wake, 0);
-    window.addEventListener('pointermove', wake);
-    window.addEventListener('pointerdown', wake);
-    window.addEventListener('keydown', wake);
-    window.addEventListener('focusin', wake);
-    return () => {
-      clearTimeout(initial);
-      clearTimeout(timer);
-      window.removeEventListener('pointermove', wake);
-      window.removeEventListener('pointerdown', wake);
-      window.removeEventListener('keydown', wake);
-      window.removeEventListener('focusin', wake);
-    };
-  }, [expanded, player.state.playing, player.current?.id]);
+  const clipShowing = clipLive && videoClip && showing;
   useEffect(() => {
     const root = document.documentElement;
     if (clipShowing) root.dataset.clip = 'live';
@@ -691,9 +682,10 @@ export function PlayerBar(props: PlayerProps) {
             }
             closeIcon={<ChevronDown size={24} />}
             returnFocusRef={expanded ? returnFocusRef : undefined}
-            className={`player-modal${idle ? ' is-idle' : ''}`}
+            className={`player-modal${idle ? ' is-idle is-immersive' : ''}`}
             style={{ ...colors, transformOrigin: 'bottom center' }}
             onClose={() => {
+              idleListening.wake();
               setStageGone(false);
               onExpanded(false);
             }}
@@ -766,15 +758,49 @@ export function PlayerBar(props: PlayerProps) {
             <div
               data-track-id={player.current?.id}
               className={`player-normal-view${clipShowing ? ' clip-live' : ''}`}
+              inert={idle}
+              aria-hidden={idle}
             >
               <PlayerDetails
                 {...props}
                 time={time}
+                readerActive={!idle}
                 cue={pending}
                 lyricsOpen={lyricsOpen}
                 onDisclosure={setLyricsOpen}
               />
             </div>
+            {idle && player.current && (
+              <motion.div
+                className={`immersive-stage${clipShowing || player.stageYouTube ? ' with-video' : ''}${player.current.lyrics?.lines.length ? ' has-lyrics' : ' without-lyrics'}`}
+                aria-label={t('Immersive listening')}
+                initial={animation.enabled ? { opacity: 0 } : false}
+                animate={{ opacity: 1 }}
+                transition={animation.effects}
+              >
+                <div className="immersive-art">
+                  <Artwork track={player.current} className="immersive-cover" />
+                  <div className="immersive-credit">
+                    <h2>{player.current.title}</h2>
+                    <p>{player.current.artist}</p>
+                    <p>{player.current.album}</p>
+                  </div>
+                </div>
+                {!!player.current.lyrics?.lines.length && (
+                  <LyricsPanel
+                    stage
+                    cinematic
+                    track={player.current}
+                    time={time}
+                    readTime={player.readTime}
+                    playing={player.state.playing}
+                    duration={player.duration}
+                    onSeek={player.seek}
+                    onEdit={() => props.onLyrics(player.current!)}
+                  />
+                )}
+              </motion.div>
+            )}
           </Modal>
         )}
       </AnimatePresence>

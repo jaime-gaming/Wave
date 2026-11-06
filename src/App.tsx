@@ -1694,6 +1694,10 @@ function WaveApp({
             onTrim={(bounds) => library.silence(editingTrack.id, 'trim', bounds)}
             onPreview={player.pauseForPreview}
             previewVolume={player.volume}
+            onFixVolume={async (id, reset) => {
+              await player.prepareVolumeFix();
+              return library.fixVolume(id, reset);
+            }}
           />
         )}
         {playlistForm && (
@@ -1821,10 +1825,6 @@ function WaveApp({
                   transition={animation.fast}
                 />
               </div>
-              <small>{library.progress.fileName ?? 'Getting your music ready…'}</small>
-              <small>
-                {library.progress.added ?? 0} added · Keep listening while we take care of the rest
-              </small>
             </div>
           )}
           {!library.progress && (

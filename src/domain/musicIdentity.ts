@@ -113,9 +113,15 @@ export function rolesSwapped(track: { title: string; artist: string; fileName?: 
   if (!name) return false;
   const fromName = inferFileMetadata(name);
   if (!fromName.artist) return false;
+  // Compare recording identities, not tag typography. Keep live/remix labels.
+  const identity = (value: string) =>
+    searchText(
+      value
+        .replace(/\s*[([](?:official(?: music)? (?:video|audio)|lyrics?|hd|hq|4k)[)\]]/giu, ' ')
+        .replace(/\s*-\s*(?:official(?: music)? (?:video|audio)|lyrics?)\s*$/iu, ''),
+    );
   const same = (left: string, right: string) =>
-    left.normalize('NFC').toLocaleLowerCase().trim() ===
-    right.normalize('NFC').toLocaleLowerCase().trim();
+    !!identity(left) && identity(left) === identity(right);
   return (
     !same(track.title, track.artist) &&
     same(track.title, fromName.artist) &&

@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest';
 import {
   inferFileMetadata,
+  rolesSwapped,
   matchesSearch,
   splitInlineArtist,
   stripLeadingNumber,
@@ -78,4 +79,27 @@ it('drops a zero-padded album position but keeps real numbers', () => {
   expect(stripLeadingNumber('1975')).toBe('1975');
   expect(stripLeadingNumber('99 Luftballons')).toBe('99 Luftballons');
   expect(stripLeadingNumber('7 Rings')).toBe('7 Rings');
+});
+
+it('detects reversed roles across accents, punctuation and upload labels without erasing versions', () => {
+  expect(
+    rolesSwapped({
+      title: 'Beyonce',
+      artist: 'Deja Vu (Official Video)',
+      fileName: 'Beyoncé - Déjà Vu.mp3',
+    }),
+  ).toBe(true);
+  expect(
+    rolesSwapped({
+      title: 'AC/DC',
+      artist: 'Back In Black',
+      fileName: 'AC_DC - Back in Black.flac',
+    }),
+  ).toBe(true);
+  expect(
+    rolesSwapped({ title: 'Artist', artist: 'Song (Live)', fileName: 'Artist - Song.mp3' }),
+  ).toBe(false);
+  expect(rolesSwapped({ title: 'Artist', artist: 'Artist', fileName: 'Artist - Artist.mp3' })).toBe(
+    false,
+  );
 });

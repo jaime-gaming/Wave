@@ -730,6 +730,13 @@ public static partial class Localization {
             ["song"] = "canción",
             ["artist"] = "artista",
             ["Saved from Remix for {date}."] = "Guardada desde Remix para el {date}.",
+            ["Fix volume"] = "Ajustar volumen",
+            ["Measuring volume…"] = "Midiendo volumen…",
+            ["Balance this recording without changing the file"] = "Equilibra esta grabación sin modificar el archivo",
+            ["Volume adjusted"] = "Volumen ajustado",
+            ["Restore original volume"] = "Restaurar volumen original",
+            ["Volume could not be adjusted."] = "No se pudo ajustar el volumen.",
+            ["Immersive listening"] = "Escucha inmersiva",
         };
 
     /// <summary>What the person chose: "system", "en" or "es".</summary>

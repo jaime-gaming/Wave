@@ -583,7 +583,7 @@ it('keeps the arriving song silent while the blend is still being set up', async
   // Two decks, one gain node each; the second one is the song coming in.
   expect(gains.length).toBeGreaterThanOrEqual(2);
   // The deck's own volume is the master; the graph carries the mix level.
-  expect(gains[gains.length - 1].value).toBe(0);
+  expect(gains[gains.length - 2].value).toBe(0);
   expect(elements[1].volume).toBe(1);
   release();
   await Promise.resolve();
@@ -634,7 +634,9 @@ it('never resets a live deck gain on resume and bounds the summed level across t
   for (let i = 26; i <= 100; i++) {
     elements[1].currentTime = i / 50;
     vi.advanceTimersByTime(20);
-    expect(gains.reduce((sum, gain) => sum + gain.value, 0)).toBeLessThanOrEqual(1.00001);
+    expect(
+      gains.filter((_, index) => index % 2 === 0).reduce((sum, gain) => sum + gain.value, 0),
+    ).toBeLessThanOrEqual(1.00001);
   }
 });
 
@@ -651,4 +653,29 @@ it('softens a repeat with a short bounded attack, independently of Mix', async (
   expect(elements[0].volume).toBeLessThan(0.4);
   vi.advanceTimersByTime(200);
   expect(elements[0].volume).toBeCloseTo(0.4);
+});
+
+it('overlaps a repeat with the same recording and respects the trimmed opening even with Mix off', async () => {
+  const started = vi.fn();
+  engine = new MixAudio(callbacks());
+  const blob = new Blob(['same recording']);
+  engine.setBounds(blob, { start: 0.5, end: 4 });
+  engine.load(blob);
+  engine.setVolume(0.4);
+  await engine.play();
+  engine.prepare(blob);
+  elements[0].currentTime = 3.25;
+  engine.repeatTransition(() => true, started);
+  await Promise.resolve();
+  expect(started).toHaveBeenCalledOnce();
+  expect(engine.element).toBe(elements[1]);
+  expect(elements[1].currentTime).toBe(0.5);
+  expect(engine.transitioning).toBe(true);
+  for (let i = 0; i <= 40; i++) {
+    elements[1].currentTime = 0.5 + i / 50;
+    vi.advanceTimersByTime(20);
+    expect(elements[0].volume + elements[1].volume).toBeLessThanOrEqual(0.40001);
+  }
+  expect(elements[0].paused).toBe(true);
+  expect(engine.transitioning).toBe(false);
 });

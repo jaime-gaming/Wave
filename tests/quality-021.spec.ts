@@ -112,6 +112,46 @@ for (const width of [360, 1280]) {
     await expect(page.getByRole('button', { name: /Top artist/ })).toContainText('Wave Tests');
     await page.getByRole('button', { name: /Top song/ }).click();
     await expect(page.locator('#remix-song-panel')).toContainText('Signal');
+    const grid = await page.locator('.remix-highlights').boundingBox();
+    const expanded = await page.locator('.remix-feature.is-expanded').boundingBox();
+    expect(expanded!.width).toBeGreaterThanOrEqual(grid!.width - 2);
+    expect(
+      await page.getByRole('combobox', { name: 'Explore a week' }).locator('option').count(),
+    ).toBe(1);
+    if (width > 700) {
+      const features = await page.locator('.remix-feature').evaluateAll((nodes) =>
+        nodes.map((node) => ({
+          top: node.getBoundingClientRect().top,
+          bottom: node.getBoundingClientRect().bottom,
+        })),
+      );
+      expect(features[0].bottom).toBeLessThanOrEqual(features[2].top);
+      expect(features[1].bottom).toBeLessThanOrEqual(features[2].top);
+      for (const [index, name] of ['Listening time', 'Top artist', 'Top song'].entries()) {
+        await page.getByRole('button', { name: new RegExp(name) }).click();
+        const cards = await page.locator('.remix-feature').evaluateAll((nodes) =>
+          nodes.map((node) => {
+            const rect = node.getBoundingClientRect();
+            return { top: rect.top, bottom: rect.bottom, width: rect.width };
+          }),
+        );
+        expect(cards[index].width).toBeGreaterThanOrEqual(grid!.width - 2);
+        for (let other = 0; other < cards.length; other++) {
+          if (other < index) expect(cards[other].bottom).toBeLessThanOrEqual(cards[index].top);
+          if (other > index) expect(cards[other].top).toBeGreaterThanOrEqual(cards[index].bottom);
+        }
+        if (index === 1) {
+          const heads = await page.locator('.remix-highlight').evaluateAll((nodes) =>
+            nodes.map((node) => ({
+              imageRight: node.querySelector('.remix-feature-image')!.getBoundingClientRect().right,
+              labelLeft: node.querySelector('.remix-highlight-label')!.getBoundingClientRect().left,
+            })),
+          );
+          for (const head of heads) expect(head.imageRight).toBeLessThan(head.labelLeft);
+        }
+      }
+    }
+
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
       width,
     );
@@ -156,4 +196,96 @@ test('Trim owns the audio while editing and releases its preview on close', asyn
       ),
     ),
   ).toBe(true);
+});
+
+test('Fix volume measures a quiet file, persists playback gain and restores the original', async ({
+  page,
+}) => {
+  await page.evaluate(() => {
+    const gains: GainNode[] = [];
+    Object.defineProperty(window, '__volumeGains', { value: gains });
+    const create = AudioContext.prototype.createGain;
+    AudioContext.prototype.createGain = function () {
+      const node = create.call(this);
+      gains.push(node);
+      return node;
+    };
+  });
+  await page.getByRole('button', { name: 'Play Signal by Wave Tests' }).click();
+  await page.getByRole('button', { name: 'Options for Signal' }).click();
+  await page.getByRole('button', { name: 'Edit song', exact: true }).click();
+  const editor = page.getByRole('dialog', { name: 'Edit song', exact: true });
+  await editor.getByRole('button', { name: /Fix volume/ }).click();
+  await expect(editor.getByRole('status')).toContainText('Volume adjusted', { timeout: 15000 });
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        (window as unknown as { __volumeGains: GainNode[] }).__volumeGains.some(
+          (node) => node.gain.value > 2,
+        ),
+      ),
+    )
+    .toBe(true);
+  const read = () =>
+    page.evaluate(async () => {
+      const db = await new Promise<IDBDatabase>((resolve) => {
+        const req = indexedDB.open('wave-library');
+        req.onsuccess = () => resolve(req.result);
+      });
+      const tracks = await new Promise<Array<{ volumeFix?: { gain: number }; blob: Blob }>>(
+        (resolve) => {
+          const req = db.transaction('tracks').objectStore('tracks').getAll();
+          req.onsuccess = () => resolve(req.result);
+        },
+      );
+      db.close();
+      return { gain: tracks[0].volumeFix?.gain, size: tracks[0].blob.size };
+    });
+  const fixed = await read();
+  expect(fixed.gain).toBeGreaterThan(2);
+  await editor.getByRole('button', { name: 'Restore original volume' }).click();
+  await expect(editor.getByRole('status')).toHaveCount(0);
+  const restored = await read();
+  expect(restored.gain).toBeUndefined();
+  expect(restored.size).toBe(fixed.size);
+});
+
+test('repeat overlaps the same local song and renews only its repeat icon', async ({ page }) => {
+  await page.getByRole('button', { name: 'Play Signal by Wave Tests' }).click();
+  await page.getByRole('button', { name: 'Open now playing', exact: true }).click();
+  const stage = page.getByRole('dialog', { name: 'Now playing', exact: true });
+  await stage.getByRole('button', { name: 'Repeat: off' }).click();
+  await stage.getByRole('button', { name: 'Repeat: all' }).click();
+  const symbol = await stage.locator('.repeat-symbol').elementHandle();
+  await page.evaluate(() => {
+    const audio = (window as unknown as { __trimSources: HTMLAudioElement[] }).__trimSources.find(
+      (source) => !source.paused,
+    )!;
+    audio.currentTime = 29.25;
+  });
+  await expect
+    .poll(
+      () =>
+        page.evaluate(
+          () =>
+            (window as unknown as { __trimSources: HTMLAudioElement[] }).__trimSources.filter(
+              (source) => !source.paused,
+            ).length,
+        ),
+      { intervals: [25, 50, 100] },
+    )
+    .toBe(2);
+  await expect.poll(() => symbol!.evaluate((node) => node.isConnected)).toBe(false);
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as unknown as { __trimSources: HTMLAudioElement[] }).__trimSources.filter(
+            (source) => !source.paused,
+          ).length,
+      ),
+    )
+    .toBe(1);
+  await expect(stage.locator('.mix-visual')).toHaveCount(0);
+  await expect(stage.getByRole('button', { name: 'Repeat: one' })).toBeVisible();
 });

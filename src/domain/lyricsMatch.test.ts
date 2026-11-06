@@ -141,3 +141,16 @@ it('answers a title that carries an edition word the library did not keep', () =
     ),
   ).toBeUndefined();
 });
+it('uses filename evidence to search reversed tags without changing the library record', () => {
+  const track = makeTrack({ title: 'Beyonce', artist: 'Halo', fileName: 'Beyoncé - Halo.mp3' });
+  expect(lookupMetadata(track)).toEqual({ title: 'Halo', artist: 'Beyonce' });
+  expect(
+    recordingMatch({ trackName: 'Halo', artistName: 'Beyoncé', duration: 90 }, track),
+  ).toMatchObject({ synchronized: true });
+  expect(track.title).toBe('Beyonce');
+});
+it('respects an explicit keep decision when the filename is the mistaken evidence', () => {
+  const track = makeTrack({ title: 'Beyonce', artist: 'Halo', fileName: 'Beyoncé - Halo.mp3' });
+  track.rolesReviewed = JSON.stringify([track.title, track.artist, track.fileName]);
+  expect(lookupMetadata(track)).toEqual({ title: 'Beyonce', artist: 'Halo' });
+});

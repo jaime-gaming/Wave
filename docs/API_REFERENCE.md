@@ -479,7 +479,7 @@ Separate native Android (Kotlin/Compose) and Windows (C#/WPF) source implementat
 
 ### Listening activity
 
-`useIdleListening` was removed in 0.1.1. It used to open a full-screen listening scene after thirty seconds without activity; the player now opens only when it is asked to, so nothing in the app observes idle time and no root attribute is written.
+`useIdleListening(playing, trackId)` restores the dedicated 0.1.0-style listening scene after thirty seconds without input. It guards visible/focused documents, editor dialogs and text inputs; pointer, touch, keyboard, wheel, visibility changes and explicit `wake()` reset it. `PlayerBar` may open the scene from collapsed playback or replace its expanded layout with artwork/cinematic lyrics. It reuses the same audio/clock and does not write a root attribute.
 
 ### Visual identity
 
@@ -568,7 +568,7 @@ Provider coordination relies on the same origin and available browser capabiliti
 
 `LocalFeedback` consumes only allowlisted `wave:feature-used` events (Remix, Mix, Playlist import). `src/ui/localFeedback.ts` owns eligibility. The first seven days and first twelve uses never prompt; after the cooldown, one two-percent chance per page session may show a nonmodal card outside active modal dialogs. Showing it immediately starts a thirty-day cooldown. Up to ten structured responses, eligibility and opt-out live under `wave-local-feature-feedback-v1` only. No request, telemetry, remote collection or automatic feature tuning occurs. Closing is optional; “Do not ask again” persists an opt-out.
 
-Expanded playback enters inactivity after 30 seconds, ordinary and clip stages alike. Controls preserve focus and wake with input; clip lyrics retain contrast and full container opacity. Repeats have a 220 ms unity-bounded audio attack in local playback and the YouTube command ramp; there is no repeat notice on screen. The Windows source has the same bounded attack with a guarded dispatcher timer.
+Visible, focused playback enters the dedicated album/lyrics inactivity scene after 30 seconds, ordinary and clip stages alike. Input wakes controls; editing blocks entry and clip lyrics retain contrast. Local repeats use a brief same-recording overlap when prepared, with a 220 ms bounded audio attack fallback; YouTube retains its command ramp. Only the repeat icon animates. The Windows source has the same bounded attack with a guarded dispatcher timer.
 
 ### Remix grid, historical exploration and preview ownership
 
@@ -577,3 +577,9 @@ Expanded playback enters inactivity after 30 seconds, ordinary and clip stages a
 `usePlayer.pauseForPreview()` stops local decks synchronously and dispatches pause, so entering a trim editor cannot leave the main recording underneath its preview. `AudioTrimEditor` takes ownership on mount, invokes the guard again on preview, follows the passed `volume`, and pauses/removes its source on teardown before releasing its object URL. Closing/back navigation does not auto-resume main playback. This remains non-destructive playback bounds, not audio editing.
 
 `dailyMixes` publishes at most three groups and takes at most twenty distinct tracks per group. Android clamps even an explicitly oversized limit to twenty, deduplicates source IDs, and takes three groups; Windows applies the same three-by-twenty cap. Saved playlists are not dynamically constrained by the generator.
+
+### Fix volume
+
+`measureVolume(blob, duration)` rejects unsupported, silent and over-budget sources (600 seconds / 48 MiB). It decodes at a bounded rate and transfers copied sample arrays to a disposable worker. `volumeCorrection(channels, sampleRate)` returns finite peak/RMS measurements and a bounded linear gain, never fabricated audio. `setTrackVolumeFix(id, correction?)` changes only the latest row's playback metadata; omission restores the original level. `usePlayer.prepareVolumeFix()` primes native Web Audio routing in the click gesture. `MixAudio.setVolumeFix(blob, gain)` applies a separately smoothed, per-source normalization gain plus safety ceiling, independently of master volume and crossfade share. Mix gains still sum to at most unity. The editor applies the explicit action immediately, reports its dB change and offers restoration.
+
+Lyrics search cache identity is `lrclib-v5`. Search-only role correction requires unconfirmed filename evidence and keeps explicit reviewed identities. Clip requests carry filename evidence locally; only the derived song/artist query leaves the device. NetEase requests `yv=-1`; `decodeKrc()` is asynchronous and handles the real plaintext `krc1` header, XORed compressed body and bounded streaming zlib decompression. Original provider word stamps take precedence; invalid/non-monotonic stamps fall back to labelled estimates.

@@ -2256,3 +2256,101 @@
     transition: none;
   }
 }
+
+/* Restore the dedicated 0.1 album/lyrics scene, not faded transport controls. */
+.repeat-symbol {
+  display: inline-flex;
+}
+.player-modal.is-immersive .player-normal-view {
+  visibility: hidden;
+  pointer-events: none;
+}
+.player-modal.is-immersive > .modal-heading {
+  opacity: 0;
+  pointer-events: none;
+}
+.immersive-stage {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  align-items: center;
+  gap: clamp(28px, 6vw, 100px);
+  padding: 6dvh 7vw;
+  pointer-events: none;
+}
+.immersive-stage.without-lyrics {
+  grid-template-columns: 1fr;
+}
+.immersive-art {
+  min-width: 0;
+  text-align: center;
+}
+.immersive-cover {
+  height: auto;
+  width: min(36vw, 48dvh);
+  aspect-ratio: 1;
+  margin: auto;
+  border-radius: 28px;
+  box-shadow: 0 16px 48px #0002;
+}
+.immersive-credit {
+  margin-top: clamp(14px, 3dvh, 30px);
+}
+.immersive-credit h2 {
+  font-size: clamp(20px, 2.6vw, 40px);
+  line-height: 1.2;
+  margin: 0 0 10px;
+  overflow-wrap: anywhere;
+}
+.immersive-credit p {
+  margin: 4px 0;
+  color: var(--player-muted);
+}
+.immersive-stage .lyrics-cinematic {
+  height: 100%;
+  min-height: 0;
+}
+.immersive-stage.with-video {
+  background: linear-gradient(90deg, #0009, #0002);
+  color: #fff;
+}
+.immersive-stage.with-video .immersive-cover {
+  height: auto;
+  width: min(20vw, 25dvh);
+}
+.immersive-stage.with-video .immersive-credit p {
+  color: #eee;
+}
+.immersive-stage.with-video .lyrics-cinematic {
+  color: #fff;
+  text-shadow: 0 2px 8px #000;
+  background: #0007;
+  border-radius: 24px;
+  padding: 20px;
+}
+@media (max-width: 600px) {
+  .immersive-stage {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+    padding: 5dvh 7vw;
+    gap: 3dvh;
+  }
+  .immersive-cover {
+    width: min(44vw, 24dvh);
+  }
+  .immersive-stage.without-lyrics {
+    grid-template-rows: 1fr;
+  }
+  .without-lyrics .immersive-cover {
+    width: min(68vw, 44dvh);
+  }
+  .immersive-stage.with-video .immersive-cover {
+    width: min(24vw, 16dvh);
+  }
+}
+
+.immersive-stage.with-video .lyrics-cinematic .lyric-line {
+  color: #fff;
+}

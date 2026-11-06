@@ -1,3 +1,4 @@
+import { lookupMetadata } from '../domain/lyricsMatch';
 /**
  * Extra lyric providers, for word-by-word timings.
  *
@@ -105,19 +106,20 @@ const query = (title: string, artist: string) => `${title} ${artist}`.trim();
 
 /** NetEase: search, then fetch the lyric with both formats requested. */
 async function fromNetEase(
-  track: { title: string; artist: string; duration: number },
+  track: { title: string; artist: string; duration: number; fileName?: string },
   context: Context,
 ): Promise<WordLyrics | undefined> {
+  track = { ...track, ...lookupMetadata(track) };
   const search = await getJson(
     `https://music.163.com/api/search/get/web?s=${encodeURIComponent(
-      query(track.title, track.artist),
+      query(lookupMetadata(track).title, lookupMetadata(track).artist),
     )}&type=1&limit=10`,
     context,
   );
   for (const song of rankProviderSongs(parseNetEaseSongs(search), track).slice(0, 3)) {
     if (context.signal?.aborted) return undefined;
     const payload = await getJson(
-      `https://music.163.com/api/song/lyric?id=${encodeURIComponent(song.id)}&lv=-1&kv=-1&tv=-1`,
+      `https://music.163.com/api/song/lyric?id=${encodeURIComponent(song.id)}&lv=-1&kv=-1&tv=-1&yv=-1`,
       context,
     );
     const { yrc } = parseNetEaseLyric(payload);
@@ -137,12 +139,13 @@ async function fromNetEase(
 
 /** Kugou: search for the lyric id, then download the KRC. */
 async function fromKugou(
-  track: { title: string; artist: string; duration: number },
+  track: { title: string; artist: string; duration: number; fileName?: string },
   context: Context,
 ): Promise<WordLyrics | undefined> {
+  track = { ...track, ...lookupMetadata(track) };
   const search = await getJson(
     `https://krcs.kugou.com/search?ver=1&man=yes&client=mobi&keyword=${encodeURIComponent(
-      query(track.title, track.artist),
+      query(lookupMetadata(track).title, lookupMetadata(track).artist),
     )}`,
     context,
   );
@@ -158,7 +161,7 @@ async function fromKugou(
     );
     const { krc } = parseKugouLyric(payload);
     if (!krc) continue;
-    const decoded = decodeKrc(krc) || krc;
+    const decoded = (await decodeKrc(krc)) || krc;
     const lines = parseKrc(decoded);
     if (!hasWordTimings(lines) || !wordTimelinePlausible(lines, track.duration)) continue;
     return {
@@ -178,7 +181,7 @@ async function fromKugou(
  * and mixing sources would make attribution and offsets inconsistent.
  */
 export async function fetchWordLyrics(
-  track: { title: string; artist: string; duration: number },
+  track: { title: string; artist: string; duration: number; fileName?: string },
   context: Context = {},
 ): Promise<WordLyrics | undefined> {
   if (!isOnline() || !track.title || !track.artist || context.signal?.aborted) return undefined;

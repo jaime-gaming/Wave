@@ -70,7 +70,13 @@ export function VideoBackdrop({
     if (!online) return;
     const controller = new AbortController();
     void findClip(
-      { title: track.title, artist: track.artist, duration: track.duration },
+      {
+        title: track.title,
+        artist: track.artist,
+        duration: track.duration,
+        fileName: track.fileName,
+        rolesReviewed: track.rolesReviewed,
+      },
       { signal: controller.signal, refresh: attempt > 0 },
     ).then((result) => {
       if (controller.signal.aborted) return;
@@ -81,7 +87,17 @@ export function VideoBackdrop({
       setSearch(result.status === 'empty' ? 'empty' : 'unavailable');
     });
     return () => controller.abort();
-  }, [clip, online, track.id, track.title, track.artist, track.duration, attempt]);
+  }, [
+    clip,
+    online,
+    track.id,
+    track.title,
+    track.artist,
+    track.duration,
+    track.fileName,
+    track.rolesReviewed,
+    attempt,
+  ]);
 
   if (clip)
     return (

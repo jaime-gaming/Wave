@@ -26,6 +26,8 @@ export interface Track {
   videoId?: string;
   artwork?: string;
   audioInfo?: AudioInfo;
+  /** Playback-only gain; original audio bytes are never rewritten. */
+  volumeFix?: import('../audio/volumeFix').VolumeFix;
   lyrics?: Lyrics;
   lyricsLookup?: LyricsLookup;
   contentHash?: string;

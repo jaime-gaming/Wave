@@ -184,6 +184,7 @@ await context.addInitScript(() => {
   localStorage.setItem('wave-playback-session-v1', '');
   localStorage.setItem('wave-autoplay', 'false');
   localStorage.setItem('wave-animations-enabled', 'true');
+  localStorage.setItem('wave-editor-enabled', 'true');
 });
 
 const seed = await context.newPage();
@@ -208,7 +209,7 @@ await home.getByRole('button', { name: 'Remix', exact: true }).click();
 await home.waitForTimeout(900);
 await shot(home, 'remix-desktop.png');
 await home.getByRole('button', { name: /Listening time/ }).click();
-await home.setViewportSize({ width: 1440, height: 1100 });
+await home.setViewportSize({ width: 1440, height: 1300 });
 await shot(home, 'remix-details-desktop.png');
 await home.setViewportSize({ width: 1440, height: 900 });
 await home.getByRole('button', { name: 'Home', exact: true }).click();
@@ -222,6 +223,26 @@ await home.getByRole('button', { name: 'Play mix', exact: true }).click();
 await home.getByRole('button', { name: 'Open now playing', exact: true }).click();
 await home.waitForTimeout(1500);
 await shot(home, 'now-playing-desktop.png');
+// Capture the real inactivity scene rather than forcing a CSS class.
+await home.bringToFront();
+await home.locator('.immersive-stage').waitFor({ state: 'visible', timeout: 35_000 });
+await shot(home, 'immersive-desktop.png');
+await home.mouse.move(80, 80);
+await home.getByRole('button', { name: 'Close dialog' }).click();
+await home.getByRole('button', { name: 'Library', exact: true }).click();
+await home
+  .getByRole('button', { name: /^Options for/ })
+  .first()
+  .click();
+await home.getByRole('button', { name: 'Edit song', exact: true }).click();
+const volumeEditor = home.getByRole('dialog', { name: 'Edit song', exact: true });
+await volumeEditor.getByRole('button', { name: /Fix volume/ }).click();
+await volumeEditor.getByRole('status').filter({ hasText: 'Volume adjusted' }).waitFor();
+await home.setViewportSize({ width: 1440, height: 1200 });
+await volumeEditor.locator('.volume-fix-control').scrollIntoViewIfNeeded();
+await shot(home, 'volume-fix-desktop.png');
+await home.setViewportSize({ width: 1440, height: 900 });
+await volumeEditor.getByRole('button', { name: 'Cancel', exact: true }).click();
 
 // Use a second disposable library: the desktop player above must not restore a
 // playing session into the phone screenshot through shared browser storage.
@@ -233,6 +254,7 @@ await mobileContext.addInitScript(() => {
   localStorage.setItem('wave-playback-session-v1', '');
   localStorage.setItem('wave-autoplay', 'false');
   localStorage.setItem('wave-animations-enabled', 'true');
+  localStorage.setItem('wave-editor-enabled', 'true');
 });
 const mobileSeed = await mobileContext.newPage();
 await seedDemoLibrary(mobileSeed);

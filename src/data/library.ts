@@ -525,3 +525,10 @@ export function recordDecodedDuration(id: string, duration: number): Promise<Tra
     throw new Error('Invalid media duration.');
   return mutateTrack(id, (track) => invalidateOnlineLyrics(track, { ...track, duration }));
 }
+
+/** Persist gain on the latest row, so concurrent metadata/lyrics writes survive. */
+export function setTrackVolumeFix(id: string, volumeFix?: Track['volumeFix']): Promise<Track> {
+  if (volumeFix && (!Number.isFinite(volumeFix.gain) || volumeFix.gain <= 0 || volumeFix.gain > 8))
+    return Promise.reject(Error('Invalid volume correction.'));
+  return mutateTrack(id, (track) => ({ ...track, volumeFix }));
+}

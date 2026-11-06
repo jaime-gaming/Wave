@@ -93,3 +93,23 @@ describe('word-by-word lyrics', () => {
     expect(activeWordIndex([], 1)).toBe(-1);
   });
 });
+it('keeps rapid estimated words inside their line and avoids stretching through instrumental gaps', () => {
+  const rapid = deriveWordTimings('one two three four five six seven eight', 1, 1.15);
+  expect(rapid.at(-1)!.end).toBeLessThanOrEqual(1.151);
+  const gap = karaokeWords({ time: 10, text: 'Hold on' }, 40);
+  expect(gap.at(-1)!.end).toBeLessThan(20);
+});
+it('rejects invalid provider word clocks instead of presenting them as exact timings', () => {
+  const words = karaokeWords(
+    {
+      text: 'one two',
+      time: 2,
+      words: [
+        { text: 'one', time: 3 },
+        { text: 'two', time: 2 },
+      ],
+    },
+    5,
+  );
+  expect(words.every((word) => word.source === 'derived')).toBe(true);
+});

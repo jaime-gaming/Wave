@@ -30,7 +30,14 @@ export const OPEN_AIR_HZ = 20_000;
 /** Where the outgoing song's top ends up as it leaves the mix. */
 export const CLOSED_AIR_HZ = 1_600;
 
-type Chain = { gain: AudioParam; bass: AudioParam; air: AudioParam; pan?: AudioParam };
+type Chain = {
+  limiter?: AudioParam;
+  normalization: AudioParam;
+  gain: AudioParam;
+  bass: AudioParam;
+  air: AudioParam;
+  pan?: AudioParam;
+};
 
 export class MixGraph {
   private readonly context: AudioContext;
@@ -101,7 +108,21 @@ export class MixGraph {
         const air = this.context.createBiquadFilter();
         air.type = 'lowpass';
         air.frequency.value = OPEN_AIR_HZ;
-        source.connect(bass);
+        const normalization = this.context.createGain();
+        normalization.gain.value = 1;
+        source.connect(normalization);
+        // A safety ceiling catches inter-sample/decoder peaks a low-memory scan
+        // cannot measure exactly. At unity it stays bypass-equivalent (0 dB).
+        const limiter = this.context.createDynamicsCompressor?.();
+        if (limiter) {
+          limiter.threshold.value = 0;
+          limiter.knee.value = 0;
+          limiter.ratio.value = 20;
+          limiter.attack.value = 0.003;
+          limiter.release.value = 0.1;
+          normalization.connect(limiter);
+          limiter.connect(bass);
+        } else normalization.connect(bass);
         bass.connect(gain);
         gain.connect(air);
         // A panner finishes the chain where the browser has one. It is the only
@@ -116,6 +137,8 @@ export class MixGraph {
         }
         this.sources.add(source);
         chain = {
+          ...(limiter ? { limiter: limiter.threshold } : {}),
+          normalization: normalization.gain,
           gain: gain.gain,
           bass: bass.gain,
           air: air.frequency,
@@ -133,6 +156,24 @@ export class MixGraph {
     };
   }
 
+  /** Independent from the unity-bounded crossfade curve; ramp to avoid clicks. */
+  setNormalization(element: HTMLAudioElement, gain: number, immediate = false): void {
+    const chain = this.chains.get(element);
+    if (!chain) return;
+    const safe = Number.isFinite(gain) ? Math.max(0.01, Math.min(8, gain)) : 1;
+    if (immediate) {
+      // New/reused sources begin at their own level, never the previous song's.
+      chain.normalization.cancelScheduledValues?.(this.context.currentTime);
+      chain.normalization.value = safe;
+      if (chain.limiter) {
+        chain.limiter.cancelScheduledValues?.(this.context.currentTime);
+        chain.limiter.value = safe > 1 ? -1 : 0;
+      }
+    } else {
+      chain.limiter?.setTargetAtTime(safe > 1 ? -1 : 0, this.context.currentTime, 0.02);
+      chain.normalization.setTargetAtTime(safe, this.context.currentTime, 0.12);
+    }
+  }
   setGain(element: HTMLAudioElement, value: number, at = 0): void {
     const chain = this.chains.get(element);
     if (!chain) return;

@@ -97,7 +97,11 @@ export function RemixPage({
   const [section, setSection] = useState<'time' | 'artist' | 'song' | null>(null);
   const [selectedWeek, setSelectedWeek] = useState<number | null>(null);
   const [visibleWeeks, setVisibleWeeks] = useState(4);
-  const recap = history.find((week) => week.start === selectedWeek) ?? currentRecap;
+  const availableWeeks = history.filter((week) => week.plays > 0);
+  const earlierWeeks = availableWeeks.filter((week) => week.start !== currentRecap.start);
+  const recap =
+    availableWeeks.find((week) => week.start === selectedWeek) ??
+    (currentRecap.plays ? currentRecap : (availableWeeks[0] ?? currentRecap));
   const historical = recap.start !== currentRecap.start;
   const portrait = (name: string) => (
     <ArtistPortrait
@@ -179,25 +183,27 @@ export function RemixPage({
         )}
       </header>
 
-      <label className="remix-week-select form-field">
-        {t('Explore a week')}
-        <select
-          value={recap.start}
-          onChange={(event) => {
-            setSelectedWeek(Number(event.target.value));
-            setSection(null);
-            setHoveredDay(null);
-          }}
-        >
-          {history.map((week, index) => (
-            <option key={week.start} value={week.start}>
-              {index === 0 ? t('This week') + ' · ' : ''}
-              {weekRange(week.start, week.end)} · {new Date(week.end).getFullYear()} · {week.plays}{' '}
-              {t(week.plays === 1 ? 'play' : 'plays')}
-            </option>
-          ))}
-        </select>
-      </label>
+      {availableWeeks.length > 0 && (
+        <label className="remix-week-select form-field">
+          {t('Explore a week')}
+          <select
+            value={recap.start}
+            onChange={(event) => {
+              setSelectedWeek(Number(event.target.value));
+              setSection(null);
+              setHoveredDay(null);
+            }}
+          >
+            {availableWeeks.map((week) => (
+              <option key={week.start} value={week.start}>
+                {week.start === currentRecap.start ? t('This week') + ' · ' : ''}
+                {weekRange(week.start, week.end)} · {new Date(week.end).getFullYear()} ·{' '}
+                {week.plays} {t(week.plays === 1 ? 'play' : 'plays')}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <div className="remix-highlights">
         {(
           [
@@ -221,7 +227,10 @@ export function RemixPage({
             },
           ] as const
         ).map((card) => (
-          <section className="remix-feature" key={card.id}>
+          <section
+            className={`remix-feature${section === card.id ? ' is-expanded' : ''}`}
+            key={card.id}
+          >
             <motion.button
               type="button"
               className={`remix-highlight remix-highlight-${card.id}`}
@@ -462,11 +471,11 @@ export function RemixPage({
         up to a year can be explored, so a quiet week can be compared with the week that
         earned it, and any of them can be played again.
       */}
-      {history.length > 1 && (
+      {earlierWeeks.length > 0 && (
         <section className="remix-history" aria-label={t('Weeks before this one')}>
           <h3>{t('The weeks before')}</h3>
           <ol>
-            {history.slice(1, visibleWeeks + 1).map((week) => {
+            {earlierWeeks.slice(0, visibleWeeks).map((week) => {
               const top = week.topTracks[0];
               const quiet = week.plays === 0;
               return (
@@ -512,7 +521,7 @@ export function RemixPage({
               );
             })}
           </ol>
-          {visibleWeeks < history.length - 1 && (
+          {visibleWeeks < earlierWeeks.length && (
             <button className="tonal-button" onClick={() => setVisibleWeeks((count) => count + 4)}>
               {t('Show more weeks')}
             </button>

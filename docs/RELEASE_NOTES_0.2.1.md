@@ -28,7 +28,7 @@ Release date: 5 November 2026.
 ## Latest interaction and hosting follow-up
 
 - Remix retains line icons and detail chevrons within its three expandable highlights.
-- Expanded playback, including videoclips, simplifies after 30 seconds of inactivity. Clip lyrics keep a high-contrast reading surface rather than fading away with the controls.
+- Restore the dedicated 0.1.0-style inactivity scene after 30 seconds, with full artwork, credits and cinematic lyrics. Videoclips retain a high-contrast reading surface; editors/text inputs and hidden or unfocused tabs block entry.
 - A deliberately rare, dismissible feature-opinion card stores only local structured answers, with a long cooldown and opt-out. Nothing is transmitted or used for automatic changes.
 - Bring your playlists now tries public Spotify/YouTube URLs through the same-origin Worker before falling back to export files. Public lists can be partial; matching and confirmation remain local, with no audio download.
 - Cloudflare Workers owns production hosting and the bounded metadata endpoint. Remove the old compiled `docs/` mirror and its CI drift check; validate the actual Worker bundle with `deploy:check` instead. Documentation and six web screenshots are refreshed.
@@ -50,3 +50,12 @@ ICE gathering now waits from local-description creation, rather than from openin
 The release workflow validates the tag and only publishes native packages; it does not build or upload a web bundle. It calls the native workflow and attaches the Android test APK and unsigned Windows portable ZIP after their tests complete. These are not production-signed installers. Native build execution requires GitHub's Android and Windows runners; it cannot be verified in the Linux web-development sandbox.
 
 The new waveform editor, routing and redesigned music surfaces in this iteration apply to the web client; the separate native interfaces still need feature parity.
+
+## Listening refinements (web)
+
+- Expand Remix details across the whole row, preserving the other cards above/below; show only weeks with actual listening information.
+- Simplify import to a single progress/count indication, without filename/internal subprocess chatter.
+- Add **Fix volume** to Edit song for bounded local audio analysis, reversible playback gain and a safety ceiling. No source rewrite, denoising or promised restoration of lost quality. The tool currently supports local files up to ten minutes / 48 MB; YouTube and native clients do not gain this tool in this pass.
+- Repeat a local recording with a brief same-source mini-overlap and an icon-only animation, retaining safe restart fallback.
+- Improve reversed-tag evidence across accents/typography, honor explicit keep decisions, and share corrected search identities with lyric and clip discovery. Request actual YRC data and correctly inflate compressed KRC word clocks. Provider availability remains best effort and optional word-level providers remain opt-in.
+- Refresh ten web screenshots including the restored scene and the new volume action. No release tag or production deployment is created by this change.

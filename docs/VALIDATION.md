@@ -2,6 +2,13 @@
 
 Development target: 0.2.1. Released baseline: 0.2.0 · 3 November 2026. Historical run dates are retained below.
 
+## 0.2.1 listening refinements — 6 November 2026
+
+- **723 web tests across 113 files passed.** Added coverage for reversible gain persistence/source bytes, RMS/peak and silence safety, actual same-source repeat overlap/trim opening, reviewed artist/title identity, real compressed KRC fixtures, short/gapped word interpolation, invalid word clocks and guarded inactivity entry/wake.
+- Targeted Chromium checks verify actual Fix volume worker execution, a gain greater than unity on a quiet source, persisted restoration, two simultaneously playing decoders during repeat and replacement of its icon only. Responsive Remix tests measure full-row expansion and populated-only week options. Videoclip tests wait for the real 30-second dedicated scene and test waking back to controls. **Final post-layout results: 18 sequential Chromium tests passed**, plus a separate passing inactivity regression that verifies both expanded and collapsed automatic entry/wake (**19 targeted tests** total). The full historical browser suite is not claimed green. After the final source-level initialization adjustment, all 32 audio tests and both Fix volume/repeat browser cases passed again.
+- Ten web screenshots regenerated from the disposable demo library, including restored immersive artwork/lyrics and Fix volume. No real user's audio/data is used. The capture uses real inactivity and volume analysis, not a simulated production UI state.
+- Search provider endpoints cannot be live-verified in this workspace; mocked recording-match tests and realistic compressed KRC fixtures verify local request/parsing behavior, not provider uptime. Headphone listening and native SDK/device verification remain separate. Fix volume is a new **web local-file** tool, not a native-client or YouTube audio processor. No production deployment or release publication.
+
 ## 0.2.1 release-candidate polish — 6 November 2026
 
 - Full web suite: **708 tests across 111 files passed**. Added regression coverage for per-card disclosure placement and saved artwork, full older-week navigation, main-deck pause ownership/preview teardown, volume and the three-by-twenty Daily Mix limits.

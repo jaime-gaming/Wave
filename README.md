@@ -202,3 +202,14 @@ Remix on the web is a responsive three-card grid with a saved artist portrait (o
 Entering **Trim audio** pauses the main player. The editor alone owns the preview, follows the master volume and stops when closed; it never resumes the main song automatically or rewrites original audio. Daily Mix generation is bounded on web, Android and Windows: **at most three mixes, each at most twenty songs**. Explicitly saved playlists remain independent snapshots.
 
 The local-only opinion card now has clearer response choices, dismiss/opt-out actions and keyboard dismissal. The web gallery includes [Remix details](docs/media/remix-details-desktop.png) and [the opinion card](docs/media/feedback-desktop.png). Shared song rows have more deliberate title/subtitle spacing; native source changes still need device validation before release.
+
+### Listening refinements on the web
+
+- Expanded Remix details span the whole grid row; other highlights retain their order above/below. The week selector and history shelf offer only weeks with listening data.
+- Import has one count and one progress bar, not a stream of filenames and internal operations.
+- **Edit song → Fix volume** measures local audio, stores reversible playback gain, and provides **Restore original volume**. The original file is unchanged. A bounded scan and a safety ceiling avoid indiscriminate boosting; this is volume balancing, not denoising or restoration of lost detail. Current analysis limits: 10 minutes / 48 MB per local file, maximum +18 dB. It does not process YouTube embeds.
+- The dedicated 0.1.0-style album/lyric scene returns after 30 seconds of focused, visible, uninterrupted playback. Interaction restores controls, and editors are never covered. Videoclips keep their picture and a readable lyric column.
+- Local repeats use a brief two-deck overlap with the same song and animate only the repeat icon. Unsupported/unprepared audio keeps the short attack fallback; YouTube retains its seek-based repeat.
+- Filename evidence for reversed tags now tolerates typography/accents and upload labels. Confirmed manual decisions win. Lyrics and clip lookup use the corrected search identity without silently editing tags. Real YRC/KRC word clocks remain provider-supplied; estimates remain labelled.
+
+New web captures: [immersive listening](docs/media/immersive-desktop.png), [Fix volume](docs/media/volume-fix-desktop.png).

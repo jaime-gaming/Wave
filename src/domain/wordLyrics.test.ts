@@ -1,3 +1,4 @@
+import { deflateSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 import {
   decodeKrc,
@@ -54,22 +55,21 @@ describe('word-level lyric formats', () => {
     expect(parseKrc(plain)[0].words).toHaveLength(3);
   });
 
-  it('decodes the XOR-obfuscated payload and refuses to guess on junk', () => {
-    // Build a payload the way the provider does: header + XOR + base64.
+  it('decodes the XOR-obfuscated payload and refuses to guess on junk', async () => {
+    // Real KRC: plaintext krc1 header + XORed zlib stream, then base64.
     const key = [
       0x40, 0x47, 0x61, 0x77, 0x5e, 0x32, 0x74, 0x47, 0x51, 0x36, 0x31, 0x2d, 0xce, 0xd2, 0x6e,
       0x69,
     ];
     const body = '[0,500]<0,200,0>Hi';
-    const plainBytes = new Uint8Array(4 + body.length);
-    plainBytes.set([0x6b, 0x72, 0x63, 0x31]);
-    for (let index = 0; index < body.length; index++)
-      plainBytes[4 + index] = body.charCodeAt(index);
-    // The provider XORs the whole payload, header included, then base64s it.
-    const bytes = plainBytes.map((byte, index) => byte ^ key[index % key.length]);
-    const encoded = btoa(String.fromCharCode(...bytes));
-    expect(decodeKrc(encoded)).toBe(body);
-    expect(decodeKrc('')).toBe('');
+    const compressed = deflateSync(Buffer.from(body));
+    const bytes = Buffer.concat([
+      Buffer.from('krc1'),
+      Buffer.from(compressed.map((byte, index) => byte ^ key[index % key.length])),
+    ]);
+    expect(await decodeKrc(bytes.toString('base64'))).toBe(body);
+    expect(await decodeKrc('')).toBe('');
+    expect(await decodeKrc('not base64!')).toBe('');
   });
 
   it('only trusts timings that fit the song', () => {

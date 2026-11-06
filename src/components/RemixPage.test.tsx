@@ -139,8 +139,8 @@ describe('the weeks before', () => {
     );
     const section = screen.getByRole('region', { name: 'Weeks before this one' });
     expect(within(section).getByText('2 plays · Later still')).toBeInTheDocument();
-    // Three weeks before this one, none of them invented.
-    expect(within(section).getAllByRole('listitem')).toHaveLength(3);
+    // Only the previous week with recorded plays is offered.
+    expect(within(section).getAllByRole('listitem')).toHaveLength(1);
   });
 
   it('plays the week it is asked for', async () => {
@@ -161,7 +161,7 @@ describe('the weeks before', () => {
     expect(queue.map((track: { id: string }) => track.id)).toContain('later');
   });
 
-  it('says a quiet week was quiet instead of hiding it', () => {
+  it('omits weeks with no listening information', () => {
     render(
       <RemixPage
         {...props}
@@ -169,8 +169,8 @@ describe('the weeks before', () => {
         history={weeklyRecaps(plays, tracks, now)}
       />,
     );
-    const section = screen.getByRole('region', { name: 'Weeks before this one' });
-    expect(within(section).getAllByText('A quiet week').length).toBeGreaterThan(0);
+    expect(screen.queryByRole('region', { name: 'Weeks before this one' })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('option')).toHaveLength(1);
   });
 });
 
@@ -214,6 +214,6 @@ it('explores an earlier week with its full chart, artists and songs', async () =
   expect(
     await screen.findByRole('button', { name: /1.*Later still.*Wave Tests.*1 play/ }),
   ).toBeInTheDocument();
-  expect(screen.getAllByRole('option')).toHaveLength(12);
+  expect(screen.getAllByRole('option')).toHaveLength(2);
   expect(screen.getByRole('region', { name: 'Your Remix' })).not.toHaveTextContent('Signal');
 });

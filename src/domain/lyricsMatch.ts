@@ -1,4 +1,5 @@
-import { inferFileMetadata } from './musicIdentity';
+import { rolesReviewKey } from './metadata';
+import { inferFileMetadata, rolesSwapped } from './musicIdentity';
 import type { Track } from './types';
 export const cleanTitle = (value: string) =>
   value
@@ -53,7 +54,12 @@ export function artistMatch(local: string, remote: string) {
     b.every((name) => a.includes(name))
   );
 }
-export function lookupMetadata(track: Track) {
+export function lookupMetadata(
+  track: Pick<Track, 'title' | 'artist'> & { fileName?: string; rolesReviewed?: string },
+) {
+  // Correct only the search identity; the listener still confirms any tag edit.
+  if (rolesSwapped(track) && track.rolesReviewed !== rolesReviewKey(track))
+    return { title: cleanTitle(track.artist), artist: mainArtist(track.title) };
   if (track.artist.trim() && track.artist !== 'Unknown artist') {
     const artist = mainArtist(track.artist),
       title = cleanTitle(track.title),
@@ -63,7 +69,7 @@ export function lookupMetadata(track: Track) {
       artist,
     };
   }
-  const inferred = inferFileMetadata(track.fileName);
+  const inferred = inferFileMetadata(track.fileName ?? '');
   return inferred.artist
     ? { artist: mainArtist(inferred.artist), title: cleanTitle(inferred.title) }
     : { title: cleanTitle(track.title), artist: '' };
@@ -125,7 +131,7 @@ export function recordingMatch(value: unknown, track: Track) {
     return;
   if (
     !sameRecordingTitle(record.trackName, meta.title) ||
-    !artistMatch(track.artist === 'Unknown artist' ? meta.artist : track.artist, record.artistName)
+    !artistMatch(meta.artist, record.artistName)
   )
     return;
   const difference =

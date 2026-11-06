@@ -40,6 +40,20 @@ async function setup(page: Page) {
       request.onsuccess = () => resolve(request.result[0] as { id: string });
       request.onerror = () => reject(request.error);
     });
+    const tx = db.transaction('tracks', 'readwrite');
+    tx.objectStore('tracks').put({
+      ...track,
+      lyrics: {
+        raw: '[00:00]A quiet room, a song to follow\n[00:30]The next line stays with the music\n[01:00]Back to the beginning',
+        source: 'local',
+        offsetMs: 0,
+        lines: [],
+      },
+    });
+    await new Promise<void>((resolve, reject) => {
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
     db.close();
     localStorage.setItem(
       key,
@@ -178,8 +192,11 @@ test('an idle videoclip keeps playing and wakes immediately on interaction', asy
   test.setTimeout(50_000);
   const stage = await setup(page);
   await expect(stage).toHaveClass(/is-idle/, { timeout: 35_000 });
-  await expect(stage.locator('.stage-lyrics')).toHaveCSS('opacity', '1');
-  await expect(stage.locator('.stage-controls')).toHaveCSS('opacity', '0');
+  await expect(stage.locator('.immersive-stage.with-video')).toBeVisible();
+  const sleeve = await stage.locator('.immersive-cover').boundingBox();
+  expect(sleeve!.width / sleeve!.height).toBeCloseTo(1, 1);
+  await expect(stage.locator('.lyrics-cinematic')).toBeVisible();
+  await expect(stage.locator('.player-normal-view')).toHaveCSS('visibility', 'hidden');
   await expect(page.locator('.video-backdrop')).toHaveCount(1);
   await page.mouse.move(80, 80);
   await expect(stage).not.toHaveClass(/is-idle/);

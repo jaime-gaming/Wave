@@ -87,6 +87,15 @@ describe('mix graph', () => {
     const shelf = filters[0] as unknown as FakeNode;
     expect(shelf.connections[0]).toBe(gains[0] as unknown as FakeNode);
 
+    // Normalization is independent of crossfade gain; new sources set their
+    // own attenuation before play rather than emitting a loud first frame.
+    graph!.setNormalization(element, 0.2, true);
+    expect(gains[1].gain.value).toBe(0.2);
+    expect(gains[0].gain.value).toBe(1);
+    graph!.setNormalization(element, 4);
+    expect(gains[1].gain.targets.at(-1)).toBe(4);
+    graph!.setNormalization(element, 1, true);
+    expect(gains[1].gain.value).toBe(1);
     graph!.setGain(element, 0.4);
     expect(gains[0].gain.value).toBe(0.4);
     graph!.setGain(element, 5);

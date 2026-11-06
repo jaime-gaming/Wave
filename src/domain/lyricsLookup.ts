@@ -10,7 +10,7 @@ export const normalizeMetadata = (value: string) =>
   value.normalize('NFKC').trim().toLocaleLowerCase().replace(/\s+/g, ' ');
 export function lyricsKey(track: Pick<Track, 'title' | 'artist' | 'album' | 'duration'>): string {
   return JSON.stringify([
-    'lrclib-v4',
+    'lrclib-v5',
     normalizeMetadata(track.title),
     normalizeMetadata(track.artist),
     normalizeMetadata(track.album),

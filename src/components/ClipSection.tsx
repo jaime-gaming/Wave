@@ -42,6 +42,8 @@ export function ClipSection({ track }: { track: Track }) {
       title: track.title,
       artist: track.artist,
       duration: track.duration,
+      fileName: track.fileName,
+      rolesReviewed: track.rolesReviewed,
     });
     setCandidates(result.candidates);
     setStatus(result.status === 'found' ? 'idle' : result.status);
