@@ -18,9 +18,6 @@ export function VolumeSettings({
       <div className="settings-switch-row">
         <div>
           <strong>{t('Fix volume')}</strong>
-          <p className="settings-warning">
-            {t('Balance your library automatically. Original files stay unchanged.')}
-          </p>
         </div>
         <button
           type="button"
@@ -28,6 +25,9 @@ export function VolumeSettings({
           role="switch"
           aria-label={t('Fix volume')}
           aria-checked={enabled}
+          title={t(
+            'Applies to local songs, including future imports. Turn it off to hear original levels.',
+          )}
           disabled={!status.supported && !enabled}
           onClick={() => onChange(!enabled)}
         >
@@ -36,16 +36,15 @@ export function VolumeSettings({
           </motion.span>
         </button>
       </div>
-      <p className="settings-warning">
-        {t(
-          'Applies to local songs, including future imports. Turn it off to hear original levels.',
-        )}
-      </p>
       {!status.supported ? (
         <p role="status">{t('Volume balancing is not available in this browser.')}</p>
       ) : (
         enabled && (
-          <div className="volume-settings-status" role="status" aria-live="polite">
+          <div
+            className={`volume-settings-status${!status.working && !status.skipped ? ' sr-only' : ''}`}
+            role="status"
+            aria-live="polite"
+          >
             <span>
               {status.working
                 ? t('Balancing your library…')
@@ -78,9 +77,6 @@ export function VolumeSettings({
           </div>
         )
       )}
-      <p className="settings-warning">
-        {t('Local analysis up to 10 minutes / 48 MB per recording. No uploads or noise removal.')}
-      </p>
     </section>
   );
 }

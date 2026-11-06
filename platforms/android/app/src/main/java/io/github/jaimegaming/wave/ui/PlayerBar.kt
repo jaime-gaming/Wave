@@ -39,7 +39,7 @@ fun MiniPlayer(player: Player, song: Song, onOpen: () -> Unit, onQueue: () -> Un
     // arrives a few times a second, and a bar that jumps in steps looks broken.
     val fraction by animateFloatAsState(
         targetValue = (player.time / duration).coerceIn(0.0, 1.0).toFloat(),
-        animationSpec = tween(durationMillis = 260, easing = LinearEasing),
+        animationSpec = tween(durationMillis = if (waveMotionEnabled()) 260 else 0, easing = LinearEasing),
         label = "progress",
     )
     Column(

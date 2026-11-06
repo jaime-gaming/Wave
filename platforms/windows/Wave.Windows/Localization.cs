@@ -749,6 +749,7 @@ public static partial class Localization {
             ["Local analysis up to 10 minutes / 48 MB per recording. No uploads or noise removal."] = "Análisis local de hasta 10 minutos / 48 MB por grabación. Sin subidas ni eliminación de ruido.",
             ["Mix, volume and local Autoplay"] = "Mix, volumen y reproducción automática local",
             ["Loading view"] = "Cargando vista",
+            ["Gentle movement and interaction feedback."] = "Movimiento suave y respuesta al interactuar.",
         };
 
     /// <summary>What the person chose: "system", "en" or "es".</summary>

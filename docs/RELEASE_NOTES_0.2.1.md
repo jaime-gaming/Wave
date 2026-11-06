@@ -65,3 +65,11 @@ The new waveform editor, routing and redesigned music surfaces in this iteration
 - Directional route and Settings entrances, an edge-led Queue sheet, calmer navigation selection and natural-position Remix expansion.
 - Keyboard/pointer press feedback, switch responses and accessible lazy-page skeletons; reduced-motion and the app animation preference disable spatial travel and shimmer.
 - Idle video reuses its existing stage without restarting audio or mounting a second iframe. Existing video-off preferences remain respected.
+
+### Consistent controls and native interaction polish
+
+- Fix volume is now visually the same Settings switch as Mix, Clip and Autoplay, without a separate explanatory block.
+- Local interaction animations for repeat, shuffle, favorite, clip and sound; shared library-favorite feedback, keyboard support and reduced-motion/app preference handling.
+- Android gains full-player volume/mute and animated favorite/upcoming shuffle, a saved motion preference, directional pages and better short-wide record scrolling. Queue shuffle retains the current recording; focus ducking preserves master volume and mute rather than resetting to full volume.
+- Windows gains icon responses, keyboard focus outlines, directional Settings/page travel and synchronized sound controls in the dock and expanded player. Same-page updates no longer fade the whole library.
+- Native control tests are added to CI. No native clip/normalization capability, production deployment or release publication is implied.

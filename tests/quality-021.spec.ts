@@ -221,6 +221,11 @@ test('Fix volume in Settings balances the library and future imports, with a glo
   await page.getByRole('button', { name: 'Playback', exact: true }).click();
   const volume = page.getByRole('region', { name: 'Volume balancing' });
   const toggle = volume.getByRole('switch', { name: 'Fix volume' });
+  await expect(toggle).toHaveClass('material-switch');
+  const fixBounds = await toggle.boundingBox();
+  const mixBounds = await page.getByRole('switch', { name: 'Mix', exact: true }).boundingBox();
+  expect(fixBounds!.width).toEqual(mixBounds!.width);
+  expect(fixBounds!.height).toEqual(mixBounds!.height);
   await toggle.click();
   await expect(toggle).toBeChecked();
   await expect(volume.getByRole('status')).toContainText('1 of 1 recordings ready', {

@@ -25,6 +25,7 @@ public partial class MainWindow
     private void RenderSettings(string? section = null)
     {
         SettingsBody.Children.Clear();
+        Motion.Slide(SettingsBody, Motion.Enabled(preferences.Animations), section == null ? -1 : 1);
         if (section == null) {
             var back = new Button { Style = (Style)FindResource("TextButton"), Foreground = (Brush)Application.Current.Resources["MutedBrush"], Margin = new Thickness(2, 4, 2, 14) };
             back.Content = Iconography.With("chevron-left", Localization.T("Back"), 16, 6);

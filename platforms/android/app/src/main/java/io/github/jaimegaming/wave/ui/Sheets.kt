@@ -270,7 +270,7 @@ fun QueueSheet(state: WaveState, onDismiss: () -> Unit) {
                     .clip(RoundedCornerShape(10.dp))
                     .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                     .clickable {
-                        state.shuffleAll(queue)
+                        state.player.shuffleUpcoming()
                         onDismiss()
                     }
                     .padding(horizontal = 12.dp, vertical = 8.dp),

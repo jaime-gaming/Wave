@@ -2,6 +2,12 @@ package io.github.jaimegaming.wave.ui
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.Animatable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.graphics.graphicsLayer
+import kotlinx.coroutines.launch
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.getValue
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -109,11 +115,11 @@ fun WaveNavigation(destination: Destination, onDestination: (Destination) -> Uni
             val selected = destination == place
             val indicator by animateColorAsState(
                 if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
-                animationSpec = tween(180), label = "tab indicator",
+                animationSpec = tween(if (waveMotionEnabled()) 180 else 0), label = "tab indicator",
             )
             val tint by animateColorAsState(
                 if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                animationSpec = tween(180), label = "tab tint",
+                animationSpec = tween(if (waveMotionEnabled()) 180 else 0), label = "tab tint",
             )
             Column(
                 modifier = Modifier
@@ -143,5 +149,34 @@ fun WaveNavigation(destination: Destination, onDestination: (Destination) -> Uni
                 )
             }
         }
+    }
+}
+
+/** A local icon response; playback and neighbouring controls never move. */
+@Composable
+fun WaveActionButton(icon: String, label: String, onClick: () -> Unit, active: Boolean? = null, enabled: Boolean = true) {
+    val motionEnabled = waveMotionEnabled()
+    val (interaction, pressed) = rememberPress()
+    val pulse = remember { Animatable(0f) }
+    val scope = rememberCoroutineScope()
+    androidx.compose.runtime.LaunchedEffect(motionEnabled) { if (!motionEnabled) pulse.snapTo(0f) }
+    IconButton(
+        onClick = {
+            if (motionEnabled) scope.launch { pulse.snapTo(1f); pulse.animateTo(0f, tween(260)) }
+            onClick()
+        },
+        enabled = enabled,
+        interactionSource = interaction,
+        modifier = Modifier.size(48.dp).pressScale(pressed).semantics {
+            contentDescription = Loc.t(label)
+            if (active != null) selected = active
+        },
+    ) {
+        Box(Modifier.graphicsLayer {
+            val response = if (motionEnabled) pulse.value else 0f
+            scaleX = 1f + response * 0.14f
+            scaleY = scaleX
+            rotationZ = if (icon == "shuffle") response * -14f else 0f
+        }) { WaveIcon(icon, 21.dp, if (active == true) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant) }
     }
 }

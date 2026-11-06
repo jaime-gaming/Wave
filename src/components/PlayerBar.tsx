@@ -1,3 +1,4 @@
+import { PlayerActionButton } from './PlayerActionButton';
 import { useIdleListening } from '../hooks/useIdleListening';
 import { MusicLighting } from './MusicLighting';
 import { VideoBackdrop } from './VideoBackdrop';
@@ -238,7 +239,9 @@ function PlayerDetails({
               </button>
             </div>
             <div className="stage-modes">
-              <button
+              <PlayerActionButton
+                action="shuffle"
+                value={state.shuffled}
                 className={state.shuffled ? 'active' : ''}
                 onClick={player.shuffle}
                 aria-label={t('Shuffle')}
@@ -246,9 +249,12 @@ function PlayerDetails({
                 disabled={!current}
               >
                 <Shuffle size={22} />
-              </button>
-              <button
+              </PlayerActionButton>
+              <PlayerActionButton
+                action="repeat"
+                value={state.repeat}
                 className={state.repeat !== 'off' ? 'active' : ''}
+                aria-pressed={state.repeat !== 'off'}
                 onClick={() => dispatch({ type: 'repeat' })}
                 aria-label={t(`Repeat: ${state.repeat}`)}
                 disabled={!current}
@@ -265,8 +271,10 @@ function PlayerDetails({
                 >
                   {state.repeat === 'one' ? <Repeat1 size={22} /> : <Repeat size={22} />}
                 </motion.span>
-              </button>
-              <button
+              </PlayerActionButton>
+              <PlayerActionButton
+                action="clip"
+                value={videoClip}
                 className={videoClip && !player.youTube ? 'active' : ''}
                 disabled={!current || !!player.youTube}
                 aria-label={
@@ -280,8 +288,10 @@ function PlayerDetails({
                 onClick={() => onToggleVideoClip?.()}
               >
                 <Film size={21} />
-              </button>
-              <button
+              </PlayerActionButton>
+              <PlayerActionButton
+                action="favorite"
+                value={current?.favorite}
                 className={current?.favorite ? 'active' : ''}
                 disabled={!current}
                 aria-label={
@@ -293,16 +303,18 @@ function PlayerDetails({
                 }}
               >
                 <Heart size={23} fill={current?.favorite ? 'currentColor' : 'none'} />
-              </button>
+              </PlayerActionButton>
             </div>
             <div className="stage-volume">
-              <button
+              <PlayerActionButton
+                action="volume"
+                value={volume}
                 className="icon-button"
                 onClick={player.toggleMute}
                 aria-label={volume ? t('Mute') : t('Unmute')}
               >
                 {volume ? <Volume2 size={21} /> : <VolumeX size={21} />}
-              </button>
+              </PlayerActionButton>
               <input
                 aria-label={t('Volume')}
                 type="range"
@@ -599,7 +611,9 @@ export function PlayerBar(props: PlayerProps) {
             </span>
           </div>
           <div className="compact-modes">
-            <button
+            <PlayerActionButton
+              action="shuffle"
+              value={player.state.shuffled}
               aria-label={t('Shuffle')}
               aria-pressed={player.state.shuffled}
               className={player.state.shuffled ? 'active' : ''}
@@ -607,24 +621,29 @@ export function PlayerBar(props: PlayerProps) {
               onClick={player.shuffle}
             >
               <Shuffle size={20} />
-            </button>
-            <button
-              aria-label={`Repeat: ${player.state.repeat}`}
+            </PlayerActionButton>
+            <PlayerActionButton
+              action="repeat"
+              value={player.state.repeat}
+              aria-label={t(`Repeat: ${player.state.repeat}`)}
               className={player.state.repeat !== 'off' ? 'active' : ''}
+              aria-pressed={player.state.repeat !== 'off'}
               disabled={!player.current}
               onClick={() => player.dispatch({ type: 'repeat' })}
             >
               {player.state.repeat === 'one' ? <Repeat1 size={20} /> : <Repeat size={20} />}
-            </button>
+            </PlayerActionButton>
           </div>
           <div className="compact-volume">
-            <button
+            <PlayerActionButton
+              action="volume"
+              value={player.volume}
               className="icon-button"
               aria-label={player.volume ? t('Mute') : t('Unmute')}
               onClick={player.toggleMute}
             >
               {player.volume ? <Volume2 size={20} /> : <VolumeX size={20} />}
-            </button>
+            </PlayerActionButton>
             <input
               type="range"
               aria-label={t('Volume')}

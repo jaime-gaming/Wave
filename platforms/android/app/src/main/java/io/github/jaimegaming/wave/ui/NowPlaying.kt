@@ -4,6 +4,8 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -86,15 +88,16 @@ fun NowPlayingScreen(
             .coerceIn(96f, 240f).dp
     }
 
+    val motionEnabled = waveMotionEnabled()
     val dragging by listState.interactionSource.collectIsDraggedAsState()
     var followAfter by remember(song.id) { mutableStateOf(0L) }
     LaunchedEffect(dragging) {
         if (dragging || followAfter > 0L) followAfter = android.os.SystemClock.elapsedRealtime() + 6_500L
     }
     // Let the listener read ahead without every new line fighting their gesture.
-    LaunchedEffect(active, song.id, dragging, followAfter) {
+    LaunchedEffect(active, song.id, dragging, followAfter, motionEnabled) {
         if (active >= 0 && !dragging && android.os.SystemClock.elapsedRealtime() >= followAfter) {
-            listState.animateScrollToItem(active)
+            if (motionEnabled) listState.animateScrollToItem(active) else listState.scrollToItem(active)
         }
     }
     LaunchedEffect(song.id) { state.maybeLookupLyrics(song) }
@@ -112,7 +115,7 @@ fun NowPlayingScreen(
                 horizontalArrangement = Arrangement.spacedBy(28.dp),
             ) {
                 Column(
-                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    modifier = Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
                 ) {
@@ -256,7 +259,7 @@ private fun LyricsBody(
             val sung = MaterialTheme.colorScheme.onSurface
             val upcoming = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.76f)
             val lineColor by animateColorAsState(
-                if (current) sung else upcoming, tween(180), label = "lyric focus",
+                if (current) sung else upcoming, tween(if (waveMotionEnabled()) 180 else 0), label = "lyric focus",
             )
             val words = buildAnnotatedString {
                 if (current && line.words.isNotEmpty()) {
@@ -286,9 +289,9 @@ private fun SongActions(song: Song, state: WaveState, onEdit: () -> Unit, modifi
             WaveIcon("edit", 20.dp, MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Spacer(Modifier.weight(1f))
-        IconButton(onClick = { state.toggleFavorite(song) }, modifier = Modifier.size(42.dp).semantics { contentDescription = Loc.t(if (song.favorite) "Remove from favorites" else "Add to favorites") }) {
-            WaveIcon("favorite", 20.dp, if (song.favorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+        WaveActionButton("shuffle", "Shuffle the queue", { state.player.shuffleUpcoming() }, enabled = state.player.queue.size > state.player.index + 2)
+        WaveActionButton("favorite", if (song.favorite) "Remove from favorites" else "Add to favorites", { state.toggleFavorite(song) }, active = song.favorite)
+
     }
 }
 
@@ -329,5 +332,12 @@ private fun TransportDeck(song: Song, player: Player) {
             Text(clockTime(duration), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Transport(player)
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            WaveActionButton(if (player.volume > 0f) "volume" else "mute", if (player.volume > 0f) "Mute" else "Unmute", {
+                player.toggleMute()
+            })
+            Slider(value = player.volume, onValueChange = { player.volume = it }, modifier = Modifier.weight(1f).semantics { contentDescription = Loc.t("Volume") })
+            Text("${(player.volume * 100).toInt()}%", modifier = Modifier.width(44.dp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = androidx.compose.ui.text.style.TextAlign.End)
+        }
     }
 }

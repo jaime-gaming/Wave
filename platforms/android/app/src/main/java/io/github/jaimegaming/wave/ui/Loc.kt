@@ -753,6 +753,7 @@ object Loc {
             "Local analysis up to 10 minutes / 48 MB per recording. No uploads or noise removal." to "Análisis local de hasta 10 minutos / 48 MB por grabación. Sin subidas ni eliminación de ruido.",
             "Mix, volume and local Autoplay" to "Mix, volumen y reproducción automática local",
             "Loading view" to "Cargando vista",
+            "Gentle movement and interaction feedback." to "Movimiento suave y respuesta al interactuar.",
         )
 
     /** What the person chose: "system", "en" or "es". */

@@ -219,6 +219,13 @@
                     </Button>
                   </StackPanel>
                 </Grid>
+                <Grid MaxWidth="300" Margin="0,4,0,0">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <Button x:Name="NowSoundButton" Style="{StaticResource IconButton}" Click="SoundClick" ToolTip="Mute" AutomationProperties.Name="Mute">
+                    <Path Style="{StaticResource IconPath}" Data="{StaticResource IconVolume}"/>
+                  </Button>
+                  <Slider x:Name="NowVolume" Grid.Column="1" Style="{StaticResource WaveSlider}" Minimum="0" Maximum="1" ValueChanged="VolumeChanged" VerticalAlignment="Center" Margin="10,0,4,0" ToolTip="Volume" AutomationProperties.Name="Volume"/>
+                </Grid>
               </StackPanel>
             </Grid>
           </Grid>
@@ -251,6 +258,9 @@
           </Button>
           <Button x:Name="MiniQueueButton" Style="{StaticResource IconButton}" Click="QueueClick" ToolTip="Queue">
             <Path Style="{StaticResource IconPath}" Data="{StaticResource IconQueue}"/>
+          </Button>
+          <Button x:Name="SoundButton" Style="{StaticResource IconButton}" Click="SoundClick" ToolTip="Mute" AutomationProperties.Name="Mute">
+            <Path Style="{StaticResource IconPath}" Data="{StaticResource IconVolume}"/>
           </Button>
           <Slider x:Name="Volume" Style="{StaticResource WaveSlider}" Width="96" Minimum="0" Maximum="1" ValueChanged="VolumeChanged" VerticalAlignment="Center" Margin="10,0,4,0" ToolTip="Volume"/>
         </StackPanel>

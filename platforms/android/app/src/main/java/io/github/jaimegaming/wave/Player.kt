@@ -70,11 +70,29 @@ class Player(private val context: Context) {
             if (prepared && outgoing == null) prepareNext()
         }
 
-    var volume = 1f
+    private var focusGain = 1f
+    private val outputGain: Float get() = outputVolume * focusGain
+    private var beforeMute = 1f
+    private var outputVolume by mutableStateOf(1f)
+    var volume: Float
+        get() = outputVolume
         set(value) {
-            field = value.coerceIn(0f, 1f)
-            if (outgoing == null && prepared) active?.setVolume(field, field)
+            if (!value.isFinite()) return
+            if (value <= 0f && outputVolume > 0f) beforeMute = outputVolume
+            outputVolume = value.coerceIn(0f, 1f)
+            if (outgoing == null && prepared) active?.setVolume(outputGain, outputGain)
+            changed()
         }
+
+    /** Focus ducking never overwrites the listener's volume or remembered mute level. */
+    fun setDucked(ducked: Boolean) {
+        focusGain = if (ducked) .3f else 1f
+        if (outgoing == null && prepared) active?.setVolume(outputGain, outputGain)
+    }
+
+    fun toggleMute() {
+        volume = if (volume > 0f) 0f else beforeMute.coerceIn(0.01f, 1f)
+    }
 
     private var active: MediaPlayer? = null
     private var prepared = false
@@ -108,8 +126,8 @@ class Player(private val context: Context) {
         if (tail != null) {
             val progress = (time / fadeLength).coerceIn(0.0, 1.0)
             val gains = handoverGains(progress)
-            tail.setVolume(gains.first * volume, gains.first * volume)
-            player.setVolume(gains.second * volume, gains.second * volume)
+            tail.setVolume(gains.first * outputGain, gains.first * outputGain)
+            player.setVolume(gains.second * outputGain, gains.second * outputGain)
             if (progress >= 1) {
                 tail.release()
                 outgoing = null
@@ -216,7 +234,7 @@ class Player(private val context: Context) {
                 if (active === player) {
                     prepared = true
                     duration = if (player.duration > 0) player.duration / 1000.0 else song.duration
-                    player.setVolume(volume, volume)
+                    player.setVolume(outputGain, outputGain)
                     player.start()
                     playing = true
                     prepareNext()
@@ -233,7 +251,7 @@ class Player(private val context: Context) {
     private fun cancelFade() {
         outgoing?.release()
         outgoing = null
-        if (prepared) active?.setVolume(volume, volume)
+        if (prepared) active?.setVolume(outputGain, outputGain)
     }
 
     private fun releaseAll() {
@@ -322,6 +340,15 @@ class Player(private val context: Context) {
             prepareNext()
             changed()
         }
+    }
+
+    /** Shuffle only upcoming songs: no new decoder, position or playback reset. */
+    fun shuffleUpcoming() {
+        if (index !in queue.indices) return
+        cancelFade()
+        queue = queue.take(index + 1) + queue.drop(index + 1).shuffled()
+        prepareNext()
+        changed()
     }
 
     /** Moves a song inside the queue, keeping whatever is playing playing. */

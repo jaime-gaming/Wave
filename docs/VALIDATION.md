@@ -2,6 +2,14 @@
 
 Development target: 0.2.1. Released baseline: 0.2.0 · 3 November 2026. Historical run dates are retained below.
 
+## 0.2.1 controls and native interaction polish — 6 November 2026
+
+- **735 web tests across 115 files passed**, including eight new action-control cases: no entrance/restoration pulse, distinct immediate action feedback, keyboard activation, disabled controls, external volume changes and motion-off reset.
+- **19 distinct targeted Chromium cases passed.** Actual computed transforms verify repeat, shuffle, favorite, clip and mute icons animate only when permitted, while button bounds remain fixed. Both OS reduced motion and the app switch suppress icon movement without blocking actions. Additional cases verify restored mute, actual volume-fix analysis/global bypass, identical Fix volume/Mix switch dimensions, mobile forms, trim audio ownership, same-source repeat, Remix, route direction and the real idle videoclip scene.
+- Production build, lint, formatting, release metadata and 12 release/package checks passed. Windows XAML parses successfully; this is syntax validation, not a WPF build. The historical browser suite is not claimed wholly green.
+- Ten web captures regenerated and the new uniform Playback switch list inspected. Native screenshots/build/device runs are pending their dedicated CI environment, not fabricated locally.
+- Android adds two Robolectric player-control tests; Windows UI smoke checks now cover synchronized sliders, mute restoration and disabled icon motion. Android/Java/Gradle and Windows/.NET SDKs are absent from this workspace, so no local native build/test pass is claimed. Native CI is triggered by the branch push. No production deployment or release publication.
+
 ## 0.2.1 Settings, motion and idle video — 6 November 2026
 
 - **727 web tests across 114 files passed.** New hook cases cover global disabled/importing gates, sequential scanning, future imports, cancellation with late results and unsupported recordings. The final source-removal cancellation adjustment was rechecked with all four hook tests.

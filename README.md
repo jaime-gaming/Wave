@@ -215,3 +215,9 @@ The local-only opinion card now has clearer response choices, dismiss/opt-out ac
 Page changes follow navigation direction; the queue slides from its edge, Settings and Remix reposition smoothly, and loading views show quiet skeletons. Keyboard/pointer feedback and all spatial movement respect system reduced motion and the in-app animation switch. The 30-second idle scene reuses the current video as a full background when enabled and available, with compact credits and transparent cinematic lyrics; without a video it keeps the artwork-led scene.
 
 New web captures: [immersive listening](docs/media/immersive-desktop.png), [Fix volume](docs/media/volume-fix-desktop.png).
+
+### Consistent controls and native polish
+
+Fix volume uses the same Settings switch row as Mix, Video clip and Autoplay; only active analysis or skipped sources add visible status. Repeat, shuffle, favorite, clip and sound icons have short, local interaction animations, including keyboard activation. Volume changes also animate the sound icon; no control moves its neighbours and reduced-motion/app-disabled preferences keep them still.
+
+Android adds an animated favorite/upcoming-queue shuffle and an in-player volume/mute row, a persistent Animations preference, directional pages and a scrollable record column on short wide displays. Shuffling preserves the current recording and clock. Audio-focus ducking now changes a separate output multiplier instead of overwriting the user's volume or unmuting them. Windows adds matching icon responses, synchronized dock/expanded volume with remembered mute, directional pages/Settings sections and clearer keyboard focus; same-page updates no longer fade the whole library. Native build/device verification runs separately in CI; this does not add native clip playback or native Fix volume analysis.

@@ -515,3 +515,7 @@ invalid. None of this changes the audio or the on-disk lyric text.
 ### Directional motion and loading
 
 `usePageRoute` carries navigation direction through normal links and browser history. `LibrarySurface` reads presence data so outgoing and incoming pages travel in complementary directions; exiting surfaces remain inert. A damped lateral token also drives navigation selection, Queue slides from its right edge, Settings enters sideways and expanded Remix sections animate their natural positions. Lazy surfaces expose a stable, accessible skeleton rather than an empty fallback. Pointer and non-repeating keyboard presses receive clipped, short-lived feedback. `useWaveMotion`, the OS preference and CSS overrides disable spatial movement/shimmer when reduced motion or the app animation switch requests it.
+
+### Action icon feedback
+
+`PlayerActionButton` keeps ordinary native button semantics, immediate callbacks and icon-only Motion controls. Each action has a bounded 280 ms response; value changes (including volume sliders) are throttled to avoid restarting feedback on every input event. Nothing animates on initial preference restoration. Disabling motion stops and neutralizes an in-flight icon animation. Existing repeat-boundary icon replacement and audio overlap are retained independently. Library favorites use the same control. Settings volume correction now presents the same single label/switch row as its neighbours, with ready counts still accessible to assistive technology and visible status only when work or skips require attention.
