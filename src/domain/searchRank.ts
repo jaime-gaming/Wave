@@ -1,4 +1,4 @@
-import { matchesSearch, searchText } from './musicIdentity';
+import { searchText } from './musicIdentity';
 import type { Track } from './types';
 
 /**
@@ -85,14 +85,32 @@ function everyWordStarts(haystack: string, query: string) {
 
 /** How well one song answers one query, and whether it answers at all. */
 export function rankMatch(track: Track, rawQuery: string): MatchKind | null {
-  const query = searchText(rawQuery);
+  return normalizedMatch(track, searchText(rawQuery));
+}
+// Immutable Track objects invalidate this weak index naturally after metadata edits.
+const index = new WeakMap<
+  Track,
+  { title: string; artist: string; album: string; haystack: string }
+>();
+function fields(track: Track) {
+  let cached = index.get(track);
+  if (!cached) {
+    cached = {
+      title: searchText(track.title),
+      artist: searchText(track.artist),
+      album: searchText(track.album),
+      haystack: searchText(
+        `${track.title} ${track.artist} ${track.album} ${track.fileName} ${(track.genres ?? []).join(' ')} ${track.year ?? ''}`,
+      ),
+    };
+    index.set(track, cached);
+  }
+  return cached;
+}
+function normalizedMatch(track: Track, query: string): MatchKind | null {
   if (!query) return 'other';
-  const title = searchText(track.title);
-  const artist = searchText(track.artist);
-  const album = searchText(track.album);
-  const haystack = searchText(`${track.title} ${track.artist} ${track.album} ${track.fileName}`);
-  if (!matchesSearch(`${track.title} ${track.artist} ${track.album} ${track.fileName}`, rawQuery))
-    return nearWords(haystack, query) ? 'near' : null;
+  const { title, artist, album, haystack } = fields(track);
+  if (!containsWords(haystack, query)) return nearWords(haystack, query) ? 'near' : null;
   if (title === query) return 'exact';
   if (title.startsWith(query)) return 'prefix';
   // Every word of the query beginning a word of the title is a real answer —
@@ -126,15 +144,22 @@ const WEIGHT: Record<MatchKind, number> = {
  * ten-thousand-song library on every keystroke.
  */
 export function rankTracks(tracks: Track[], query: string, limit = Infinity): Track[] {
-  if (!query.trim()) return tracks;
-  const scored: { track: Track; weight: number; index: number }[] = [];
-  for (const [index, track] of tracks.entries()) {
-    const kind = rankMatch(track, query);
-    if (!kind) continue;
-    scored.push({ track, weight: WEIGHT[kind], index });
+  const needle = searchText(query);
+  const count =
+    limit === Infinity
+      ? tracks.length
+      : Number.isFinite(limit)
+        ? Math.max(0, Math.floor(limit))
+        : 0;
+  if (!needle) return limit === Infinity ? tracks : tracks.slice(0, count);
+  if (!count) return [];
+  // Stable buckets avoid sorting the entire library on every keystroke.
+  const buckets: Track[][] = Array.from({ length: Object.keys(WEIGHT).length }, () => []);
+  for (const track of tracks) {
+    const kind = normalizedMatch(track, needle);
+    if (kind && buckets[WEIGHT[kind]].length < count) buckets[WEIGHT[kind]].push(track);
   }
-  scored.sort((a, b) => a.weight - b.weight || a.index - b.index);
-  return scored.slice(0, limit === Infinity ? scored.length : limit).map((entry) => entry.track);
+  return buckets.flat().slice(0, count);
 }
 
 /**

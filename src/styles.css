@@ -5516,7 +5516,7 @@ a {
 }
 .icon-button:active:not(:disabled),
 .rail-settings:active {
-  transform: scale(0.9);
+  transform: scale(0.96);
   transition-duration: 90ms;
 }
 .text-button:active:not(:disabled) {
@@ -7979,19 +7979,13 @@ h1 {
   .remix-highlights:has(.is-expanded:nth-child(2)) {
     grid-template-columns: minmax(0, 1fr);
   }
-  .remix-highlights:has(.is-expanded) .remix-feature:not(.is-expanded) .remix-feature-image {
-    width: min(100%, 200px);
-    align-self: center;
-  }
-  .remix-feature.is-expanded .remix-highlight,
-  .remix-highlights:has(.is-expanded:nth-child(2)) .remix-highlight {
+  .remix-feature.is-expanded .remix-highlight {
     display: grid;
     grid-template-columns: 120px minmax(0, 1fr);
     column-gap: 24px;
     row-gap: 8px;
   }
-  .remix-feature.is-expanded .remix-feature-image,
-  .remix-highlights:has(.is-expanded:nth-child(2)) .remix-feature-image {
+  .remix-feature.is-expanded .remix-feature-image {
     grid-column: 1;
     grid-row: 1 / 6;
     width: 120px;
@@ -7999,17 +7993,53 @@ h1 {
     margin: 0;
     align-self: center;
   }
-  .remix-feature.is-expanded .remix-highlight > :not(.remix-feature-image),
-  .remix-highlights:has(.is-expanded:nth-child(2)) .remix-highlight > :not(.remix-feature-image) {
+  .remix-feature.is-expanded .remix-highlight > :not(.remix-feature-image) {
     grid-column: 2;
   }
 }
-@media (min-width: 701px) {
-  .remix-highlights:has(.is-expanded:nth-child(2))
-    .remix-feature:not(.is-expanded)
-    .remix-feature-image {
-    width: 120px;
-    height: 120px;
+/* Unselected summaries stay useful without competing with the open detail. */
+.remix-highlights:has(.is-expanded) .remix-feature:not(.is-expanded) .remix-highlight {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  column-gap: 14px;
+  row-gap: 4px;
+  padding: 14px;
+}
+.remix-highlights:has(.is-expanded) .remix-feature:not(.is-expanded) .remix-feature-image {
+  grid-column: 1;
+  grid-row: 1 / 5;
+  width: 64px;
+  height: 64px;
+  margin: 0;
+  align-self: center;
+  border-radius: 14px;
+}
+.remix-highlights:has(.is-expanded)
+  .remix-feature:not(.is-expanded)
+  .remix-highlight
+  > :not(.remix-feature-image) {
+  grid-column: 2;
+}
+.remix-highlights:has(.is-expanded) .remix-feature:not(.is-expanded) .remix-highlight strong {
+  font-size: 18px;
+  line-height: 1.2;
+}
+.remix-highlights:has(.is-expanded) .remix-feature:not(.is-expanded) .remix-highlight-label,
+.remix-highlights:has(.is-expanded) .remix-feature:not(.is-expanded) .remix-highlight-more {
+  font-size: 11px;
+  gap: 6px;
+}
+.remix-highlights:has(.is-expanded) .remix-feature:not(.is-expanded) .remix-highlight small {
+  font-size: 12px;
+}
+@media (max-width: 600px) {
+  .remix-highlights:has(.is-expanded) .remix-feature:not(.is-expanded) .remix-highlight {
+    grid-template-columns: 48px minmax(0, 1fr);
+    padding: 12px;
+  }
+  .remix-highlights:has(.is-expanded) .remix-feature:not(.is-expanded) .remix-feature-image {
+    width: 48px;
+    height: 48px;
   }
 }
 
@@ -8177,4 +8207,9 @@ h1 {
   .song-row:hover {
     transform: none;
   }
+}
+
+/* A player action already animates its glyph; keep the hit target fixed. */
+.player-action-button:active:not(:disabled) {
+  transform: none;
 }

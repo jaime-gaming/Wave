@@ -50,3 +50,18 @@ describe('when a handover may start', () => {
     expect(mixWindowReached(10, 0, 8)).toBe(false);
   });
 });
+it('does not trim from invalid or incomplete analysis envelopes', () => {
+  for (const envelope of [
+    { step: 0, values: Float32Array.from([0, 0.5]) },
+    { step: NaN, values: Float32Array.from([0.5]) },
+    { step: 0.1, values: Float32Array.from([0, 0.5, NaN]) },
+    { step: 0.1, values: new Float32Array(10).fill(0.5) },
+  ])
+    expect(mixCues(envelope, 90)).toEqual({ start: 0, end: 90 });
+});
+it('never enters a short-song mix window at playback start or beyond valid clocks', () => {
+  expect(mixWindowReached(0, 4, 24)).toBe(false);
+  expect(mixWindowReached(2.5, 4, 24)).toBe(true);
+  expect(mixWindowReached(-1, 30, 100)).toBe(false);
+  expect(mixWindowReached(31, 30, 12)).toBe(false);
+});

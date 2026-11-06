@@ -22,6 +22,7 @@ export function PlayerActionButton({
   value,
   children,
   onClick,
+  className,
   ...props
 }: Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'value'> & {
   action: PlayerAction;
@@ -51,6 +52,7 @@ export function PlayerActionButton({
     <button
       type="button"
       {...props}
+      className={`player-action-button${className ? ` ${className}` : ''}`}
       onClick={(event) => {
         if (motionPreference.enabled) {
           last.current = performance.now();

@@ -36,6 +36,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm run lint && npm test && npm run build
+      - run: npx playwright install --with-deps chromium
+      - name: Required release smoke checks
+        run: npm run test:smoke
       - name: Validate the tagged source
         run: |
           npm run test:release

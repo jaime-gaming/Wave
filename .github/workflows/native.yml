@@ -1,9 +1,9 @@
 name: Native builds
 on:
   push:
-    paths: ['platforms/**', '.github/workflows/native.yml']
+    paths: ['platforms/**', 'scripts/publish-native-screenshots.sh', '.github/workflows/native.yml']
   pull_request:
-    paths: ['platforms/**', '.github/workflows/native.yml']
+    paths: ['platforms/**', 'scripts/publish-native-screenshots.sh', '.github/workflows/native.yml']
   workflow_call:
     inputs:
       tag:
@@ -80,33 +80,9 @@ jobs:
           path: platforms/android/app/build/wave-screenshots/*.png
           if-no-files-found: ignore
       - name: Publish the phone screenshots
-        if: github.event_name == 'push' && always()
+        if: github.event_name == 'push' && success()
         shell: bash
-        run: |
-          set -euo pipefail
-          shopt -s nullglob
-          shots=(platforms/android/app/build/wave-screenshots/*.png)
-          if [[ ${#shots[@]} -eq 0 ]]; then
-            echo "No screenshots were rendered; nothing to publish."
-            exit 0
-          fi
-          # Copied by name, so a renamed page cannot leave a stale image behind.
-          for shot in "${shots[@]}"; do cp "$shot" "docs/media/$(basename "$shot")"; done
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add docs/media
-          if git diff --cached --quiet; then
-            echo "Screenshots unchanged."
-            exit 0
-          fi
-          git commit -m 'Refresh the phone screenshots from the built app [skip ci]'
-          # The Windows job publishes to the same branch and may land first.
-          for attempt in 1 2 3 4; do
-            git pull --rebase --quiet origin "$GITHUB_REF_NAME" || true
-            if git push --quiet; then exit 0; fi
-            sleep $((attempt * 5))
-          done
-          exit 1
+        run: bash scripts/publish-native-screenshots.sh platforms/android/app/build/wave-screenshots '' platforms/android
       - uses: actions/upload-artifact@v4
         with:
           name: wave-android-debug-test-only
@@ -165,31 +141,9 @@ jobs:
           name: wave-windows-ui-smoke
           path: artifacts/windows-ui/
       - name: Publish the Windows screenshots
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && success()
         shell: bash
-        run: |
-          set -euo pipefail
-          shopt -s nullglob
-          shots=(artifacts/windows-ui/*.png)
-          if [[ ${#shots[@]} -eq 0 ]]; then
-            echo "No screenshots were captured; nothing to publish."
-            exit 0
-          fi
-          for shot in "${shots[@]}"; do cp "$shot" "docs/media/windows-$(basename "$shot")"; done
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add docs/media
-          if git diff --cached --quiet; then
-            echo "Screenshots unchanged."
-            exit 0
-          fi
-          git commit -m 'Refresh the Windows screenshots from the built app [skip ci]'
-          for attempt in 1 2 3 4; do
-            git pull --rebase --quiet origin "$GITHUB_REF_NAME" || true
-            if git push --quiet; then exit 0; fi
-            sleep $((attempt * 5))
-          done
-          exit 1
+        run: bash scripts/publish-native-screenshots.sh artifacts/windows-ui windows- platforms/windows
       - run: dotnet publish platforms/windows/Wave.Windows/Wave.Windows.csproj -c Release -r win-x64 --self-contained true -p:PublishReadyToRun=false -o artifacts/windows
       - name: Scan Windows output when Defender is available
         shell: pwsh

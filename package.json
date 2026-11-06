@@ -18,7 +18,8 @@
     "build:i18n": "node scripts/build-i18n.mjs",
     "capture:docs": "node --experimental-strip-types scripts/capture-docs.ts",
     "dev:worker": "wrangler dev --ip 0.0.0.0",
-    "deploy:check": "wrangler deploy --dry-run"
+    "deploy:check": "wrangler deploy --dry-run",
+    "test:smoke": "playwright test tests/quality-021.spec.ts tests/player-actions.spec.ts tests/settings-motion.spec.ts tests/motion-polish.spec.ts tests/mobile-ergonomics.spec.ts tests/release-candidate.spec.ts --workers=1"
   },
   "dependencies": {
     "@fontsource-variable/nunito-sans": "^5.3.0",

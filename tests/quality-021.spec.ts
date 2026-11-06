@@ -110,8 +110,19 @@ for (const width of [360, 1280]) {
     await page.goto('/Remix');
     await expect(page.getByRole('button', { name: /Listening time/ })).toContainText('1 h');
     await expect(page.getByRole('button', { name: /Top artist/ })).toContainText('Wave Tests');
+    const originalSummary = await page.locator('.remix-feature').first().boundingBox();
     await page.getByRole('button', { name: /Top song/ }).click();
     await expect(page.locator('#remix-song-panel')).toContainText('Signal');
+    const compactSummary = await page
+      .locator('.remix-feature:not(.is-expanded)')
+      .first()
+      .boundingBox();
+    expect(compactSummary!.height).toBeLessThan(originalSummary!.height * 0.75);
+    const compactArt = await page
+      .locator('.remix-feature:not(.is-expanded) .remix-feature-image')
+      .first()
+      .boundingBox();
+    expect(compactArt!.width).toBeLessThanOrEqual(width > 600 ? 64 : 48);
     const grid = await page.locator('.remix-highlights').boundingBox();
     const expanded = await page.locator('.remix-feature.is-expanded').boundingBox();
     expect(expanded!.width).toBeGreaterThanOrEqual(grid!.width - 2);

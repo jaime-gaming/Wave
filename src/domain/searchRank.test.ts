@@ -164,3 +164,17 @@ describe('a query with a letter in the wrong place', () => {
     expect(rankNames(names, 'midnigth', (name) => name)).toEqual(['Midnight City']);
   });
 });
+
+it('searches local genre/year metadata and invalidates its index on immutable edits', () => {
+  const track = makeTrack({ title: 'Signal', genres: ['Neo Soul'], year: 2001 });
+  expect(rankTracks([track], 'soul 2001')).toEqual([track]);
+  const edited = { ...track, title: 'New title', genres: ['Jazz'], year: 2020 };
+  expect(rankTracks([edited], 'soul 2001')).toEqual([]);
+  expect(rankTracks([edited], 'jazz 2020')).toEqual([edited]);
+});
+it('uses stable ranking with bounded, fractional and invalid limits', () => {
+  expect(rankTracks(library, '', 2)).toEqual(library.slice(0, 2));
+  expect(rankTracks(library, 'night', -1)).toEqual([]);
+  expect(rankTracks(library, 'night', NaN)).toEqual([]);
+  expect(rankTracks(library, 'night', 1.8)).toHaveLength(1);
+});
