@@ -1,3 +1,6 @@
+import { SurfaceLoading } from './components/SurfaceLoading';
+import { VolumeSettings } from './components/VolumeSettings';
+import { useVolumeFix } from './hooks/useVolumeFix';
 import { LocalFeedback } from './components/LocalFeedback';
 import { PlatformLinks } from './components/PlatformLinks';
 import { usePageRoute } from './hooks/usePageRoute';
@@ -144,6 +147,14 @@ function WaveApp({
   const [automaticLyrics, setAutomaticLyrics] = useState(
     () => readFlag('wave-lyrics-consent-v1') && readFlag('wave-auto-lyrics'),
   );
+  const [volumeFixEnabled, setVolumeFixEnabled] = useState(() => readFlag('wave-fix-volume'));
+  useEffect(() => {
+    try {
+      localStorage.setItem('wave-fix-volume', String(volumeFixEnabled));
+    } catch {
+      /* Session-only preference. */
+    }
+  }, [volumeFixEnabled]);
   const [videoClip, setVideoClip] = useState(() => readFlag('wave-video-clip'));
   const [wordSources, setWordSources] = useState(extendedLyricsEnabled);
   useEffect(() => {
@@ -192,7 +203,14 @@ function WaveApp({
     }),
     [silenceAction],
   );
-  const player = usePlayer(library.tracks, !library.loading, silenceStore);
+  const player = usePlayer(library.tracks, !library.loading, silenceStore, volumeFixEnabled);
+  const volumeStatus = useVolumeFix(
+    library.tracks,
+    volumeFixEnabled,
+    library.loading || !!library.progress,
+    library.applyVolumeFix,
+    player.current?.id,
+  );
   useAppPalette(
     player.state.playing ? player.current?.artwork : undefined,
     player.state.playing ? player.blend : null,
@@ -227,7 +245,7 @@ function WaveApp({
    * them to find the page themselves.
    */
   const [pairLink] = useState(() => /(?:#|&|\?)wave-pair=/u.test(location.hash + location.search));
-  const [page, setPage] = usePageRoute(pairLink);
+  const [page, setPage, pageDirection] = usePageRoute(pairLink);
   const [dailySelection, setDailySelection] = useState<MixSelection | null>(null);
   const [view, setView] = useState<LibraryView>('songs');
   const [query, setQuery] = useState('');
@@ -829,12 +847,12 @@ function WaveApp({
             </div>
           )}
         </header>
-        <AnimatePresence mode="wait" initial={false}>
+        <AnimatePresence mode="wait" initial={false} custom={pageDirection}>
           <LibrarySurface
             key={`${page}:${dailySelection?.mix.id ?? ''}:${view}:${group ?? ''}:${playlistId ?? ''}`}
           >
             {page === 'settings' ? (
-              <Suspense fallback={<div className="empty-state" aria-busy="true" />}>
+              <Suspense fallback={<SurfaceLoading />}>
                 <SettingsPage
                   initialSection={settingsSection ?? (pairLink ? 'devices' : null)}
                   onBack={closeSettings}
@@ -908,6 +926,24 @@ function WaveApp({
                   }
                   playback={
                     <>
+                      <VolumeSettings
+                        enabled={volumeFixEnabled}
+                        status={volumeStatus}
+                        onChange={(enabled) => {
+                          if (enabled)
+                            void player
+                              .prepareVolumeFix()
+                              .then(() => setVolumeFixEnabled(true))
+                              .catch((error: unknown) =>
+                                library.setError(
+                                  error instanceof Error
+                                    ? error.message
+                                    : t('Volume could not be adjusted.'),
+                                ),
+                              );
+                          else setVolumeFixEnabled(false);
+                        }}
+                      />
                       <div className="settings-switch-row">
                         <div>
                           <strong>{t('Mix')}</strong>
@@ -1168,7 +1204,7 @@ function WaveApp({
                 onClear={listening.forget}
               />
             ) : page === 'home' && dailySelection ? (
-              <Suspense fallback={<div className="empty-state" aria-busy="true" />}>
+              <Suspense fallback={<SurfaceLoading />}>
                 <DailyMixPage
                   selection={dailySelection}
                   tracks={library.tracks}
@@ -1428,6 +1464,7 @@ function WaveApp({
             key="queue"
             title={t('Queue')}
             className="queue-sheet"
+            placement="side"
             onClose={() => setQueueOpen(false)}
           >
             <QueuePanel
@@ -1694,10 +1731,6 @@ function WaveApp({
             onTrim={(bounds) => library.silence(editingTrack.id, 'trim', bounds)}
             onPreview={player.pauseForPreview}
             previewVolume={player.volume}
-            onFixVolume={async (id, reset) => {
-              await player.prepareVolumeFix();
-              return library.fixVolume(id, reset);
-            }}
           />
         )}
         {playlistForm && (

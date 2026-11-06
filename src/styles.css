@@ -8035,3 +8035,126 @@ h1 {
     height: 120px;
   }
 }
+
+/* Shared response: short travel, stable geometry and no decorative glow. */
+.settings-menu-item,
+.settings-back,
+.material-switch {
+  transition:
+    background-color 160ms ease,
+    outline-color 160ms ease,
+    scale 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+.settings-menu-item:active,
+.settings-back:active {
+  scale: 0.985;
+}
+.material-switch:active:not(:disabled) {
+  scale: 0.96;
+}
+.settings-menu-item > svg:last-child {
+  transition: translate 200ms cubic-bezier(0.2, 0, 0, 1);
+}
+@media (hover: hover) {
+  .settings-menu-item:hover > svg:last-child {
+    translate: 3px 0;
+  }
+}
+.volume-settings {
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--outline);
+  margin-bottom: 20px;
+}
+.volume-settings-status {
+  display: grid;
+  gap: 8px;
+  padding: 12px 0;
+}
+.volume-settings-status small {
+  color: var(--muted);
+}
+.volume-progress {
+  height: 3px;
+}
+.surface-loading {
+  min-height: 240px;
+  padding: 24px;
+  overflow: hidden;
+}
+.surface-loading-title,
+.surface-loading-lines > span {
+  position: relative;
+  overflow: hidden;
+  background: var(--container-high);
+  border-radius: 12px;
+}
+.surface-loading-title {
+  width: min(42%, 220px);
+  height: 24px;
+  margin-bottom: 28px;
+}
+.surface-loading-lines {
+  display: grid;
+  gap: 16px;
+}
+.surface-loading-lines > span {
+  display: block;
+  height: 42px;
+}
+.surface-loading-lines > span:last-child {
+  width: 72%;
+}
+.surface-loading-title::after,
+.surface-loading-lines > span::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--text) 5%, transparent),
+    transparent
+  );
+  animation: loading-sweep 1.8s ease-in-out infinite;
+}
+@keyframes loading-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .surface-loading-title::after,
+  .surface-loading-lines > span::after {
+    animation: none;
+  }
+  .settings-menu-item,
+  .settings-back,
+  .material-switch,
+  .settings-menu-item > svg:last-child {
+    transition: none;
+  }
+}
+:root[data-motion='reduced'] .surface-loading-title::after,
+:root[data-motion='reduced'] .surface-loading-lines > span::after {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .settings-menu-item:active,
+  .settings-back:active,
+  .material-switch:active {
+    scale: 1;
+  }
+  .settings-menu-item:hover > svg:last-child {
+    translate: none;
+  }
+}
+:root[data-motion='reduced']
+  :is(.settings-menu-item:active, .settings-back:active, .material-switch:active) {
+  scale: 1;
+}
+:root[data-motion='reduced'] .settings-menu-item:hover > svg:last-child {
+  translate: none;
+}

@@ -227,7 +227,9 @@ export function RemixPage({
             },
           ] as const
         ).map((card) => (
-          <section
+          <motion.section
+            layout={animation.enabled ? 'position' : false}
+            transition={animation.lateral}
             className={`remix-feature${section === card.id ? ' is-expanded' : ''}`}
             key={card.id}
           >
@@ -392,7 +394,7 @@ export function RemixPage({
                 </motion.div>
               )}
             </AnimatePresence>
-          </section>
+          </motion.section>
         ))}
       </div>
       {hero.length > 0 && (

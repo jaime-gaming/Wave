@@ -714,5 +714,17 @@
   "Volume adjusted": "Volumen ajustado",
   "Restore original volume": "Restaurar volumen original",
   "Volume could not be adjusted.": "No se pudo ajustar el volumen.",
-  "Immersive listening": "Escucha inmersiva"
+  "Immersive listening": "Escucha inmersiva",
+  "Volume balancing": "Equilibrio de volumen",
+  "Balance your library automatically. Original files stay unchanged.": "Equilibra tu biblioteca automáticamente. Los archivos originales no se modifican.",
+  "Applies to local songs, including future imports. Turn it off to hear original levels.": "Se aplica a las canciones locales, incluidas las próximas importaciones. Desactívalo para escuchar los niveles originales.",
+  "Volume balancing is not available in this browser.": "El ajuste de volumen no está disponible en este navegador.",
+  "Balancing your library…": "Equilibrando tu biblioteca…",
+  "Library volume ready": "Volumen de la biblioteca preparado",
+  "Add local music to balance its volume.": "Añade música local para equilibrar su volumen.",
+  "{ready} of {total} recordings ready": "{ready} de {total} grabaciones preparadas",
+  "Some recordings could not be measured and keep their original level.": "No se pudieron medir algunas grabaciones y conservan su nivel original.",
+  "Local analysis up to 10 minutes / 48 MB per recording. No uploads or noise removal.": "Análisis local de hasta 10 minutos / 48 MB por grabación. Sin subidas ni eliminación de ruido.",
+  "Mix, volume and local Autoplay": "Mix, volumen y reproducción automática local",
+  "Loading view": "Cargando vista"
 }

@@ -741,6 +741,18 @@ object Loc {
             "Restore original volume" to "Restaurar volumen original",
             "Volume could not be adjusted." to "No se pudo ajustar el volumen.",
             "Immersive listening" to "Escucha inmersiva",
+            "Volume balancing" to "Equilibrio de volumen",
+            "Balance your library automatically. Original files stay unchanged." to "Equilibra tu biblioteca automáticamente. Los archivos originales no se modifican.",
+            "Applies to local songs, including future imports. Turn it off to hear original levels." to "Se aplica a las canciones locales, incluidas las próximas importaciones. Desactívalo para escuchar los niveles originales.",
+            "Volume balancing is not available in this browser." to "El ajuste de volumen no está disponible en este navegador.",
+            "Balancing your library…" to "Equilibrando tu biblioteca…",
+            "Library volume ready" to "Volumen de la biblioteca preparado",
+            "Add local music to balance its volume." to "Añade música local para equilibrar su volumen.",
+            "{ready} of {total} recordings ready" to "{ready} de {total} grabaciones preparadas",
+            "Some recordings could not be measured and keep their original level." to "No se pudieron medir algunas grabaciones y conservan su nivel original.",
+            "Local analysis up to 10 minutes / 48 MB per recording. No uploads or noise removal." to "Análisis local de hasta 10 minutos / 48 MB por grabación. Sin subidas ni eliminación de ruido.",
+            "Mix, volume and local Autoplay" to "Mix, volumen y reproducción automática local",
+            "Loading view" to "Cargando vista",
         )
 
     /** What the person chose: "system", "en" or "es". */

@@ -6,13 +6,21 @@ export function useInteractionRipples() {
   useEffect(() => {
     if (!motion.enabled) return;
     const active = new Map<HTMLElement, Animation>();
-    const press = (event: PointerEvent) => {
+    const press = (event: PointerEvent | KeyboardEvent) => {
+      if (event instanceof KeyboardEvent && (event.repeat || !['Enter', ' '].includes(event.key)))
+        return;
+      if (
+        typeof PointerEvent !== 'undefined' &&
+        event instanceof PointerEvent &&
+        event.button !== 0
+      )
+        return;
       const button = (event.target as Element)?.closest<HTMLButtonElement>('button');
       if (
         !button ||
         button.disabled ||
         !button.matches(
-          '.filled-button,.tonal-button,.icon-button,.stage-play,.mini-play,.library-tabs button',
+          '.filled-button,.tonal-button,.icon-button,.stage-play,.mini-play,.library-tabs button,.settings-menu-item,.rail-collection button',
         ) ||
         typeof button.animate !== 'function'
       )
@@ -25,8 +33,8 @@ export function useInteractionRipples() {
       Object.assign(ripple.style, {
         width: `${size}px`,
         height: `${size}px`,
-        left: `${event.clientX - bounds.left - size / 2}px`,
-        top: `${event.clientY - bounds.top - size / 2}px`,
+        left: `${(event instanceof KeyboardEvent ? bounds.width / 2 : event.clientX - bounds.left) - size / 2}px`,
+        top: `${(event instanceof KeyboardEvent ? bounds.height / 2 : event.clientY - bounds.top) - size / 2}px`,
       });
       if (getComputedStyle(button).position === 'static') button.classList.add('ripple-anchor');
       button.append(ripple);
@@ -47,8 +55,10 @@ export function useInteractionRipples() {
         });
     };
     document.addEventListener('pointerdown', press, { passive: true });
+    document.addEventListener('keydown', press);
     return () => {
       document.removeEventListener('pointerdown', press);
+      document.removeEventListener('keydown', press);
       for (const [node, animation] of active) {
         animation.cancel();
         node.remove();

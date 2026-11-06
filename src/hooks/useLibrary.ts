@@ -1,4 +1,4 @@
-import { measureVolume } from '../audio/volumeFix';
+import type { VolumeFix } from '../audio/volumeFix';
 import { setTrackVolumeFix } from '../data/library';
 import { requestPersistentStorage } from '../data/storage';
 import type { LyricsResult } from '../services/lyrics';
@@ -346,10 +346,7 @@ export function useLibrary() {
       saved.flatMap((track) => (track.contentHash ? [track.contentHash] : [])),
     );
   }, []);
-  const fixVolume = useCallback(async (id: string, reset = false) => {
-    const track = existing.current.find((item) => item.id === id);
-    if (!track?.blob) throw Error('Fix volume is available for local audio files only.');
-    const correction = reset ? undefined : await measureVolume(track.blob, track.duration);
+  const applyVolumeFix = useCallback(async (id: string, correction: VolumeFix) => {
     const updated = await setTrackVolumeFix(id, correction);
     existing.current = existing.current.map((item) =>
       item.id === id ? { ...updated, blob: item.blob } : item,
@@ -357,10 +354,9 @@ export function useLibrary() {
     setTracks((current) =>
       current.map((item) => (item.id === id ? { ...updated, blob: item.blob } : item)),
     );
-    return correction;
   }, []);
   return {
-    fixVolume,
+    applyVolumeFix,
     reload,
     applyDetails,
     acceptLyrics,

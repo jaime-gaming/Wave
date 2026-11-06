@@ -12,7 +12,7 @@ import { type Transition, type Variants } from 'motion/react';
  */
 export const MotionPreference = createContext(true);
 
-export const spatial: Transition = { type: 'spring', stiffness: 420, damping: 26, mass: 0.9 };
+export const spatial: Transition = { type: 'spring', stiffness: 380, damping: 32, mass: 0.85 };
 /**
  * The wobble.
  *
@@ -21,11 +21,12 @@ export const spatial: Transition = { type: 'spring', stiffness: 420, damping: 26
  * and no visible ring, because a component that visibly bounces is a gimmick and
  * one that settles with weight is a detail.
  */
-export const wobble: Transition = { type: 'spring', stiffness: 460, damping: 17, mass: 0.85 };
+export const wobble: Transition = { type: 'spring', stiffness: 460, damping: 27, mass: 0.8 };
 export const fastSpatial: Transition = { type: 'spring', stiffness: 650, damping: 29, mass: 0.7 };
 export const expressive: Transition = { type: 'spring', stiffness: 280, damping: 25, mass: 1 };
 /** Slow, wide movement for the stage: openings and artwork. */
 export const cinematic: Transition = { type: 'spring', stiffness: 150, damping: 24, mass: 1.1 };
+export const lateral: Transition = { type: 'spring', stiffness: 360, damping: 34, mass: 0.85 };
 export const effects: Transition = { duration: 0.16, ease: [0.2, 0, 0, 1] };
 /** Longer cross-fade used when a whole surface changes. */
 export const reveal: Transition = { duration: 0.42, ease: [0.16, 1, 0.3, 1] };
@@ -56,6 +57,7 @@ export function useWaveMotion() {
   const enabled = preference && !reduced;
   return {
     enabled,
+    lateral: enabled ? lateral : { duration: 0 },
     spatial: enabled ? spatial : { duration: 0 },
     wobble: enabled ? wobble : { duration: 0 },
     fast: enabled ? fastSpatial : { duration: 0 },

@@ -437,14 +437,15 @@ export function PlayerBar(props: PlayerProps) {
    * is at the root — the same place the palette and the motion preference live.
    */
   const clipShowing = clipLive && videoClip && showing;
+  const stageHasVideo = showing && (clipShowing || !!player.stageYouTube);
   useEffect(() => {
     const root = document.documentElement;
-    if (clipShowing) root.dataset.clip = 'live';
+    if (stageHasVideo) root.dataset.clip = 'live';
     else delete root.dataset.clip;
     return () => {
       delete root.dataset.clip;
     };
-  }, [clipShowing]);
+  }, [stageHasVideo]);
   useEffect(() => {
     if (!expanded) return;
     const timer = setTimeout(() => setLyricsOpen(true), 0);
@@ -770,37 +771,56 @@ export function PlayerBar(props: PlayerProps) {
                 onDisclosure={setLyricsOpen}
               />
             </div>
-            {idle && player.current && (
-              <motion.div
-                className={`immersive-stage${clipShowing || player.stageYouTube ? ' with-video' : ''}${player.current.lyrics?.lines.length ? ' has-lyrics' : ' without-lyrics'}`}
-                aria-label={t('Immersive listening')}
-                initial={animation.enabled ? { opacity: 0 } : false}
-                animate={{ opacity: 1 }}
-                transition={animation.effects}
-              >
-                <div className="immersive-art">
-                  <Artwork track={player.current} className="immersive-cover" />
-                  <div className="immersive-credit">
-                    <h2>{player.current.title}</h2>
-                    <p>{player.current.artist}</p>
-                    <p>{player.current.album}</p>
+            <AnimatePresence initial={false}>
+              {idle && player.current && (
+                <motion.div
+                  key="immersive"
+                  className={`immersive-stage${stageHasVideo ? ' with-video' : ''}${player.current.lyrics?.lines.length ? ' has-lyrics' : ' without-lyrics'}`}
+                  aria-label={t('Immersive listening')}
+                  initial={animation.enabled ? { opacity: 0, y: 8 } : false}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{
+                    opacity: 0,
+                    y: animation.enabled ? -6 : 0,
+                    transition: animation.effects,
+                  }}
+                  transition={animation.reveal}
+                >
+                  <div className="immersive-art">
+                    <Artwork track={player.current} className="immersive-cover" />
+                    <div className="immersive-credit">
+                      <h2>{player.current.title}</h2>
+                      <p>{player.current.artist}</p>
+                      <p>{player.current.album}</p>
+                      <p className="immersive-time">
+                        {formatTime(time)} <span aria-hidden="true">/</span>{' '}
+                        {formatTime(player.duration)}
+                      </p>
+                    </div>
                   </div>
-                </div>
-                {!!player.current.lyrics?.lines.length && (
-                  <LyricsPanel
-                    stage
-                    cinematic
-                    track={player.current}
-                    time={time}
-                    readTime={player.readTime}
-                    playing={player.state.playing}
-                    duration={player.duration}
-                    onSeek={player.seek}
-                    onEdit={() => props.onLyrics(player.current!)}
-                  />
-                )}
-              </motion.div>
-            )}
+                  {!!player.current.lyrics?.lines.length && (
+                    <LyricsPanel
+                      stage
+                      cinematic
+                      track={player.current}
+                      time={time}
+                      readTime={player.readTime}
+                      playing={player.state.playing}
+                      duration={player.duration}
+                      onSeek={player.seek}
+                      onEdit={() => props.onLyrics(player.current!)}
+                    />
+                  )}
+                  <div className="immersive-progress" aria-hidden="true">
+                    <span
+                      style={{
+                        transform: `scaleX(${player.duration > 0 ? Math.max(0, Math.min(1, time / player.duration)) : 0})`,
+                      }}
+                    />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </Modal>
         )}
       </AnimatePresence>

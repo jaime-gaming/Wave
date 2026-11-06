@@ -207,9 +207,11 @@ The local-only opinion card now has clearer response choices, dismiss/opt-out ac
 
 - Expanded Remix details span the whole grid row; other highlights retain their order above/below. The week selector and history shelf offer only weeks with listening data.
 - Import has one count and one progress bar, not a stream of filenames and internal operations.
-- **Edit song → Fix volume** measures local audio, stores reversible playback gain, and provides **Restore original volume**. The original file is unchanged. A bounded scan and a safety ceiling avoid indiscriminate boosting; this is volume balancing, not denoising or restoration of lost detail. Current analysis limits: 10 minutes / 48 MB per local file, maximum +18 dB. It does not process YouTube embeds.
+- **Settings → Playback → Fix volume** balances the local library automatically, including future imports. Turning it off restores original playback levels while retaining measurements for next time. The original file is unchanged. A bounded scan and a safety ceiling avoid indiscriminate boosting; this is volume balancing, not denoising or restoration of lost detail. Current analysis limits: 10 minutes / 48 MB per local file, maximum +18 dB. It does not process YouTube embeds.
 - The dedicated 0.1.0-style album/lyric scene returns after 30 seconds of focused, visible, uninterrupted playback. Interaction restores controls, and editors are never covered. Videoclips keep their picture and a readable lyric column.
 - Local repeats use a brief two-deck overlap with the same song and animate only the repeat icon. Unsupported/unprepared audio keeps the short attack fallback; YouTube retains its seek-based repeat.
 - Filename evidence for reversed tags now tolerates typography/accents and upload labels. Confirmed manual decisions win. Lyrics and clip lookup use the corrected search identity without silently editing tags. Real YRC/KRC word clocks remain provider-supplied; estimates remain labelled.
+
+Page changes follow navigation direction; the queue slides from its edge, Settings and Remix reposition smoothly, and loading views show quiet skeletons. Keyboard/pointer feedback and all spatial movement respect system reduced motion and the in-app animation switch. The 30-second idle scene reuses the current video as a full background when enabled and available, with compact credits and transparent cinematic lyrics; without a video it keeps the artwork-led scene.
 
 New web captures: [immersive listening](docs/media/immersive-desktop.png), [Fix volume](docs/media/volume-fix-desktop.png).

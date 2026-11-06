@@ -188,18 +188,44 @@ for (const [width, height] of [
   });
 }
 
-test('an idle videoclip keeps playing and wakes immediately on interaction', async ({ page }) => {
-  test.setTimeout(50_000);
-  const stage = await setup(page);
-  await expect(stage).toHaveClass(/is-idle/, { timeout: 35_000 });
-  await expect(stage.locator('.immersive-stage.with-video')).toBeVisible();
-  const sleeve = await stage.locator('.immersive-cover').boundingBox();
-  expect(sleeve!.width / sleeve!.height).toBeCloseTo(1, 1);
-  await expect(stage.locator('.lyrics-cinematic')).toBeVisible();
-  await expect(stage.locator('.player-normal-view')).toHaveCSS('visibility', 'hidden');
-  await expect(page.locator('.video-backdrop')).toHaveCount(1);
-  await page.mouse.move(80, 80);
-  await expect(stage).not.toHaveClass(/is-idle/);
-  await expect(stage.locator('.stage-controls')).toHaveCSS('opacity', '1');
-  await expect(page.locator('.player-normal-view.clip-live')).toHaveCount(1);
-});
+for (const [width, height] of [
+  [1440, 900],
+  [390, 844],
+  [667, 375],
+]) {
+  test(`an idle videoclip keeps playing and wakes at ${width}x${height}`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    if (width !== 1440) await page.emulateMedia({ reducedMotion: 'reduce' });
+    test.setTimeout(50_000);
+    const stage = await setup(page);
+    const originalFrame = await page.locator('.video-backdrop iframe').elementHandle();
+    // Keep the desktop check on the real 30-second timer; advance mobile layout checks.
+    if (width !== 1440) {
+      await page.clock.install();
+      await page.clock.fastForward(65_000);
+    }
+    await expect(stage).toHaveClass(/is-idle/, { timeout: 35_000 });
+    await expect(stage.locator('.immersive-stage.with-video')).toBeVisible();
+    const sleeve = await stage.locator('.immersive-cover').boundingBox();
+    expect(sleeve!.width / sleeve!.height).toBeCloseTo(1, 1);
+    await expect(stage.locator('.lyrics-cinematic')).toBeVisible();
+    expect(await originalFrame!.evaluate((node) => node.isConnected)).toBe(true);
+    const background = await page.locator('.video-backdrop').boundingBox();
+    const room = await stage.boundingBox();
+    expect(background!.height).toBeGreaterThanOrEqual(room!.height - 2);
+    expect(background!.width).toBeGreaterThanOrEqual(room!.width - 2);
+    const credits = await stage.locator('.immersive-art').boundingBox();
+    expect(credits!.y).toBeGreaterThan(room!.height / 2);
+    expect(sleeve!.width).toBeLessThanOrEqual(80);
+    if (width < 600) {
+      const lyrics = await stage.locator('.lyrics-cinematic').boundingBox();
+      expect(lyrics!.y + lyrics!.height).toBeLessThanOrEqual(credits!.y);
+    }
+    await expect(stage.locator('.player-normal-view')).toHaveCSS('visibility', 'hidden');
+    await expect(page.locator('.video-backdrop')).toHaveCount(1);
+    await page.mouse.move(80, 80);
+    await expect(stage).not.toHaveClass(/is-idle/);
+    await expect(stage.locator('.stage-controls')).toHaveCSS('opacity', '1');
+    await expect(page.locator('.player-normal-view.clip-live')).toHaveCount(1);
+  });
+}

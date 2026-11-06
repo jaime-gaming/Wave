@@ -229,20 +229,12 @@ await home.locator('.immersive-stage').waitFor({ state: 'visible', timeout: 35_0
 await shot(home, 'immersive-desktop.png');
 await home.mouse.move(80, 80);
 await home.getByRole('button', { name: 'Close dialog' }).click();
-await home.getByRole('button', { name: 'Library', exact: true }).click();
-await home
-  .getByRole('button', { name: /^Options for/ })
-  .first()
-  .click();
-await home.getByRole('button', { name: 'Edit song', exact: true }).click();
-const volumeEditor = home.getByRole('dialog', { name: 'Edit song', exact: true });
-await volumeEditor.getByRole('button', { name: /Fix volume/ }).click();
-await volumeEditor.getByRole('status').filter({ hasText: 'Volume adjusted' }).waitFor();
-await home.setViewportSize({ width: 1440, height: 1200 });
-await volumeEditor.locator('.volume-fix-control').scrollIntoViewIfNeeded();
+await home.getByRole('button', { name: 'Settings', exact: true }).click();
+await home.getByRole('button', { name: 'Playback', exact: true }).click();
+const volumeSettings = home.getByRole('region', { name: 'Volume balancing' });
+await volumeSettings.getByRole('switch', { name: 'Fix volume' }).click();
+await volumeSettings.getByRole('status').filter({ hasText: '9 of 9 recordings ready' }).waitFor();
 await shot(home, 'volume-fix-desktop.png');
-await home.setViewportSize({ width: 1440, height: 900 });
-await volumeEditor.getByRole('button', { name: 'Cancel', exact: true }).click();
 
 // Use a second disposable library: the desktop player above must not restore a
 // playing session into the phone screenshot through shared browser storage.

@@ -30,7 +30,7 @@ Silent edges measured at the start and end of a file are a local measurement. Re
 pair of playback bounds on the song record; the original audio is never rewritten and the editor can
 give the whole file back.
 
-**Fix volume** also runs entirely on the device. It decodes a bounded local recording, measures playback levels in a disposable worker and stores a reversible gain alongside the song. Neither the audio nor the measurements are sent anywhere; the original file is unchanged. It is not a noise-removal service.
+**Fix volume**, enabled globally in Settings → Playback, also runs entirely on the device. While enabled, it measures eligible local songs sequentially, including future imports; switching it off stops analysis and bypasses stored gains without deleting measurements. It decodes a bounded local recording, measures playback levels in a disposable worker and stores a reversible gain alongside the song. Neither the audio nor the measurements are sent anywhere; the original file is unchanged. It is not a noise-removal service.
 
 ## Optional online lyrics
 

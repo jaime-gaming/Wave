@@ -198,7 +198,7 @@ test('Trim owns the audio while editing and releases its preview on close', asyn
   ).toBe(true);
 });
 
-test('Fix volume measures a quiet file, persists playback gain and restores the original', async ({
+test('Fix volume in Settings balances the library and future imports, with a global bypass', async ({
   page,
 }) => {
   await page.evaluate(() => {
@@ -215,8 +215,17 @@ test('Fix volume measures a quiet file, persists playback gain and restores the 
   await page.getByRole('button', { name: 'Options for Signal' }).click();
   await page.getByRole('button', { name: 'Edit song', exact: true }).click();
   const editor = page.getByRole('dialog', { name: 'Edit song', exact: true });
-  await editor.getByRole('button', { name: /Fix volume/ }).click();
-  await expect(editor.getByRole('status')).toContainText('Volume adjusted', { timeout: 15000 });
+  await expect(editor.getByRole('button', { name: /Fix volume/ })).toHaveCount(0);
+  await editor.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByRole('button', { name: 'Playback', exact: true }).click();
+  const volume = page.getByRole('region', { name: 'Volume balancing' });
+  const toggle = volume.getByRole('switch', { name: 'Fix volume' });
+  await toggle.click();
+  await expect(toggle).toBeChecked();
+  await expect(volume.getByRole('status')).toContainText('1 of 1 recordings ready', {
+    timeout: 15000,
+  });
   await expect
     .poll(() =>
       page.evaluate(() =>
@@ -226,28 +235,43 @@ test('Fix volume measures a quiet file, persists playback gain and restores the 
       ),
     )
     .toBe(true);
-  const read = () =>
-    page.evaluate(async () => {
-      const db = await new Promise<IDBDatabase>((resolve) => {
-        const req = indexedDB.open('wave-library');
-        req.onsuccess = () => resolve(req.result);
-      });
-      const tracks = await new Promise<Array<{ volumeFix?: { gain: number }; blob: Blob }>>(
-        (resolve) => {
-          const req = db.transaction('tracks').objectStore('tracks').getAll();
-          req.onsuccess = () => resolve(req.result);
-        },
-      );
-      db.close();
-      return { gain: tracks[0].volumeFix?.gain, size: tracks[0].blob.size };
+  await page
+    .getByLabel('Import audio files')
+    .setInputFiles({ name: 'Future.wav', mimeType: 'audio/wav', buffer: wav('Future', 15) });
+  await expect(volume.getByRole('status')).toContainText('2 of 2 recordings ready', {
+    timeout: 15000,
+  });
+  await toggle.click();
+  await expect(toggle).not.toBeChecked();
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        (window as unknown as { __volumeGains: GainNode[] }).__volumeGains.every(
+          (node) => node.gain.value < 1.001,
+        ),
+      ),
+    )
+    .toBe(true);
+  const state = await page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve) => {
+      const req = indexedDB.open('wave-library');
+      req.onsuccess = () => resolve(req.result);
     });
-  const fixed = await read();
-  expect(fixed.gain).toBeGreaterThan(2);
-  await editor.getByRole('button', { name: 'Restore original volume' }).click();
-  await expect(editor.getByRole('status')).toHaveCount(0);
-  const restored = await read();
-  expect(restored.gain).toBeUndefined();
-  expect(restored.size).toBe(fixed.size);
+    const tracks = await new Promise<Array<{ volumeFix?: { gain: number } }>>((resolve) => {
+      const req = db.transaction('tracks').objectStore('tracks').getAll();
+      req.onsuccess = () => resolve(req.result);
+    });
+    db.close();
+    return {
+      gains: tracks.map((track) => track.volumeFix?.gain),
+      enabled: localStorage.getItem('wave-fix-volume'),
+    };
+  });
+  expect(state.gains.every((gain) => gain! > 2)).toBe(true);
+  expect(state.enabled).toBe('false');
+  await page.reload();
+  await page.getByRole('button', { name: 'Playback', exact: true }).click();
+  await expect(page.getByRole('switch', { name: 'Fix volume' })).not.toBeChecked();
 });
 
 test('repeat overlaps the same local song and renews only its repeat icon', async ({ page }) => {

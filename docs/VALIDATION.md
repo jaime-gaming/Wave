@@ -2,6 +2,13 @@
 
 Development target: 0.2.1. Released baseline: 0.2.0 · 3 November 2026. Historical run dates are retained below.
 
+## 0.2.1 Settings, motion and idle video — 6 November 2026
+
+- **727 web tests across 114 files passed.** New hook cases cover global disabled/importing gates, sequential scanning, future imports, cancellation with late results and unsupported recordings. The final source-removal cancellation adjustment was rechecked with all four hook tests.
+- **20 distinct targeted Chromium cases passed** across quality, clip layout/idle, mobile ergonomics, queue and Settings motion. Checks cover real worker analysis and gain above unity, subsequent imports, global unity bypass, preference reload, absence of the old editor action, directional DOM movement and OS reduced motion. Idle video checks at 1440×900, 390×844 and 667×375 verify full-background bounds, compact credits, mobile lyric separation, the same connected iframe and immediate wake.
+- Build, lint, formatting, release metadata and 12 release/package contract tests passed. Historical browser suites are not claimed wholly green. No native SDK/device build, live external-provider playback, production deployment or release publication is claimed. YouTube traffic is blocked in clip geometry tests; they verify layout and stage continuity, not external footage playback.
+- Documentation captures regenerated from the disposable library and inspected: Fix volume now appears in Settings → Playback, and artwork-led idle listening retains its non-video fallback. Video respects the existing global off preference and reuses the existing playback stage.
+
 ## 0.2.1 listening refinements — 6 November 2026
 
 - **723 web tests across 113 files passed.** Added coverage for reversible gain persistence/source bytes, RMS/peak and silence safety, actual same-source repeat overlap/trim opening, reviewed artist/title identity, real compressed KRC fixtures, short/gapped word interpolation, invalid word clocks and guarded inactivity entry/wake.

@@ -55,7 +55,12 @@ export interface SilenceStore {
   keep: (id: string) => void;
 }
 
-export function usePlayer(tracks: Track[], libraryReady = true, silenceStore?: SilenceStore) {
+export function usePlayer(
+  tracks: Track[],
+  libraryReady = true,
+  silenceStore?: SilenceStore,
+  volumeFixEnabled = false,
+) {
   const [saved] = useState(readPlaybackSession);
   const [repeatSerial, setRepeatSerial] = useState(0);
   const [mixEnabled, setMixEnabled] = useState(savedMix);
@@ -877,9 +882,9 @@ export function usePlayer(tracks: Track[], libraryReady = true, silenceStore?: S
     for (const track of tracks)
       if (track.blob) {
         engine.current?.setBounds(track.blob, track.trim);
-        engine.current?.setVolumeFix(track.blob, track.volumeFix?.gain);
+        engine.current?.setVolumeFix(track.blob, volumeFixEnabled ? track.volumeFix?.gain : 1);
       }
-  }, [tracks]);
+  }, [tracks, volumeFixEnabled]);
 
   const prepareVolumeFix = useCallback(async () => {
     await engine.current?.prepareVolumeFix();

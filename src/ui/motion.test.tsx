@@ -23,6 +23,7 @@ it('responds immediately to system motion changes, not just the initial page loa
   });
   expect(result.current.enabled).toBe(false);
   expect(result.current.spatial).toEqual({ duration: 0 });
+  expect(result.current.lateral).toEqual({ duration: 0 });
   act(() => {
     reduced = false;
     listeners.forEach((listener) => listener());

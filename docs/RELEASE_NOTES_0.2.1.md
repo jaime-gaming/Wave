@@ -28,7 +28,7 @@ Release date: 5 November 2026.
 ## Latest interaction and hosting follow-up
 
 - Remix retains line icons and detail chevrons within its three expandable highlights.
-- Restore the dedicated 0.1.0-style inactivity scene after 30 seconds, with full artwork, credits and cinematic lyrics. Videoclips retain a high-contrast reading surface; editors/text inputs and hidden or unfocused tabs block entry.
+- Restore the dedicated 0.1.0-style inactivity scene after 30 seconds, with full artwork, credits and cinematic lyrics. Enabled videoclips fill the background, with compact bottom credits and transparent, shadowed lyrics; editors/text inputs and hidden or unfocused tabs block entry.
 - A deliberately rare, dismissible feature-opinion card stores only local structured answers, with a long cooldown and opt-out. Nothing is transmitted or used for automatic changes.
 - Bring your playlists now tries public Spotify/YouTube URLs through the same-origin Worker before falling back to export files. Public lists can be partial; matching and confirmation remain local, with no audio download.
 - Cloudflare Workers owns production hosting and the bounded metadata endpoint. Remove the old compiled `docs/` mirror and its CI drift check; validate the actual Worker bundle with `deploy:check` instead. Documentation and six web screenshots are refreshed.
@@ -55,7 +55,13 @@ The new waveform editor, routing and redesigned music surfaces in this iteration
 
 - Expand Remix details across the whole row, preserving the other cards above/below; show only weeks with actual listening information.
 - Simplify import to a single progress/count indication, without filename/internal subprocess chatter.
-- Add **Fix volume** to Edit song for bounded local audio analysis, reversible playback gain and a safety ceiling. No source rewrite, denoising or promised restoration of lost quality. The tool currently supports local files up to ten minutes / 48 MB; YouTube and native clients do not gain this tool in this pass.
+- Add **Fix volume** to **Settings → Playback** as a global opt-in for sequential library analysis, future imports, reversible playback gain and a safety ceiling. Turning it off cancels scanning and restores original playback levels without deleting measurements. No source rewrite, denoising or promised restoration of lost quality. The tool currently supports local files up to ten minutes / 48 MB; YouTube and native clients do not gain this tool in this pass.
 - Repeat a local recording with a brief same-source mini-overlap and an icon-only animation, retaining safe restart fallback.
 - Improve reversed-tag evidence across accents/typography, honor explicit keep decisions, and share corrected search identities with lyric and clip discovery. Request actual YRC data and correctly inflate compressed KRC word clocks. Provider availability remains best effort and optional word-level providers remain opt-in.
 - Refresh ten web screenshots including the restored scene and the new volume action. No release tag or production deployment is created by this change.
+
+### Motion refinement
+
+- Directional route and Settings entrances, an edge-led Queue sheet, calmer navigation selection and natural-position Remix expansion.
+- Keyboard/pointer press feedback, switch responses and accessible lazy-page skeletons; reduced-motion and the app animation preference disable spatial travel and shimmer.
+- Idle video reuses its existing stage without restarting audio or mounting a second iframe. Existing video-off preferences remain respected.
