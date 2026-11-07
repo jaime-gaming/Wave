@@ -44,8 +44,8 @@ export function Navigation({
           <motion.button
             key={id}
             whileTap={animation.enabled ? { scale: 0.94 } : undefined}
-            whileHover={animation.enabled ? { y: -1 } : undefined}
-            transition={animation.wobble}
+            whileHover={animation.hoverEnabled ? { y: -1 } : undefined}
+            transition={animation.lateral}
             aria-current={page === id ? 'page' : undefined}
             className={page === id ? 'selected' : ''}
             onClick={() => onPage(id)}
@@ -54,7 +54,7 @@ export function Navigation({
               <motion.span
                 className="navigation-selection"
                 layoutId="navigation-selection"
-                transition={animation.wobble}
+                transition={animation.lateral}
               />
             )}
             <span className="navigation-icon">

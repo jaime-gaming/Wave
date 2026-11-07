@@ -203,3 +203,58 @@ it('keeps the interface still while the song plays', async () => {
   expect(renders).toBe(settled);
   expect(result.current.time).toBeGreaterThan(5);
 });
+
+it('extends a one-song AutoPlay queue before the Mix preparation window', async () => {
+  const tracks = [
+    makeTrack(),
+    makeTrack({ id: 'next', artist: 'Another' }),
+    makeTrack({ id: 'third' }),
+  ];
+  const { result } = renderHook(() => usePlayer(tracks));
+  act(() => result.current.setMixEnabled(true));
+  await act(async () => {
+    result.current.play([tracks[0]], tracks[0].id);
+    await Promise.resolve();
+  });
+  await act(async () => {
+    element.dispatchEvent(new Event('timeupdate'));
+    await Promise.resolve();
+  });
+  expect(result.current.autoplay).toBe(true);
+  expect(result.current.state.queue[0]).toBe(tracks[0].id);
+  expect(result.current.state.queue.length).toBeGreaterThan(1);
+  expect(result.current.state.playing).toBe(true);
+});
+
+it('signals an actual repeat only after restarting a playing song', async () => {
+  const tracks = [makeTrack()];
+  const { result } = renderHook(() => usePlayer(tracks));
+  await act(async () => {
+    result.current.play(tracks, tracks[0].id);
+    await Promise.resolve();
+  });
+  act(() => {
+    result.current.dispatch({ type: 'repeat' });
+    result.current.dispatch({ type: 'repeat' });
+  });
+  expect(result.current.state.repeat).toBe('one');
+  const serial = result.current.repeatSerial;
+  await act(async () => {
+    element.dispatchEvent(new Event('ended'));
+    await Promise.resolve();
+  });
+  expect(result.current.repeatSerial).toBe(serial + 1);
+  expect(result.current.state.playing).toBe(true);
+});
+
+it('pauses native playback immediately when an editor takes audio ownership', async () => {
+  const tracks = [makeTrack()];
+  const { result } = renderHook(() => usePlayer(tracks));
+  await act(async () => {
+    result.current.play(tracks, tracks[0].id);
+  });
+  const pause = vi.spyOn(element, 'pause');
+  act(() => result.current.pauseForPreview());
+  expect(pause).toHaveBeenCalled();
+  expect(result.current.state.playing).toBe(false);
+});

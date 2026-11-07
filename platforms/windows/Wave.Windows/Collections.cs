@@ -21,7 +21,7 @@ public static class NativeCollections
             .GroupBy(x => (x.Genre != null ? "genre:" : "artist:") + (x.Genre ?? x.Artist)!.ToLowerInvariant())
             .Where(g => g.Count() >= 3).OrderBy(g => g.Key.StartsWith("genre:") ? 0 : 1).ThenByDescending(g => g.Count()).ThenBy(g => g.Key, StringComparer.Ordinal).Take(3)
             .Select(g => new NativeMix(g.Key, g.First().Genre ?? g.First().Artist!,
-                g.Select(x => x.Song).OrderBy(s => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(day.ToString("yyyy-MM-dd") + s.Id))), StringComparer.Ordinal).Take(30).ToList())).ToList();
+                g.Select(x => x.Song).OrderBy(s => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(day.ToString("yyyy-MM-dd") + s.Id))), StringComparer.Ordinal).Take(20).ToList())).ToList();
     }
     public static List<Song> Resolve(IEnumerable<string> ids, IEnumerable<Song> songs)
     {

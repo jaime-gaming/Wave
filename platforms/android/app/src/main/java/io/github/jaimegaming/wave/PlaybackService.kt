@@ -46,7 +46,7 @@ class PlaybackService : Service() {
     private var player: Player? = null
     private var registered = false
     /** True while the pause was caused by something other than the listener. */
-    private var ducked = false
+    private var resumeAfterFocus = false
 
     private val becomingNoisy = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -59,19 +59,14 @@ class PlaybackService : Service() {
         val player = player ?: return@OnAudioFocusChangeListener
         when (change) {
             AudioManager.AUDIOFOCUS_LOSS, AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
-                ducked = true
+                resumeAfterFocus = change == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT && player.playing
+                player.setDucked(false)
                 player.pause()
             }
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
-                player.volume = player.volume * 0.3f
-                ducked = true
-            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> player.setDucked(true)
             AudioManager.AUDIOFOCUS_GAIN -> {
-                if (ducked) {
-                    ducked = false
-                    player.volume = 1f
-                    player.resume()
-                }
+                player.setDucked(false)
+                if (resumeAfterFocus) { resumeAfterFocus = false; player.resume() }
             }
         }
     }
@@ -114,6 +109,7 @@ class PlaybackService : Service() {
         }
 
         override fun onPause() {
+            resumeAfterFocus = false
             player?.pause()
         }
 

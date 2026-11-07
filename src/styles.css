@@ -5429,16 +5429,9 @@ a {
   --elevation-2: 0 2px 6px rgba(4, 8, 18, 0.2), 0 22px 48px rgba(4, 8, 18, 0.28);
   --hairline: color-mix(in srgb, var(--text) 8%, transparent);
   --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
-  /*
-   * A touch of overshoot, and only a touch.
-   *
-   * Anything that is pressed, opened or dropped into place ends a hair past its
-   * target and settles back. It reads as weight rather than as decoration: the
-   * movement is 1-2 px and 120-260 ms, so it is felt more than seen, which is
-   * the point — the interface should feel like it is made of something.
-   */
-  --ease-wobble: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --ease-wobble-soft: cubic-bezier(0.3, 1.25, 0.6, 1);
+  /* Shared, non-overshooting curves: crisp text and stable hit targets. */
+  --ease-wobble: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-wobble-soft: cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 :root[data-theme='light'] {
   --elevation-1: 0 1px 2px rgba(28, 38, 68, 0.06), 0 8px 20px rgba(28, 38, 68, 0.08);
@@ -5523,7 +5516,7 @@ a {
 }
 .icon-button:active:not(:disabled),
 .rail-settings:active {
-  transform: scale(0.9);
+  transform: scale(0.96);
   transition-duration: 90ms;
 }
 .text-button:active:not(:disabled) {
@@ -5545,16 +5538,12 @@ a {
 }
 /* Notices arrive with a small spring instead of appearing. */
 .toast {
-  animation: wave-wobble-in 0.42s var(--ease-wobble) both;
+  animation: wave-wobble-in 0.24s var(--ease-out) both;
 }
 @keyframes wave-wobble-in {
   from {
     opacity: 0;
-    transform: translateY(10px) scale(0.97);
-  }
-  60% {
-    opacity: 1;
-    transform: translateY(-1.5px) scale(1.004);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
@@ -7156,4 +7145,1071 @@ h1 {
 }
 .devices-paste p {
   margin: 0 0 12px;
+}
+
+/* 0.2.1: fluid surfaces, including short landscape windows and narrow phones. */
+.home-content > .daily-mixes {
+  clear: both;
+  width: 100%;
+  margin-block: clamp(28px, 5vw, 48px);
+}
+.home-content > .home-link-card + .daily-mixes {
+  margin-top: 36px;
+}
+.audio-trim-editor {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+}
+.audio-trim-editor p {
+  color: var(--muted);
+  font-size: 14px;
+}
+.audio-trim-editor > svg {
+  width: 100%;
+  height: clamp(70px, 14vw, 110px);
+  border-radius: 12px;
+}
+.audio-trim-editor audio {
+  width: 100%;
+  max-width: 100%;
+}
+.trim-preview-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.clip-link {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.clip-link label {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+.clip-link input {
+  min-width: 0;
+  width: 100%;
+}
+.form-field select {
+  max-width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  font: inherit;
+}
+@media (max-width: 600px) {
+  .modal-actions,
+  .section-heading {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .editor-modal {
+    width: min(100%, 560px);
+  }
+  .home-content,
+  .home-dashboard,
+  .remix-page,
+  .daily-mix-copy {
+    min-width: 0;
+  }
+  .trim-preview-actions > button {
+    flex: 1 1 140px;
+  }
+}
+@media (max-height: 600px) {
+  .modal {
+    max-height: 94dvh;
+    overflow-y: auto;
+  }
+}
+/* Remix artwork stays grounded; movement follows interaction, not an endless loop. */
+
+/* Wave surfaces: no browser media chrome or technical trim form. */
+.editor-submenu-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  width: 100%;
+  padding: 18px;
+  text-align: left;
+  border-radius: 20px;
+  color: inherit;
+  border: 1px solid color-mix(in srgb, var(--primary) 25%, transparent);
+  background: color-mix(in srgb, var(--primary) 8%, var(--surface));
+  cursor: pointer;
+}
+.editor-submenu-button small {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+}
+.trim-heading,
+.trim-time-labels {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.trim-heading > span {
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
+}
+.trim-wave-rail {
+  position: relative;
+  margin: 18px 14px 4px;
+  height: clamp(110px, 20vw, 170px);
+  background: color-mix(in srgb, var(--primary) 6%, var(--surface));
+  border-radius: 16px;
+  color: var(--primary);
+  user-select: none;
+}
+.audio-trim-editor .trim-wave-rail svg {
+  width: 100%;
+  height: 100%;
+  border-radius: 16px;
+  overflow: hidden;
+}
+.trim-handle {
+  position: absolute;
+  top: -8px;
+  bottom: -8px;
+  width: 28px;
+  transform: translateX(-50%);
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: var(--primary);
+  color: var(--surface);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 3px;
+  touch-action: none;
+  cursor: ew-resize;
+  box-shadow: 0 4px 20px #0003;
+  transition: box-shadow 180ms ease;
+}
+.trim-handle span {
+  height: 24px;
+  width: 2px;
+  border-radius: 2px;
+  background: currentColor;
+  opacity: 0.75;
+}
+.trim-handle:active {
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--primary) 22%, transparent);
+}
+.trim-wave-rail.is-zoomed {
+  outline: 1px solid var(--primary);
+  outline-offset: 6px;
+}
+.trim-time-labels {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.trim-time-labels span:nth-child(2) {
+  text-align: center;
+}
+.daily-mix-sleeves {
+  position: relative;
+  display: block;
+  width: 96px;
+  height: 96px;
+  flex-shrink: 0;
+}
+.daily-mix-sleeves .artwork {
+  position: absolute;
+  width: 72px;
+  height: 80px;
+  top: 8px;
+  left: 4px;
+  border-radius: 16px;
+  box-shadow: 0 5px 12px #0002;
+  transform: rotate(-9deg);
+}
+.daily-mix-sleeves .artwork:nth-child(2) {
+  left: 14px;
+  transform: rotate(0deg);
+}
+.daily-mix-sleeves .artwork:nth-child(3) {
+  left: 24px;
+  transform: rotate(9deg);
+}
+.daily-mix-copy small {
+  color: var(--muted);
+  font-size: 11px;
+  margin-top: 6px;
+}
+.library-update-toast {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: min(360px, calc(100vw - 32px));
+}
+.library-update-status {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+.library-update-status small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  max-width: min(440px, 80vw);
+}
+.library-update-track {
+  height: 5px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--primary) 18%, transparent);
+}
+.library-update-track > span {
+  display: block;
+  height: 100%;
+  background: var(--primary);
+  transform-origin: left;
+  border-radius: inherit;
+}
+@media (max-width: 720px) {
+  .daily-mix-sleeves {
+    width: 76px;
+    height: 76px;
+  }
+  .daily-mix-sleeves .artwork {
+    width: 54px;
+    height: 62px;
+  }
+}
+
+.trim-preview-actions > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  min-width: 0;
+  white-space: normal;
+}
+.trim-preview-actions > button svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+}
+.trim-handle::before {
+  content: '';
+  position: absolute;
+  inset: 0 -8px;
+}
+
+/* Quiet, functional presentation: typography and separators instead of decorative cards. */
+.remix-lede-art {
+  animation: none;
+}
+.filled-button {
+  box-shadow: none;
+}
+.metadata-role-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 8px;
+}
+.metadata-role-actions small {
+  flex-basis: 100%;
+  color: var(--muted);
+}
+.metadata-role-actions .text-button {
+  min-height: 40px;
+}
+.local-metadata li > div {
+  min-width: 0;
+}
+.platform-links {
+  border-top: 1px solid var(--outline);
+  padding-top: 24px;
+  margin-block: 24px;
+}
+.platform-links header h3 {
+  font-size: 20px;
+  margin-bottom: 6px;
+}
+.platform-links header p,
+.platform-note {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.platform-android {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding-block: 20px;
+}
+.platform-android > svg {
+  flex: 0 0 24px;
+  color: var(--primary);
+}
+.platform-android > div {
+  flex: 1;
+  min-width: 0;
+}
+.platform-android strong {
+  font-size: 17px;
+}
+.platform-android p {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 5px;
+  line-height: 1.6;
+}
+.platform-android small {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.6;
+  margin-top: 8px;
+}
+.platform-secondary {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.platform-secondary > a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--primary);
+  font-size: 13px;
+  text-decoration: none;
+  min-height: 44px;
+}
+.platform-secondary > a:hover {
+  text-decoration: underline;
+}
+.platform-note {
+  margin-top: 16px;
+}
+.platform-links-compact header {
+  display: none;
+}
+@media (max-width: 600px) {
+  .platform-android {
+    flex-wrap: wrap;
+  }
+  .platform-android > div {
+    flex-basis: calc(100% - 40px);
+  }
+  .platform-android > a {
+    margin-left: 40px;
+  }
+}
+
+.local-feedback {
+  max-height: calc(100dvh - 180px);
+  overflow-y: auto;
+  position: fixed;
+  right: 24px;
+  bottom: 112px;
+  z-index: 65;
+  width: min(360px, calc(100vw - 32px));
+  padding: 24px;
+  border: 1px solid var(--outline);
+  border-radius: 20px;
+  background: var(--container-high);
+  color: var(--text);
+  box-shadow: 0 12px 36px rgb(0 0 0 / 18%);
+}
+.local-feedback h3 {
+  margin-block: 12px 8px;
+  font-size: 18px;
+  padding-right: 20px;
+}
+.local-feedback p {
+  color: var(--muted);
+  line-height: 1.6;
+  font-size: 13px;
+}
+.feedback-close {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+}
+.feedback-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-block: 16px 8px;
+}
+@media (max-width: 600px) {
+  .local-feedback {
+    right: 16px;
+    bottom: 154px;
+  }
+}
+
+/* Remix: each image, headline and disclosure is a self-contained grid cell. */
+.remix-week-select {
+  max-width: 420px;
+  margin-block: 16px 28px;
+}
+.remix-week-select select {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 16px;
+  border: 1px solid var(--outline);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+.remix-highlights {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
+  gap: 20px;
+  margin-block: 24px 36px;
+}
+.remix-feature {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--outline);
+  border-radius: 24px;
+  background: var(--surface);
+}
+.remix-highlight {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
+  padding: 20px;
+  gap: 14px;
+  border: 0;
+  border-radius: 24px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.remix-highlight:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -4px;
+}
+.remix-feature:has(.remix-highlight[aria-expanded='true']) {
+  border-color: var(--primary);
+}
+.remix-highlight-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.remix-highlight-label svg {
+  flex: 0 0 20px;
+  color: var(--primary);
+}
+.remix-feature-image {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 18px;
+  background: var(--container-high);
+  color: var(--primary);
+}
+.remix-feature-image > .artwork,
+.remix-feature-image > .artist-portrait {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 1;
+  margin: 0;
+}
+.remix-feature-image .artwork {
+  border-radius: inherit;
+}
+.remix-feature-image .artist-portrait {
+  border-radius: 50%;
+}
+.remix-feature-image:has(.artist-portrait) {
+  border-radius: 50%;
+}
+.remix-feature-image > svg {
+  width: 38%;
+  height: 38%;
+}
+.remix-highlight > strong {
+  display: block;
+  font-size: clamp(20px, 2.2vw, 30px);
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.remix-highlight > small {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.remix-highlight-more {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+  padding-top: 10px;
+  gap: 8px;
+  color: var(--primary);
+  font-size: 12px;
+}
+.remix-highlight-more svg {
+  transition: transform 180ms ease;
+}
+.remix-highlight[aria-expanded='true'] .remix-highlight-more svg {
+  transform: rotate(180deg);
+}
+.remix-mini-panel {
+  overflow: hidden;
+  padding-inline: 16px;
+  font-size: 13px;
+}
+.remix-mini-panel > :first-child {
+  margin-top: 12px;
+}
+.remix-mini-panel > :last-child {
+  margin-bottom: 20px;
+}
+.remix-mini-list {
+  display: grid;
+  gap: 8px;
+}
+.remix-mini-list > button {
+  display: grid;
+  grid-template-columns: 16px 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0;
+  background: transparent;
+  color: var(--text);
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+  min-height: 54px;
+}
+.remix-mini-list > button:hover {
+  color: var(--primary);
+}
+.remix-mini-list > button > .artwork,
+.remix-mini-list > button > .artist-portrait {
+  width: 36px;
+  height: 36px;
+  margin: 0;
+  border-radius: 10px;
+}
+.remix-mini-list > button > .artist-portrait {
+  border-radius: 50%;
+}
+.remix-mini-list strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+.remix-mini-list strong small {
+  display: block;
+  font-size: 12px;
+  margin-top: 4px;
+  font-weight: 400;
+  color: var(--muted);
+}
+.remix-mini-list > button > small {
+  grid-column: 3;
+  color: var(--muted);
+  font-size: 11px;
+}
+.remix-mini-list > button > svg,
+.remix-mini-list > button > span:last-child {
+  grid-column: 4;
+  grid-row: 1 / 3;
+}
+.remix-mini-panel .remix-bars {
+  gap: 5px;
+}
+.remix-history li {
+  grid-template-columns: minmax(110px, 1fr) auto minmax(0, 1fr) auto auto;
+  gap: 12px 20px;
+  align-items: center;
+  padding-block: 20px;
+}
+.remix-history-explore {
+  white-space: normal;
+}
+.remix-history > .tonal-button {
+  margin-top: 20px;
+}
+@media (max-width: 1000px) {
+  .remix-highlights {
+    gap: 12px;
+  }
+  .remix-highlight {
+    padding: 16px;
+  }
+  .remix-history li {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .remix-history-note {
+    grid-column: 1 / -1;
+  }
+  .remix-history-explore,
+  .remix-history-play {
+    grid-column: auto;
+    grid-row: auto;
+  }
+}
+@media (max-width: 700px) {
+  .remix-highlights {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .remix-feature-image {
+    max-width: 240px;
+    justify-self: center;
+    align-self: center;
+  }
+  .remix-highlight {
+    padding: 22px;
+  }
+  .remix-mini-panel {
+    padding-inline: 22px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .remix-highlight-more svg {
+    transition: none;
+  }
+}
+
+/* Stable cover geometry and deliberate text stacks, also with long metadata. */
+.editor-submenu-button > span:first-child {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+}
+.editor-submenu-button strong,
+.editor-submenu-button small {
+  display: block;
+  line-height: 1.5;
+}
+.collection-card .artwork,
+.song-row .artwork {
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.artwork > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+}
+.remix-name {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+}
+.remix-name > strong,
+.remix-name > span {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.remix-mix-head {
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.local-feedback {
+  padding: 26px;
+  border-radius: 24px;
+  width: min(390px, calc(100vw - 32px));
+  background: var(--surface);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 24%);
+}
+.feedback-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-right: 28px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.feedback-symbol {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  border-radius: 14px;
+  background: var(--container-high);
+  color: var(--primary);
+}
+.local-feedback h3 {
+  line-height: 1.35;
+  margin-block: 20px 12px;
+  font-size: 21px;
+}
+.local-feedback p {
+  font-size: 13px;
+  line-height: 1.7;
+}
+.feedback-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-block: 22px 14px;
+}
+.feedback-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  min-height: 100px;
+  background: var(--container-high);
+  color: var(--text);
+  border: 1px solid var(--outline);
+  border-radius: 16px;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  font-size: 13px;
+}
+.feedback-choice svg {
+  color: var(--primary);
+}
+.feedback-choice:hover,
+.feedback-choice:focus-visible {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 10%, var(--surface));
+}
+.feedback-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--outline);
+}
+.feedback-footer .text-button {
+  font-size: 12px;
+}
+@media (max-height: 520px) {
+  .local-feedback {
+    bottom: 16px;
+    max-height: calc(100dvh - 32px);
+  }
+}
+.remix-mini-list .artist-portrait > span {
+  font-size: 12px;
+}
+.remix-mini-list .artist-cover-stack {
+  display: none;
+}
+.remix-history li {
+  grid-template-areas: none;
+}
+.remix-history li > * {
+  grid-area: auto;
+}
+.group-card > span {
+  margin-top: 6px;
+  line-height: 1.5;
+}
+@media (max-width: 1000px) {
+  .remix-history li > .remix-history-note {
+    grid-column: 1 / -1;
+  }
+}
+/* If no artist photo is saved, the artist's own library sleeve fills the portrait. */
+.remix-feature-image .artist-cover-stack {
+  inset: 0;
+  display: block;
+}
+.remix-feature-image .artist-cover-stack .artwork {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border: 0;
+  border-radius: 50%;
+}
+.remix-feature-image .artist-cover-stack .artwork:not(:first-child) {
+  display: none;
+}
+/* One spacing rhythm: parent gaps, not accumulated margins between sections. */
+.remix-page {
+  gap: 24px;
+}
+.remix-head {
+  margin-bottom: 0;
+}
+.remix-week-select,
+.remix-highlights {
+  margin-block: 0;
+}
+
+/* Expanded Remix cards keep their document position and own the entire row. */
+.remix-feature.is-expanded {
+  grid-column: 1 / -1;
+}
+@media (min-width: 701px) {
+  .remix-highlights:has(.is-expanded:first-child),
+  .remix-highlights:has(.is-expanded:last-child) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .remix-highlights:has(.is-expanded:nth-child(2)) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .remix-feature.is-expanded .remix-highlight {
+    display: grid;
+    grid-template-columns: 120px minmax(0, 1fr);
+    column-gap: 24px;
+    row-gap: 8px;
+  }
+  .remix-feature.is-expanded .remix-feature-image {
+    grid-column: 1;
+    grid-row: 1 / 6;
+    width: 120px;
+    height: 120px;
+    margin: 0;
+    align-self: center;
+  }
+  .remix-feature.is-expanded .remix-highlight > :not(.remix-feature-image) {
+    grid-column: 2;
+  }
+}
+/* Unselected summaries stay useful without competing with the open detail. */
+.remix-highlights:has(.is-expanded) .remix-feature:not(.is-expanded) .remix-highlight {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  column-gap: 14px;
+  row-gap: 4px;
+  padding: 14px;
+}
+.remix-highlights:has(.is-expanded) .remix-feature:not(.is-expanded) .remix-feature-image {
+  grid-column: 1;
+  grid-row: 1 / 5;
+  width: 64px;
+  height: 64px;
+  margin: 0;
+  align-self: center;
+  border-radius: 14px;
+}
+.remix-highlights:has(.is-expanded)
+  .remix-feature:not(.is-expanded)
+  .remix-highlight
+  > :not(.remix-feature-image) {
+  grid-column: 2;
+}
+.remix-highlights:has(.is-expanded) .remix-feature:not(.is-expanded) .remix-highlight strong {
+  font-size: 18px;
+  line-height: 1.2;
+}
+.remix-highlights:has(.is-expanded) .remix-feature:not(.is-expanded) .remix-highlight-label,
+.remix-highlights:has(.is-expanded) .remix-feature:not(.is-expanded) .remix-highlight-more {
+  font-size: 11px;
+  gap: 6px;
+}
+.remix-highlights:has(.is-expanded) .remix-feature:not(.is-expanded) .remix-highlight small {
+  font-size: 12px;
+}
+@media (max-width: 600px) {
+  .remix-highlights:has(.is-expanded) .remix-feature:not(.is-expanded) .remix-highlight {
+    grid-template-columns: 48px minmax(0, 1fr);
+    padding: 12px;
+  }
+  .remix-highlights:has(.is-expanded) .remix-feature:not(.is-expanded) .remix-feature-image {
+    width: 48px;
+    height: 48px;
+  }
+}
+
+/* Shared response: short travel, stable geometry and no decorative glow. */
+.settings-menu-item,
+.settings-back,
+.material-switch {
+  transition:
+    background-color 160ms ease,
+    outline-color 160ms ease,
+    scale 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+.settings-menu-item:active,
+.settings-back:active {
+  scale: 0.985;
+}
+.material-switch:active:not(:disabled) {
+  scale: 0.96;
+}
+.settings-menu-item > svg:last-child {
+  transition: translate 200ms cubic-bezier(0.2, 0, 0, 1);
+}
+@media (hover: hover) {
+  .settings-menu-item:hover > svg:last-child {
+    translate: 3px 0;
+  }
+}
+.volume-settings {
+  padding: 0;
+  margin: 0;
+}
+.volume-settings-status {
+  display: grid;
+  gap: 8px;
+}
+.volume-settings-status:not(.sr-only) {
+  padding: 8px 0;
+}
+.volume-settings-status small {
+  color: var(--muted);
+}
+.volume-progress {
+  height: 3px;
+}
+.surface-loading {
+  min-height: 240px;
+  padding: 24px;
+  overflow: hidden;
+}
+.surface-loading-title,
+.surface-loading-lines > span {
+  position: relative;
+  overflow: hidden;
+  background: var(--container-high);
+  border-radius: 12px;
+}
+.surface-loading-title {
+  width: min(42%, 220px);
+  height: 24px;
+  margin-bottom: 28px;
+}
+.surface-loading-lines {
+  display: grid;
+  gap: 16px;
+}
+.surface-loading-lines > span {
+  display: block;
+  height: 42px;
+}
+.surface-loading-lines > span:last-child {
+  width: 72%;
+}
+.surface-loading-title::after,
+.surface-loading-lines > span::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--text) 5%, transparent),
+    transparent
+  );
+  animation: loading-sweep 1.8s ease-in-out infinite;
+}
+@keyframes loading-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .surface-loading-title::after,
+  .surface-loading-lines > span::after {
+    animation: none;
+  }
+  .settings-menu-item,
+  .settings-back,
+  .material-switch,
+  .settings-menu-item > svg:last-child {
+    transition: none;
+  }
+}
+:root[data-motion='reduced'] .surface-loading-title::after,
+:root[data-motion='reduced'] .surface-loading-lines > span::after {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .settings-menu-item:active,
+  .settings-back:active,
+  .material-switch:active {
+    scale: 1;
+  }
+  .settings-menu-item:hover > svg:last-child {
+    translate: none;
+  }
+}
+:root[data-motion='reduced']
+  :is(.settings-menu-item:active, .settings-back:active, .material-switch:active) {
+  scale: 1;
+}
+:root[data-motion='reduced'] .settings-menu-item:hover > svg:last-child {
+  translate: none;
+}
+
+/* The icon responds, not the whole player or its neighbouring controls. */
+.player-action-symbol {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center;
+}
+.stage-modes button,
+.compact-modes button {
+  transition:
+    background-color 160ms ease,
+    color 160ms ease;
+}
+.stage-volume input[type='range'],
+.compact-volume input[type='range'] {
+  accent-color: var(--primary);
+}
+.stage-volume input[type='range']::-webkit-slider-thumb,
+.compact-volume input[type='range']::-webkit-slider-thumb {
+  transition: box-shadow 150ms ease;
+}
+.stage-volume input[type='range']:active::-webkit-slider-thumb,
+.compact-volume input[type='range']:active::-webkit-slider-thumb {
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--primary) 16%, transparent);
+}
+
+/* Never stack two separate heart animations on the same action. */
+.row-favorite[aria-pressed='true'] .player-action-symbol svg {
+  animation: none;
+}
+.surface-loading-lines > span:nth-child(2)::after {
+  animation-delay: 80ms;
+}
+.surface-loading-lines > span:nth-child(3)::after {
+  animation-delay: 160ms;
+}
+@media (hover: none) {
+  .song-row:hover {
+    transform: none;
+  }
+}
+
+/* A player action already animates its glyph; keep the hit target fixed. */
+.player-action-button:active:not(:disabled) {
+  transform: none;
 }

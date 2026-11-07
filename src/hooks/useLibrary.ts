@@ -1,3 +1,5 @@
+import type { VolumeFix } from '../audio/volumeFix';
+import { setTrackVolumeFix } from '../data/library';
 import { requestPersistentStorage } from '../data/storage';
 import type { LyricsResult } from '../services/lyrics';
 import type { Lyrics } from '../domain/lyrics';
@@ -15,6 +17,7 @@ import {
   saveTrack,
   toggleTrackFavorite,
   editTrackMetadata,
+  reviewTrackRoles,
   restoreTrackMetadata,
   recordTrackSilence,
   trimTrackSilence,
@@ -36,7 +39,12 @@ import type { Track, TrackMetadata } from '../domain/types';
 export function useLibrary() {
   const [tracks, setTracks] = useState<Track[]>([]);
   const [loading, setLoading] = useState(true);
-  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [progress, setProgress] = useState<{
+    done: number;
+    total: number;
+    fileName?: string;
+    added?: number;
+  } | null>(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const importing = useRef(false);
@@ -79,6 +87,14 @@ export function useLibrary() {
         wrongFormat = 0,
         failed = 0,
         outOfSpace = false;
+      const pending: Track[] = [];
+      let lastPublish = performance.now();
+      const publish = () => {
+        if (!pending.length) return;
+        const batch = pending.splice(0);
+        startTransition(() => setTracks((current) => [...current, ...batch]));
+        lastPublish = performance.now();
+      };
       setProgress({ done: 0, total: files.length });
       try {
         for (const [index, file] of files.entries()) {
@@ -115,7 +131,8 @@ export function useLibrary() {
                 await saveTrack(prepared.track);
                 known.current.add(prepared.id);
                 existing.current = [...existing.current, prepared.track];
-                startTransition(() => setTracks((current) => [...current, prepared!.track!]));
+                pending.push(prepared.track);
+                if (pending.length >= 8 || performance.now() - lastPublish >= 250) publish();
                 added++;
               } catch {
                 // Storage is the one failure that cannot be skipped past: stop
@@ -127,12 +144,13 @@ export function useLibrary() {
               duplicates++;
             }
           }
-          setProgress({ done: index + 1, total: files.length });
+          setProgress({ done: index + 1, total: files.length, fileName: file.name, added });
           await new Promise<void>((resolve) => setTimeout(resolve, 0));
         }
       } catch {
         outOfSpace = true;
       } finally {
+        publish();
         if (outOfSpace)
           setError(
             'Import stopped: browser storage is unavailable or full. Files already added are safe.',
@@ -209,6 +227,18 @@ export function useLibrary() {
       return true;
     } catch {
       setError('This track could not be removed. Please try again.');
+      return false;
+    }
+  }, []);
+  const resolveRoles = useCallback(async (id: string, action: 'swap' | 'keep') => {
+    try {
+      const updated = await reviewTrackRoles(id, action);
+      setTracks((current) =>
+        current.map((track) => (track.id === id ? { ...updated, blob: track.blob } : track)),
+      );
+      return true;
+    } catch {
+      setError('Song details could not be saved. Please try again.');
       return false;
     }
   }, []);
@@ -316,7 +346,17 @@ export function useLibrary() {
       saved.flatMap((track) => (track.contentHash ? [track.contentHash] : [])),
     );
   }, []);
+  const applyVolumeFix = useCallback(async (id: string, correction: VolumeFix) => {
+    const updated = await setTrackVolumeFix(id, correction);
+    existing.current = existing.current.map((item) =>
+      item.id === id ? { ...updated, blob: item.blob } : item,
+    );
+    setTracks((current) =>
+      current.map((item) => (item.id === id ? { ...updated, blob: item.blob } : item)),
+    );
+  }, []);
   return {
+    applyVolumeFix,
     reload,
     applyDetails,
     acceptLyrics,
@@ -333,6 +373,7 @@ export function useLibrary() {
     addYouTube,
     toggleFavorite,
     editMetadata,
+    resolveRoles,
     restoreMetadata,
     remove,
   };

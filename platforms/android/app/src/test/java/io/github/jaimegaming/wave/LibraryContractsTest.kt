@@ -243,4 +243,11 @@ class LibraryContractsTest {
         assertEquals(200, weeks[0].previousSeconds)
         assertEquals(1, weeks[0].plays)
     }
+    @Test
+    fun dailyMixesRespectTheThreeByTwentyLimitEvenWithAnOversizedRequest() {
+        val songs = (0 until 5).flatMap { genre -> (0 until 35).map { index -> song("mix-$genre-$index", genre = "Style $genre") } }
+        val mixes = dailyMixes(songs, "2026-11-06", limit = 100)
+        assertEquals(3, mixes.size)
+        assertTrue(mixes.all { it.songs.size == 20 })
+    }
 }

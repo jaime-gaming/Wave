@@ -9,10 +9,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -151,22 +150,17 @@ fun WaveApp(version: String, opening: Opening = Opening.Default) {
                 Column(Modifier.padding(padding)) {
                     Notice(state.notice) { state.clearMessage() }
                     val playSong: (Song) -> Unit = { song -> state.play(song) }
+                    val motionEnabled = waveMotionEnabled()
                     CompositionLocalProvider(LocalChromeActions provides ChromeActions(addMusic, openSettings)) {
                         AnimatedContent(
                             targetState = state.destination,
-                            // The site's page change: the incoming page rises a
-                            // few pixels while it fades in, the outgoing one only
-                            // fades — a spring, so it settles instead of stopping.
                             transitionSpec = {
-                                (
-                                    fadeIn(tween(200)) +
-                                        slideInVertically(
-                                            spring(
-                                                dampingRatio = Spring.DampingRatioNoBouncy,
-                                                stiffness = Spring.StiffnessMediumLow,
-                                            ),
-                                        ) { height -> height / 90 }
-                                    ) togetherWith fadeOut(tween(140))
+                                val enabled = motionEnabled
+                                val direction = if (targetState.ordinal >= initialState.ordinal) 1 else -1
+                                (fadeIn(tween(if (enabled) 200 else 0)) +
+                                    slideInHorizontally(tween(if (enabled) 260 else 0)) { if (enabled) direction * 18 else 0 }) togetherWith
+                                    (fadeOut(tween(if (enabled) 140 else 0)) +
+                                        slideOutHorizontally(tween(if (enabled) 180 else 0)) { if (enabled) -direction * 12 else 0 })
                             },
                             label = "page",
                         ) { destination ->

@@ -19,12 +19,27 @@
         <p class="intro">
           Understand what stays here, when Wave connects, and the controls you have.
         </p>
-        <p class="updated">Updated 31 October 2026 · Version 0.1.1</p>
+        <p class="updated">Updated 6 November 2026</p>
       </header>
       <p class="notice">
         Wave is local-first, not a backup service: keep your original music files. Public deployment
         operators are responsible for their own legal identity and privacy contact.
       </p>
+      <section class="privacy-topic">
+        <h2>Public playlist links and private feedback</h2>
+        <p>
+          When you explicitly read a Spotify or YouTube URL, the Wave Worker requests that
+          provider's public page metadata. No account, audio, local library or listening history is
+          uploaded. Public results can be incomplete; review before saving or use an exported file.
+          Cloudflare processes the request; the provider sees the Worker connection. Wave does not
+          store or cache these lists on its server.
+        </p>
+        <p>
+          A very rare feature-opinion prompt keeps up to ten answers, a cooldown and an opt-out only
+          in this browser. No feedback is transmitted or used for analytics or to change features.
+          Choose “Do not ask again” to stop prompts. Clearing site data deletes the answers.
+        </p>
+      </section>
       <section class="privacy-topic">
         <h2>Your library stays on your device</h2>
         <p>
@@ -37,9 +52,9 @@
         <p>
           If you hand Wave a whole folder, the browser's directory handle is stored in the same
           local database so that folder can be read again; the browser keeps the permission itself
-          and asks for it explicitly. A playlist brought over from another app is read as plain text
-          on this device — only the titles, artists, albums and durations in it are compared with
-          your own library, and nothing is sent anywhere.
+          and asks for it explicitly. An exported playlist brought over from another app is read as
+          plain text on this device — only the titles, artists, albums and durations in it are
+          compared with your own library, and nothing is sent anywhere.
         </p>
       </section>
       <section class="privacy-topic">
@@ -208,14 +223,11 @@
       <section class="privacy-topic">
         <h2>The website host</h2>
         <p>
-          Visiting a GitHub Pages deployment downloads the client from GitHub, which may process
-          IP/device/request information under its
-          <a
-            href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement"
-            rel="noreferrer"
-            >privacy statement</a
-          >. Other hosts have their own policies. Fonts are served with Wave, not fetched from a
-          font CDN.
+          The production player is served by Cloudflare Workers and static assets. Cloudflare may
+          process IP/device/request information under its
+          <a href="https://www.cloudflare.com/privacypolicy/" rel="noreferrer">privacy policy</a>.
+          GitHub hosts source code and native release downloads, not the production player. Fonts
+          are bundled with Wave.
         </p>
       </section>
       <section class="privacy-topic">

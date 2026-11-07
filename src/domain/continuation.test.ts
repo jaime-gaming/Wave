@@ -70,3 +70,31 @@ describe('autoplay after the queue ends', () => {
     expect(continuationQueue(tracks, tracks[0], recent, () => 0.5, 1)).toHaveLength(1);
   });
 });
+it('excludes missing/empty local sources and invalid remote IDs, deduplicating candidates', () => {
+  const current = makeTrack();
+  const good = makeTrack({ id: 'good' });
+  const remote = makeTrack({
+    id: 'remote',
+    source: 'youtube',
+    blob: undefined,
+    videoId: 'abcdefghijk',
+  });
+  const tracks = [
+    current,
+    good,
+    good,
+    remote,
+    makeTrack({ id: 'missing', blob: undefined }),
+    makeTrack({ id: 'empty', blob: new Blob() }),
+    makeTrack({ id: 'invalid', source: 'youtube', videoId: 'bad' }),
+  ];
+  expect(new Set(continuationQueue(tracks, current, [], () => 0))).toEqual(
+    new Set(['good', 'remote']),
+  );
+});
+it('bounds extension batches and handles invalid entropy without duplicate IDs', () => {
+  const tracks = Array.from({ length: 30 }, (_, i) => makeTrack({ id: String(i) }));
+  expect(continuationQueue(tracks, tracks[0], [], () => NaN, 100)).toHaveLength(20);
+  expect(continuationQueue(tracks, tracks[0], [], () => Infinity, 1.8)).toHaveLength(1);
+  expect(continuationQueue(tracks, tracks[0], [], () => 0, -1)).toEqual([]);
+});

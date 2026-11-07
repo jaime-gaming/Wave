@@ -1,21 +1,14 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  // One page, one fallback: any path that is not an exact file is served
-  // /index.html by `not_found_handling` below. The classic Pages rule for
-  // this (`/* -> /index.html 200` in _redirects) can never ship to a
-  // Worker: wrangler reads _redirects from the build output whatever the
-  // configuration says, and Cloudflare's asset validator rejects
-  // wildcard-to-index rules unconditionally (error 100324 — the rewrite
-  // target is normalized back to /, which triggers the rule again; even
-  // `html_handling: "none"` does not lift the block, as the validator's
-  // own tests document). public/_redirects is therefore gone, and the
-  // Pages project that builds the same tree serves its branch previews at
-  // their root URL; the Worker on the custom domain is the real site.
+  // Static app plus a narrowly scoped, metadata-only public playlist endpoint.
+  "main": "src/worker/index.ts",
   "name": "wave",
   "compatibility_date": "2026-11-03",
   "observability": { "enabled": true },
   "assets": {
     "directory": "./dist",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"],
     "not_found_handling": "single-page-application",
   },
 }

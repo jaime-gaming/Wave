@@ -185,6 +185,11 @@ private val WaveShapes = Shapes(
     extraLarge = androidx.compose.foundation.shape.RoundedCornerShape(32.dp),
 )
 
+class MotionChoice(val enabled: Boolean, val select: (Boolean) -> Unit)
+val LocalMotionChoice = staticCompositionLocalOf<MotionChoice?> { null }
+@Composable
+fun waveMotionEnabled(): Boolean = LocalMotionChoice.current?.enabled != false && android.animation.ValueAnimator.areAnimatorsEnabled()
+
 class AppearanceChoice(val mode: String, val select: (String) -> Unit)
 val LocalAppearanceChoice = staticCompositionLocalOf<AppearanceChoice?> { null }
 
@@ -196,6 +201,12 @@ fun WaveTheme(
     val context = LocalContext.current
     val preferences = remember(context) { context.getSharedPreferences("wave", android.content.Context.MODE_PRIVATE) }
     var mode by remember(preferences) { mutableStateOf(preferences.getString("appearance", "system") ?: "system") }
+    var animations by remember(preferences) { mutableStateOf(preferences.getBoolean("animations", true)) }
+    val motionEnabled = animations && android.animation.ValueAnimator.areAnimatorsEnabled()
+    val motionChoice = MotionChoice(animations) { enabled ->
+        animations = enabled
+        preferences.edit().putBoolean("animations", enabled).apply()
+    }
     val darkTheme = when (mode) { "dark" -> true; "light" -> false; else -> dark }
     val song = (context.applicationContext as? WaveApplication)?.player?.current
     val artwork = song?.let { rememberArtwork(it) }
@@ -209,7 +220,7 @@ fun WaveTheme(
         val distance = ((sampledHue - current + 540f) % 360f) - 180f
         targetHue += distance
     }
-    val animatedHue by animateFloatAsState(targetValue = targetHue, animationSpec = tween(500), label = "song colour")
+    val animatedHue by animateFloatAsState(targetValue = targetHue, animationSpec = tween(if (motionEnabled) 500 else 0), label = "song colour")
     val hue = ((animatedHue % 360f) + 360f) % 360f
     val choice = AppearanceChoice(mode) { next ->
         if (next in setOf("system", "light", "dark")) {
@@ -217,7 +228,7 @@ fun WaveTheme(
             preferences.edit().putString("appearance", next).apply()
         }
     }
-    CompositionLocalProvider(LocalAppearanceChoice provides choice) {
+    CompositionLocalProvider(LocalAppearanceChoice provides choice, LocalMotionChoice provides motionChoice) {
         MaterialTheme(
             colorScheme = if (darkTheme) darkPalette(hue) else lightPalette(hue),
             typography = WaveTypography,

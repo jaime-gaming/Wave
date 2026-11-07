@@ -15,7 +15,12 @@ import { useWaveMotion } from '../ui/motion';
 import { useT } from '../i18n';
 const sections = [
   { id: 'appearance', title: 'Appearance', note: 'Theme, larger text and motion', icon: Palette },
-  { id: 'playback', title: 'Playback', note: 'Mix and local Autoplay', icon: SlidersHorizontal },
+  {
+    id: 'playback',
+    title: 'Playback',
+    note: 'Mix, volume and local Autoplay',
+    icon: SlidersHorizontal,
+  },
   { id: 'lyrics', title: 'Lyrics', note: 'Optional automatic lyric search', icon: Captions },
   { id: 'library', title: 'Library', note: 'Song information and cover editing', icon: Library },
   { id: 'devices', title: 'Devices', note: 'Link a phone, a desktop or a tab', icon: Smartphone },
@@ -69,9 +74,9 @@ export function SettingsPage(
         <motion.div
           key={selected}
           className="settings-submenu"
-          initial={{ opacity: animation.enabled ? 0 : 1, y: animation.enabled ? 8 : 0 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={animation.effects}
+          initial={animation.enabled ? { opacity: 0, x: 16 } : false}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ ...animation.lateral, opacity: animation.effects }}
         >
           <header className="settings-submenu-heading">
             <section.icon size={24} />
@@ -82,7 +87,13 @@ export function SettingsPage(
           <div className="settings-page-options">{props[selected]}</div>
         </motion.div>
       ) : (
-        <div className="settings-menu-grid">
+        <motion.div
+          key="settings-hub"
+          className="settings-menu-grid"
+          initial={animation.enabled ? { opacity: 0, x: -16 } : false}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ ...animation.lateral, opacity: animation.effects }}
+        >
           {sections.map(({ id, title, note, icon: Icon }) => (
             <button
               key={id}
@@ -101,10 +112,10 @@ export function SettingsPage(
               <ChevronRight size={20} />
             </button>
           ))}
-        </div>
+        </motion.div>
       )}
       <footer className="settings-hub-footer">
-        <a href={`${import.meta.env.BASE_URL}privacy.html`}>{t('Privacy &amp; rights')}</a>
+        <a href={`${import.meta.env.BASE_URL}privacy.html`}>{t('Privacy & rights')}</a>
         <span>Wave {__WAVE_VERSION__}</span>
       </footer>
     </section>

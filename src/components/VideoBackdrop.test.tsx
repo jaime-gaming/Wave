@@ -32,7 +32,13 @@ describe('video clip backdrop', () => {
     render(<VideoBackdrop {...props} />);
     await waitFor(() =>
       expect(findClip).toHaveBeenCalledWith(
-        { title: track.title, artist: track.artist, duration: track.duration },
+        {
+          title: track.title,
+          artist: track.artist,
+          duration: track.duration,
+          fileName: track.fileName,
+          rolesReviewed: track.rolesReviewed,
+        },
         expect.objectContaining({ signal: expect.anything() }),
       ),
     );

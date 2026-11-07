@@ -118,7 +118,11 @@ export const SearchPage = memo(function SearchPage({
             ? playlists.length
             : songs.length + artists.length + albums.length + playlists.length;
   return (
-    <section className="search-destination" aria-label={t('Search your collection')}>
+    <section
+      className="search-destination"
+      aria-busy={loading || query !== deferredQuery}
+      aria-label={t('Search your collection')}
+    >
       <div className="search-composer">
         <Search size={28} />
         <input
@@ -129,17 +133,38 @@ export const SearchPage = memo(function SearchPage({
           value={query}
           onChange={(e) => onQuery(e.target.value)}
           onKeyDown={(event) => {
-            // Enter plays the best match; Escape gives the library back.
+            if (event.nativeEvent.isComposing || event.keyCode === 229 || event.repeat) return;
             if (event.key === 'Escape') {
               onQuery('');
               return;
             }
-            if (event.key !== 'Enter') return;
-            const best = songs[0];
-            if (best) {
-              rememberSearch(deferredQuery);
-              setRecent(loadRecentSearches());
-              onPlay(songs, best.id);
+            if (event.key !== 'Enter' || !query.trim()) return;
+            event.preventDefault();
+            // Resolve the current input, not an older deferred render, and honor its category.
+            rememberSearch(query);
+            setRecent(loadRecentSearches());
+            if (kind === 'Artists') {
+              const best = rankNames(collectArtists(tracks), query, (artist) => artist.name)[0];
+              if (best) onArtist(best.name);
+            } else if (kind === 'Albums') {
+              const best = rankNames(
+                collectAlbums(tracks),
+                query,
+                (album) => album.name,
+                (album) => album.artist,
+              )[0];
+              if (best) onAlbum(best.id);
+            } else if (kind === 'Playlists') {
+              const best = rankNames(
+                allPlaylists,
+                query,
+                (list) => list.name,
+                (list) => list.description,
+              )[0];
+              if (best) onPlaylist(best.id);
+            } else {
+              const matches = query === deferredQuery ? songs : rankTracks(tracks, query);
+              if (matches[0]) onPlay(matches, matches[0].id);
             }
           }}
         />
@@ -164,7 +189,7 @@ export const SearchPage = memo(function SearchPage({
             key={id}
             aria-pressed={kind === id}
             onClick={() => setKind(id)}
-            whileTap={animation.enabled ? { scale: 0.94 } : undefined}
+            whileTap={animation.enabled ? { scale: 0.975 } : undefined}
             transition={animation.fast}
           >
             {t(id)}
@@ -241,8 +266,8 @@ export const SearchPage = memo(function SearchPage({
         <>
           <p className="search-result-count" role="status">
             {count === 1
-              ? t('{count} result for “{query}”', { count, query })
-              : t('{count} results for “{query}”', { count, query })}
+              ? t('{count} result for “{query}”', { count, query: deferredQuery })
+              : t('{count} results for “{query}”', { count, query: deferredQuery })}
           </p>
           {(kind === 'All' || kind === 'Songs') && (
             <section className="search-results-section" aria-label={t('Song results')}>
@@ -285,8 +310,8 @@ export const SearchPage = memo(function SearchPage({
                   <motion.button
                     key={a.name}
                     onClick={() => onArtist(a.name)}
-                    whileHover={animation.enabled ? { y: -4 } : undefined}
-                    whileTap={animation.enabled ? { scale: 0.96 } : undefined}
+                    whileHover={animation.hoverEnabled ? { y: -2 } : undefined}
+                    whileTap={animation.enabled ? { scale: 0.975 } : undefined}
                     transition={animation.fast}
                   >
                     <span className="search-artist-image">

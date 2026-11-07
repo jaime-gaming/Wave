@@ -63,6 +63,20 @@ public partial class MainWindow
         // still sit where they belong.
         ShowPage("Now playing"); await Capture("now-playing");
         Check(NowView.Visibility == Visibility.Visible, "The player view should be the one on screen.");
+        // Both sound surfaces share one level, and mute restores it without restarting playback.
+        Volume.Value = .37;
+        Check(Math.Abs(NowVolume.Value - .37) < .001, "Expanded volume must follow dock volume.");
+        SoundClick(SoundButton, new RoutedEventArgs());
+        Check(Volume.Value == 0 && NowVolume.Value == 0, "Mute must update both sliders.");
+        SoundClick(NowSoundButton, new RoutedEventArgs());
+        Check(Math.Abs(volume - .37) < .001, "Unmute must restore the previous level.");
+        NowVolume.Value = .52;
+        Check(Math.Abs(Volume.Value - .52) < .001, "Dock volume must follow expanded volume.");
+        var motion = preferences.Animations;
+        preferences = preferences with { Animations = false };
+        Motion.IconAction(SoundButton, Motion.Enabled(preferences.Animations), "volume");
+        Check(((FrameworkElement)SoundButton.Content).RenderTransform.Value.IsIdentity, "Disabled motion must leave the icon neutral.");
+        preferences = preferences with { Animations = motion };
         ShowPage("Library");
         preferences = preferences with { Theme = "light" }; ApplyTheme(); Width = 820; Height = 640; ShowPage("Library"); await Capture("library-light-narrow");
     }

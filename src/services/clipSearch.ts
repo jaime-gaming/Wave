@@ -1,3 +1,4 @@
+import { lookupMetadata } from '../domain/lyricsMatch';
 /**
  * Finds the video clip for a song without asking the user for a link.
  *
@@ -320,9 +321,19 @@ async function askProviders(
  * device and a provider that changed shape all resolve to `unavailable`.
  */
 export async function findClip(
-  source: { title: string; artist: string; duration: number },
+  source: {
+    title: string;
+    artist: string;
+    duration: number;
+    fileName?: string;
+    rolesReviewed?: string;
+  },
   options: ClipSearchOptions = {},
 ): Promise<ClipSearchResult> {
+  source = {
+    ...source,
+    ...lookupMetadata(source),
+  };
   const query = clipQuery(source);
   if (!query) return { status: 'empty' };
   const key = query;
@@ -409,9 +420,19 @@ export function rememberClip(
  * is worse than no guess at all. Nothing is stored until a candidate is chosen.
  */
 export async function searchClips(
-  source: { title: string; artist: string; duration: number },
+  source: {
+    title: string;
+    artist: string;
+    duration: number;
+    fileName?: string;
+    rolesReviewed?: string;
+  },
   options: ClipSearchOptions = {},
 ): Promise<{ status: 'found' | 'empty' | 'unavailable'; candidates: ClipCandidate[] }> {
+  source = {
+    ...source,
+    ...lookupMetadata(source),
+  };
   const query = clipQuery(source);
   if (!query) return { status: 'empty', candidates: [] };
   const fetched = await askProviders(query, { ...options, refresh: true });

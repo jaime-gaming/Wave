@@ -8,7 +8,7 @@ on:
       tag:
         description: Existing release tag to package
         required: true
-        default: v0.1.1
+        default: v0.2.1
         type: string
 
 permissions:
@@ -19,7 +19,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  web:
+  validate:
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -36,6 +36,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm run lint && npm test && npm run build
+      - run: npx playwright install --with-deps chromium
+      - name: Required release smoke checks
+        run: npm run test:smoke
       - name: Validate the tagged source
         run: |
           npm run test:release
@@ -43,23 +47,11 @@ jobs:
           npm run release:check -- "$RELEASE_TAG"
           test "$(git rev-parse HEAD)" = "$(git rev-parse "$RELEASE_TAG^{commit}")"
           git merge-base --is-ancestor HEAD origin/main
-      - name: Build the portable web client
-        run: npm run build
-        env:
-          WAVE_BASE_PATH: ./
-      - name: Package web client and release media
-        run: python3 scripts/package_release.py --output "$RUNNER_TEMP/wave-release"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: wave-web-release-${{ env.RELEASE_TAG }}
-          path: ${{ runner.temp }}/wave-release/
-          if-no-files-found: error
-          retention-days: 7
-      - name: Attach release assets
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh release upload "$RELEASE_TAG" "$RUNNER_TEMP/wave-release/"* --clobber
-      - name: Record source and hashes
-        run: |
-          echo "Release assets built from $(git rev-parse HEAD). Native test binaries are not included." >> "$GITHUB_STEP_SUMMARY"
-          cat "$RUNNER_TEMP/wave-release/SHA256SUMS.txt" >> "$GITHUB_STEP_SUMMARY"
+
+  native:
+    needs: validate
+    permissions:
+      contents: write
+    uses: ./.github/workflows/native.yml
+    with:
+      tag: ${{ github.event.release.tag_name || inputs.tag }}

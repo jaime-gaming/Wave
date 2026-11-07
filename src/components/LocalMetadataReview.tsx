@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Check, ChevronLeft, ChevronRight, Music2, Sparkles } from './Glyphs';
+import { Check, ChevronLeft, ChevronRight, Music2, Search } from './Glyphs';
 import type { Track } from '../domain/types';
 import { describeIssues, metadataIssues } from '../domain/metadata';
 import { needsDetails } from '../domain/catalogue';
@@ -15,6 +15,7 @@ import { useT } from '../i18n';
  */
 export function LocalMetadataReview({
   tracks,
+  onResolveRoles,
   enabled,
   onToggle,
   onLookUp,
@@ -22,6 +23,7 @@ export function LocalMetadataReview({
   completed = 0,
 }: {
   tracks: Track[];
+  onResolveRoles?: (id: string, action: 'swap' | 'keep') => Promise<boolean>;
   enabled?: boolean;
   onToggle?: (enabled: boolean) => void;
   onLookUp?: () => void;
@@ -38,6 +40,8 @@ export function LocalMetadataReview({
     [tracks],
   );
   const gaps = useMemo(() => tracks.filter((track) => needsDetails(track)).length, [tracks]);
+  const [saving, setSaving] = useState<string | null>(null);
+  const [failure, setFailure] = useState('');
   const [page, setPage] = useState(0);
   const pages = Math.max(1, Math.ceil(entries.length / 8)),
     current = Math.min(page, pages - 1);
@@ -76,7 +80,7 @@ export function LocalMetadataReview({
       </p>
       {!!gaps && onLookUp && enabled && (
         <button className="tonal-button" onClick={onLookUp} disabled={!!filling}>
-          <Sparkles size={17} aria-hidden="true" />
+          <Search size={17} aria-hidden="true" />
           {filling ? t('Looking up…') : t('Look up now')}
         </button>
       )}
@@ -88,11 +92,47 @@ export function LocalMetadataReview({
               <div>
                 <strong title={track.title}>{track.title}</strong>
                 <span>{describeIssues(issues)}</span>
+                {issues.includes('roles') && onResolveRoles && (
+                  <div className="metadata-role-actions">
+                    <small>
+                      {t(
+                        'File names can use either order. Choose the correct details for this song.',
+                      )}
+                    </small>
+                    {(['swap', 'keep'] as const).map((action) => (
+                      <button
+                        key={action}
+                        type="button"
+                        className="text-button"
+                        disabled={saving !== null}
+                        onClick={async () => {
+                          setSaving(track.id);
+                          setFailure('');
+                          try {
+                            if (!(await onResolveRoles(track.id, action)))
+                              setFailure(t('Changes could not be saved. Please try again.'));
+                          } catch {
+                            setFailure(t('Changes could not be saved. Please try again.'));
+                          } finally {
+                            setSaving(null);
+                          }
+                        }}
+                      >
+                        {saving === track.id
+                          ? t('Saving…')
+                          : action === 'swap'
+                            ? t('Swap title and artist')
+                            : t('These details are correct')}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </li>
           ))}
         </ul>
       )}
+      {failure && <p role="alert">{failure}</p>}
       {pages > 1 && (
         <nav aria-label={t('Metadata pages')}>
           <button

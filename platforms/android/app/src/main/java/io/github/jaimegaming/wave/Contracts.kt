@@ -229,16 +229,16 @@ data class DailyMix(val label: String, val songs: List<Song>)
  * date so today's mix is not yesterday's mix. Within one day it never moves, so
  * a mix behaves like a playlist rather than a shuffle.
  */
-fun dailyMixes(songs: List<Song>, day: String, limit: Int = 30): List<DailyMix> {
+fun dailyMixes(songs: List<Song>, day: String, limit: Int = 20): List<DailyMix> {
     val seed = day.fold(7) { acc, c -> (acc * 31 + c.code) and 0x7FFFFFFF }
-    return songs
+    return songs.distinctBy { it.id }
         .filter { it.genre.isNotBlank() }
         .groupBy { it.genre.trim() }
         .filterValues { it.size >= 3 }
         .map { (genre, group) ->
             val rotation = if (group.isEmpty()) 0 else seed % group.size
             val ordered = group.drop(rotation) + group.take(rotation)
-            DailyMix(genre, ordered.take(limit))
+            DailyMix(genre, ordered.distinctBy { it.id }.take(limit.coerceIn(0, 20)))
         }
         .sortedWith(compareByDescending<DailyMix> { it.songs.size }.thenBy { it.label.lowercase() })
         .take(3)

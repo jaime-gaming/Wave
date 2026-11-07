@@ -2186,3 +2186,291 @@
     padding-bottom: max(12px, env(safe-area-inset-bottom));
   }
 }
+
+/* A record remains a record through the overlap; transforms must not expose corners. */
+.mix-artwork,
+.mix-artwork .mix-outgoing,
+.mix-artwork .mix-incoming {
+  border-radius: 50%;
+  clip-path: circle(50%);
+}
+.player-modal .stage-record,
+.player-modal .stage-controls,
+.player-modal .stage-lyrics-toggle {
+  transition:
+    opacity 420ms ease,
+    transform 420ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.player-modal.is-idle .stage-record:not(:focus-within),
+.player-modal.is-idle .stage-controls:not(:focus-within),
+.player-modal.is-idle .stage-lyrics-toggle:not(:focus-visible) {
+  opacity: 0;
+}
+.player-modal.is-idle .stage-lyrics:not(:focus-within) {
+  opacity: 1;
+  transition: opacity 420ms ease;
+}
+.player-normal-view.clip-live .stage-layout .stage-record {
+  max-width: min(340px, 60vw);
+}
+.video-backdrop.is-revealed .video-backdrop-frame {
+  filter: saturate(1.03);
+}
+@media (prefers-reduced-motion: reduce) {
+  .player-modal .stage-record,
+  .player-modal .stage-controls,
+  .player-modal .stage-lyrics-toggle {
+    transition: none;
+  }
+}
+
+.player-modal.is-idle .stage-lyrics-toggle:not(:focus-visible) {
+  pointer-events: none;
+}
+/* Clip lyrics stay readable over bright footage, including the idle stage. */
+.player-normal-view.clip-live .stage-layout .stage-lyrics[data-open='true'] {
+  --primary: #f2f4ff;
+  --muted: #c8cad3;
+  --text: #fff;
+  color: #fff;
+  border-radius: 16px;
+  padding: 12px 16px;
+  background: rgb(8 11 17 / 76%);
+  text-shadow: 0 1px 3px #000;
+  backdrop-filter: blur(10px);
+}
+.player-normal-view.clip-live .lyrics-stage .lyric-line {
+  font-size: clamp(16px, 1.5vw, 23px);
+  line-height: 1.45;
+  color: #fff;
+}
+.player-normal-view.clip-live .lyrics-stage .lyric-line:not(.active) {
+  filter: none;
+}
+.player-modal.is-idle .stage-controls:not(:focus-within),
+.player-modal.is-idle .stage-record:not(:focus-within) {
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .player-modal.is-idle .stage-lyrics {
+    transition: none;
+  }
+}
+
+/* Restore the dedicated 0.1 album/lyrics scene, not faded transport controls. */
+.repeat-symbol {
+  display: inline-flex;
+}
+.player-modal.is-immersive .player-normal-view {
+  visibility: hidden;
+  pointer-events: none;
+}
+.player-modal.is-immersive > .modal-heading {
+  opacity: 0;
+  pointer-events: none;
+}
+.immersive-stage {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  align-items: center;
+  gap: clamp(28px, 6vw, 100px);
+  padding: 6dvh 7vw;
+  pointer-events: none;
+}
+.immersive-stage.without-lyrics {
+  grid-template-columns: 1fr;
+}
+.immersive-art {
+  min-width: 0;
+  text-align: center;
+}
+.immersive-cover {
+  height: auto;
+  width: min(36vw, 48dvh);
+  aspect-ratio: 1;
+  margin: auto;
+  border-radius: 28px;
+  box-shadow: 0 16px 48px #0002;
+}
+.immersive-credit {
+  margin-top: clamp(14px, 3dvh, 30px);
+}
+.immersive-credit h2 {
+  font-size: clamp(20px, 2.6vw, 40px);
+  line-height: 1.2;
+  margin: 0 0 10px;
+  overflow-wrap: anywhere;
+}
+.immersive-credit p {
+  margin: 4px 0;
+  color: var(--player-muted);
+}
+.immersive-stage .lyrics-cinematic {
+  height: 100%;
+  min-height: 0;
+}
+.immersive-stage.with-video {
+  background: linear-gradient(90deg, #0009, #0002);
+  color: #fff;
+}
+.immersive-stage.with-video .immersive-cover {
+  height: auto;
+  width: min(20vw, 25dvh);
+}
+.immersive-stage.with-video .immersive-credit p {
+  color: #eee;
+}
+.immersive-stage.with-video .lyrics-cinematic {
+  color: #fff;
+  text-shadow: 0 2px 8px #000;
+  background: #0007;
+  border-radius: 24px;
+  padding: 20px;
+}
+@media (max-width: 600px) {
+  .immersive-stage {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+    padding: 5dvh 7vw;
+    gap: 3dvh;
+  }
+  .immersive-cover {
+    width: min(44vw, 24dvh);
+  }
+  .immersive-stage.without-lyrics {
+    grid-template-rows: 1fr;
+  }
+  .without-lyrics .immersive-cover {
+    width: min(68vw, 44dvh);
+  }
+  .immersive-stage.with-video .immersive-cover {
+    width: min(24vw, 16dvh);
+  }
+}
+
+.immersive-stage.with-video .lyrics-cinematic .lyric-line {
+  color: #fff;
+}
+
+/* Idle video is the room, with credits at its edge rather than a second cover wall. */
+.immersive-time {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+  margin-top: 12px !important;
+}
+.immersive-progress {
+  position: absolute;
+  bottom: 24px;
+  left: 7vw;
+  right: 7vw;
+  height: 2px;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  overflow: hidden;
+}
+.immersive-progress > span {
+  display: block;
+  height: 100%;
+  width: 100%;
+  transform-origin: left;
+  background: currentColor;
+  opacity: 0.65;
+}
+.immersive-stage.with-video {
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: 5vw;
+  padding: 8dvh 6vw;
+  background: linear-gradient(180deg, #0000 25%, #0009);
+}
+.immersive-stage.with-video.without-lyrics {
+  grid-template-columns: 1fr;
+}
+.immersive-stage.with-video .immersive-art {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  align-items: center;
+  gap: 18px;
+  align-self: end;
+  text-align: left;
+}
+.immersive-stage.with-video .immersive-cover {
+  width: 72px;
+  border-radius: 14px;
+  box-shadow: none;
+}
+.immersive-stage.with-video .immersive-credit {
+  margin: 0;
+  min-width: 0;
+}
+.immersive-stage.with-video .immersive-credit h2 {
+  font-size: clamp(19px, 2vw, 29px);
+  margin-bottom: 6px;
+}
+.immersive-stage.with-video .immersive-credit p {
+  font-size: 13px;
+}
+.immersive-stage.with-video .immersive-credit p:not(.immersive-time) + p:not(.immersive-time) {
+  display: none;
+}
+.immersive-stage.with-video .lyrics-cinematic {
+  align-self: end;
+  height: min(70dvh, 680px);
+  background: transparent;
+  padding: 16px;
+  border: 0;
+  text-shadow:
+    0 2px 12px #000,
+    0 1px 4px #000;
+}
+.immersive-stage.with-video .lyrics-cinematic .lyric-line {
+  font-size: clamp(24px, 3.2vw, 48px);
+  line-height: 1.3;
+}
+.player-modal.is-immersive .video-backdrop {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  border-radius: 0;
+}
+.player-modal.is-immersive .video-backdrop-frame {
+  top: 50%;
+  left: 50%;
+  width: max(100cqw, 177.78cqh);
+  height: max(56.25cqw, 100cqh);
+  transform: translate(-50%, -50%);
+  filter: none;
+}
+.player-modal.is-immersive .video-backdrop-veil {
+  background: linear-gradient(180deg, #0001 35%, #0007);
+}
+@media (max-width: 600px) {
+  .immersive-stage.with-video {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    padding: 7dvh 6vw;
+    gap: 16px;
+  }
+  .immersive-stage.with-video .immersive-art {
+    grid-row: 2;
+    grid-template-columns: 56px minmax(0, 1fr);
+    gap: 14px;
+  }
+  .immersive-stage.with-video .immersive-cover {
+    width: 56px;
+  }
+  .immersive-stage.with-video .lyrics-cinematic {
+    grid-row: 1;
+    height: 100%;
+    max-height: 68dvh;
+    padding: 0;
+  }
+  .immersive-stage.with-video.without-lyrics {
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+  .immersive-stage.with-video .immersive-credit h2 {
+    font-size: 20px;
+  }
+}

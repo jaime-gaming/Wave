@@ -19,7 +19,7 @@ it('offers the two answers and nothing else', async () => {
     />,
   );
   expect(screen.getByRole('status')).toHaveTextContent('2.4 seconds of silence at the start');
-  await userEvent.click(screen.getByRole('button', { name: 'Remove it' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Review silence' }));
   await userEvent.click(screen.getByRole('button', { name: 'Keep it' }));
   expect(onRemove).toHaveBeenCalledOnce();
   expect(onKeep).toHaveBeenCalledOnce();

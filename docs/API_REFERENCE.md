@@ -1,6 +1,6 @@
 # Wave Internal API Reference
 
-**Version: 0.2.0 · Release date: 3 November 2026.**
+**Candidate: 0.2.1 · Prepared 6 November 2026. Released baseline: 0.2.0.**
 
 This document describes the implemented TypeScript modules. Wave has no HTTP API or backend. These interfaces are internal and may change during `0.x` development.
 
@@ -479,7 +479,7 @@ Separate native Android (Kotlin/Compose) and Windows (C#/WPF) source implementat
 
 ### Listening activity
 
-`useIdleListening` was removed in 0.1.1. It used to open a full-screen listening scene after thirty seconds without activity; the player now opens only when it is asked to, so nothing in the app observes idle time and no root attribute is written.
+`useIdleListening(playing, trackId)` restores the dedicated 0.1.0-style listening scene after thirty seconds without input. It guards visible/focused documents, editor dialogs and text inputs; pointer, touch, keyboard, wheel, visibility changes and explicit `wake()` reset it. `PlayerBar` may open the scene from collapsed playback or replace its expanded layout with artwork/cinematic lyrics. It reuses the same audio/clock and does not write a root attribute.
 
 ### Visual identity
 
@@ -536,7 +536,7 @@ Idle entry now additionally requires `document.hasFocus()`. `blur` wakes the pla
 - `dailyMixes(tracks, day, features)` now accepts measured `{bpm, energy}` per track, orders a measured group slowest-first with artist spreading, and returns `descriptor`, `bpm` and `energy` alongside the songs. `mixDescriptor({tracks, bpm})` builds the one-line summary.
 - `parseYrc`, `parseKrc`, `decodeKrc`, `wordTimelinePlausible` and `hasWordTimings` (`src/domain/wordLyrics.ts`) read NetEase/Kugou word formats; `fetchWordLyrics(track, options)` (`src/services/lyricsExtra.ts`) is opt-in via `setExtendedLyrics(true)` and falls through to LRCLIB on any failure. Selected lyrics carry `source: 'netease' | 'kugou'` and a `provider` label.
 - `planVideoSync` now returns `nudge` for drift between 0.15 s and 1.1 s (rate 0.9/1.1) and `seek` above that; `VideoState.rate` avoids repeating the same nudge. `YouTubeStage` treats the embed as the master clock and posts `playVideo`/`pauseVideo`/`seekTo`/`setVolume`/`setPlaybackRate`.
-- `continuationQueue(tracks, current, recent, random?, limit?)` selects unique local IDs by contextual weighted variety, preferring alternatives outside the last twelve recent IDs. A single-song library yields no continuation. Reducer `continue` is accepted only at a playing, repeat-off queue boundary.
+- `continuationQueue(tracks, current, recent, random?, limit?)` selects unique playable IDs by contextual weighted variety, preferring alternatives outside the last twenty-four recent IDs. It rejects missing/empty local recordings and malformed remote IDs, penalizes recent artists and bounds extension batches to twenty entries. A single-song library yields no continuation. Reducer `continue` is accepted only at a playing, repeat-off queue boundary.
 - `parseLocalMetadata(file)` uses one reusable module worker, disposed after idle, and falls back to direct parsing when workers are unavailable. `readTrack` records `genres`, `year` and local `metadataCheck` alongside existing tags and audio Blob.
 - `metadataIssues(track)` identifies incomplete local title/artist/album/duration/artwork. Completeness is not authoritative recording identification.
 - Legacy `wave-metadata-consent-v1` is ignored: no catalogue service or online cover completion remains. `wave-mix-v2` migrates an older disabled/positive overlap preference without retaining a duration UI. `wave-autoplay` is local and can be switched off.
@@ -561,3 +561,31 @@ Idle entry now additionally requires `document.hasFocus()`. `blur` wakes the pla
 `DailyMixes.onOpen(mix, number)` opens `DailyMixPage` without dispatching playback. The view resolves the selected IDs against the latest library, preserving the day's order while reflecting edits/deletions. Play/Shuffle are explicit. Save calls `usePlaylists.create(details, ids)`: the repository validates/deduplicates the snapshot, filters absent IDs and writes the playlist in one tracks/playlists transaction. Saving never rewrites the generated daily mix or any audio Blob.
 
 Provider coordination relies on the same origin and available browser capabilities. Without Web Locks, scheduling is tab-local. If storage is denied, the client retains its own spacing/cooldown in memory, but cannot promise a shared deadline across tabs. No cross-origin or other-application coordination is claimed. Existing cached lookup keys are preserved to avoid a full-library re-fetch after this change.
+
+## Cloudflare public-link reader and local feedback (0.2.1 follow-up)
+
+`src/worker/index.ts` exports the Worker `fetch` handler. Assets use the `ASSETS` binding. `POST /api/import-playlist` requires same-origin JSON `{ "url": "…" }`; no cookies, account tokens, local tracks or audio are forwarded. Only validated Spotify/YouTube identifiers produce fixed HTTPS upstream URLs. Redirects are forbidden, upstream work times out after eight seconds, page reads stop at two MB, traversal is bounded and at most 500 rows are returned as CSV in `{ text, partial: true }`. This reads only the initial public page, not pagination or private lists. Errors stay errors (400/403/405/413/415/422/502), not an SPA response. Replies use `Cache-Control: no-store`; service workers bypass `/api/`. Other API routes return 404; app routes use the asset fallback. The UI has a twelve-second deadline and always previews matches before persistence. Provider markup can change; a file export remains the reliable fallback.
+
+`LocalFeedback` consumes only allowlisted `wave:feature-used` events (Remix, Mix, Playlist import). `src/ui/localFeedback.ts` owns eligibility. The first seven days and first twelve uses never prompt; after the cooldown, one two-percent chance per page session may show a nonmodal card outside active modal dialogs. Showing it immediately starts a thirty-day cooldown. Up to ten structured responses, eligibility and opt-out live under `wave-local-feature-feedback-v1` only. No request, telemetry, remote collection or automatic feature tuning occurs. Closing is optional; “Do not ask again” persists an opt-out.
+
+Visible, focused playback enters the dedicated album/lyrics inactivity scene after 30 seconds, ordinary and clip stages alike. Input wakes controls; editing blocks entry and clip lyrics retain contrast. Local repeats use a brief same-recording overlap when prepared, with a 220 ms bounded audio attack fallback; YouTube retains its command ramp. Only the repeat icon animates. The Windows source has the same bounded attack with a guarded dispatcher timer.
+
+### Remix grid, historical exploration and preview ownership
+
+`RemixPage` accepts `artists` and `artistPhotos` from the local customization store. Real saved portraits take precedence; existing library artwork is a fallback, never a fabricated artist photograph. Each grid cell contains its own disclosure button and controlled mini panel. The hook supplies 52 rolling week windows, with the earlier-week shelf expanded four at a time. Selecting a retained week updates charts, rankings, artwork and playlist actions. Historical `weeklyRecap` mixes no longer pad themselves with all-time/later tracks. A saved playlist receives the selected recap's date. Retention remains bounded: an empty old window is not evidence of a complete archive.
+
+`usePlayer.pauseForPreview()` stops local decks synchronously and dispatches pause, so entering a trim editor cannot leave the main recording underneath its preview. `AudioTrimEditor` takes ownership on mount, invokes the guard again on preview, follows the passed `volume`, and pauses/removes its source on teardown before releasing its object URL. Closing/back navigation does not auto-resume main playback. This remains non-destructive playback bounds, not audio editing.
+
+`dailyMixes` publishes at most three groups and takes at most twenty distinct tracks per group. Android clamps even an explicitly oversized limit to twenty, deduplicates source IDs, and takes three groups; Windows applies the same three-by-twenty cap. Saved playlists are not dynamically constrained by the generator.
+
+### Fix volume
+
+`measureVolume(blob, duration, signal?)` rejects unsupported, silent and over-budget sources (600 seconds / 48 MiB). It decodes at a bounded rate and transfers copied sample arrays to a disposable worker. `volumeCorrection(channels, sampleRate)` returns finite peak/RMS measurements and a bounded linear gain, never fabricated audio. `setTrackVolumeFix(id, correction?)` changes only the latest row's playback metadata; omission restores the original level. `usePlayer.prepareVolumeFix()` primes native Web Audio routing in the click gesture. `MixAudio.setVolumeFix(blob, gain)` applies a separately smoothed, per-source normalization gain plus safety ceiling, independently of master volume and crossfade share. Mix gains still sum to at most unity. `useVolumeFix(tracks, enabled, busy, onSave, priority?)` runs one eligible local analysis at a time, prioritizes the current song, pauses during imports and aborts on disable/unmount/source replacement. `wave-fix-volume` is an opt-in persistent Settings preference. `useLibrary.applyVolumeFix(id, correction)` persists measurements without replacing source Blobs. The player applies stored gain only while enabled; disabled playback uses unity gain. Aborted/stale jobs cannot write results; unsupported, over-budget or failed sources retain their original level. Measurements survive toggling off.
+
+Lyrics search cache identity is `lrclib-v5`. Search-only role correction requires unconfirmed filename evidence and keeps explicit reviewed identities. Clip requests carry filename evidence locally; only the derived song/artist query leaves the device. NetEase requests `yv=-1`; `decodeKrc()` is asynchronous and handles the real plaintext `krc1` header, XORed compressed body and bounded streaming zlib decompression. Original provider word stamps take precedence; invalid/non-monotonic stamps fall back to labelled estimates.
+
+### Candidate search and short-source safeguards
+
+`rankTracks(tracks, query, limit?)` uses a normalized query, weak immutable-track index and stable weight buckets. Genre/year metadata is included locally; finite limits are floored and clamped to zero, with empty-query limits applied consistently. Search Enter honors the active category/current query and ignores composing/repeated key events.
+
+`mixCues` preserves full source bounds when envelope steps, coverage or values are invalid. `mixWindowReached` rejects invalid clocks and limits the eligible tail to at most half the duration, so a short clip cannot enter a mix at playback start. These checks do not alter source bytes or tempo.

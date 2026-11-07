@@ -6,8 +6,8 @@
  * interface takes from the cover keeps that one square telling the truth, and it
  * costs a single `data:` URI — no network, no canvas, no extra request.
  *
- * The shape is the same path the interface draws, on a rounded tile, because a
- * two-pixel stroke on a transparent background disappears in a tab strip.
+ * Browser tabs use a transparent mark. Installed web apps retain the tile;
+ * the manifest and native platform icons are separate, unchanged assets.
  */
 const PATH = 'M4 7C7 7 7 23 12 23C17 23 17 7 20 7C23 7 23 23 28 23C33 23 33 7 36 7';
 
@@ -19,21 +19,25 @@ export const DEFAULT_HUE = 226;
 export const DEFAULT_SATURATION = 24;
 
 /** The favicon as an SVG source string, for tests and for the link element. */
-export function faviconSvg(hue = DEFAULT_HUE, saturation = DEFAULT_SATURATION): string {
+export function faviconSvg(
+  hue = DEFAULT_HUE,
+  saturation = DEFAULT_SATURATION,
+  background = false,
+): string {
   const h = clampHue(hue);
   const s = clampSaturation(saturation);
   const tile = `hsl(${h.toFixed(0)} ${Math.min(100, s + 6).toFixed(0)}% 13%)`;
-  const stroke = `hsl(${h.toFixed(0)} 62% 78%)`;
+  const stroke = `hsl(${h.toFixed(0)} ${Math.min(100, s + 38).toFixed(0)}% 78%)`;
   return [
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">',
-    `<rect width="64" height="64" rx="16" fill="${tile}"/>`,
+    background ? `<rect width="64" height="64" rx="16" fill="${tile}"/>` : '',
     `<path d="${PATH}" transform="translate(6 12.5) scale(1.3)" fill="none" stroke="${stroke}" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>`,
     '</svg>',
   ].join('');
 }
 
-export function faviconHref(hue?: number, saturation?: number): string {
-  return `data:image/svg+xml,${encodeURIComponent(faviconSvg(hue, saturation))}`;
+export function faviconHref(hue?: number, saturation?: number, background = false): string {
+  return `data:image/svg+xml,${encodeURIComponent(faviconSvg(hue, saturation, background))}`;
 }
 
 /**
@@ -52,7 +56,9 @@ export function applyFavicon(hue?: number, saturation?: number): void {
     link.rel = 'icon';
     head.appendChild(link);
   }
-  const href = faviconHref(hue, saturation);
+  const standalone =
+    typeof window !== 'undefined' && window.matchMedia?.('(display-mode: standalone)').matches;
+  const href = faviconHref(hue, saturation, !!standalone);
   if (link.getAttribute('href') === href) return;
   link.type = 'image/svg+xml';
   link.setAttribute('href', href);

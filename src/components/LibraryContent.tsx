@@ -1,3 +1,4 @@
+import { PlayerActionButton } from './PlayerActionButton';
 import { memo } from 'react';
 import { collectAlbums, albumKey } from '../domain/collections';
 import { AlbumCard } from './CollectionCard';
@@ -252,14 +253,16 @@ export const LibraryContent = memo(function LibraryContent({
                     {track.duration ? formatTime(track.duration) : '—'}
                   </span>
                   <div className="song-actions">
-                    <button
+                    <PlayerActionButton
+                      action="favorite"
+                      value={track.favorite}
                       className={`icon-button row-favorite ${track.favorite ? 'active' : ''}`}
                       aria-label={`${track.favorite ? t('Unfavorite') : t('Favorite')} ${track.title}`}
                       aria-pressed={track.favorite}
                       onClick={() => onFavorite(track)}
                     >
                       <Heart size={20} fill={track.favorite ? 'currentColor' : 'none'} />
-                    </button>
+                    </PlayerActionButton>
                     <button
                       className="icon-button mobile-more"
                       aria-label={`Options for ${track.title}`}

@@ -207,3 +207,21 @@ describe('the album running order', () => {
     ).toBe(2);
   });
 });
+
+it('corrects swapped roles only when the catalogue independently confirms the exact recording', async () => {
+  const { confirmedRoleRelease } = await import('./catalogue');
+  const track = makeTrack({
+    title: 'Nils Frahm',
+    artist: 'Says',
+    fileName: 'Nils Frahm - Says.mp3',
+    duration: 214,
+    artwork: 'cover',
+    trackNumber: 1,
+  });
+  expect(needsDetails(track)).toBe(true);
+  expect(confirmedRoleRelease(track, [release])).toBe(release);
+  expect(detailsPatch(track, release).patch).toMatchObject({ title: 'Says', artist: 'Nils Frahm' });
+  expect(confirmedRoleRelease(track, [{ ...release, duration: 400 }])).toBeUndefined();
+  expect(confirmedRoleRelease(track, [{ ...release, artist: 'Cover band' }])).toBeUndefined();
+  expect(confirmedRoleRelease({ ...track, editedAt: 1 }, [release])).toBeUndefined();
+});

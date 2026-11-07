@@ -26,11 +26,15 @@ export interface Track {
   videoId?: string;
   artwork?: string;
   audioInfo?: AudioInfo;
+  /** Playback-only gain; original audio bytes are never rewritten. */
+  volumeFix?: import('../audio/volumeFix').VolumeFix;
   lyrics?: Lyrics;
   lyricsLookup?: LyricsLookup;
   contentHash?: string;
   genres?: string[];
   year?: number;
+  /** Exact metadata identity explicitly confirmed by the listener. */
+  rolesReviewed?: string;
   metadataCheck?: import('./metadata').MetadataCheck;
   /** When the online catalogue was last asked about this song. */
   detailsCheckedAt?: number;

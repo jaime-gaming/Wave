@@ -13,14 +13,25 @@ export function continuationQueue(
   // library of thirty should not come back to the same three songs all evening.
   const heard = new Set(recent.slice(-24));
   const avoid = new Set(recent.slice(-6));
-  const candidates = tracks.filter((t) => t.id !== current.id),
+  const count = Number.isFinite(limit) ? Math.max(0, Math.min(20, Math.floor(limit))) : 12;
+  const unique = new Map(tracks.map((track) => [track.id, track]));
+  const recentArtists = recent
+    .slice(-3)
+    .map((id) => unique.get(id))
+    .filter((track): track is Track => !!track && !missingTag(track.artist))
+    .map((track) => canonical(mainArtist(track.artist)));
+  const candidates = [...unique.values()].filter(
+      (t) =>
+        t.id !== current.id &&
+        (t.source === 'youtube' ? /^[\w-]{11}$/.test(t.videoId ?? '') : !!t.blob?.size),
+    ),
     fresh = candidates.filter((t) => !heard.has(t.id));
   const pool = [...(fresh.length ? fresh : candidates)].sort(
     (a, b) => recent.lastIndexOf(a.id) - recent.lastIndexOf(b.id),
   );
   const result: string[] = [];
   let anchor = current;
-  while (pool.length && result.length < limit) {
+  while (pool.length && result.length < count) {
     const weighted = pool.map((t) => {
       const sameArtist =
         canonical(mainArtist(t.artist)) === canonical(mainArtist(anchor.artist)) &&
@@ -45,6 +56,9 @@ export function continuationQueue(
       // An artist heard a moment ago steps back, so a shuffle does not turn into
       // five songs by the same band in a row.
       const justHeard = avoid.has(t.id) ? 0.2 : 1;
+      const artist = canonical(mainArtist(t.artist));
+      const variety =
+        !nextOnAlbum && !missingTag(t.artist) && recentArtists.includes(artist) ? 0.55 : 1;
       return {
         track: t,
         weight:
@@ -56,14 +70,21 @@ export function continuationQueue(
             (decade ? 1 : 0) +
             duration +
             (t.favorite ? 0.5 : 0)) *
-          justHeard,
+          justHeard *
+          variety,
       };
     });
+    const draw = random();
     let ticket =
-      Math.max(0, Math.min(0.999999, random())) * weighted.reduce((sum, t) => sum + t.weight, 0);
+      (Number.isFinite(draw) ? Math.max(0, Math.min(0.999999, draw)) : 0.5) *
+      weighted.reduce((sum, t) => sum + t.weight, 0);
     const selected = weighted.find((t) => (ticket -= t.weight) < 0)?.track ?? pool[0];
     result.push(selected.id);
     pool.splice(pool.indexOf(selected), 1);
+    if (!missingTag(selected.artist)) {
+      recentArtists.push(canonical(mainArtist(selected.artist)));
+      if (recentArtists.length > 3) recentArtists.shift();
+    }
     anchor = selected;
   }
   return result;

@@ -54,6 +54,10 @@ const words = [
 /** Fills the library with the demo albums, their covers and their lyrics. */
 async function seedDemoLibrary(page: Page) {
   await page.goto(origin);
+  await page.getByLabel('Import audio files').waitFor({ state: 'attached' });
+  await page.waitForFunction(
+    () => !document.querySelector<HTMLInputElement>('[aria-label="Import audio files"]')?.disabled,
+  );
   await page.getByLabel('Import audio files').setInputFiles(
     albums.flatMap((entry) =>
       entry.titles.map((title) => ({
@@ -180,6 +184,7 @@ await context.addInitScript(() => {
   localStorage.setItem('wave-playback-session-v1', '');
   localStorage.setItem('wave-autoplay', 'false');
   localStorage.setItem('wave-animations-enabled', 'true');
+  localStorage.setItem('wave-editor-enabled', 'true');
 });
 
 const seed = await context.newPage();
@@ -187,6 +192,7 @@ await seedDemoLibrary(seed);
 await seed.close();
 
 const shot = async (page: Page, name: string) => {
+  await page.locator('.boot-screen').waitFor({ state: 'hidden' });
   await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(700);
   await page.screenshot({ path: path.join(output, name) });
@@ -202,6 +208,10 @@ await shot(home, 'home-desktop.png');
 await home.getByRole('button', { name: 'Remix', exact: true }).click();
 await home.waitForTimeout(900);
 await shot(home, 'remix-desktop.png');
+await home.getByRole('button', { name: /Listening time/ }).click();
+await home.setViewportSize({ width: 1440, height: 1300 });
+await shot(home, 'remix-details-desktop.png');
+await home.setViewportSize({ width: 1440, height: 900 });
 await home.getByRole('button', { name: 'Home', exact: true }).click();
 await home.waitForTimeout(600);
 
@@ -213,6 +223,18 @@ await home.getByRole('button', { name: 'Play mix', exact: true }).click();
 await home.getByRole('button', { name: 'Open now playing', exact: true }).click();
 await home.waitForTimeout(1500);
 await shot(home, 'now-playing-desktop.png');
+// Capture the real inactivity scene rather than forcing a CSS class.
+await home.bringToFront();
+await home.locator('.immersive-stage').waitFor({ state: 'visible', timeout: 35_000 });
+await shot(home, 'immersive-desktop.png');
+await home.mouse.move(80, 80);
+await home.getByRole('button', { name: 'Close dialog' }).click();
+await home.getByRole('button', { name: 'Settings', exact: true }).click();
+await home.getByRole('button', { name: 'Playback', exact: true }).click();
+const volumeSettings = home.getByRole('region', { name: 'Volume balancing' });
+await volumeSettings.getByRole('switch', { name: 'Fix volume' }).click();
+await volumeSettings.getByRole('status').filter({ hasText: '9 of 9 recordings ready' }).waitFor();
+await shot(home, 'volume-fix-desktop.png');
 
 // Use a second disposable library: the desktop player above must not restore a
 // playing session into the phone screenshot through shared browser storage.
@@ -224,6 +246,7 @@ await mobileContext.addInitScript(() => {
   localStorage.setItem('wave-playback-session-v1', '');
   localStorage.setItem('wave-autoplay', 'false');
   localStorage.setItem('wave-animations-enabled', 'true');
+  localStorage.setItem('wave-editor-enabled', 'true');
 });
 const mobileSeed = await mobileContext.newPage();
 await seedDemoLibrary(mobileSeed);
@@ -293,6 +316,22 @@ if (process.env.WAVE_REVIEW) {
     await shot(mobile, `review-${width}.png`);
   }
 }
+
+// Demo-only eligibility seeding: production has no manual feedback trigger.
+const feedback = await context.newPage();
+await feedback.goto(origin);
+await feedback.getByRole('heading', { name: 'Your collection' }).waitFor();
+await feedback.evaluate(() => {
+  localStorage.setItem(
+    'wave-local-feature-feedback-v1',
+    JSON.stringify({ firstSeen: Date.now() - 8 * 86_400_000, nextAt: 0, uses: 12, ratings: [] }),
+  );
+  Math.random = () => 0;
+  window.dispatchEvent(new CustomEvent('wave:feature-used', { detail: 'Remix' }));
+});
+await feedback.getByRole('dialog', { name: 'A moment for your opinion' }).waitFor();
+await shot(feedback, 'feedback-desktop.png');
+await feedback.close();
 
 await mobileContext.close();
 await context.close();

@@ -1,20 +1,24 @@
+import type { ListeningSummary } from '../domain/listening';
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowUpRight } from './Glyphs';
 import { motion } from 'motion/react';
 import { useWaveMotion } from '../ui/motion';
 import { dailyMixes, localDayKey, type DailyMix, type FeatureMap } from '../domain/dailyMixes';
-import { cachedAnalysis, primeAnalysis } from '../audio/mixAnalysis';
+import { cachedAnalysis, analyzeTrack } from '../audio/mixAnalysis';
 import type { Track } from '../domain/types';
 import { Artwork } from './Artwork';
 import { useT } from '../i18n';
 export function DailyMixes({
   tracks,
+  listening,
   onOpen,
 }: {
   tracks: Track[];
+  listening?: ListeningSummary;
   onOpen: (mix: DailyMix, number: number) => void;
 }) {
   const t = useT();
+  const [analysisRevision, setAnalysisRevision] = useState(0);
   const [day, setDay] = useState(localDayKey);
   const animation = useWaveMotion();
   useEffect(() => {
@@ -50,20 +54,37 @@ export function DailyMixes({
         energy: analysis.peak > 0 ? Math.min(1, analysis.peak) : undefined,
       };
     }
-    return dailyMixes(tracks, day, features);
-  }, [tracks, day]);
+    return dailyMixes(
+      tracks,
+      day,
+      features,
+      listening?.topArtists.map((artist) => artist.artist),
+    );
+    // Cache writes are external to React; the revision publishes newly measured features.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tracks, day, analysisRevision, listening]);
   // Analysing the songs a mix would use makes the next visit already ordered.
   useEffect(() => {
-    const timer = setTimeout(() => {
-      for (const track of tracks.slice(0, 24)) if (track.blob) primeAnalysis(track.blob);
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      // Sequential decoding bounds peak memory; publish the new ordering once.
+      for (const track of tracks.slice(0, 24)) {
+        if (cancelled) return;
+        if (track.blob) await analyzeTrack(track.blob);
+      }
+      if (!cancelled) setAnalysisRevision((value) => value + 1);
     }, 1200);
-    return () => clearTimeout(timer);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [tracks]);
   if (!mixes.length) return null;
   return (
     <section className="daily-mixes" aria-label={t('Daily mixes')}>
       <div className="section-heading">
         <h2>{t('Daily mixes')}</h2>
+        <p>A fresh route through your music, every day</p>
       </div>
       <motion.div
         className="daily-mix-grid"
@@ -77,24 +98,20 @@ export function DailyMixes({
             className="daily-mix-card"
             variants={animation.rise}
             transition={animation.expressive}
-            whileHover={animation.enabled ? { y: -3 } : undefined}
+            whileHover={animation.hoverEnabled ? { y: -2 } : undefined}
             whileTap={animation.enabled ? { scale: 0.99 } : undefined}
             aria-label={`Open Daily mix ${index + 1}: ${mix.label}`}
             onClick={() => onOpen(mix, index + 1)}
           >
-            <Artwork
-              track={{
-                title: mix.label,
-                album: '',
-                // The mix has no sleeve of its own: it borrows the first track
-                // that has one, and otherwise shows the same drawn placeholder
-                // as every other cover-less song, on every platform.
-                artwork: mix.tracks.find((t) => t.artwork)?.artwork,
-              }}
-            />
+            <span className="daily-mix-sleeves" aria-hidden="true">
+              {mix.tracks.slice(0, 3).map((track) => (
+                <Artwork key={track.id} track={track} />
+              ))}
+            </span>
             <span className="daily-mix-copy">
               <strong>Daily mix {index + 1}</strong>
               <span title={mix.label}>{mix.label}</span>
+              <small>{mix.tracks.length} songs · Made for today</small>
             </span>
             <ArrowUpRight size={20} aria-hidden="true" />
           </motion.button>

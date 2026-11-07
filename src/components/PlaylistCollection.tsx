@@ -139,7 +139,7 @@ function PlaylistCard({
       style={palette}
       className="group-card playlist-card"
       onClick={() => onOpen(playlist.id)}
-      whileHover={animation.enabled ? { y: -4 } : undefined}
+      whileHover={animation.hoverEnabled ? { y: -2 } : undefined}
       whileTap={animation.enabled ? { scale: 0.97 } : undefined}
       transition={animation.spatial}
     >

@@ -19,6 +19,8 @@ test.beforeEach(async ({ page }) => {
   });
   await page.route('https://lrclib.net/api/**', (r) => r.fulfill({ status: 404, body: '{}' }));
   await page.goto('/');
+  // Storage initialization disables importing; do not dispatch a file change while it is disabled.
+  await expect(page.getByLabel('Import audio files')).toBeEnabled();
   await page.getByLabel('Import audio files').setInputFiles(
     // Eight seconds each, so half of one — the play threshold — is five
     // seconds of real playing rather than half a minute of waiting.
@@ -44,13 +46,14 @@ async function hear(page: import('@playwright/test').Page, title: string) {
       ),
     )
     .toBe(true);
-  // The threshold is five seconds of real playback; a seek does not count.
+  // The threshold is five sampled seconds. Allow another full sample before pausing;
+  // a media clock at 5.5 seconds can still have fewer than five sampled seconds.
   await expect
     .poll(
       () =>
         page.evaluate(() =>
           (window as unknown as { __audio: HTMLAudioElement[] }).__audio.some(
-            (a) => !a.paused && a.currentTime >= 5.5,
+            (a) => !a.paused && a.currentTime >= 6.5,
           ),
         ),
       { timeout: 15000 },
@@ -62,7 +65,8 @@ async function hear(page: import('@playwright/test').Page, title: string) {
 test('Remix shows the week, plays its list and keeps the list as a playlist', async ({ page }) => {
   await hear(page, 'Alpha');
   await page.getByRole('button', { name: 'Remix', exact: true }).click();
-  const week = page.getByRole('region', { name: 'This week', exact: true });
+  await page.getByRole('button', { name: /Listening time/ }).click();
+  const week = page.locator('#remix-time-panel');
   await expect(week).toBeVisible();
   await expect(week).toContainText('1 play');
   await expect(week).toContainText('1 song');

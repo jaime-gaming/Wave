@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.2.1 — 6 November 2026
+
+Release candidate; publication and the final date are confirmed separately.
+
+- Compact unselected Remix summaries while keeping the selected detail full-width in natural order, with populated-week browsing and saved artwork.
+- Improve keyboard/IME-aware search, genre/year matching, stable cached ranking and category-specific Enter actions.
+- Harden Mix against short clocks and incomplete analysis; retain original tempo, source bytes, safe deck gains and same-recording repeat overlap.
+- Bound local AutoPlay batches, filter missing/invalid sources and add recent-artist variety.
+- Move Fix volume to a uniform global Playback switch covering future imports, with original-level bypass.
+- Refine directional pages, touch-aware button feedback and the artwork/video idle scene after thirty seconds.
+- Polish native volume/mute, queue shuffle, audio focus, keyboard focus and motion preferences.
+- Preserve exclusive non-destructive trim previews, original files, word timing and optional external lookup controls.
+- Require release smoke tests and fix native screenshot publishing from detached checkouts; publish native-only test APK/unsigned Windows packages with checksums.
+
 ## 0.2.0 — 3 November 2026
 
 Wave 0.2.0 is the release where the Mix learned to behave, a videoclip became part of the player

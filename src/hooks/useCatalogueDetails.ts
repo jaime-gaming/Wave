@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   bestRelease,
+  confirmedRoleRelease,
   catalogueQuery,
   detailsPatch,
   needsDetails,
@@ -91,41 +92,48 @@ export function useCatalogueDetails({
     running.current = true;
     setFilling(queue.length);
     const country = preferredCountry();
-    for (const track of queue) {
-      asked.current.add(track.id);
-      const query = catalogueQuery(track);
-      if (!query) {
-        await markDetailsChecked(track.id);
-        continue;
-      }
-      const releases = await searchCatalogue(query, { country });
-      const release: CatalogueRelease | undefined = bestRelease(track, releases);
-      if (!release) {
-        await markDetailsChecked(track.id);
-        await new Promise((resolve) => setTimeout(resolve, DETAILS_GAP_MS));
-        continue;
-      }
-      const { patch, filled } = detailsPatch(track, release);
-      // The sleeve is the one part that needs a second request and a local copy:
-      // it is fetched only when there is a gap to fill and a release to fill it.
-      if (!track.artwork && release.artworkUrl) {
-        const file = await downloadCover(release.artworkUrl);
-        if (file) {
-          try {
-            patch.artwork = await readArtwork(file);
-            filled.push('cover');
-          } catch {
-            /* An unusable image is not a reason to lose the text that came with it. */
+    try {
+      for (const track of queue) {
+        asked.current.add(track.id);
+        const query = catalogueQuery(track);
+        if (!query) {
+          await markDetailsChecked(track.id);
+          continue;
+        }
+        const releases = await searchCatalogue(query, { country });
+        const release: CatalogueRelease | undefined =
+          confirmedRoleRelease(track, releases) ?? bestRelease(track, releases);
+        if (!release) {
+          await markDetailsChecked(track.id);
+          await new Promise((resolve) => setTimeout(resolve, DETAILS_GAP_MS));
+          continue;
+        }
+        const { patch, filled } = detailsPatch(track, release);
+        // The sleeve is the one part that needs a second request and a local copy:
+        // it is fetched only when there is a gap to fill and a release to fill it.
+        if (!track.artwork && release.artworkUrl) {
+          const file = await downloadCover(release.artworkUrl);
+          if (file) {
+            try {
+              patch.artwork = await readArtwork(file);
+              filled.push('cover');
+            } catch {
+              /* An unusable image is not a reason to lose the text that came with it. */
+            }
           }
         }
+        const updated = filled.length ? await onUpdate(track.id, patch) : null;
+        if (!updated) await markDetailsChecked(track.id);
+        if (filled.length) setCompleted((count) => count + 1);
+        await new Promise((resolve) => setTimeout(resolve, DETAILS_GAP_MS));
       }
-      const updated = filled.length ? await onUpdate(track.id, patch) : null;
-      if (!updated) await markDetailsChecked(track.id);
-      if (filled.length) setCompleted((count) => count + 1);
-      await new Promise((resolve) => setTimeout(resolve, DETAILS_GAP_MS));
+    } catch {
+      // A failed lookup or local write must not leave the panel permanently busy.
+      asked.current.clear();
+    } finally {
+      running.current = false;
+      setFilling(0);
     }
-    running.current = false;
-    setFilling(0);
   }, [enabled, online, onUpdate, tracks]);
 
   useEffect(() => {

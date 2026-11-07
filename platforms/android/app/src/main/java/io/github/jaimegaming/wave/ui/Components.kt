@@ -51,9 +51,10 @@ import io.github.jaimegaming.wave.Song
  */
 @Composable
 fun Modifier.pressScale(pressed: Boolean, amount: Float = 0.972f): Modifier {
+    val enabled = waveMotionEnabled()
     val scale by animateFloatAsState(
-        targetValue = if (pressed) amount else 1f,
-        animationSpec = spring(dampingRatio = 0.55f, stiffness = 900f),
+        targetValue = if (pressed && enabled) amount else 1f,
+        animationSpec = if (enabled) spring(dampingRatio = 1f, stiffness = 650f) else androidx.compose.animation.core.snap(),
         label = "press",
     )
     return this.scale(scale)
@@ -246,18 +247,18 @@ fun SongRow(
             .background(if (playing) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer)
             .semantics { contentDescription = Loc.t("Play {title} by {artist}", mapOf("title" to song.title, "artist" to song.artist)) }
             .clickable(interactionSource = interaction, indication = null, onClick = onPlay)
-            .padding(start = 12.dp, end = 6.dp, top = 9.dp, bottom = 9.dp),
+            .padding(start = 14.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Cover(song, size = 48.dp, radius = 10.dp)
-        Spacer(Modifier.width(10.dp))
-        Column(Modifier.weight(1f)) {
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
                 text = song.title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = if (playing) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(

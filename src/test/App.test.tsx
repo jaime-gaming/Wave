@@ -19,6 +19,7 @@ vi.mock('../data/library', () => ({
   restoreTrackMetadata: vi.fn(),
 }));
 beforeEach(() => {
+  history.replaceState(null, '', '/');
   vi.mocked(getTracks).mockResolvedValue([
     makeTrack(),
     makeTrack({ id: 'night', title: 'Night', artist: 'Other', album: 'After hours' }),

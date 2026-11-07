@@ -1,6 +1,6 @@
 # Wave Development Guide
 
-**Version: 0.2.0 · Release date: 3 November 2026.**
+**Candidate: 0.2.1 · Prepared 6 November 2026. Released baseline: 0.2.0.**
 
 ## Requirements
 
@@ -39,7 +39,8 @@ No `.env` file, API key, account, or separate backend is needed. Bundled browser
 | `npm run format:check` | Check formatting without modifying files      |
 | `npm test`             | Run unit and component tests once             |
 | `npm run test:watch`   | Watch unit and component tests                |
-| `npm run test:e2e`     | Playwright browser tests                      |
+| `npm run test:e2e`     | Full historical Playwright diagnostics        |
+| `npm run test:smoke`   | Required release browser checks               |
 
 Build output is written to `dist/` and is ignored by Git. Do not commit `node_modules/`, browser binaries, test reports, audio collections, or generated artifacts. `package-lock.json` is committed for reproducible dependency installation.
 
@@ -159,7 +160,7 @@ npm test
 npm run build
 ```
 
-Serve `dist/` from an HTTPS static host. No backend endpoints or secrets are required. Set appropriate cache headers for hashed assets; avoid caching `index.html` indefinitely. `vite preview` is for local verification, not a production server.
+Deploy the Cloudflare Worker and its `dist/` assets from `wrangler.jsonc`. A static-only host can play local files, but cannot provide `/api/import-playlist`. No provider secrets are required. Set appropriate cache headers for hashed assets; avoid caching `index.html` indefinitely. `vite preview` is for local verification, not a production server.
 
 There is no service worker or PWA manifest yet. Once loaded, imported tracks play locally, but a completely offline cold start is not guaranteed.
 
@@ -289,17 +290,13 @@ Run `release-010.spec.ts` for offline daily genre groups and native queue cohere
 
 ## Merge-time publication
 
-Release 0.2.0 is dated 3 November 2026. Publication requires maintainer authorization and successful checks on the exact candidate. Keep its description to Highlights; detailed QA belongs in this document and `VALIDATION.md`.
+The current candidate is **0.2.1**; publication is not authorized by preparation alone. Follow [RELEASE_READINESS_0.2.1](RELEASE_READINESS_0.2.1.md) and use the reviewed [release notes](RELEASE_NOTES_0.2.1.md). Confirm the publication date before tagging.
 
-When proceeding with the approved merge:
-
-1. Run `npm run test:release` and `npm run release:check -- v0.2.0`. They reject inconsistent web/native versions, a wrong tag name or missing/mismatched release notes without publishing anything. Require successful web and native checks on the latest PR revision and review the remaining device/runtime limitations.
-2. Mark the release PR ready, then merge it with `gh pr merge <number> --squash --subject "Wave 0.2.0 Release" --body ""`. Use the exact squash commit title `Wave 0.2.0 Release`. Preserve the feature branch as a recovery reference. Do not bypass failing checks or create a release from an unmerged candidate SHA.
-3. Read the actual merge commit from the merged PR and confirm it matches the final `main` revision. Create the annotated `v0.2.0` tag at that commit through GitHub. Never force-update an existing tag; inspect it first if retrying a partially completed publication.
-4. Prepare/update the draft GitHub Release with the reviewed `RELEASE_NOTES_0.2.0.md`. Verify its target and dereferenced tag match the merge commit before publishing. A draft does not publish a tag. After creating the tag, manually dispatch `Release assets` with that tag to populate and verify the draft assets before publishing. It also runs on release publication. The workflow builds that exact tag and attaches the relative-base web ZIP, the existing product film and `SHA256SUMS.txt`. Its ZIP includes source-commit metadata and the unchanged notices. If attachment upload fails, rerun the workflow with the same tag using its manual dispatch; never move the tag to retry. The build must be on main ancestry. `python3 -m unittest discover -s scripts -p test_package_release.py` checks deterministic packaging and input boundaries.
-5. Native debug/unsigned CI artifacts are test builds, not signed installers. Do not silently relabel or attach them as production-ready packages.
-
-PR preparation alone does not authorize publication. Releases and the website are separate: verify the Cloudflare deployment of the merge commit (the `Workers Builds: wave` check) rather than treating a successful tag as proof of hosting. The site is https://wave.jaime-gaming.com, deployed as the `wave` Worker by Cloudflare's build integration from `npm run build` with `dist` as its output directory and `npx wrangler deploy`; the domain is configured in the Cloudflare dashboard, not in a committed `CNAME`. `not_found_handling: "single-page-application"` in `wrangler.jsonc` keeps the one page reachable at any path and `public/_headers` sets caching and security headers. The build uses relative asset paths (`--base=./`) so the same output also works from a subpath. `npm run build:pages` refreshes the committed `docs/` mirror, which Cloudflare does not use. No custom deployment Action is required. Do not change repository visibility as a side effect of release preparation. Successful compilation does not establish Android/Windows UI or playback parity with the web client.
+1. Run metadata/packaging checks, format, lint, unit tests, production build and **`npm run test:smoke`**. Checks and Release assets both require smoke success; the broader historical browser suite remains diagnostic, not an assertion that every old test is green.
+2. Require the latest native CI, review captures and complete explicit headphone/device/security sign-off. A successful native build does not establish live-provider availability or full web/native parity.
+3. Merge only after approval, retain the branch as a recovery reference and tag the actual reviewed `main` commit as `v0.2.1`. Never move an existing tag to retry a failed upload.
+4. Only on explicit launch authorization, publish the notes or dispatch Release assets against that exact tag. The workflow validates main ancestry and attaches native **test APK / unsigned Windows ZIP** assets and checksums, never a web ZIP or a promo film. Retry packaging with the same tag; do not silently relabel artifacts as signed production installers.
+5. Verify the website separately through Cloudflare Workers. `npm run deploy:check` is a dry run, not a deployment; release publication does not prove hosting updated. `dist` is ignored build output, `docs` holds documentation/images, and neither is a GitHub Pages mirror. Preserve existing repository visibility and signing/security settings.
 
 ## Documentation images
 
@@ -319,7 +316,7 @@ The native pictures are captured by the builds themselves, which is the only hon
 - `Wave.Windows.exe --smoke-test <folder>` renders the real window on a temporary library and writes a PNG per page. The `Native builds` job runs it and copies `artifacts/windows-ui/*.png` into `docs/media/windows-*.png`.
 - `gradle -p platforms/android testDebugUnitTest -Dwave.screenshots=app/build/wave-screenshots` runs `ScreenshotTest`, which renders the real `WaveApp` on the Robolectric graphics stack from a seeded library. Without the flag the tests are skipped, so an ordinary run stays quick. The same job copies them into `docs/media/android-*.png`.
 
-Both jobs commit what they produced when the run is a push to a branch, so `docs/media` always matches the build that made it. Neither is a mock-up and neither is retouched: what a reader sees is what the build drew. They are a layout record, not a substitute for a device pass.
+On successful branch pushes, both jobs publish through `scripts/publish-native-screenshots.sh`: an exact-SHA checkout pushes an explicit branch ref, while stale native sources/conflicting newer captures are kept in run artifacts instead of overwriting current images. Neither is a mock-up and neither is retouched: what a reader sees is what the build drew. They are a layout record, not a substitute for a device pass.
 
 ## Release media
 

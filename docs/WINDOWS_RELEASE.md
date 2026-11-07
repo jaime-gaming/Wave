@@ -1,6 +1,6 @@
-# Windows release preparation · 0.1.1
+# Windows release preparation · 0.2.1
 
-Release date: **17 October 2026**. This is a publication checklist, not a claim that an unsigned test ZIP is trusted or already released.
+Candidate prepared **6 November 2026**; publication date is not confirmed. This is a publication checklist, not a claim that an unsigned test ZIP is trusted or already released.
 
 ## What the build does
 

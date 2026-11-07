@@ -225,12 +225,12 @@ private fun DailyMixRow(mix: DailyMix, number: Int, onOpen: () -> Unit) {
             .clip(RoundedCornerShape(22.dp))
             .background(MaterialTheme.colorScheme.surfaceContainer)
             .clickable(onClick = onOpen)
-            .padding(12.dp),
+            .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Cover(mix.songs.first(), size = 64.dp, radius = 14.dp)
         Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Text(Loc.t("Daily mix {number}", mapOf("number" to number.toString())), style = MaterialTheme.typography.titleMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
             Text(mix.label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
@@ -1121,7 +1121,7 @@ private fun WeekBars(days: List<DaySlice>) {
                 val share = if (day.seconds == 0) 0.04f else (day.seconds.toFloat() / peak).coerceAtLeast(0.09f)
                 val height by animateFloatAsState(
                     targetValue = if (grown) share else 0f,
-                    animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow),
+                    animationSpec = if (waveMotionEnabled()) spring(dampingRatio = 0.9f, stiffness = Spring.StiffnessMediumLow) else androidx.compose.animation.core.snap(),
                     label = "week bar",
                 )
                 val dayName = java.text.SimpleDateFormat("EEE d", java.util.Locale.getDefault()).format(java.util.Date(day.at))
@@ -1220,6 +1220,8 @@ private fun RemixRow(song: Song, position: Int, plays: Int?, playing: Boolean, o
 fun SettingsScreen(state: WaveState, version: String, onAddMusic: () -> Unit, onBack: () -> Unit) {
     var selected by rememberSaveable { mutableStateOf<String?>(null) }
     val appearance = LocalAppearanceChoice.current
+    val motionChoice = LocalMotionChoice.current
+    val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
     val languageContext = androidx.compose.ui.platform.LocalContext.current
     BackHandler(enabled = true) { if (selected != null) selected = null else onBack() }
     LazyColumn(
@@ -1259,7 +1261,7 @@ fun SettingsScreen(state: WaveState, version: String, onAddMusic: () -> Unit, on
                     Spacer(Modifier.width(14.dp))
                     Column(Modifier.weight(1f)) {
                         Text(Loc.t(title), style = MaterialTheme.typography.titleMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
-                        Text(Loc.t(note), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(Loc.t(note), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     }
                     WaveIcon("chevron", 20.dp, MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -1269,6 +1271,8 @@ fun SettingsScreen(state: WaveState, version: String, onAddMusic: () -> Unit, on
                 SectionTitle(selected.orEmpty())
                 when (selected) {
                     "Appearance" -> {
+                        SettingSwitch("Animations", "Gentle movement and interaction feedback.", motionChoice?.enabled != false) { motionChoice?.select?.invoke(it) }
+                        Divider()
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                             listOf("dark", "light", "system").forEach { mode ->
                                 val active = appearance?.mode == mode
@@ -1336,6 +1340,11 @@ fun SettingsScreen(state: WaveState, version: String, onAddMusic: () -> Unit, on
                     "About" -> {
                         Body("Wave $version")
                         Body("Your files stay on this phone. Mix changes only how playback is joined.")
+                        Text(Loc.t("Wave on the web"), color = MaterialTheme.colorScheme.primary, modifier = Modifier.clickable { uriHandler.openUri("https://wave.jaime-gaming.com/") }.padding(vertical = 14.dp))
+                        Text(Loc.t("Link devices in the web player"), color = MaterialTheme.colorScheme.primary, modifier = Modifier.clickable { uriHandler.openUri("https://wave.jaime-gaming.com/Settings") }.padding(vertical = 14.dp))
+                        Body("Each app keeps its own library. Device linking currently uses the web player.")
+                        Text(Loc.t("Wave for Windows"), color = MaterialTheme.colorScheme.primary, modifier = Modifier.clickable { uriHandler.openUri("https://github.com/jaime-gaming/Wave/releases/latest") }.padding(vertical = 14.dp))
+                        Text(Loc.t("Privacy & rights"), color = MaterialTheme.colorScheme.primary, modifier = Modifier.clickable { uriHandler.openUri("https://wave.jaime-gaming.com/privacy.html") }.padding(vertical = 14.dp))
                     }
                 }
             }

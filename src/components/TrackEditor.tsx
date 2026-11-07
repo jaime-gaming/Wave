@@ -1,3 +1,4 @@
+import { AudioTrimEditor } from './AudioTrimEditor';
 import { useState } from 'react';
 import { RotateCcw, Save } from './Glyphs';
 import type { Track, TrackMetadata } from '../domain/types';
@@ -12,7 +13,13 @@ export function TrackEditor({
   onSave,
   onRestore,
   onRestoreSilence,
+  onTrim,
+  onPreview,
+  previewVolume,
 }: {
+  onPreview?: () => void;
+  previewVolume?: number;
+  onTrim?: (bounds: { start: number; end: number }) => Promise<void>;
   track: Track;
   onClose: () => void;
   onSave: (id: string, metadata: TrackMetadata) => Promise<boolean>;
@@ -27,22 +34,26 @@ export function TrackEditor({
     album: track.album,
     artwork: track.artwork,
   });
+  const [trimming, setTrimming] = useState(false);
+  const [bounds, setBounds] = useState<{ start: number; end: number } | null>(null);
   const [saving, setSaving] = useState(false);
   const [imageBusy, setImageBusy] = useState(false);
   const [error, setError] = useState('');
   const busy = saving || imageBusy;
   return (
     <Modal
-      title={t('Edit song')}
+      title={trimming ? 'Trim audio' : t('Edit song')}
       closeDisabled={busy}
       className="editor-modal"
       onClose={() => {
         if (!busy) onClose();
       }}
     >
-      <p className="modal-description">
-        Changes apply to your Wave library. Your original audio file stays unchanged.
-      </p>
+      {!trimming && (
+        <p className="modal-description">
+          Changes apply to your Wave library. Your original audio file stays unchanged.
+        </p>
+      )}
       <form
         className="editor-form"
         onSubmit={async (event) => {
@@ -50,72 +61,104 @@ export function TrackEditor({
           if (busy) return;
           setSaving(true);
           setError('');
-          if (await onSave(track.id, metadata)) onClose();
-          else setError(t('Changes could not be saved. Please try again.'));
+          if (await onSave(track.id, metadata)) {
+            if (bounds) await onTrim?.(bounds);
+            onClose();
+          } else setError(t('Changes could not be saved. Please try again.'));
           setSaving(false);
         }}
       >
-        <ArtworkPicker
-          value={metadata.artwork}
-          disabled={saving}
-          onChange={(artwork) => setMetadata((current) => ({ ...current, artwork }))}
-          onBusy={setImageBusy}
-        />
-        {(['title', 'artist', 'album'] as const).map((field) => (
-          <label className="form-field" key={field}>
-            {field[0].toUpperCase() + field.slice(1)}
-            <input
-              value={metadata[field]}
-              required={field === 'title'}
-              maxLength={200}
-              disabled={saving}
-              onChange={(event) =>
-                setMetadata((current) => ({ ...current, [field]: event.target.value }))
-              }
+        {trimming ? (
+          <>
+            <AudioTrimEditor
+              track={track}
+              value={bounds}
+              onChange={setBounds}
+              onPreview={onPreview}
+              volume={previewVolume}
             />
-          </label>
-        ))}
-        <ClipSection track={track} />
-        {/*
-         * Silent edges, offered once they have been measured. The original file
-         * is never altered: skipping silence is a pair of bounds, and undoing it
-         * gives the song back exactly as it arrived.
-         */}
-        {track.trim && (
-          <button
-            type="button"
-            className="text-button silence-editor-restore"
-            disabled={busy}
-            onClick={async () => {
-              setSaving(true);
-              await onRestoreSilence?.(track.id);
-              setSaving(false);
-            }}
-          >
-            <RotateCcw size={18} />
-            Play the whole file again
-          </button>
-        )}
-        {error && (
-          <p className="form-error" role="alert">
-            {error}
-          </p>
-        )}
-        {track.originalMetadata && (
-          <button
-            type="button"
-            className="text-button restore-metadata"
-            disabled={busy}
-            onClick={async () => {
-              setSaving(true);
-              if (await onRestore(track.id)) onClose();
-              else setError(t('Original information could not be restored.'));
-              setSaving(false);
-            }}
-          >
-            <RotateCcw size={18} />
-            Restore original information and cover
-          </button>
+            <button type="button" className="tonal-button" onClick={() => setTrimming(false)}>
+              ← Back to song details
+            </button>
+          </>
+        ) : (
+          <>
+            <ArtworkPicker
+              value={metadata.artwork}
+              disabled={busy}
+              onChange={(artwork) => setMetadata((current) => ({ ...current, artwork }))}
+              onBusy={setImageBusy}
+            />
+            {(['title', 'artist', 'album'] as const).map((field) => (
+              <label className="form-field" key={field}>
+                {field[0].toUpperCase() + field.slice(1)}
+                <input
+                  value={metadata[field]}
+                  required={field === 'title'}
+                  maxLength={200}
+                  disabled={busy}
+                  onChange={(event) =>
+                    setMetadata((current) => ({ ...current, [field]: event.target.value }))
+                  }
+                />
+              </label>
+            ))}
+            <ClipSection track={track} />
+            {track.blob && (
+              <button
+                type="button"
+                className="editor-submenu-button"
+                onClick={() => setTrimming(true)}
+              >
+                <span>
+                  <strong>Trim audio</strong>
+                  <small>Shape the beginning and ending</small>
+                </span>
+                <span>↗</span>
+              </button>
+            )}
+            {/*
+             * Silent edges, offered once they have been measured. The original file
+             * is never altered: skipping silence is a pair of bounds, and undoing it
+             * gives the song back exactly as it arrived.
+             */}
+            {track.trim && (
+              <button
+                type="button"
+                className="text-button silence-editor-restore"
+                disabled={busy}
+                onClick={async () => {
+                  setSaving(true);
+                  await onRestoreSilence?.(track.id);
+                  setSaving(false);
+                }}
+              >
+                <RotateCcw size={18} />
+                Play the whole file again
+              </button>
+            )}
+            {error && (
+              <p className="form-error" role="alert">
+                {error}
+              </p>
+            )}
+            {track.originalMetadata && (
+              <button
+                type="button"
+                className="text-button restore-metadata"
+                disabled={busy}
+                onClick={async () => {
+                  setSaving(true);
+                  if (await onRestore(track.id)) onClose();
+                  else setError(t('Original information could not be restored.'));
+                  setSaving(false);
+                }}
+              >
+                <RotateCcw size={18} />
+                Restore original information and cover
+              </button>
+            )}
+          </>
         )}
         <div className="modal-actions">
           <button type="button" className="tonal-button" disabled={busy} onClick={onClose}>

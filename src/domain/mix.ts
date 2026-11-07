@@ -8,6 +8,14 @@ export function mixCues(envelope: EnergyEnvelope | undefined, duration: number):
   const fallback = { start: 0, end: duration };
   if (!envelope || !Number.isFinite(duration) || duration < 8) return fallback;
   const { values, step } = envelope;
+  if (
+    !Number.isFinite(step) ||
+    step <= 0 ||
+    !values.length ||
+    values.length * step < duration - step * 2 ||
+    !values.every(Number.isFinite)
+  )
+    return fallback;
   const first = values.findIndex((value) => value > 0.003);
   if (first < 0) return fallback;
   let last = values.length - 1;
@@ -25,8 +33,18 @@ export const MIN_MIX_TAIL = 12;
 
 /** True only inside the final seconds of a song, where a handover belongs. */
 export function mixWindowReached(currentTime: number, duration: number, window: number) {
-  if (!Number.isFinite(currentTime) || !Number.isFinite(duration) || duration <= 0) return false;
-  const tail = Math.max(MIN_MIX_TAIL, (Number.isFinite(window) ? window : 0) + 2);
+  if (
+    !Number.isFinite(currentTime) ||
+    !Number.isFinite(duration) ||
+    duration <= 0 ||
+    currentTime < 0 ||
+    currentTime > duration
+  )
+    return false;
+  const tail = Math.min(
+    duration / 2,
+    Math.max(MIN_MIX_TAIL, (Number.isFinite(window) ? window : 0) + 2),
+  );
   return duration - currentTime <= tail;
 }
 

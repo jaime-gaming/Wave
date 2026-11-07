@@ -1,3 +1,9 @@
+import { SurfaceLoading } from './components/SurfaceLoading';
+import { VolumeSettings } from './components/VolumeSettings';
+import { useVolumeFix } from './hooks/useVolumeFix';
+import { LocalFeedback } from './components/LocalFeedback';
+import { PlatformLinks } from './components/PlatformLinks';
+import { usePageRoute } from './hooks/usePageRoute';
 import type { MixSelection } from './components/DailyMixPage';
 import type { SettingsSection } from './components/SettingsPage';
 import { LocalMetadataReview } from './components/LocalMetadataReview';
@@ -92,13 +98,6 @@ import { Artwork } from './components/Artwork';
 import { LibraryContent } from './components/LibraryContent';
 import { Navigation, type Page } from './components/Navigation';
 import { Modal } from './components/Modal';
-import { AndroidAppSheet } from './components/AndroidAppSheet';
-import {
-  isAndroidBrowser,
-  isStandalone,
-  promptAlreadyAnswered,
-  rememberPromptAnswer,
-} from './ui/androidApp';
 import { PlayerBar } from './components/PlayerBar';
 import { getClip, loadClips, removeClip } from './domain/videoClips';
 import { AddMusicDialog } from './components/AddMusicDialog';
@@ -148,6 +147,14 @@ function WaveApp({
   const [automaticLyrics, setAutomaticLyrics] = useState(
     () => readFlag('wave-lyrics-consent-v1') && readFlag('wave-auto-lyrics'),
   );
+  const [volumeFixEnabled, setVolumeFixEnabled] = useState(() => readFlag('wave-fix-volume'));
+  useEffect(() => {
+    try {
+      localStorage.setItem('wave-fix-volume', String(volumeFixEnabled));
+    } catch {
+      /* Session-only preference. */
+    }
+  }, [volumeFixEnabled]);
   const [videoClip, setVideoClip] = useState(() => readFlag('wave-video-clip'));
   const [wordSources, setWordSources] = useState(extendedLyricsEnabled);
   useEffect(() => {
@@ -196,7 +203,14 @@ function WaveApp({
     }),
     [silenceAction],
   );
-  const player = usePlayer(library.tracks, !library.loading, silenceStore);
+  const player = usePlayer(library.tracks, !library.loading, silenceStore, volumeFixEnabled);
+  const volumeStatus = useVolumeFix(
+    library.tracks,
+    volumeFixEnabled,
+    library.loading || !!library.progress,
+    library.applyVolumeFix,
+    player.current?.id,
+  );
   useAppPalette(
     player.state.playing ? player.current?.artwork : undefined,
     player.state.playing ? player.blend : null,
@@ -208,6 +222,7 @@ function WaveApp({
     library.loading || !!library.progress || !!editingLyrics,
     library.acceptLyrics,
     player.current?.id,
+    wordSources,
   );
   const acceptDuration = library.acceptDuration;
   const decodedDuration = player.duration,
@@ -230,24 +245,13 @@ function WaveApp({
    * them to find the page themselves.
    */
   const [pairLink] = useState(() => /(?:#|&|\?)wave-pair=/u.test(location.hash + location.search));
-  const [page, setPage] = useState<Page>(pairLink ? 'settings' : 'home');
+  const [page, setPage, pageDirection] = usePageRoute(pairLink);
   const [dailySelection, setDailySelection] = useState<MixSelection | null>(null);
   const [view, setView] = useState<LibraryView>('songs');
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState('recent');
   const [group, setGroup] = useState<string | null>(null);
   const [queueOpen, setQueueOpen] = useState(false);
-  /**
-   * A phone browsing the web is offered the Android app once. It is asked after
-   * the interface has settled, so the first thing on screen is still the music,
-   * and never on a device that answered already or that already runs the app.
-   */
-  const [androidSheet, setAndroidSheet] = useState(false);
-  useEffect(() => {
-    if (!isAndroidBrowser(undefined, isStandalone()) || promptAlreadyAnswered()) return;
-    const timer = setTimeout(() => setAndroidSheet(true), 4_000);
-    return () => clearTimeout(timer);
-  }, []);
   /** Listening history is counted from the playback clock and shown in Remix. */
   const listening = useListeningHistory({
     track: player.current,
@@ -369,7 +373,7 @@ function WaveApp({
     };
     window.addEventListener('keydown', keydown);
     return () => window.removeEventListener('keydown', keydown);
-  }, [dispatch]);
+  }, [dispatch, setPage]);
 
   useEffect(() => {
     if (page === 'search') searchInput.current?.focus();
@@ -503,14 +507,17 @@ function WaveApp({
     setPlaylistId(null);
     setSort((current) => (current === 'playlist' || current === 'album' ? 'recent' : current));
   }, []);
-  const openPlaylist = useCallback((id: string) => {
-    setPage('library');
-    setView('playlists');
-    setPlaylistId(id);
-    setGroup(null);
-    setQuery('');
-    setSort('playlist');
-  }, []);
+  const openPlaylist = useCallback(
+    (id: string) => {
+      setPage('library');
+      setView('playlists');
+      setPlaylistId(id);
+      setGroup(null);
+      setQuery('');
+      setSort('playlist');
+    },
+    [setPage],
+  );
   const changePage = (next: Page) => {
     setDailySelection(null);
     setPage(next);
@@ -526,7 +533,7 @@ function WaveApp({
       setQuery('');
       changeView(next);
     },
-    [changeView],
+    [changeView, setPage],
   );
   const openAlbum = useCallback(
     (id: string) => {
@@ -717,6 +724,7 @@ function WaveApp({
         importFiles([...event.dataTransfer.files]);
       }}
     >
+      <LocalFeedback />
       <a className="skip-link" href="#main">
         {t('Skip to library')}
       </a>
@@ -839,12 +847,12 @@ function WaveApp({
             </div>
           )}
         </header>
-        <AnimatePresence mode="wait" initial={false}>
+        <AnimatePresence mode="wait" initial={false} custom={pageDirection}>
           <LibrarySurface
             key={`${page}:${dailySelection?.mix.id ?? ''}:${view}:${group ?? ''}:${playlistId ?? ''}`}
           >
             {page === 'settings' ? (
-              <Suspense fallback={<div className="empty-state" aria-busy="true" />}>
+              <Suspense fallback={<SurfaceLoading />}>
                 <SettingsPage
                   initialSection={settingsSection ?? (pairLink ? 'devices' : null)}
                   onBack={closeSettings}
@@ -918,6 +926,24 @@ function WaveApp({
                   }
                   playback={
                     <>
+                      <VolumeSettings
+                        enabled={volumeFixEnabled}
+                        status={volumeStatus}
+                        onChange={(enabled) => {
+                          if (enabled)
+                            void player
+                              .prepareVolumeFix()
+                              .then(() => setVolumeFixEnabled(true))
+                              .catch((error: unknown) =>
+                                library.setError(
+                                  error instanceof Error
+                                    ? error.message
+                                    : t('Volume could not be adjusted.'),
+                                ),
+                              );
+                          else setVolumeFixEnabled(false);
+                        }}
+                      />
                       <div className="settings-switch-row">
                         <div>
                           <strong>{t('Mix')}</strong>
@@ -928,7 +954,12 @@ function WaveApp({
                           role="switch"
                           aria-label={t('Mix')}
                           aria-checked={player.mixEnabled}
-                          onClick={() => player.setMixEnabled(!player.mixEnabled)}
+                          onClick={() => {
+                            player.setMixEnabled(!player.mixEnabled);
+                            window.dispatchEvent(
+                              new CustomEvent('wave:feature-used', { detail: 'Mix' }),
+                            );
+                          }}
                         >
                           <motion.span layout transition={animation.fast}>
                             {player.mixEnabled && <Check size={15} />}
@@ -1044,6 +1075,7 @@ function WaveApp({
                       </div>
                       <LocalMetadataReview
                         tracks={library.tracks}
+                        onResolveRoles={library.resolveRoles}
                         enabled={detailsOn}
                         onToggle={toggleDetails}
                         onLookUp={() => void catalogue.lookUp()}
@@ -1099,14 +1131,7 @@ function WaveApp({
                   }
                   about={
                     <>
-                      <button
-                        type="button"
-                        className="settings-source"
-                        onClick={() => setAndroidSheet(true)}
-                      >
-                        {t('Wave for Android')}
-                        <ArrowUpRight size={16} />
-                      </button>
+                      <PlatformLinks onDevices={() => openSettings('devices')} />
                       <a
                         className="settings-source"
                         href="https://github.com/jaime-gaming/Wave"
@@ -1146,6 +1171,8 @@ function WaveApp({
               <RemixPage
                 summary={listening.summary}
                 recap={listening.recap}
+                artists={artists}
+                artistPhotos={artistPhotos}
                 history={listening.history}
                 loaded={listening.loaded}
                 currentId={player.current?.id}
@@ -1154,16 +1181,19 @@ function WaveApp({
                 onArtist={openArtist}
                 onAdd={openAddMusic}
                 onManageHistory={() => openSettings('storage')}
-                onSave={async (songs) => {
+                onSave={async (songs, week) => {
                   // Saving is explicit: the list becomes an ordinary playlist and
                   // nothing about the history changes.
                   const saved = await collections.create(
                     {
-                      name: `Remix · ${new Date().toLocaleDateString(undefined, {
+                      name: `Remix · ${new Date(week.end).toLocaleDateString(undefined, {
                         day: 'numeric',
                         month: 'short',
+                        year: 'numeric',
                       })}`.slice(0, 100),
-                      description: t('Saved from Remix, the songs you played most this week.'),
+                      description: t('Saved from Remix for {date}.', {
+                        date: new Date(week.end).toLocaleDateString(),
+                      }),
                     },
                     songs.map((track) => track.id),
                   );
@@ -1174,7 +1204,7 @@ function WaveApp({
                 onClear={listening.forget}
               />
             ) : page === 'home' && dailySelection ? (
-              <Suspense fallback={<div className="empty-state" aria-busy="true" />}>
+              <Suspense fallback={<SurfaceLoading />}>
                 <DailyMixPage
                   selection={dailySelection}
                   tracks={library.tracks}
@@ -1207,6 +1237,7 @@ function WaveApp({
             ) : page === 'home' ? (
               <HomePage
                 tracks={library.tracks}
+                listening={listening.summary}
                 playlists={collections.playlists}
                 current={player.current}
                 playing={player.state.playing}
@@ -1383,21 +1414,6 @@ function WaveApp({
           </LibrarySurface>
         </AnimatePresence>
       </main>
-      <AnimatePresence>
-        {androidSheet && (
-          <AndroidAppSheet
-            key="android-app"
-            onDismiss={() => {
-              rememberPromptAnswer('dismissed');
-              setAndroidSheet(false);
-            }}
-            onKeepWeb={() => {
-              rememberPromptAnswer('web');
-              setAndroidSheet(false);
-            }}
-          />
-        )}
-      </AnimatePresence>
       <PlayerBar
         player={player}
         expanded={playerOpen}
@@ -1448,6 +1464,7 @@ function WaveApp({
             key="queue"
             title={t('Queue')}
             className="queue-sheet"
+            placement="side"
             onClose={() => setQueueOpen(false)}
           >
             <QueuePanel
@@ -1711,6 +1728,9 @@ function WaveApp({
             onSave={library.editMetadata}
             onRestore={library.restoreMetadata}
             onRestoreSilence={(id) => library.silence(id, 'restore')}
+            onTrim={(bounds) => library.silence(editingTrack.id, 'trim', bounds)}
+            onPreview={player.pauseForPreview}
+            previewVolume={player.volume}
           />
         )}
         {playlistForm && (
@@ -1806,7 +1826,10 @@ function WaveApp({
         )}
       </AnimatePresence>
       {(error || (library.message && noticeVisible) || library.progress) && (
-        <div className={`toast ${error ? 'error-toast' : ''}`} role={error ? 'alert' : 'status'}>
+        <div
+          className={`toast ${library.progress ? 'library-update-toast' : ''} ${error ? 'error-toast' : ''}`}
+          role={error ? 'alert' : 'status'}
+        >
           <span>
             {error ||
               (library.progress
@@ -1816,6 +1839,27 @@ function WaveApp({
                   })
                 : library.message)}
           </span>
+          {library.progress && (
+            <div className="library-update-status">
+              <div
+                className="library-update-track"
+                role="progressbar"
+                aria-label="Updating your library"
+                aria-valuemin={0}
+                aria-valuemax={library.progress.total}
+                aria-valuenow={library.progress.done}
+              >
+                <motion.span
+                  animate={{
+                    scaleX: library.progress.total
+                      ? library.progress.done / library.progress.total
+                      : 0,
+                  }}
+                  transition={animation.fast}
+                />
+              </div>
+            </div>
+          )}
           {!library.progress && (
             <button
               className="icon-button"

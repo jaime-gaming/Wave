@@ -67,7 +67,7 @@ export const Artists = memo(function Artists({
               key={artist.name}
               className="artist-card"
               onClick={() => onOpen(artist.name)}
-              whileHover={animation.enabled ? { y: -5 } : undefined}
+              whileHover={animation.hoverEnabled ? { y: -2 } : undefined}
               whileTap={animation.enabled ? { scale: 0.97 } : undefined}
               transition={{
                 ...animation.fast,

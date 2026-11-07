@@ -110,7 +110,7 @@ export function deriveWordTimings(text: string, start: number, end: number): Kar
   let cursor = from;
   return tokens.map((token) => {
     const share = (token.weight * (1 + (token.pause - 1) * 0.5)) / total;
-    const duration = Math.max(MIN_WORD_SECONDS, span * share);
+    const duration = span * share;
     const word: KaraokeWord = {
       text: `${token.leading}${token.text}${token.trailing}`,
       start: Math.round(cursor * 1000) / 1000,
@@ -133,21 +133,46 @@ export function karaokeWords(
   fallbackEnd?: number,
 ): KaraokeWord[] {
   if (line.time === undefined) return [];
-  if (line.words?.length) {
+  if (
+    line.words?.length &&
+    line.words.every(
+      (word, i) =>
+        Number.isFinite(word.time) &&
+        word.time >= line.time! &&
+        (!i || word.time >= line.words![i - 1].time) &&
+        (word.end === undefined || (Number.isFinite(word.end) && word.end >= word.time)) &&
+        (nextLineTime === undefined || word.time <= nextLineTime),
+    )
+  ) {
     return line.words.map((word, index) => {
       const next = line.words![index + 1];
       const start = round(Math.max(0, word.time));
-      const end = round(word.end ?? next?.time ?? nextLineTime ?? start + 0.4);
+      const end = round(
+        Math.min(
+          word.end ?? next?.time ?? nextLineTime ?? start + 0.4,
+          next?.time ?? Infinity,
+          nextLineTime ?? Infinity,
+        ),
+      );
       return {
         text: word.text,
         start,
-        end: Math.max(round(start + MIN_WORD_SECONDS), end),
+        end: Math.max(start, end),
         source: 'provider' as const,
         pauseAfter: pauseWeight(word.text),
       };
     });
   }
-  const end = nextLineTime ?? fallbackEnd ?? line.time + Math.max(1, line.text.length * 0.06);
+  // A long instrumental gap is not a twenty-second sustained final syllable.
+  const naturalEnd =
+    line.time + Math.max(1, splitWords(line.text).reduce((n, token) => n + token.weight, 0) * 0.38);
+  const boundary = nextLineTime ?? fallbackEnd;
+  const end =
+    boundary === undefined
+      ? naturalEnd
+      : boundary - line.time > Math.max(10, (naturalEnd - line.time) * 2)
+        ? naturalEnd + 1.5
+        : boundary;
   return deriveWordTimings(line.text, line.time, end);
 }
 

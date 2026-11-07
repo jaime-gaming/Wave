@@ -1,6 +1,6 @@
 {
   "name": "wave",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -14,10 +14,12 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "release:check": "node scripts/check-release.mjs",
-    "test:release": "node --test scripts/check-release.test.mjs",
+    "test:release": "node --test scripts/check-release.test.mjs scripts/native-release.test.mjs scripts/app-surface.test.mjs",
     "build:i18n": "node scripts/build-i18n.mjs",
-    "build:pages": "node scripts/build-pages.mjs",
-    "capture:docs": "node --experimental-strip-types scripts/capture-docs.ts"
+    "capture:docs": "node --experimental-strip-types scripts/capture-docs.ts",
+    "dev:worker": "wrangler dev --ip 0.0.0.0",
+    "deploy:check": "wrangler deploy --dry-run",
+    "test:smoke": "playwright test tests/quality-021.spec.ts tests/player-actions.spec.ts tests/settings-motion.spec.ts tests/motion-polish.spec.ts tests/mobile-ergonomics.spec.ts tests/release-candidate.spec.ts --workers=1"
   },
   "dependencies": {
     "@fontsource-variable/nunito-sans": "^5.3.0",
@@ -50,7 +52,8 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.71.2",
     "vite": "^8.3.4",
-    "vitest": "^5.0.4"
+    "vitest": "^5.0.4",
+    "wrangler": "^4.158.0"
   },
   "engines": {
     "node": "^22.12.0 || >=24.0.0"

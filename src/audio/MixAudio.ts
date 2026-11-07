@@ -1,6 +1,5 @@
 import { mixCues, type MixCues } from '../domain/mix';
 import {
-  panSpread,
   handoverGains,
   levelTrim,
   planGains,
@@ -63,6 +62,7 @@ export class MixAudio {
    */
   private settling?: { deck: Deck; from: number; start: number; seconds: number };
   private mixEnabled = false;
+
   private graph: MixGraph | null = null;
   private analyses = new WeakMap<Blob, TrackAnalysis>();
   private profiles = new WeakMap<Blob, MixCues>();
@@ -76,6 +76,15 @@ export class MixAudio {
    * library trim has to be honoured: start after the silence, and treat the end
    * of the music as the end of the song.
    */
+  private corrections = new WeakMap<Blob, number>();
+  setVolumeFix(blob: Blob, gain = 1) {
+    const safe = Number.isFinite(gain) ? Math.max(0.01, Math.min(8, gain)) : 1;
+    if (safe === 1) this.corrections.delete(blob);
+    else this.corrections.set(blob, safe);
+    for (const deck of [this.active, this.spare])
+      if (deck?.blob === blob && this.attached.has(deck.element))
+        this.graph?.setNormalization(deck.element, this.corrections.get(blob) ?? 1);
+  }
   private bounds = new WeakMap<Blob, { start: number; end: number }>();
   private pending = false;
   private blocked?: Blob;
@@ -174,8 +183,13 @@ export class MixAudio {
    * tab), the song would play silently, which is exactly what must never happen.
    * When the graph cannot run, playback stays on the native element.
    */
-  private async route() {
-    if (!this.mixEnabled) return;
+  private async route(force = false) {
+    if (
+      !force &&
+      !this.mixEnabled &&
+      (!this.active.blob || !this.corrections.has(this.active.blob))
+    )
+      return;
     this.graph ??= MixGraph.create();
     if (!this.graph) return;
     const running = await this.graph.resume();
@@ -195,6 +209,11 @@ export class MixAudio {
     if (this.spare) this.prime(this.spare);
   }
 
+  async prepareVolumeFix() {
+    await this.route(true);
+    if (!this.graph?.running)
+      throw Error('Volume processing is not available. Start playback and try again.');
+  }
   /** Called from a click so a suspended context can be brought back. */
   async resumeAudio(): Promise<void> {
     await this.route();
@@ -224,13 +243,25 @@ export class MixAudio {
     return this.profiles.get(deck.blob) ?? { start: 0, end: duration };
   }
   get mixRemaining() {
-    return Math.min(this.element.duration, this.cues(this.active).end) - this.element.currentTime;
+    const bounds = this.boundsOf(this.active);
+    return (
+      Math.min(
+        this.element.duration,
+        this.cues(this.active).end,
+        bounds.end > 0 ? bounds.end : Infinity,
+      ) - this.element.currentTime
+    );
   }
   private attachGraph(deck: Deck) {
-    if (!this.graph?.running) return;
+    if (!this.graph?.running || this.attached.has(deck.element)) return;
     const chain = this.graph.chain(deck.element);
     if (!chain) return;
     this.attached.add(deck.element);
+    this.graph.setNormalization(
+      deck.element,
+      deck.blob ? (this.corrections.get(deck.blob) ?? 1) : 1,
+      true,
+    );
     // The element keeps only the master volume; the mix curve lives in the graph.
     this.graph.setGain(deck.element, this.silenced(deck) ? 0 : 1);
     this.graph.setBass(deck.element, 0);
@@ -324,6 +355,7 @@ export class MixAudio {
     this.release(deck);
     if (this.graph) this.graph.setAir(deck.element, OPEN_AIR_HZ);
     deck.blob = blob;
+    this.graph?.setNormalization(deck.element, this.corrections.get(blob) ?? 1, true);
     deck.url = URL.createObjectURL(blob);
     deck.element.src = deck.url;
     deck.element.currentTime = 0;
@@ -386,7 +418,7 @@ export class MixAudio {
       // Inside the user gesture: this is the only moment the browser will let
       // the audio context start. Routing first means the graph is attached and
       // running before a single sample is played.
-      if (this.mixEnabled) await this.route();
+      await this.route();
       const bounds = this.boundsOf(this.active);
       const atStart = deck.element.currentTime < 0.2 || deck.element.ended;
       if (deck.element.ended) deck.element.currentTime = 0;
@@ -410,9 +442,23 @@ export class MixAudio {
     this.element.currentTime = seconds;
     this.report();
   }
+  /** A short, correlated-safe overlap with the same recording at its trim start. */
+  repeatTransition(guard: () => boolean, onStarted: () => void) {
+    const blob = this.active.blob;
+    if (!blob) return;
+    this.startTransition(blob, 0.8, guard, onStarted, {
+      cue: this.boundsOf(this.active).start,
+      miniRepeat: true,
+      bassSwap: !!this.graph?.available,
+      filterOut: !!this.graph?.available,
+    });
+  }
   restart() {
     this.cancelTransition();
     this.element.currentTime = 0;
+    // A short, unity-bounded attack softens the return without layering audio,
+    // changing pitch or touching the original file. It is independent of Mix.
+    this.fadeIn(0.22);
     return this.play();
   }
   prepare(blob?: Blob) {
@@ -465,6 +511,7 @@ export class MixAudio {
       bassSwap?: boolean;
       bassSwapAt?: number;
       filterOut?: boolean;
+      miniRepeat?: boolean;
     },
   ) {
     const incoming = this.spare,
@@ -501,6 +548,7 @@ export class MixAudio {
           this.pending = false;
           return;
         }
+        const outgoingTime = outgoing.element.currentTime;
         this.pending = false;
         this.active = incoming;
         this.spare = outgoing;
@@ -511,7 +559,7 @@ export class MixAudio {
             // Where the two songs are actually heard together: the outgoing one
             // from the point its tail begins, the incoming one from its cue.
             {
-              outgoing: this.element.currentTime,
+              outgoing: outgoingTime,
               incoming: cue,
             },
           ),
@@ -520,7 +568,7 @@ export class MixAudio {
           start: performance.now(),
           seconds: length,
           cue,
-          mixed: this.mixEnabled,
+          mixed: this.mixEnabled || !!options.miniRepeat,
           // Every handover Mix performs gets the low-end swap and the filter out,
           // planned or not: a song that was analysed badly must not sound like a
           // bare crossfade while the next one sounds like a mix.
@@ -528,6 +576,7 @@ export class MixAudio {
           bassSwapAt: options.bassSwapAt ?? 0.5,
           filterOut: options.filterOut ?? this.eqAvailable,
         };
+        this.applyGains();
         this.callbacks.buffering(false);
         this.report();
         onStarted();
@@ -651,13 +700,20 @@ export class MixAudio {
     const gains = this.fading.mixed ? handoverGains(progress) : planGains(progress);
     // The level match rides on top of the curve, so a quieter record is not
     // heard as the mix going quiet.
-    this.applyDeckGain(this.fading.outgoing, gains.outgoing * this.fading.trim.outgoing);
-    this.applyDeckGain(this.fading.incoming, gains.incoming * this.fading.trim.incoming);
+    // Equal-power alone can add +3 dB on correlated recordings. Bound the sum
+    // as well as each deck; this also protects the element-only fallback.
+    const outgoingGain =
+      gains.outgoing *
+      (1 + (this.fading.trim.outgoing - 1) * smoothstep(Math.min(1, progress / 0.2)));
+    const incomingGain = gains.incoming * this.fading.trim.incoming;
+    const headroom = Math.max(1, outgoingGain + incomingGain);
+    this.applyDeckGain(this.fading.outgoing, outgoingGain / headroom);
+    this.applyDeckGain(this.fading.incoming, incomingGain / headroom);
     // Two records in one space: they separate in the stereo field as they meet
     // and come back to the centre together. No level is touched.
     if (this.fading.mixed && this.graph) {
-      this.graph.setPan(this.fading.outgoing.element, panSpread(progress, 'outgoing'));
-      this.graph.setPan(this.fading.incoming.element, panSpread(progress, 'incoming'));
+      this.graph.setPan(this.fading.outgoing.element, 0);
+      this.graph.setPan(this.fading.incoming.element, 0);
     }
     if (this.fading.bassSwap && this.graph) {
       // A's lows close as B's open, so the kick never disappears between the two

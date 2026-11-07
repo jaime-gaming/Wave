@@ -6,20 +6,12 @@ import globals from 'globals';
 
 export default tseslint.config(
   {
-    ignores: [
-      'dist',
-      'docs/site-assets',
-      'docs/privacy-theme.js',
-      'coverage',
-      'playwright-report',
-      '.cache',
-      'test-results',
-    ],
+    ignores: ['dist', 'coverage', 'playwright-report', '.cache', 'test-results'],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ['public/sw.js', 'docs/sw.js'],
+    files: ['public/sw.js'],
     languageOptions: { globals: { ...globals.serviceworker } },
   },
   {

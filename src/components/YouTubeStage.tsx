@@ -209,16 +209,19 @@ export function YouTubeStage({
   useEffect(() => {
     const level = target();
     const send = (value: number) => post('setVolume', [Math.round(value * 100)]);
-    const from = applied.current;
+    const restarting = seek.nonce > 0 && seek.seconds === 0;
+    const from = restarting ? 0 : applied.current;
     applied.current = level;
     if (ramp.current !== null) cancelAnimationFrame(ramp.current);
     if (from === null || fadeSeconds < 0.05) {
       send(level);
       return;
     }
+    if (restarting) send(0);
     const started = performance.now();
+    const duration = restarting ? 0.22 : fadeSeconds;
     const step = () => {
-      const p = Math.min(1, (performance.now() - started) / (fadeSeconds * 1000));
+      const p = Math.min(1, (performance.now() - started) / (duration * 1000));
       send(from + (level - from) * p);
       ramp.current = p < 1 ? requestAnimationFrame(step) : null;
     };
@@ -227,7 +230,7 @@ export function YouTubeStage({
       if (ramp.current !== null) cancelAnimationFrame(ramp.current);
       ramp.current = null;
     };
-  }, [target, fadeSeconds, post]);
+  }, [target, fadeSeconds, post, seek.nonce, seek.seconds]);
 
   useEffect(() => {
     if (!playing) return;

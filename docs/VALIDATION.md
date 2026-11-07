@@ -1,6 +1,72 @@
 # Validation record
 
-Release 0.2.0 · 3 November 2026. Historical run dates are retained below.
+Development target: 0.2.1. Released baseline: 0.2.0 · 3 November 2026. Historical run dates are retained below.
+
+## 0.2.1 launch candidate — 6 November 2026
+
+- **745 web tests across 116 files passed.** New cases cover indexed genre/year search, immutable metadata edits and bounded ranking; playable/deduplicated AutoPlay sources and bounded entropy/batches; incomplete/nonfinite silence envelopes and valid short-source mix clocks.
+- **21 required release smoke cases passed in one local run, and the required smoke step also passed in CI at 6e57af4.** The suite includes compact unselected Remix bounds at 360/1280 px with full-row natural-order detail, category-aware/IME-safe search, one-result AutoPlay on/off, actual Fix volume worker/bypass, same-recording repeat, exclusive Trim preview, input-capability motion and mobile controls. It is blocking in Checks and Release assets; the wider historical browser suite remains diagnostic and is not claimed wholly green.
+- **15 release/app-surface contract checks and six deterministic packaging tests passed.** No model-service client dependencies/branding or decorative magic icons were found in shipped app surfaces. Existing legal notices are preserved. Optional metadata services remain separate from local selection/audio rules.
+- Native CI for revision **6e57af4** completed **successfully for Android and Windows**: compilation/tests, UI captures and native packaging, including corrected detached-HEAD screenshot publication. This is real runner validation, not a local SDK/device pass. Headphone listening, actual device behavior, provider uptime, signing and final artifact/security review remain explicit human gates.
+- Ten web captures regenerated; inspected compact Remix hierarchy. Documentation/notes/checklist updated without creating a tag, publishing a Release or deploying production. Release artifacts remain clearly labelled test APK/unsigned Windows ZIP, with no web portable attachment.
+
+## 0.2.1 motion-wide refinement — 6 November 2026
+
+- **739 web tests across 116 files passed.** New ripple cases cover one-per-control/global bounds, rapid replacement, held/inert/disabled controls, safe document targets and immediate cleanup on preference changes. Motion tests verify dynamic fine-pointer capability and listener cleanup.
+- **9 targeted Chromium cases passed**: mouse/touch hover and return-to-rest, complementary route directions, OS/app-disabled action feedback, fixed player-control bounds and small-screen controls/forms. The full historical browser suite is not claimed green.
+- Build, lint, formatting, release metadata and 12 release/package contract checks passed. Spring/CSS tuning, sharper entrances, shorter modal travel and lighter feedback preserve playback semantics and the existing repeat-boundary icon behavior.
+- Android critical-damping/smaller glyph responses and Windows non-overshooting settle/animation-clock cleanup are source updates for native CI. Native SDKs are absent here; no native build/device pass, new native capture, production deployment or release publication is claimed.
+
+## 0.2.1 controls and native interaction polish — 6 November 2026
+
+- **735 web tests across 115 files passed**, including eight new action-control cases: no entrance/restoration pulse, distinct immediate action feedback, keyboard activation, disabled controls, external volume changes and motion-off reset.
+- **19 distinct targeted Chromium cases passed.** Actual computed transforms verify repeat, shuffle, favorite, clip and mute icons animate only when permitted, while button bounds remain fixed. Both OS reduced motion and the app switch suppress icon movement without blocking actions. Additional cases verify restored mute, actual volume-fix analysis/global bypass, identical Fix volume/Mix switch dimensions, mobile forms, trim audio ownership, same-source repeat, Remix, route direction and the real idle videoclip scene.
+- Production build, lint, formatting, release metadata and 12 release/package checks passed. Windows XAML parses successfully; this is syntax validation, not a WPF build. The historical browser suite is not claimed wholly green.
+- Ten web captures regenerated and the new uniform Playback switch list inspected. Native screenshots/build/device runs are pending their dedicated CI environment, not fabricated locally.
+- Android adds two Robolectric player-control tests; Windows UI smoke checks now cover synchronized sliders, mute restoration and disabled icon motion. Android/Java/Gradle and Windows/.NET SDKs are absent from this workspace, so no local native build/test pass is claimed. Native CI is triggered by the branch push. No production deployment or release publication.
+
+## 0.2.1 Settings, motion and idle video — 6 November 2026
+
+- **727 web tests across 114 files passed.** New hook cases cover global disabled/importing gates, sequential scanning, future imports, cancellation with late results and unsupported recordings. The final source-removal cancellation adjustment was rechecked with all four hook tests.
+- **20 distinct targeted Chromium cases passed** across quality, clip layout/idle, mobile ergonomics, queue and Settings motion. Checks cover real worker analysis and gain above unity, subsequent imports, global unity bypass, preference reload, absence of the old editor action, directional DOM movement and OS reduced motion. Idle video checks at 1440×900, 390×844 and 667×375 verify full-background bounds, compact credits, mobile lyric separation, the same connected iframe and immediate wake.
+- Build, lint, formatting, release metadata and 12 release/package contract tests passed. Historical browser suites are not claimed wholly green. No native SDK/device build, live external-provider playback, production deployment or release publication is claimed. YouTube traffic is blocked in clip geometry tests; they verify layout and stage continuity, not external footage playback.
+- Documentation captures regenerated from the disposable library and inspected: Fix volume now appears in Settings → Playback, and artwork-led idle listening retains its non-video fallback. Video respects the existing global off preference and reuses the existing playback stage.
+
+## 0.2.1 listening refinements — 6 November 2026
+
+- **723 web tests across 113 files passed.** Added coverage for reversible gain persistence/source bytes, RMS/peak and silence safety, actual same-source repeat overlap/trim opening, reviewed artist/title identity, real compressed KRC fixtures, short/gapped word interpolation, invalid word clocks and guarded inactivity entry/wake.
+- Targeted Chromium checks verify actual Fix volume worker execution, a gain greater than unity on a quiet source, persisted restoration, two simultaneously playing decoders during repeat and replacement of its icon only. Responsive Remix tests measure full-row expansion and populated-only week options. Videoclip tests wait for the real 30-second dedicated scene and test waking back to controls. **Final post-layout results: 18 sequential Chromium tests passed**, plus a separate passing inactivity regression that verifies both expanded and collapsed automatic entry/wake (**19 targeted tests** total). The full historical browser suite is not claimed green. After the final source-level initialization adjustment, all 32 audio tests and both Fix volume/repeat browser cases passed again.
+- Ten web screenshots regenerated from the disposable demo library, including restored immersive artwork/lyrics and Fix volume. No real user's audio/data is used. The capture uses real inactivity and volume analysis, not a simulated production UI state.
+- Search provider endpoints cannot be live-verified in this workspace; mocked recording-match tests and realistic compressed KRC fixtures verify local request/parsing behavior, not provider uptime. Headphone listening and native SDK/device verification remain separate. Fix volume is a new **web local-file** tool, not a native-client or YouTube audio processor. No production deployment or release publication.
+
+## 0.2.1 release-candidate polish — 6 November 2026
+
+- Full web suite: **708 tests across 111 files passed**. Added regression coverage for per-card disclosure placement and saved artwork, full older-week navigation, main-deck pause ownership/preview teardown, volume and the three-by-twenty Daily Mix limits.
+- Chromium: **16 targeted tests passed** across quality, Remix, videoclip and mobile ergonomics. A final nine-test layout/trim/mobile pass also passed after the spacing adjustments. The new browser test checks real native decoder state before/after entering Trim, preview-only playback and actual preview shutdown on close.
+- Build, lint, format, release metadata and native-only packaging checks are run for this candidate. The whole historical browser suite is not claimed green. External-provider availability and headphone listening remain separate checks.
+- Regenerated eight actual web screenshots from the disposable demo library; inspected the grid, per-card details and opinion card. Capture now waits for the startup overlay to leave, rather than photographing a loading screen. Artist photos require locally saved customizations; library sleeves are explicitly the fallback.
+- Android and Windows shared row styling and three-by-twenty generator contracts are updated in source. Their SDKs are absent here: no native compilation/device pass or fresh native screenshots are claimed. Native CI runs on the branch push, but its eventual outcome must be checked before release. This change does not publish a release or deploy production.
+
+## 0.2.1 follow-up — 6 November 2026
+
+- `npm test`: **703 tests across 111 files passed**. Focused tests cover a bounded repeat attack, public URL attempt/preview/fallback, same-origin/allowlisted upstream handling, public page parsing and local-only feedback eligibility/persistence.
+- `npm run build`, `npm run lint`, `npm run format:check`, `npm run release:check`, `npm run test:release` (12 checks), and Python packaging tests (6) pass. Production build retains the known bundle-size/mixed-import warnings.
+- `npm run deploy:check`: Worker bundles successfully with `ASSETS`; this is a dry run, not a production deployment. The old Pages/static mirror generator and CI drift check are retired. Older validation entries below describe historical commands, not current hosting instructions.
+- Final sequential Chromium run: **15 targeted tests passed**, covering Remix, route navigation, trim controls, mobile layouts, video geometry and the actual 30-second idle/wake path. Clip lyrics remain visible while idle. This does not establish that the whole historical E2E suite passes.
+- Regenerated six real web screenshots using the disposable demo library: Home desktop/mobile, Remix desktop/mobile, Daily Mix and Now Playing. Native screenshots were not regenerated; their SDKs are absent. Native Android motion/lyrics/scrubbing and Windows repeat attack are source-reviewed, not built or device-verified here.
+- Real Spotify/YouTube upstream availability is not verified in this network-restricted environment. Tests use representative public JSON fixtures; private pages, provider markup changes, blocking and incomplete initial pages deliberately fall back to export files. No account bypass, audio download or guaranteed complete import is claimed.
+
+## 0.2.1 development validation — 5 November 2026
+
+- `npm test`: **695 passing tests across 110 files**.
+- `npm run lint`, `npm run build`, `npm run release:check`: pass. The build retains the existing bundle-size and mixed static/dynamic import warnings.
+- `npm run test:release`: 12 passing checks, including native-only asset publication contracts. Python packaging tests: 6 passing.
+- Final targeted Chromium browser checks pass with `--workers=1`: `quality-021.spec.ts` (6), `clip-stage.spec.ts` (3), `remix.spec.ts` (4) and `mobile-ergonomics.spec.ts` (2). These cover actual waveform drag/hold-zoom/save, route reload/back, mobile layouts, Remix, video geometry and waking an idle stage. An earlier two-worker run failed two real-time Remix cases while unit tests were also running; the harness now waits for import readiness and an additional playback sample before pausing. The final sequential run passed all 15 cases. This is **not** a claim that the entire historical browser suite passes.
+- Screens were also inspected in Chromium. Audio gain tests cover the summed level and resuming the graph mid-mix; listening with real headphones and varied recordings remains necessary.
+- Native Android/Windows builds and real external lyric providers were not executed in this environment. The release workflow requires their GitHub runners. The new music surfaces and trim interactions are web features; native UI parity remains outstanding.
+
+- Follow-up tests exercise persisted artist/title swap and confirmation, filename-only warning suppression, conservative catalogue correction, repeat acknowledgements, transparent browser icons and real word-timing persistence. New interface copy is included in the shared English/Spanish dictionary and regenerated native tables.
+- Android About and Windows About now expose platform/privacy links. Windows import changes were reviewed, not compiled or benchmarked; no Rust migration or speedup is claimed. Installed Android/Windows behavior, native UI parity and platform audio effects still need device validation.
 
 ## Web
 

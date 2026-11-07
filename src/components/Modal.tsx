@@ -23,7 +23,9 @@ export function Modal({
   immediate = false,
   exitMotion,
   exitTransition,
+  placement = 'center',
 }: {
+  placement?: 'center' | 'side';
   immediate?: boolean;
   title: string;
   fullScreen?: boolean;
@@ -68,24 +70,27 @@ export function Modal({
     <motion.dialog
       initial={{
         opacity: animation.enabled && !immediate ? 0 : 1,
-        y: animation.enabled && !immediate ? (fullScreen ? 48 : 24) : 0,
+        x: animation.enabled && !immediate && placement === 'side' ? 24 : 0,
+        y: animation.enabled && !immediate && placement !== 'side' ? (fullScreen ? 28 : 14) : 0,
         // The player grows out of the bar at the bottom of the screen; a small
         // dialog grows out of the point it was opened from.
-        scale: animation.enabled && !immediate ? (fullScreen ? 0.975 : 0.96) : 1,
+        scale:
+          animation.enabled && !immediate && placement !== 'side' ? (fullScreen ? 0.99 : 0.98) : 1,
       }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
+      animate={{ opacity: 1, x: 0, y: 0, scale: 1 }}
       exit={
         animation.enabled
           ? (exitMotion ?? {
               opacity: 0,
-              y: 16,
-              scale: fullScreen ? 1 : 0.97,
+              x: placement === 'side' ? 24 : 0,
+              y: placement === 'side' ? 0 : 10,
+              scale: fullScreen || placement === 'side' ? 1 : 0.99,
             })
           : { opacity: 0 }
       }
       transition={
         exitTransition ?? {
-          ...animation.spatial,
+          ...(placement === 'side' ? animation.lateral : animation.spatial),
           opacity: animation.effects,
         }
       }

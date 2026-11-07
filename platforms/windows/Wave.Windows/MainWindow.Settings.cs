@@ -25,6 +25,7 @@ public partial class MainWindow
     private void RenderSettings(string? section = null)
     {
         SettingsBody.Children.Clear();
+        Motion.Slide(SettingsBody, Motion.Enabled(preferences.Animations), section == null ? -1 : 1);
         if (section == null) {
             var back = new Button { Style = (Style)FindResource("TextButton"), Foreground = (Brush)Application.Current.Resources["MutedBrush"], Margin = new Thickness(2, 4, 2, 14) };
             back.Content = Iconography.With("chevron-left", Localization.T("Back"), 16, 6);
@@ -88,9 +89,12 @@ public partial class MainWindow
                 SettingsBody.Children.Add(Label(Localization.T("{count} original files in {folder}. Keep your originals; deleting this folder removes this library.", new Dictionary<string, string> { ["count"] = tracks.Count.ToString(), ["folder"] = repository.Folder })));
                 SettingsBody.Children.Add(ActionButton(Localization.T("Open local library folder"), () => Process.Start(new ProcessStartInfo(repository.Folder) { UseShellExecute = true }))); break;
             case "About":
-                SettingsBody.Children.Add(Label("Wave 0.2.0 · 1 November 2026", 23));
+                SettingsBody.Children.Add(Label("Wave 0.2.1", 23));
                 SettingsBody.Children.Add(Label(Localization.T("Your music. Your collection. No account required.")));
                 SettingsBody.Children.Add(ActionButton(Localization.T("Source code"), () => Process.Start(new ProcessStartInfo("https://github.com/jaime-gaming/Wave") { UseShellExecute = true })));
+                SettingsBody.Children.Add(ActionButton(Localization.T("Wave on the web · link devices"), () => Process.Start(new ProcessStartInfo("https://wave.jaime-gaming.com/Settings") { UseShellExecute = true })));
+                SettingsBody.Children.Add(ActionButton(Localization.T("Wave for Android · APK"), () => Process.Start(new ProcessStartInfo("https://github.com/jaime-gaming/Wave/releases/latest") { UseShellExecute = true })));
+                SettingsBody.Children.Add(ActionButton(Localization.T("Privacy & rights"), () => Process.Start(new ProcessStartInfo("https://wave.jaime-gaming.com/privacy.html") { UseShellExecute = true })));
                 SettingsBody.Children.Add(Label(Localization.T("Use audio and lyrics you may lawfully access. See the repository privacy information."))); break;
         }
     }

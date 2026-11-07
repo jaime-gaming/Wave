@@ -1,4 +1,5 @@
 import { lookupLyrics } from '../services/lyrics';
+import { extendedLyricsEnabled } from '../services/lyricsExtra';
 import { lyricsCooldown } from '../services/lyricsCooldown';
 import { canLookup } from '../domain/lyricsLookup';
 import { useEffect, useRef, useState } from 'react';
@@ -25,7 +26,7 @@ export function LyricsEditor({
     [error, setError] = useState('');
   const [searching, setSearching] = useState(false),
     [candidate, setCandidate] = useState<Lyrics>(),
-    [applied, setApplied] = useState<Lyrics>(),
+    [applied, setApplied] = useState<Lyrics | undefined>(track.lyrics),
     [searchMessage, setSearchMessage] = useState('');
   const [cooldown, setCooldown] = useState(() => Math.max(retryAt, lyricsCooldown())),
     [now, setNow] = useState(Date.now);
@@ -48,7 +49,9 @@ export function LyricsEditor({
     request.current = controller;
     setSearching(true);
     setCandidate(undefined);
-    setSearchMessage(t('Searching LRCLIB…'));
+    setSearchMessage(
+      extendedLyricsEnabled() ? 'Looking for word-by-word lyrics…' : t('Searching LRCLIB…'),
+    );
     try {
       const result = await lookupLyrics(track, controller.signal);
       if (controller.signal.aborted) return;
@@ -78,8 +81,12 @@ export function LyricsEditor({
     try {
       const parsed = remove
         ? undefined
-        : parseLyrics(raw, offset, applied?.raw === raw ? 'lrclib' : 'local');
-      if (parsed && applied?.raw === raw) parsed.providerId = applied.providerId;
+        : parseLyrics(raw, offset, applied?.raw === raw ? applied.source : 'local');
+      if (parsed && applied?.raw === raw) {
+        parsed.lines = applied.lines;
+        parsed.providerId = applied.providerId;
+        parsed.provider = applied.provider;
+      }
       if (!remove && !parsed?.lines.some((line) => line.text))
         throw Error(t('Add some lyrics or choose Remove lyrics.'));
       if (await onSave(track.id, parsed)) onClose();
@@ -106,9 +113,10 @@ export function LyricsEditor({
         </p>
         <section className="editor-lookup" aria-label={t('Find lyrics')}>
           <p>
-            Search LRCLIB with this song’s title, artist, album and duration. Your audio is never
-            sent. Playback and automatic lookup are not required. Results are saved only when you
-            choose Save lyrics.
+            {extendedLyricsEnabled()
+              ? 'Search for real word-by-word timings, with line-synced lyrics as a fallback.'
+              : 'Search for matching lyrics.'}{' '}
+            Only song information is sent, never your audio. Nothing changes until you save.
           </p>
           <div className="editor-lookup-actions">
             <button
@@ -159,9 +167,12 @@ export function LyricsEditor({
               >
                 Use found lyrics
               </button>
-              <a href="https://lrclib.net" target="_blank" rel="noreferrer">
-                LRCLIB
-              </a>
+              <span className="lyrics-search-source">
+                {candidate.provider ?? 'LRCLIB'} ·{' '}
+                {candidate.lines.some((line) => line.words?.length)
+                  ? 'Word by word'
+                  : 'Line synced'}
+              </span>
             </>
           )}
         </section>

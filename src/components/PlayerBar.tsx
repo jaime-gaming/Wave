@@ -1,3 +1,5 @@
+import { PlayerActionButton } from './PlayerActionButton';
+import { useIdleListening } from '../hooks/useIdleListening';
 import { MusicLighting } from './MusicLighting';
 import { VideoBackdrop } from './VideoBackdrop';
 import { YouTubeStage } from './YouTubeStage';
@@ -237,7 +239,9 @@ function PlayerDetails({
               </button>
             </div>
             <div className="stage-modes">
-              <button
+              <PlayerActionButton
+                action="shuffle"
+                value={state.shuffled}
                 className={state.shuffled ? 'active' : ''}
                 onClick={player.shuffle}
                 aria-label={t('Shuffle')}
@@ -245,16 +249,32 @@ function PlayerDetails({
                 disabled={!current}
               >
                 <Shuffle size={22} />
-              </button>
-              <button
+              </PlayerActionButton>
+              <PlayerActionButton
+                action="repeat"
+                value={state.repeat}
                 className={state.repeat !== 'off' ? 'active' : ''}
+                aria-pressed={state.repeat !== 'off'}
                 onClick={() => dispatch({ type: 'repeat' })}
                 aria-label={t(`Repeat: ${state.repeat}`)}
                 disabled={!current}
               >
-                {state.repeat === 'one' ? <Repeat1 size={22} /> : <Repeat size={22} />}
-              </button>
-              <button
+                <motion.span
+                  key={player.repeatSerial}
+                  className="repeat-symbol"
+                  aria-hidden="true"
+                  initial={
+                    animation.enabled && player.repeatSerial ? { rotate: -180, scale: 0.8 } : false
+                  }
+                  animate={{ rotate: 0, scale: 1 }}
+                  transition={animation.effects}
+                >
+                  {state.repeat === 'one' ? <Repeat1 size={22} /> : <Repeat size={22} />}
+                </motion.span>
+              </PlayerActionButton>
+              <PlayerActionButton
+                action="clip"
+                value={videoClip}
                 className={videoClip && !player.youTube ? 'active' : ''}
                 disabled={!current || !!player.youTube}
                 aria-label={
@@ -268,8 +288,10 @@ function PlayerDetails({
                 onClick={() => onToggleVideoClip?.()}
               >
                 <Film size={21} />
-              </button>
-              <button
+              </PlayerActionButton>
+              <PlayerActionButton
+                action="favorite"
+                value={current?.favorite}
                 className={current?.favorite ? 'active' : ''}
                 disabled={!current}
                 aria-label={
@@ -281,16 +303,18 @@ function PlayerDetails({
                 }}
               >
                 <Heart size={23} fill={current?.favorite ? 'currentColor' : 'none'} />
-              </button>
+              </PlayerActionButton>
             </div>
             <div className="stage-volume">
-              <button
+              <PlayerActionButton
+                action="volume"
+                value={volume}
                 className="icon-button"
                 onClick={player.toggleMute}
                 aria-label={volume ? t('Mute') : t('Unmute')}
               >
                 {volume ? <Volume2 size={21} /> : <VolumeX size={21} />}
-              </button>
+              </PlayerActionButton>
               <input
                 aria-label={t('Volume')}
                 type="range"
@@ -397,10 +421,12 @@ export function PlayerBar(props: PlayerProps) {
       : undefined;
   const blendProgress = Math.max(0, Math.min(1, player.blend?.progress ?? 0));
   const blendSeconds = (player.blend?.seconds ?? 0) * blendProgress;
-  // The player opens when it is asked to. It used to take the screen over after
-  // thirty seconds of listening without a click; that scene is gone, so an idle
-  // room now stays exactly as the listener left it.
-  const showing = expanded;
+  const idleListening = useIdleListening(
+    player.state.playing && !player.buffering && !!player.current && !props.queueOpen,
+    player.current?.id,
+  );
+  const idle = idleListening.immersive;
+  const showing = expanded || idle;
   // Only this bar follows the position; the rest of the interface stays still.
   const time = usePlaybackTime(player.clock);
   const colors = usePlayerColors(
@@ -422,15 +448,16 @@ export function PlayerBar(props: PlayerProps) {
    * video, not by the video's container, so the only honest way to switch it off
    * is at the root — the same place the palette and the motion preference live.
    */
-  const clipShowing = clipLive && videoClip && expanded;
+  const clipShowing = clipLive && videoClip && showing;
+  const stageHasVideo = showing && (clipShowing || !!player.stageYouTube);
   useEffect(() => {
     const root = document.documentElement;
-    if (clipShowing) root.dataset.clip = 'live';
+    if (stageHasVideo) root.dataset.clip = 'live';
     else delete root.dataset.clip;
     return () => {
       delete root.dataset.clip;
     };
-  }, [clipShowing]);
+  }, [stageHasVideo]);
   useEffect(() => {
     if (!expanded) return;
     const timer = setTimeout(() => setLyricsOpen(true), 0);
@@ -445,7 +472,11 @@ export function PlayerBar(props: PlayerProps) {
       />
       {!showing && (
         <SilenceNotice
+          key={player.current?.id}
           text={player.silenceNotice?.text ?? null}
+          track={player.current ?? undefined}
+          onTrim={player.trimSilence}
+          onPreview={player.pauseForPreview}
           onRemove={player.removeSilence}
           onKeep={player.keepSilence}
         />
@@ -580,7 +611,9 @@ export function PlayerBar(props: PlayerProps) {
             </span>
           </div>
           <div className="compact-modes">
-            <button
+            <PlayerActionButton
+              action="shuffle"
+              value={player.state.shuffled}
               aria-label={t('Shuffle')}
               aria-pressed={player.state.shuffled}
               className={player.state.shuffled ? 'active' : ''}
@@ -588,24 +621,29 @@ export function PlayerBar(props: PlayerProps) {
               onClick={player.shuffle}
             >
               <Shuffle size={20} />
-            </button>
-            <button
-              aria-label={`Repeat: ${player.state.repeat}`}
+            </PlayerActionButton>
+            <PlayerActionButton
+              action="repeat"
+              value={player.state.repeat}
+              aria-label={t(`Repeat: ${player.state.repeat}`)}
               className={player.state.repeat !== 'off' ? 'active' : ''}
+              aria-pressed={player.state.repeat !== 'off'}
               disabled={!player.current}
               onClick={() => player.dispatch({ type: 'repeat' })}
             >
               {player.state.repeat === 'one' ? <Repeat1 size={20} /> : <Repeat size={20} />}
-            </button>
+            </PlayerActionButton>
           </div>
           <div className="compact-volume">
-            <button
+            <PlayerActionButton
+              action="volume"
+              value={player.volume}
               className="icon-button"
               aria-label={player.volume ? t('Mute') : t('Unmute')}
               onClick={player.toggleMute}
             >
               {player.volume ? <Volume2 size={20} /> : <VolumeX size={20} />}
-            </button>
+            </PlayerActionButton>
             <input
               type="range"
               aria-label={t('Volume')}
@@ -664,9 +702,10 @@ export function PlayerBar(props: PlayerProps) {
             }
             closeIcon={<ChevronDown size={24} />}
             returnFocusRef={expanded ? returnFocusRef : undefined}
-            className="player-modal"
+            className={`player-modal${idle ? ' is-idle is-immersive' : ''}`}
             style={{ ...colors, transformOrigin: 'bottom center' }}
             onClose={() => {
+              idleListening.wake();
               setStageGone(false);
               onExpanded(false);
             }}
@@ -726,8 +765,12 @@ export function PlayerBar(props: PlayerProps) {
             {/* The same question, in the open player: a long silence at the
                 edge of a file is not a fact about the bar. */}
             <SilenceNotice
+              key={player.current?.id}
               className="silence-notice--stage"
               text={player.silenceNotice?.text ?? null}
+              track={player.current ?? undefined}
+              onTrim={player.trimSilence}
+              onPreview={player.pauseForPreview}
               onRemove={player.removeSilence}
               onKeep={player.keepSilence}
             />
@@ -735,15 +778,68 @@ export function PlayerBar(props: PlayerProps) {
             <div
               data-track-id={player.current?.id}
               className={`player-normal-view${clipShowing ? ' clip-live' : ''}`}
+              inert={idle}
+              aria-hidden={idle}
             >
               <PlayerDetails
                 {...props}
                 time={time}
+                readerActive={!idle}
                 cue={pending}
                 lyricsOpen={lyricsOpen}
                 onDisclosure={setLyricsOpen}
               />
             </div>
+            <AnimatePresence initial={false}>
+              {idle && player.current && (
+                <motion.div
+                  key="immersive"
+                  className={`immersive-stage${stageHasVideo ? ' with-video' : ''}${player.current.lyrics?.lines.length ? ' has-lyrics' : ' without-lyrics'}`}
+                  aria-label={t('Immersive listening')}
+                  initial={animation.enabled ? { opacity: 0, y: 8 } : false}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{
+                    opacity: 0,
+                    y: animation.enabled ? -6 : 0,
+                    transition: animation.effects,
+                  }}
+                  transition={animation.reveal}
+                >
+                  <div className="immersive-art">
+                    <Artwork track={player.current} className="immersive-cover" />
+                    <div className="immersive-credit">
+                      <h2>{player.current.title}</h2>
+                      <p>{player.current.artist}</p>
+                      <p>{player.current.album}</p>
+                      <p className="immersive-time">
+                        {formatTime(time)} <span aria-hidden="true">/</span>{' '}
+                        {formatTime(player.duration)}
+                      </p>
+                    </div>
+                  </div>
+                  {!!player.current.lyrics?.lines.length && (
+                    <LyricsPanel
+                      stage
+                      cinematic
+                      track={player.current}
+                      time={time}
+                      readTime={player.readTime}
+                      playing={player.state.playing}
+                      duration={player.duration}
+                      onSeek={player.seek}
+                      onEdit={() => props.onLyrics(player.current!)}
+                    />
+                  )}
+                  <div className="immersive-progress" aria-hidden="true">
+                    <span
+                      style={{
+                        transform: `scaleX(${player.duration > 0 ? Math.max(0, Math.min(1, time / player.duration)) : 0})`,
+                      }}
+                    />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </Modal>
         )}
       </AnimatePresence>

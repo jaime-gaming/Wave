@@ -1,3 +1,4 @@
+import { deflateSync } from 'node:zlib';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   EXTENDED_LYRICS_KEY,
@@ -38,11 +39,12 @@ const kugouPayload = (() => {
     0x40, 0x47, 0x61, 0x77, 0x5e, 0x32, 0x74, 0x47, 0x51, 0x36, 0x31, 0x2d, 0xce, 0xd2, 0x6e, 0x69,
   ];
   const body = '[0,2000]<0,500,0>Mid <500,500,0>night';
-  const plain = new Uint8Array(4 + body.length);
-  plain.set([0x6b, 0x72, 0x63, 0x31]);
-  for (let index = 0; index < body.length; index++) plain[4 + index] = body.charCodeAt(index);
-  const bytes = plain.map((byte, index) => byte ^ key[index % key.length]);
-  return { fmt: 'krc', content: btoa(String.fromCharCode(...bytes)) };
+  const compressed = deflateSync(Buffer.from(body));
+  const bytes = Buffer.concat([
+    Buffer.from('krc1'),
+    Buffer.from(compressed.map((byte, index) => byte ^ key[index % key.length])),
+  ]);
+  return { fmt: 'krc', content: bytes.toString('base64') };
 })();
 
 const responder = (map: Record<string, unknown>) =>
@@ -133,4 +135,27 @@ describe('word-level lyric providers', () => {
       )?.id,
     ).toBe('2');
   });
+});
+
+it('tries the next matching upload when the first has no word timings', async () => {
+  const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    return {
+      ok: true,
+      json: async () =>
+        url.includes('/search')
+          ? {
+              result: {
+                songs: [
+                  { id: 111, name: track.title, ar: [{ name: track.artist }], dt: 244_000 },
+                  { id: 222, name: track.title, ar: [{ name: track.artist }], dt: 244_000 },
+                ],
+              },
+            }
+          : url.includes('id=222')
+            ? netEaseLyric
+            : { lrc: { lyric: '[00:01]Line only' } },
+    } as Response;
+  });
+  expect((await fetchWordLyrics(track, { fetcher }))?.providerId).toBe('222');
 });

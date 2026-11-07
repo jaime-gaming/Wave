@@ -1,6 +1,11 @@
 package io.github.jaimegaming.wave.ui
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,6 +32,9 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -80,8 +88,17 @@ fun NowPlayingScreen(
             .coerceIn(96f, 240f).dp
     }
 
-    LaunchedEffect(active, song.id) {
-        if (active >= 0) listState.animateScrollToItem(active)
+    val motionEnabled = waveMotionEnabled()
+    val dragging by listState.interactionSource.collectIsDraggedAsState()
+    var followAfter by remember(song.id) { mutableStateOf(0L) }
+    LaunchedEffect(dragging) {
+        if (dragging || followAfter > 0L) followAfter = android.os.SystemClock.elapsedRealtime() + 6_500L
+    }
+    // Let the listener read ahead without every new line fighting their gesture.
+    LaunchedEffect(active, song.id, dragging, followAfter, motionEnabled) {
+        if (active >= 0 && !dragging && android.os.SystemClock.elapsedRealtime() >= followAfter) {
+            if (motionEnabled) listState.animateScrollToItem(active) else listState.scrollToItem(active)
+        }
     }
     LaunchedEffect(song.id) { state.maybeLookupLyrics(song) }
 
@@ -98,7 +115,7 @@ fun NowPlayingScreen(
                 horizontalArrangement = Arrangement.spacedBy(28.dp),
             ) {
                 Column(
-                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    modifier = Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
                 ) {
@@ -237,10 +254,13 @@ private fun LyricsBody(
         return
     }
     LazyColumn(state = listState, modifier = modifier, contentPadding = PaddingValues(vertical = 36.dp)) {
-        itemsIndexed(lines) { index, line ->
+        itemsIndexed(lines, key = { index, _ -> "${song.id}:$index" }) { index, line ->
             val current = index == active
             val sung = MaterialTheme.colorScheme.onSurface
-            val upcoming = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.58f)
+            val upcoming = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.76f)
+            val lineColor by animateColorAsState(
+                if (current) sung else upcoming, tween(if (waveMotionEnabled()) 180 else 0), label = "lyric focus",
+            )
             val words = buildAnnotatedString {
                 if (current && line.words.isNotEmpty()) {
                     line.words.forEach { word ->
@@ -254,7 +274,7 @@ private fun LyricsBody(
                 text = words,
                 style = LyricLineStyle,
                 fontWeight = if (current) FontWeight.Bold else FontWeight.SemiBold,
-                color = if (current) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.58f),
+                color = lineColor,
                 modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).clickable { player.seek(line.time) }.padding(vertical = 10.dp),
             )
         }
@@ -269,9 +289,9 @@ private fun SongActions(song: Song, state: WaveState, onEdit: () -> Unit, modifi
             WaveIcon("edit", 20.dp, MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Spacer(Modifier.weight(1f))
-        IconButton(onClick = { state.toggleFavorite(song) }, modifier = Modifier.size(42.dp).semantics { contentDescription = Loc.t(if (song.favorite) "Remove from favorites" else "Add to favorites") }) {
-            WaveIcon("favorite", 20.dp, if (song.favorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+        WaveActionButton("shuffle", "Shuffle the queue", { state.player.shuffleUpcoming() }, enabled = state.player.queue.size > state.player.index + 2)
+        WaveActionButton("favorite", if (song.favorite) "Remove from favorites" else "Add to favorites", { state.toggleFavorite(song) }, active = song.favorite)
+
     }
 }
 
@@ -284,13 +304,18 @@ private fun SongActions(song: Song, state: WaveState, onEdit: () -> Unit, modifi
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TransportDeck(song: Song, player: Player) {
+    var scrub by remember(song.id) { mutableStateOf<Float?>(null) }
     Column(
         modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp).clip(RoundedCornerShape(24.dp)).background(MaterialTheme.colorScheme.surfaceContainer).padding(horizontal = 16.dp, vertical = 4.dp),
     ) {
         val duration = player.duration.takeIf { it > 0 } ?: song.duration.coerceAtLeast(1.0)
         Slider(
-            value = player.time.coerceIn(0.0, duration).toFloat(),
-            onValueChange = { player.seek(it.toDouble()) },
+            value = (scrub?.toDouble() ?: player.time).coerceIn(0.0, duration).toFloat(),
+            onValueChange = { scrub = it },
+            onValueChangeFinished = {
+                scrub?.let { player.seek(it.toDouble()) }
+                scrub = null
+            },
             valueRange = 0f..duration.toFloat(),
             modifier = Modifier.fillMaxWidth().height(36.dp).semantics { contentDescription = Loc.t("Song position") },
             thumb = {
@@ -298,14 +323,21 @@ private fun TransportDeck(song: Song, player: Player) {
             },
             track = {
                 Box(Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f))) {
-                    Box(Modifier.fillMaxWidth((player.time / duration).coerceIn(0.0, 1.0).toFloat()).height(4.dp).background(MaterialTheme.colorScheme.primary))
+                    Box(Modifier.fillMaxWidth(((scrub?.toDouble() ?: player.time) / duration).coerceIn(0.0, 1.0).toFloat()).height(4.dp).background(MaterialTheme.colorScheme.primary))
                 }
             },
         )
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(clockTime(player.time), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(clockTime(scrub?.toDouble() ?: player.time), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(clockTime(duration), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Transport(player)
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            WaveActionButton(if (player.volume > 0f) "volume" else "mute", if (player.volume > 0f) "Mute" else "Unmute", {
+                player.toggleMute()
+            })
+            Slider(value = player.volume, onValueChange = { player.volume = it }, modifier = Modifier.weight(1f).semantics { contentDescription = Loc.t("Volume") })
+            Text("${(player.volume * 100).toInt()}%", modifier = Modifier.width(44.dp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = androidx.compose.ui.text.style.TextAlign.End)
+        }
     }
 }

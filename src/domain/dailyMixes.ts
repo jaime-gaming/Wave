@@ -85,7 +85,12 @@ export function mixDescriptor(mix: { tracks: Track[]; bpm?: number }): string {
   return parts.join(' · ');
 }
 
-export function dailyMixes(tracks: Track[], day: string, features: FeatureMap = {}): DailyMix[] {
+export function dailyMixes(
+  tracks: Track[],
+  day: string,
+  features: FeatureMap = {},
+  favouriteArtists: string[] = [],
+): DailyMix[] {
   const groups = new Map<string, DailyMix>();
   const seen = new Set<string>();
   for (const track of tracks) {
@@ -114,11 +119,25 @@ export function dailyMixes(tracks: Track[], day: string, features: FeatureMap = 
     .filter((group) => group.tracks.length >= 3)
     .sort(
       (a, b) =>
+        Number(
+          b.tracks.some((track) =>
+            favouriteArtists.some(
+              (artist) => canonical(mainArtist(artist)) === canonical(mainArtist(track.artist)),
+            ),
+          ),
+        ) -
+          Number(
+            a.tracks.some((track) =>
+              favouriteArtists.some(
+                (artist) => canonical(mainArtist(artist)) === canonical(mainArtist(track.artist)),
+              ),
+            ),
+          ) ||
         Number(b.basis === 'genre') - Number(a.basis === 'genre') ||
         b.tracks.length - a.tracks.length ||
         a.id.localeCompare(b.id),
     )
-    .slice(0, 4)
+    .slice(0, 3)
     .map((group) => {
       const bpmOf = (track: Track) => features[track.id]?.bpm;
       const energyOf = (track: Track) => features[track.id]?.energy ?? 0;
@@ -132,7 +151,7 @@ export function dailyMixes(tracks: Track[], day: string, features: FeatureMap = 
           (a, b) => (bpmOf(a) ?? 0) - (bpmOf(b) ?? 0) || energyOf(a) - energyOf(b),
         );
       }
-      ordered = spreadArtists(ordered).slice(0, 40);
+      ordered = spreadArtists(ordered).slice(0, 20);
 
       const enoughMeasured = measured >= Math.ceil(ordered.length / 2);
       const bpms = enoughMeasured

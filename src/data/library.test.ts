@@ -51,3 +51,20 @@ it('reconciles decoder duration without changing bytes or local lyrics, and clea
   expect(online.lyrics).toBeUndefined();
   expect(online.lyricsLookup).toBeUndefined();
 });
+it('persists and restores playback-only volume gain without changing source bytes or metadata', async () => {
+  const { setTrackVolumeFix, editTrackMetadata } = await import('./library');
+  const track = makeTrack({ blob: new NativeBlob(['original recording']) as unknown as Blob });
+  await saveTrack(track);
+  const fix = { gain: 2, rmsDb: -24, peakDb: -8, measuredAt: 123 };
+  await setTrackVolumeFix(track.id, fix);
+  await editTrackMetadata(track.id, { title: 'Edited', artist: track.artist, album: track.album });
+  let [saved] = await getTracks();
+  expect(saved.volumeFix).toEqual(fix);
+  expect(await saved.blob!.arrayBuffer()).toEqual(await track.blob!.arrayBuffer());
+  expect(saved.title).toBe('Edited');
+  await expect(setTrackVolumeFix(track.id, { ...fix, gain: Infinity })).rejects.toThrow();
+  await setTrackVolumeFix(track.id);
+  [saved] = await getTracks();
+  expect(saved.volumeFix).toBeUndefined();
+  expect(await saved.blob!.arrayBuffer()).toEqual(await track.blob!.arrayBuffer());
+});

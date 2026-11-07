@@ -28,7 +28,10 @@ public partial class MainWindow : Window
     private MediaPlayer active = new();
     private MediaPlayer? spare, outgoing;
     private bool ready, spareReady, playing, initialized, lookingUp, lyricsVisible = true, preferencesDirty;
-    private double fadeLength, volume = .8;
+    private double fadeLength, volume = .8, beforeMute = .8;
+    private long lastVolumeFeedback;
+    private bool syncingVolume;
+    private DispatcherTimer? repeatAttack;
     private Preferences preferences = new(Mix: true);
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromMilliseconds(50) };
     private DateTime lastSave = DateTime.UtcNow;
@@ -52,7 +55,7 @@ public partial class MainWindow : Window
             playlists = NativeCollections.Load<List<NativePlaylist>>(repository.Folder, "playlists.json") ?? [];
             plays = Listening.Load(repository.Folder);
         } catch (Exception error) { Notify(Localization.T("Could not open local storage: {message}", new Dictionary<string, string> { ["message"] = error.Message })); }
-        ApplyTheme(); Localization.Init(preferences.Language); ApplyLanguage(); volume = Math.Clamp(preferences.Volume, 0, 1); Volume.Value = volume;
+        ApplyTheme(); Localization.Init(preferences.Language); ApplyLanguage(); volume = Math.Clamp(preferences.Volume, 0, 1); Volume.Value = NowVolume.Value = volume; UpdateSoundButtons();
         initialized = true; Loaded += (_, _) => FitRail(); ShowPage("Home"); timer.Tick += Tick; timer.Start();
         try {
             var session = NativeCollections.Load<ListeningSession>(repository.Folder, "session.json");
@@ -115,7 +118,7 @@ public partial class MainWindow : Window
         MiniOpenButton.ToolTip = Localization.T("Open the player");
         Volume.ToolTip = Localization.T("Volume");
         Heading.Text = collection ?? Localization.T(page);
-        UpdateSummary(); UpdateRepeat(); UpdatePlaybackLabels();
+        UpdateSummary(); UpdateRepeat(); UpdatePlaybackLabels(); UpdateSoundButtons();
         if (initialized) { if (page == "Settings") RenderSettings(); else Refresh(); }
     }
     /// <summary>The language row: remember the choice, then repaint the window.</summary>
@@ -168,14 +171,15 @@ public partial class MainWindow : Window
         if (expanded) SetLyricsVisibility();
         UpdateDock();
         if (page == "Settings") RenderSettings(); else if (!expanded) Refresh();
-        // A page change rises instead of swapping in place, and an unchanged
-        // page (a progress tick, a favourite toggled) only fades its list.
+        // Page travel follows rail order; same-page updates never flash the list.
         bool changed = page != renderedPage;
+        string[] order = ["Home", "Search", "Library", "Albums", "Artists", "Playlists", "Favorites", "Remix", "Settings", "Now playing"];
+        int direction = Array.IndexOf(order, page) >= Array.IndexOf(order, renderedPage) ? 1 : -1;
         renderedPage = page;
-        if (page == "Settings") { if (changed) Motion.Rise(SettingsView, Motion.Enabled(preferences.Animations)); }
+        if (page == "Settings") { if (changed) Motion.Slide(SettingsView, Motion.Enabled(preferences.Animations), direction); }
         else if (expanded) { if (changed) Motion.Rise(NowView, Motion.Enabled(preferences.Animations)); }
-        else if (changed) Motion.Rise(LibraryView, Motion.Enabled(preferences.Animations));
-        else Motion.Fade(LibraryView, Motion.Enabled(preferences.Animations));
+        else if (changed) Motion.Slide(LibraryView, Motion.Enabled(preferences.Animations), direction);
+        // Same-page metadata updates must not flash the whole library.
     }
     /// <summary>
     /// A narrow window keeps the rail and loses the words.
@@ -280,14 +284,18 @@ public partial class MainWindow : Window
         await ImportPaths(usable);
     }
 
+    private bool importingFiles;
     private async Task ImportPaths(IEnumerable<string> paths)
     {
+        if (importingFiles) return;
+        importingFiles = true;
         var list = paths.ToArray();
         try {
             Notify(Localization.T("Adding {count}…", new Dictionary<string, string> { ["count"] = $"{list.Length} {(list.Length == 1 ? Localization.T("file") : Localization.T("files"))}" }));
             int added = await repository.Import(list);
             tracks = repository.Load(); Notify(Localization.T("{count} tracks added; identical files skipped.", new Dictionary<string, string> { ["count"] = added.ToString() })); Refresh();
         } catch (Exception error) { tracks = repository.Load(); Refresh(); Notify(error.Message); }
+        finally { importingFiles = false; }
     }
     private void ArtworkPlayClick(object sender, MouseButtonEventArgs e) { if (sender is Border { Tag: Song song }) { PlayCollection(visible, song.Id); e.Handled = true; } }
     private void ToggleArtwork(object sender, MouseButtonEventArgs e) { ToggleClick(sender, e); e.Handled = true; }
@@ -331,7 +339,7 @@ public partial class MainWindow : Window
         next.MediaOpened += (_, _) => { if (ReferenceEquals(spare, next)) spareReady = true; };
         next.Open(new Uri(queue[index + 1].Path));
     }
-    private void CancelFade() { outgoing?.Close(); outgoing = null; active.Volume = volume; }
+    private void CancelFade() { repeatAttack?.Stop(); repeatAttack = null; outgoing?.Close(); outgoing = null; active.Volume = volume; }
     private void Tick(object? sender, EventArgs e)
     {
         if (!ready) return;
@@ -420,6 +428,7 @@ public partial class MainWindow : Window
     private static string Clock(double seconds) { if (!double.IsFinite(seconds) || seconds < 0) seconds = 0; return $"{(int)seconds / 60}:{(int)seconds % 60:00}"; }
     private void UpdatePlaybackLabels()
     {
+        ShuffleButton.IsEnabled = RepeatButton.IsEnabled = FavoriteButton.IsEnabled = Current != null;
         Iconography.Set(NowToggle, playing ? "pause" : "play", 22);
         Iconography.Set(MiniToggle, playing ? "pause" : "play", 18);
         NowToggle.ToolTip = MiniToggle.ToolTip = Localization.T(playing ? "Pause" : "Play");
@@ -434,6 +443,8 @@ public partial class MainWindow : Window
         // metadata edit does not replay the movement.
         if (artShown != Current.Id) { Motion.Settle(NowArt, Motion.Enabled(preferences.Animations)); artShown = Current.Id; }
         if (MiniArt.Child is TextBlock note) note.Visibility = Current.Artwork == null ? Visibility.Visible : Visibility.Collapsed;
+        FavoriteButton.ToolTip = Localization.T(Current.Favorite ? "Unfavorite current track" : "Favorite current track");
+        System.Windows.Automation.AutomationProperties.SetName(FavoriteButton, FavoriteButton.ToolTip.ToString());
         if (Current.Favorite) FavoriteButton.SetResourceReference(Control.ForegroundProperty, "AccentBrush");
         else FavoriteButton.ClearValue(Control.ForegroundProperty);
         UpdatePlaybackLabels(); RenderLyrics();
@@ -443,7 +454,24 @@ public partial class MainWindow : Window
     private void ToggleClick(object sender, RoutedEventArgs e) { if (!ready) return; CancelFade(); if (playing) active.Pause(); else { if (active.Position.TotalSeconds >= Seek.Maximum - .1) active.Position = TimeSpan.Zero; active.Play(); PrepareNext(); } playing = !playing; UpdatePlaybackLabels(); }
     private void Advance(bool ended = false)
     {
-        if (ended && repeat == "one") { active.Position = TimeSpan.Zero; active.Play(); return; }
+        if (ended && (repeat == "one" || (repeat == "all" && queue.Count == 1))) {
+            CancelFade();
+            var deck = active;
+            deck.Position = TimeSpan.Zero;
+            deck.Volume = 0;
+            deck.Play();
+            var started = System.Diagnostics.Stopwatch.StartNew();
+            var attack = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
+            repeatAttack = attack;
+            attack.Tick += (_, _) => {
+                if (active != deck || !playing) { attack.Stop(); return; }
+                var progress = Math.Clamp(started.Elapsed.TotalSeconds / .22, 0, 1);
+                deck.Volume = volume * progress;
+                if (progress >= 1) { attack.Stop(); repeatAttack = null; }
+            };
+            attack.Start();
+            return;
+        }
         if (index + 1 < queue.Count) Play(index + 1);
         else if (repeat == "all" && queue.Count > 0) Play(0);
         else if (preferences.Autoplay && tracks.Any(s => s.Id != Current?.Id)) {
@@ -458,14 +486,51 @@ public partial class MainWindow : Window
     private void SeekReleased(object sender, MouseButtonEventArgs e) => SeekToSlider();
     private void SeekKey(object sender, KeyEventArgs e) => SeekToSlider();
     private void SeekToSlider() { if (!ready) return; CancelFade(); active.Position = TimeSpan.FromSeconds(Seek.Value); }
-    private void VolumeChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { if (!initialized) return; volume = e.NewValue; preferences = preferences with { Volume = volume }; preferencesDirty = true; if (outgoing == null) active.Volume = volume; }
-    private void FavoriteClick(object sender, RoutedEventArgs e) { if (Current != null) Safe(() => Update(Current with { Favorite = !Current.Favorite })); }
-    private void ShuffleClick(object sender, RoutedEventArgs e) { if (Current == null) return; var id = Current.Id; queue = new[] { Current }.Concat(queue.Where(s => s.Id != id).OrderBy(_ => Random.Shared.Next())).ToList(); index = 0; CancelFade(); PrepareNext(); Notify(Localization.T("Upcoming songs shuffled.")); }
-    private void RepeatClick(object sender, RoutedEventArgs e) { repeat = repeat == "off" ? "all" : repeat == "all" ? "one" : "off"; UpdateRepeat(); PrepareNext(); }
+    private void UpdateSoundButtons()
+    {
+        foreach (var button in new[] { SoundButton, NowSoundButton }) {
+            Iconography.Set(button, volume > 0 ? "volume" : "mute", 20);
+            button.ToolTip = Localization.T(volume > 0 ? "Mute" : "Unmute");
+            System.Windows.Automation.AutomationProperties.SetName(button, button.ToolTip.ToString());
+        }
+        Volume.ToolTip = NowVolume.ToolTip = Localization.T("Volume");
+        System.Windows.Automation.AutomationProperties.SetName(Volume, Localization.T("Volume"));
+        System.Windows.Automation.AutomationProperties.SetName(NowVolume, Localization.T("Volume"));
+    }
+    private void SoundClick(object sender, RoutedEventArgs e)
+    {
+        if (volume > 0) { beforeMute = volume; Volume.Value = 0; }
+        else Volume.Value = Math.Clamp(beforeMute, .01, 1);
+        if (sender is Button button) Motion.IconAction(button, Motion.Enabled(preferences.Animations), "volume");
+    }
+    private void VolumeChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (!initialized || syncingVolume || !double.IsFinite(e.NewValue)) return;
+        bool changedMute = (volume == 0) != (e.NewValue == 0);
+        if (volume > 0 && e.NewValue == 0) beforeMute = volume;
+        volume = Math.Clamp(e.NewValue, 0, 1);
+        syncingVolume = true;
+        try {
+            if (Volume.Value != volume) Volume.Value = volume;
+            if (NowVolume.Value != volume) NowVolume.Value = volume;
+        } finally { syncingVolume = false; }
+        preferences = preferences with { Volume = volume }; preferencesDirty = true;
+        if (outgoing == null) active.Volume = volume;
+        if (changedMute) UpdateSoundButtons();
+        if (Environment.TickCount64 - lastVolumeFeedback > 120) {
+            lastVolumeFeedback = Environment.TickCount64;
+            Motion.IconAction(SoundButton, Motion.Enabled(preferences.Animations), "volume");
+            Motion.IconAction(NowSoundButton, Motion.Enabled(preferences.Animations), "volume");
+        }
+    }
+    private void FavoriteClick(object sender, RoutedEventArgs e) { if (Current != null) Safe(() => Update(Current with { Favorite = !Current.Favorite })); Motion.IconAction(FavoriteButton, Motion.Enabled(preferences.Animations), "favorite"); }
+    private void ShuffleClick(object sender, RoutedEventArgs e) { if (Current == null) return; var id = Current.Id; queue = new[] { Current }.Concat(queue.Where(s => s.Id != id).OrderBy(_ => Random.Shared.Next())).ToList(); index = 0; CancelFade(); PrepareNext(); Motion.IconAction(ShuffleButton, Motion.Enabled(preferences.Animations), "shuffle"); Notify(Localization.T("Upcoming songs shuffled.")); }
+    private void RepeatClick(object sender, RoutedEventArgs e) { repeat = repeat == "off" ? "all" : repeat == "all" ? "one" : "off"; UpdateRepeat(); Motion.IconAction(RepeatButton, Motion.Enabled(preferences.Animations), "repeat"); PrepareNext(); }
     /// <summary>Repeat is a state, so the button says which one it is in.</summary>
     private void UpdateRepeat()
     {
         RepeatButton.ToolTip = Localization.T("Repeat: " + repeat);
+        System.Windows.Automation.AutomationProperties.SetName(RepeatButton, RepeatButton.ToolTip.ToString());
         var icon = Iconography.Draw("repeat", 20);
         if (repeat == "one") {
             var stack = new Grid();

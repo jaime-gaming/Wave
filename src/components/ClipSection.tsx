@@ -42,6 +42,8 @@ export function ClipSection({ track }: { track: Track }) {
       title: track.title,
       artist: track.artist,
       duration: track.duration,
+      fileName: track.fileName,
+      rolesReviewed: track.rolesReviewed,
     });
     setCandidates(result.candidates);
     setStatus(result.status === 'found' ? 'idle' : result.status);
@@ -57,7 +59,7 @@ export function ClipSection({ track }: { track: Track }) {
     setLink('');
     // Nothing is known about this upload's length, so it starts where it starts;
     // the offset field below is right there if it needs a nudge.
-    pick({ videoId: parsed.videoId, title: '', author: '', duration: 0 }, 0);
+    pick({ videoId: parsed.videoId, title: '', author: '', duration: 0 }, parsed.startAt ?? 0);
   };
 
   const pick = (
@@ -151,17 +153,11 @@ export function ClipSection({ track }: { track: Track }) {
           The clip search is unreachable right now. You can paste a link instead.
         </p>
       )}
-      <form
-        className="clip-link"
-        onSubmit={(event) => {
-          event.preventDefault();
-          applyLink();
-        }}
-      >
+      <div className="clip-link">
         <label>
           <Link2 size={16} aria-hidden="true" />
           <input
-            type="url"
+            type="text"
             inputMode="url"
             placeholder={t('youtube.com/watch?v=…')}
             aria-label={t('YouTube link for this clip')}
@@ -173,10 +169,10 @@ export function ClipSection({ track }: { track: Track }) {
             }}
           />
         </label>
-        <button type="submit" className="text-button" disabled={!link.trim()}>
+        <button type="button" onClick={applyLink} className="text-button" disabled={!link.trim()}>
           Use this video
         </button>
-      </form>
+      </div>
       {linkError && (
         <p className="clip-empty" role="status">
           That is not a YouTube video link.

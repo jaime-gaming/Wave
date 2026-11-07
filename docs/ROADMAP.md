@@ -261,7 +261,7 @@ downloads Spotify audio. YouTube audio is never extracted.
 - [x] A still is not a clip: audio uploads, art tracks, lyric videos and cover-art uploads skipped.
 - [x] A clip placed before the song as well as after the start of its intro.
 - [x] Bringing a library over reachable from Settings → Library as well as the playlists shelf.
-- [x] Served by Cloudflare Pages with `_redirects` and `_headers` in the build.
+- [x] Served by Cloudflare Workers with an `ASSETS` binding, SPA fallback and metadata-only public playlist endpoint. No GitHub Pages mirror.
 - [x] The product film for this version, recorded from the app by a workflow instead of assembled by
       hand: the join, the search that forgives a wrong letter and the offer to skip dead air.
 - [x] Android and Windows use the same twelve-to-twenty-four-second window and the same hand-over

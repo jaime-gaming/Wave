@@ -1,6 +1,6 @@
 <p align="center"><img src="public/wave-wordmark.svg" alt="Wave" width="270" /></p>
 <p align="center"><strong>Your music files, played properly.</strong></p>
-<p align="center"><a href="https://wave.jaime-gaming.com">wave.jaime-gaming.com</a> · Version <strong>0.2.0</strong> · <a href="#get-started">Get started</a> · <a href="docs/WHY_WAVE.md">Why Wave</a> · <a href="docs/media/wave-promo.mp4">Watch the demo</a> · <a href="docs/RELEASE_NOTES_0.2.0.md">What's new</a></p>
+<p align="center"><a href="https://wave.jaime-gaming.com">wave.jaime-gaming.com</a> · Candidate <strong>0.2.1</strong> · <a href="#get-started">Get started</a> · <a href="docs/WHY_WAVE.md">Why Wave</a> · <a href="docs/media/wave-promo.mp4">Watch the demo</a> · <a href="docs/RELEASE_NOTES_0.2.1.md">What's new</a></p>
 
 ![Wave Home on the web: a local collection, album artwork and daily mixes](docs/media/home-desktop.png)
 
@@ -25,8 +25,7 @@ Nothing else needs setting up. The same build is published at
 
 Windows and Android builds are on the [Releases](https://github.com/jaime-gaming/Wave/releases)
 page, and neither asks you to install anything else or type a command. The Windows zip carries its
-own runtime; the Android download is a normal APK you tap to install. Both are unsigned test
-builds, so Windows may show a SmartScreen warning and Android asks you to allow the install.
+own runtime; the Android download is a normal APK you tap to install. They are test builds: Windows is unsigned and Android uses debug signing, not a production publisher key. Windows may show a SmartScreen warning and Android asks you to allow the install.
 
 ## What it does
 
@@ -50,7 +49,7 @@ builds, so Windows may show a SmartScreen warning and Android asks you to allow 
   with no YouTube interface showing. A still picture is not a clip, so a song either has a moving
   one or none.
 - **YouTube songs** by link, for the ones you do not own yet.
-- **Brings playlists over** from another app: paste a list or choose its exported `.m3u` or
+- **Brings playlists over** from another app: try a public Spotify/YouTube URL, paste a list or choose its exported `.m3u` or
   `.csv`, see which songs you already have, and turn the confirmed ones into a playlist.
 - **Device linking** with a QR code and no server, so two of your devices can share a song by
   transfer. Nothing already saved is ever deleted.
@@ -152,7 +151,7 @@ feature and device-testing gaps are listed in [Platforms](docs/PLATFORMS.md#andr
 
 ## Your files and your privacy
 
-- Everything stays on your device. There is no backend, no analytics, no account.
+- Music and library storage stay on your device. There are no accounts or analytics; the optional public-link reader uses the Wave Worker for metadata only.
 - Lyric search is off until you turn it on. It sends the song title and artist to LRCLIB.
 - Clip discovery sends the song title and artist to public YouTube front-ends. Video and YouTube
   songs stream from YouTube.
@@ -184,3 +183,46 @@ own rights.
 <p align="center"><img src="public/wave.svg" alt="" width="30" /></p>
 
 Maintained by [Jaime Gaming](https://github.com/jaime-gaming).
+
+### Worker hosting and private opinions
+
+Production uses Cloudflare Workers (`wrangler.jsonc`), not GitHub Pages. Run `npm run build && npm run deploy:check` to validate the Worker without publishing. `npm run dev:worker` serves the built app and metadata endpoint in the Worker runtime. The normal Vite dev server also includes the endpoint. Public URL import reads only visible metadata, may return an incomplete list, and never downloads audio; review matches before saving. Private/blocked lists still need an export.
+
+The expanded player simplifies after **30 seconds** without interaction, including videoclips. Lyrics remain readable while controls step back; pointer, touch or keyboard input brings them back. Repeats use a short audio fade-in, not a screen effect. Remix retains its three expandable highlights, now with coherent line icons.
+
+A feature-opinion prompt is optional and deliberately rare: only after sustained use, with a long cooldown. Answers stay in your browser, are never sent anywhere, and do not change playback. “Do not ask again” opts out.
+
+Android polish in this source includes less bouncy press feedback, animated navigation tint/indicators and a short artwork reveal decoded off the UI thread. Native compilation and real-device inspection remain necessary; web screenshots are not Android verification.
+
+### Release-candidate polish
+
+Remix on the web is a responsive three-card grid with a saved artist portrait (or local sleeve fallback), the top song's cover and listening time. Details open inside their own card. Explore up to 52 weeks of retained history with full charts and rankings; older playlists contain that week's songs, not tracks borrowed from later weeks. The history window does not restore records already removed by retention limits.
+
+Entering **Trim audio** pauses the main player. The editor alone owns the preview, follows the master volume and stops when closed; it never resumes the main song automatically or rewrites original audio. Daily Mix generation is bounded on web, Android and Windows: **at most three mixes, each at most twenty songs**. Explicitly saved playlists remain independent snapshots.
+
+The local-only opinion card now has clearer response choices, dismiss/opt-out actions and keyboard dismissal. The web gallery includes [Remix details](docs/media/remix-details-desktop.png) and [the opinion card](docs/media/feedback-desktop.png). Shared song rows have more deliberate title/subtitle spacing; native source changes still need device validation before release.
+
+### Listening refinements on the web
+
+- Expanded Remix details span the whole grid row; other highlights retain their order above/below. The week selector and history shelf offer only weeks with listening data.
+- Import has one count and one progress bar, not a stream of filenames and internal operations.
+- **Settings → Playback → Fix volume** balances the local library automatically, including future imports. Turning it off restores original playback levels while retaining measurements for next time. The original file is unchanged. A bounded scan and a safety ceiling avoid indiscriminate boosting; this is volume balancing, not denoising or restoration of lost detail. Current analysis limits: 10 minutes / 48 MB per local file, maximum +18 dB. It does not process YouTube embeds.
+- The dedicated 0.1.0-style album/lyric scene returns after 30 seconds of focused, visible, uninterrupted playback. Interaction restores controls, and editors are never covered. Videoclips keep their picture and a readable lyric column.
+- Local repeats use a brief two-deck overlap with the same song and animate only the repeat icon. Unsupported/unprepared audio keeps the short attack fallback; YouTube retains its seek-based repeat.
+- Filename evidence for reversed tags now tolerates typography/accents and upload labels. Confirmed manual decisions win. Lyrics and clip lookup use the corrected search identity without silently editing tags. Real YRC/KRC word clocks remain provider-supplied; estimates remain labelled.
+
+Page changes follow navigation direction; the queue slides from its edge, Settings and Remix reposition smoothly, and loading views show quiet skeletons. Keyboard/pointer feedback and all spatial movement respect system reduced motion and the in-app animation switch. The 30-second idle scene reuses the current video as a full background when enabled and available, with compact credits and transparent cinematic lyrics; without a video it keeps the artwork-led scene.
+
+New web captures: [immersive listening](docs/media/immersive-desktop.png), [Fix volume](docs/media/volume-fix-desktop.png).
+
+### Consistent controls and native polish
+
+Fix volume uses the same Settings switch row as Mix, Video clip and Autoplay; only active analysis or skipped sources add visible status. Repeat, shuffle, favorite, clip and sound icons have short, local interaction animations, including keyboard activation. Volume changes also animate the sound icon; no control moves its neighbours and reduced-motion/app-disabled preferences keep them still.
+
+Android adds an animated favorite/upcoming-queue shuffle and an in-player volume/mute row, a persistent Animations preference, directional pages and a scrollable record column on short wide displays. Shuffling preserves the current recording and clock. Audio-focus ducking now changes a separate output multiplier instead of overwriting the user's volume or unmuting them. Windows adds matching icon responses, synchronized dock/expanded volume with remembered mute, directional pages/Settings sections and clearer keyboard focus; same-page updates no longer fade the whole library. Native build/device verification runs separately in CI; this does not add native clip playback or native Fix volume analysis.
+
+### Preparing 0.2.1 for launch
+
+See the [release checklist](docs/RELEASE_READINESS_0.2.1.md) and [publishable notes](docs/RELEASE_NOTES_0.2.1.md). `npm run test:smoke` is a required browser gate in Checks and Release assets. The candidate remains unpublished until explicit approval; a tag does not deploy the website.
+
+Unselected Remix highlights now compact around the open detail. Search adds genre/year matching and category-aware keyboard actions; Mix preserves short or incompletely measured recordings, and AutoPlay filters missing sources, deduplicates batches and balances recent-artist variety. App-surface/runtime dependency checks guard against decorative magic icons, model branding and model-service dependencies.

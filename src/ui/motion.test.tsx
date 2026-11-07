@@ -23,6 +23,7 @@ it('responds immediately to system motion changes, not just the initial page loa
   });
   expect(result.current.enabled).toBe(false);
   expect(result.current.spatial).toEqual({ duration: 0 });
+  expect(result.current.lateral).toEqual({ duration: 0 });
   act(() => {
     reduced = false;
     listeners.forEach((listener) => listener());
@@ -39,4 +40,29 @@ it('keeps the app animation preference authoritative even when the system permit
   });
   expect(result.current.enabled).toBe(false);
   expect(result.current.effects).toEqual({ duration: 0 });
+});
+
+it('allows hover motion only with a fine pointer and updates when input capabilities change', () => {
+  let hover = true;
+  const listeners = new Set<() => void>();
+  vi.stubGlobal(
+    'matchMedia',
+    vi.fn((query: string) => ({
+      get matches() {
+        return query.includes('pointer: fine') ? hover : false;
+      },
+      addEventListener: (_event: string, listener: () => void) => listeners.add(listener),
+      removeEventListener: (_event: string, listener: () => void) => listeners.delete(listener),
+    })),
+  );
+  const { result, unmount } = renderHook(() => useWaveMotion());
+  expect(result.current.hoverEnabled).toBe(true);
+  act(() => {
+    hover = false;
+    listeners.forEach((listener) => listener());
+  });
+  expect(result.current.hoverEnabled).toBe(false);
+  expect(result.current.enabled).toBe(true);
+  unmount();
+  expect(listeners.size).toBe(0);
 });

@@ -6,7 +6,7 @@ import { ANDROID_APP_URL } from '../ui/androidApp';
 
 import { useT } from '../i18n';
 /**
- * "Wave is also an app on Android", asked once on a phone.
+ * Legacy standalone download sheet. The main web app no longer mounts it or prompts on Home.
  *
  * It is a small sheet above the player, not a modal: the song keeps playing and
  * nothing is blocked. Either answer is remembered, so the question is asked
@@ -59,7 +59,9 @@ export function AndroidAppSheet({
       <div className="android-app-text">
         <strong id="android-app-title">{t('Wave for Android')}</strong>
         <p id="android-app-copy">
-          The same music, built for your phone: faster, and it keeps playing with the screen off.
+          {t(
+            'Play your local music with lock-screen controls, a home-screen widget and quick settings. Download the Android APK from Releases.',
+          )}
         </p>
       </div>
       <div className="android-app-actions">

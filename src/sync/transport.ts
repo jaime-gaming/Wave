@@ -45,7 +45,9 @@ export function createTransport(
     onState: (state: TransportState) => void;
   },
 ): Transport {
-  const peer = new RTCPeerConnection({ iceServers: [{ urls: STUN_URL }] });
+  const peer = new RTCPeerConnection({
+    iceServers: [{ urls: [STUN_URL, 'stun:stun.cloudflare.com:3478'] }],
+  });
   let channel: RTCDataChannel | null = null;
   let state: TransportState = 'idle';
   let queue: string[] = [];
@@ -65,7 +67,14 @@ export function createTransport(
       queue = [];
       for (const payload of pending) next.send(payload);
     };
-    next.onclose = () => setState('closed');
+    next.onclose = () => {
+      queue = [];
+      setState('closed');
+    };
+    next.onerror = () => {
+      queue = [];
+      setState('closed');
+    };
     next.onmessage = (event) => {
       if (typeof event.data === 'string') handlers.onMessage(event.data);
     };
@@ -77,17 +86,25 @@ export function createTransport(
     if (peer.connectionState === 'connecting') setState('connecting');
   };
 
-  const gathered = new Promise<void>((resolve) => {
-    const done = () => resolve();
-    peer.onicegatheringstatechange = () => {
-      if (peer.iceGatheringState === 'complete') done();
-    };
-    // A network that never finishes gathering must not block the code.
-    setTimeout(done, GATHER_TIMEOUT_MS);
-  });
+  const gather = () =>
+    new Promise<void>((resolve) => {
+      if (peer.iceGatheringState === 'complete') {
+        resolve();
+        return;
+      }
+      const done = () => {
+        clearTimeout(timer);
+        peer.onicegatheringstatechange = null;
+        resolve();
+      };
+      const timer = setTimeout(done, GATHER_TIMEOUT_MS);
+      peer.onicegatheringstatechange = () => {
+        if (peer.iceGatheringState === 'complete') done();
+      };
+    });
 
   const describe = async (mode: 'offer' | 'answer'): Promise<Wire> => {
-    await gathered;
+    await gather();
     const description = peer.localDescription;
     if (!description) throw new Error('The connection could not be prepared.');
     return { description: description.toJSON(), candidates: [], mode };
@@ -112,6 +129,16 @@ export function createTransport(
     },
     async acceptCode(code) {
       const wire = await decodeSignal<Wire>(code);
+      if (
+        !wire ||
+        !['offer', 'answer'].includes(wire.mode) ||
+        wire.description?.type !== wire.mode ||
+        typeof wire.description.sdp !== 'string' ||
+        !Array.isArray(wire.candidates) ||
+        wire.candidates.length > 256
+      ) {
+        throw new Error('Invalid connection code. Ask the other device for a new one.');
+      }
       setState('connecting');
       if (wire.mode === 'offer') {
         // The guest only ever answers: it is the side that pasted a code.
@@ -135,6 +162,7 @@ export function createTransport(
       handlers.onState = handler;
     },
     close() {
+      queue = [];
       setState('closed');
       try {
         channel?.close();

@@ -78,14 +78,49 @@ const KRC_KEY = [
   0x40, 0x47, 0x61, 0x77, 0x5e, 0x32, 0x74, 0x47, 0x51, 0x36, 0x31, 0x2d, 0xce, 0xd2, 0x6e, 0x69,
 ];
 
-export function decodeKrc(base64: string): string {
-  const binary = typeof atob === 'function' ? atob(base64) : '';
-  if (!binary) return '';
-  const bytes = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index++)
-    bytes[index] = binary.charCodeAt(index) ^ KRC_KEY[index % KRC_KEY.length];
-  const text = new TextDecoder().decode(bytes.subarray(4));
-  return text.replace(/^\uFEFF/u, '');
+export async function decodeKrc(base64: string): Promise<string> {
+  if (!base64 || base64.length > 2 * 1024 * 1024) return '';
+  try {
+    const binary = atob(base64);
+    // Some endpoints return base64 UTF-8 text rather than a KRC container.
+    if (!binary.startsWith('krc1')) {
+      const text = new TextDecoder().decode(Uint8Array.from(binary, (c) => c.charCodeAt(0)));
+      return /^\s*\[(?:\d+,\d+|offset:)/u.test(text) ? text : '';
+    }
+    if (typeof DecompressionStream === 'undefined') return '';
+    // krc1 stays plaintext; XOR starts at byte zero of the *compressed body*.
+    const payload = new Uint8Array(binary.length - 4);
+    for (let index = 0; index < payload.length; index++)
+      payload[index] = binary.charCodeAt(index + 4) ^ KRC_KEY[index % KRC_KEY.length];
+    const reader = new Response(payload)
+      .body!.pipeThrough(new DecompressionStream('deflate'))
+      .getReader();
+    const chunks: Uint8Array[] = [];
+    let size = 0;
+    try {
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        size += value.length;
+        if (size > 1024 * 1024) {
+          await reader.cancel();
+          return '';
+        }
+        chunks.push(value);
+      }
+    } finally {
+      reader.releaseLock();
+    }
+    const output = new Uint8Array(size);
+    let offset = 0;
+    for (const chunk of chunks) {
+      output.set(chunk, offset);
+      offset += chunk.length;
+    }
+    return new TextDecoder().decode(output).replace(/^\uFEFF/u, '');
+  } catch {
+    return '';
+  }
 }
 
 /** Kugou KRC text (already decoded): `[start,length]<offset,length,0>word…`. */

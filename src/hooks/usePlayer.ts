@@ -7,12 +7,7 @@ import { MixAudio } from '../audio/MixAudio';
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { playerReducer, shuffleQueue } from '../domain/player';
 import { resolvePlayable } from '../domain/youtubeTrack';
-import {
-  describeSilence,
-  silenceReport,
-  trimFromReport,
-  type SilenceReport,
-} from '../domain/silence';
+import { silenceReport, trimFromReport, type SilenceReport } from '../domain/silence';
 import { breakDue, freshBreak, heardFor, nextBreakThreshold } from '../domain/breakTime';
 import { planEdgeHandover } from '../domain/edgeMix';
 import { PlaybackClock } from './playbackClock';
@@ -60,8 +55,14 @@ export interface SilenceStore {
   keep: (id: string) => void;
 }
 
-export function usePlayer(tracks: Track[], libraryReady = true, silenceStore?: SilenceStore) {
+export function usePlayer(
+  tracks: Track[],
+  libraryReady = true,
+  silenceStore?: SilenceStore,
+  volumeFixEnabled = false,
+) {
   const [saved] = useState(readPlaybackSession);
+  const [repeatSerial, setRepeatSerial] = useState(0);
   const [mixEnabled, setMixEnabled] = useState(savedMix);
   const [autoplay, setAutoplay] = useState(savedAutoplay);
   /** Bumped when a background analysis lands, so tempo readouts refresh. */
@@ -327,19 +328,52 @@ export function usePlayer(tracks: Track[], libraryReady = true, silenceStore?: S
         if (!latest.playing) return;
         if (latest.repeat === 'one' || (latest.repeat === 'all' && latest.queue.length === 1)) {
           const id = latest.queue[latest.index];
-          void player.restart().catch((reason: unknown) => {
-            if (
-              (reason instanceof DOMException && reason.name === 'AbortError') ||
-              stateRef.current.queue[stateRef.current.index] !== id ||
-              !stateRef.current.playing
-            )
-              return;
-            setError('Playback could not restart. Press play to try again.');
-            dispatch({ type: 'pause' });
-          });
+          void player
+            .restart()
+            .then(() => {
+              if (stateRef.current.queue[stateRef.current.index] === id && stateRef.current.playing)
+                setRepeatSerial((value) => value + 1);
+            })
+            .catch((reason: unknown) => {
+              if (
+                (reason instanceof DOMException && reason.name === 'AbortError') ||
+                stateRef.current.queue[stateRef.current.index] !== id ||
+                !stateRef.current.playing
+              )
+                return;
+              setError('Playback could not restart. Press play to try again.');
+              dispatch({ type: 'pause' });
+            });
         } else if (!extend(true)) dispatch({ type: 'ended' });
       },
       tick: () => {
+        // Extend before the transition window, not after the last song ends.
+        extend();
+        const latest = stateRef.current;
+        const repeatTrack = context.current.tracks.find(
+          (track) => track.id === latest.queue[latest.index],
+        );
+        const singleRepeat =
+          latest.repeat === 'one' || (latest.repeat === 'all' && latest.queue.length === 1);
+        if (singleRepeat && repeatTrack?.blob && latest.playing) {
+          if (!player.transitioning && player.mixRemaining <= 8) player.prepare(repeatTrack.blob);
+          if (!player.transitioning && player.mixRemaining > 0 && player.mixRemaining <= 0.85) {
+            const id = repeatTrack.id;
+            player.repeatTransition(
+              () => {
+                const state = stateRef.current;
+                return (
+                  state.playing &&
+                  state.queue[state.index] === id &&
+                  (state.repeat === 'one' || (state.repeat === 'all' && state.queue.length === 1))
+                );
+              },
+              () => setRepeatSerial((value) => value + 1),
+            );
+          }
+          mixCue.clear();
+          return;
+        }
         const next = target();
         const element = player.element;
         const duration = element.duration;
@@ -432,6 +466,7 @@ export function usePlayer(tracks: Track[], libraryReady = true, silenceStore?: S
     });
     engine.current = player;
     player.setMixEnabled(context.current.mixEnabled);
+
     return () => {
       mixCue.clear();
       player.destroy();
@@ -739,7 +774,8 @@ export function usePlayer(tracks: Track[], libraryReady = true, silenceStore?: S
   const youTubeEnded = useCallback(() => {
     const latest = stateRef.current;
     if (!latest.playing) return;
-    if (latest.repeat === 'one') {
+    if (latest.repeat === 'one' || (latest.repeat === 'all' && latest.queue.length === 1)) {
+      setRepeatSerial((value) => value + 1);
       setYouTubeSeek((value) => ({ seconds: 0, nonce: value.nonce + 1 }));
       return;
     }
@@ -828,7 +864,7 @@ export function usePlayer(tracks: Track[], libraryReady = true, silenceStore?: S
       trimmed: current.silence,
     });
     if (!report?.worth) return null;
-    return { text: describeSilence(report), report };
+    return { text: "We've detected silence in this track", report };
   })();
 
   const removeSilence = useCallback(() => {
@@ -843,14 +879,32 @@ export function usePlayer(tracks: Track[], libraryReady = true, silenceStore?: S
 
   /** A trim is playback bounds, so the engine is told whenever they change. */
   useEffect(() => {
-    for (const track of tracks) if (track.blob) engine.current?.setBounds(track.blob, track.trim);
-  }, [tracks]);
+    for (const track of tracks)
+      if (track.blob) {
+        engine.current?.setBounds(track.blob, track.trim);
+        engine.current?.setVolumeFix(track.blob, volumeFixEnabled ? track.volumeFix?.gain : 1);
+      }
+  }, [tracks, volumeFixEnabled]);
 
+  const prepareVolumeFix = useCallback(async () => {
+    await engine.current?.prepareVolumeFix();
+  }, []);
+  const pauseForPreview = useCallback(() => {
+    // Stop native decks synchronously, before a preview can start playing.
+    engine.current?.pause();
+    dispatch({ type: 'pause' });
+  }, []);
   return {
+    pauseForPreview,
     breakOpen,
+    repeatSerial,
+    prepareVolumeFix,
     keepListening,
     stopForNow,
     silenceNotice,
+    trimSilence: async (bounds: { start: number; end: number }) => {
+      if (current && silenceStore) silenceStore.trim(current.id, bounds);
+    },
     removeSilence,
     keepSilence,
     mixCue,
@@ -863,13 +917,14 @@ export function usePlayer(tracks: Track[], libraryReady = true, silenceStore?: S
     readTime,
     durationTrackId,
     enqueue,
-    blend: blend
-      ? {
-          ...blend,
-          from: tracks.find((track) => track.blob === blend.outgoing),
-          to: tracks.find((track) => track.blob === blend.incoming),
-        }
-      : null,
+    blend:
+      blend && blend.incoming !== blend.outgoing
+        ? {
+            ...blend,
+            from: tracks.find((track) => track.blob === blend.outgoing),
+            to: tracks.find((track) => track.blob === blend.incoming),
+          }
+        : null,
     /** YouTube songs: the embed is the source and the master clock. */
     youTube: youTube
       ? {
