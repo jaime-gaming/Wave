@@ -1,11 +1,36 @@
 import { initialPlayerState, type PlayerState } from './player';
 export const PLAYBACK_SESSION_KEY = 'wave-playback-session-v1';
+export const RESUME_ON_RELOAD_KEY = 'wave-resume-on-reload';
+
 export interface PlaybackSession {
   state: PlayerState;
   positions: Record<string, number>;
+  /** Whether audio was actively playing when the session was last saved. */
+  wasPlaying: boolean;
 }
+
+export function readResumeOnReload(): boolean {
+  try {
+    return localStorage.getItem(RESUME_ON_RELOAD_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+export function writeResumeOnReload(enabled: boolean) {
+  try {
+    localStorage.setItem(RESUME_ON_RELOAD_KEY, enabled ? 'true' : 'false');
+  } catch {
+    /* Optional preference. */
+  }
+}
+
 export function readPlaybackSession(): PlaybackSession {
-  const fallback = { state: { ...initialPlayerState }, positions: {} };
+  const fallback: PlaybackSession = {
+    state: { ...initialPlayerState },
+    positions: {},
+    wasPlaying: false,
+  };
   try {
     const value = JSON.parse(localStorage.getItem(PLAYBACK_SESSION_KEY) ?? 'null');
     if (!value || value.version !== 1 || !Array.isArray(value.queue)) return fallback;
@@ -44,11 +69,13 @@ export function readPlaybackSession(): PlaybackSession {
         shuffled: value.shuffled === true,
       },
       positions,
+      wasPlaying: value.wasPlaying === true,
     };
   } catch {
     return fallback;
   }
 }
+
 export function writePlaybackSession(state: PlayerState, positions: Record<string, number>) {
   try {
     localStorage.setItem(
@@ -60,6 +87,7 @@ export function writePlaybackSession(state: PlayerState, positions: Record<strin
         currentId: state.queue[state.index],
         repeat: state.repeat,
         shuffled: state.shuffled,
+        wasPlaying: state.playing,
         positions,
       }),
     );

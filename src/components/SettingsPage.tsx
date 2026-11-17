@@ -33,12 +33,18 @@ export type SettingsSection = Section;
 export function SettingsPage(
   props: Record<Section, ReactNode> & {
     onBack: () => void;
-    /** Opens straight into one section, used by a `#wave-pair=` link. */
+    /** Opens straight into one section, used by a `#wave-pair=` or `/Settings/<Section>` link. */
     initialSection?: Section | null;
+    /** Optional callback so deep routes stay in sync as sections open and close. */
+    onSectionChange?: (section: Section | null) => void;
   },
 ) {
   const t = useT();
-  const [selected, setSelected] = useState<Section | null>(props.initialSection ?? null);
+  const [selected, setSelectedState] = useState<Section | null>(props.initialSection ?? null);
+  const setSelected = (next: Section | null) => {
+    setSelectedState(next);
+    props.onSectionChange?.(next);
+  };
   const heading = useRef<HTMLHeadingElement>(null);
   const root = useRef<HTMLElement>(null);
   const previous = useRef<Section | null>(null);

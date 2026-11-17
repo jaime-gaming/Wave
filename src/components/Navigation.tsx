@@ -96,7 +96,7 @@ export function Navigation({
           </button>
         ))}
       </div>
-      <button className="rail-settings" onClick={onSettings} aria-label={t('Settings')}>
+      <button className="rail-settings" onClick={() => onSettings()} aria-label={t('Settings')}>
         <Settings size={21} />
         <span>{t('Settings')}</span>
       </button>

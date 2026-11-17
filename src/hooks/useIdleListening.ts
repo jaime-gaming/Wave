@@ -1,53 +1,46 @@
-import { useCallback, useEffect, useState } from 'react';
-/** The quiet album/lyrics scene from 0.1.0, never covering an editor or hidden tab. */
-export function useIdleListening(playing: boolean, trackId?: string) {
+import { useEffect, useState } from 'react';
+const IDLE_MS = 30000;
+const EVENTS = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart'] as const;
+const dialogOpen = () => !!document.querySelector('dialog[open]:not(.player-modal)');
+const interactive = () => !document.hidden && document.hasFocus() && !dialogOpen();
+
+/**
+ * Enters the immersive idle listening screen after 30 seconds of inactivity
+ * while music is playing.
+ *
+ * Intentionally independent of `trackId`: changing tracks or crossing a Mix
+ * transition keeps the idle listening scene active instead of dismissing it.
+ */
+export function useIdleListening(active: boolean, _trackId?: string) {
+  void _trackId;
   const [immersive, setImmersive] = useState(false);
-  const [epoch, setEpoch] = useState(0);
-  const wake = useCallback(() => {
-    setImmersive(false);
-    setEpoch((value) => value + 1);
-  }, []);
   useEffect(() => {
-    if (!playing) return;
+    if (!active) {
+      const clear = setTimeout(() => setImmersive(false), 0);
+      return () => clearTimeout(clear);
+    }
     let timer: ReturnType<typeof setTimeout>;
-    const arm = () => {
+    const schedule = () => {
       clearTimeout(timer);
       timer = setTimeout(() => {
-        if (
-          document.visibilityState === 'visible' &&
-          document.hasFocus() &&
-          !document.querySelector('dialog[open]:not(.player-modal), .lyrics-timing[open]') &&
-          !document.activeElement?.matches(
-            'textarea,select,[contenteditable="true"],input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="file"])',
-          )
-        )
-          setImmersive(true);
-        else arm();
-      }, 30_000);
+        if (interactive()) setImmersive(true);
+        else schedule();
+      }, IDLE_MS);
     };
     const activity = () => {
       setImmersive(false);
-      arm();
+      schedule();
     };
-    const visibility = () => {
-      setImmersive(false);
-      if (document.visibilityState === 'visible' && document.hasFocus()) arm();
-      else clearTimeout(timer);
-    };
-    const events = ['pointermove', 'pointerdown', 'touchstart', 'keydown', 'wheel'] as const;
-    events.forEach((event) => window.addEventListener(event, activity, { passive: true }));
-    window.addEventListener('blur', visibility);
-    window.addEventListener('focus', visibility);
-    document.addEventListener('visibilitychange', visibility);
-    const initial = setTimeout(activity, 0);
+    schedule();
+    for (const event of EVENTS) window.addEventListener(event, activity, { passive: true });
+    window.addEventListener('blur', activity);
+    document.addEventListener('visibilitychange', activity);
     return () => {
-      clearTimeout(initial);
       clearTimeout(timer);
-      events.forEach((event) => window.removeEventListener(event, activity));
-      window.removeEventListener('blur', visibility);
-      window.removeEventListener('focus', visibility);
-      document.removeEventListener('visibilitychange', visibility);
+      for (const event of EVENTS) window.removeEventListener(event, activity);
+      window.removeEventListener('blur', activity);
+      document.removeEventListener('visibilitychange', activity);
     };
-  }, [playing, trackId, epoch]);
-  return { immersive: playing && immersive, wake };
+  }, [active]);
+  return { immersive: active && immersive, wake: () => setImmersive(false) };
 }

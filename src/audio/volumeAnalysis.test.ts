@@ -1,22 +1,51 @@
 import { describe, it, expect } from 'vitest';
-import { volumeCorrection } from './volumeAnalysis';
+import {
+  BALANCED_MAX_LUFS,
+  BALANCED_MIN_LUFS,
+  MAX_BOOST_LINEAR,
+  VOLUME_FIX_VERSION,
+  volumeCorrection,
+} from './volumeAnalysis';
+
 const tone = (level: number, frames = 44100) =>
   Float32Array.from({ length: frames }, (_, i) => level * Math.sin(i * 0.1));
+
 describe('Fix volume', () => {
-  it('raises a quiet recording while leaving peak headroom', () => {
-    const fix = volumeCorrection([tone(0.025)], 22050);
-    expect(fix.gain).toBeGreaterThan(1);
-    expect(fix.gain).toBeLessThanOrEqual(8);
-    expect(0.025 * fix.gain).toBeLessThan(0.9);
+  it('raises a quiet recording cleanly while preserving headroom', () => {
+    const fix = volumeCorrection([tone(0.05)], 22050);
+    expect(fix.algorithmVersion).toBe(VOLUME_FIX_VERSION);
+    expect(fix.applied).toBe(true);
+    expect(fix.action).toBe('boost');
+    expect(fix.gain).toBeGreaterThan(1.5);
+    expect(fix.gain).toBeLessThanOrEqual(MAX_BOOST_LINEAR);
+    expect(0.05 * fix.gain).toBeLessThan(0.95);
+    expect(fix.lufs).toBeLessThan(BALANCED_MIN_LUFS);
   });
-  it('never boosts a transient past the -1 dB sample ceiling', () => {
-    const audio = tone(0.02);
+
+  it('leaves already well-leveled modern recordings completely untouched', () => {
+    // A 0.42 sine wave at ~350 Hz sits cleanly in the -11 LUFS modern balanced window.
+    const fix = volumeCorrection([tone(0.42)], 22050);
+    expect(fix.lufs).toBeGreaterThanOrEqual(BALANCED_MIN_LUFS);
+    expect(fix.lufs).toBeLessThanOrEqual(BALANCED_MAX_LUFS);
+    expect(fix.applied).toBe(false);
+    expect(fix.action).toBe('balanced');
+    expect(fix.gain).toBe(1);
+  });
+
+  it('can lift a quiet track that contains a lone transient click using limiter-assisted headroom', () => {
+    const audio = tone(0.05);
     audio[50] = 0.98;
     const fix = volumeCorrection([audio], 22050);
-    expect(fix.gain * 0.98).toBeLessThanOrEqual(Math.pow(10, -1 / 20) + 1e-6);
+    expect(fix.applied).toBe(true);
+    expect(fix.action).toBe('boost');
+    expect(fix.gain).toBeGreaterThan(1);
+    expect(fix.limiterAssisted).toBe(true);
+    // Body level stays cleanly below clipping.
+    expect(0.05 * fix.gain).toBeLessThan(0.85);
   });
+
   it('does not count dead air as a quiet recording', () => {
-    const audio = tone(0.1);
+    const audio = tone(0.08);
     const padded = new Float32Array(audio.length * 3);
     padded.set(audio, audio.length);
     expect(volumeCorrection([padded], 22050).gain).toBeCloseTo(
@@ -24,11 +53,20 @@ describe('Fix volume', () => {
       1,
     );
   });
-  it('attenuates loud recordings and measures every channel', () => {
-    expect(volumeCorrection([tone(0.8)], 22050).gain).toBeLessThan(1);
-    const fix = volumeCorrection([tone(0.01), tone(0.95)], 22050);
-    expect(fix.gain * 0.95).toBeLessThan(0.9);
+
+  it('only gently trims extremely hot recordings without crushing them', () => {
+    const fix = volumeCorrection([tone(0.92)], 22050);
+    expect(fix.applied).toBe(true);
+    expect(fix.action).toBe('trim');
+    expect(fix.gain).toBeLessThan(1);
+    expect(fix.gain).toBeGreaterThanOrEqual(0.55);
   });
+
+  it('measures all channels safely', () => {
+    const fix = volumeCorrection([tone(0.05), tone(0.95)], 22050);
+    expect(fix.gain).toBeLessThanOrEqual(1);
+  });
+
   it('refuses silence, invalid samples and invalid sample rates', () => {
     expect(() => volumeCorrection([new Float32Array(100)], 22050)).toThrow();
     expect(() => volumeCorrection([new Float32Array([NaN])], 22050)).toThrow();

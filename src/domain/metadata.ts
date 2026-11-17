@@ -1,4 +1,4 @@
-import { rolesSwapped } from './musicIdentity';
+import { rolesSwapped, searchText } from './musicIdentity';
 import type { Track } from './types';
 export type MetadataIssue = 'title' | 'artist' | 'album' | 'duration' | 'artwork' | 'roles';
 export interface MetadataCheck {
@@ -18,20 +18,34 @@ export const missingTag = (value: string) =>
   !value.trim() ||
   /^(?:unknown(?: (?:artist|album|title))?|untitled|n\/a|null|undefined)$/iu.test(value.trim());
 
+/** Builds a set of recurring artist identities (appearing on 2+ songs) from a library. */
+export function knownArtistSet(tracks: Pick<Track, 'artist'>[]): Set<string> {
+  const counts = new Map<string, number>();
+  for (const track of tracks) {
+    if (missingTag(track.artist)) continue;
+    const key = searchText(track.artist);
+    if (!key) continue;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  const result = new Set<string>();
+  for (const [key, count] of counts) {
+    if (count >= 2) result.add(key);
+  }
+  return result;
+}
+
 export function metadataIssues(
   track: Pick<Track, 'title' | 'artist' | 'album' | 'duration' | 'artwork'> & {
     fileName?: string;
     rolesReviewed?: string;
   },
+  knownArtists?: ReadonlySet<string>,
 ): MetadataIssue[] {
   const issues: MetadataIssue[] = [];
   for (const field of ['title', 'artist', 'album'] as const)
     if (missingTag(track[field])) issues.push(field);
-  // "The artist and the title look swapped" is only said when there is evidence
-  // for it: the file name itself disagrees with the tags in exactly that way.
-  // Comparing two tags for equality flagged every song whose title repeats its
-  // artist — self-titled albums, "X by X" singles — which is not a mistake.
-  if (rolesSwapped(track) && track.rolesReviewed !== rolesReviewKey(track)) issues.push('roles');
+  if (rolesSwapped(track, knownArtists) && track.rolesReviewed !== rolesReviewKey(track))
+    issues.push('roles');
   if (!Number.isFinite(track.duration) || track.duration <= 0) issues.push('duration');
   if (!track.artwork) issues.push('artwork');
   return issues;

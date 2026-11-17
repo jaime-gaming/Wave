@@ -24,7 +24,7 @@ import {
   SkipForward,
   Film,
 } from './Glyphs';
-import { Heart, VolumeX, Pause, Play, ListMusic, Volume2 } from './Glyphs';
+import { Heart, VolumeX, PlayPauseGlyph, ListMusic, Volume2 } from './Glyphs';
 import { Artwork } from './Artwork';
 import { getClip, loadClips } from '../domain/videoClips';
 import { Modal } from './Modal';
@@ -61,25 +61,20 @@ type PlayerProps = {
 function PlaySymbol({ playing, size }: { playing: boolean; size: number }) {
   const animation = useWaveMotion();
   return (
-    <span className="play-symbol-slot" style={{ width: size, height: size }}>
-      <AnimatePresence initial={false} mode="sync">
-        <motion.span
-          key={playing ? 'pause' : 'play'}
-          className="play-symbol"
-          aria-hidden="true"
-          initial={{
-            opacity: animation.enabled ? 0 : 1,
-            rotate: animation.enabled ? -15 : 0,
-            y: animation.enabled ? 5 : 0,
-          }}
-          animate={{ opacity: 1, rotate: 0, y: 0 }}
-          exit={{ opacity: 0, rotate: animation.enabled ? 15 : 0, y: animation.enabled ? -5 : 0 }}
-          transition={animation.effects}
-        >
-          {playing ? <Pause size={size} /> : <Play size={size} />}
-        </motion.span>
-      </AnimatePresence>
-    </span>
+    <motion.span
+      className="play-symbol-slot"
+      style={{ width: size, height: size }}
+      aria-hidden="true"
+      animate={
+        animation.enabled
+          ? { scale: [0.88, 1.08, 1], rotate: playing ? [0, 6, 0] : [0, -6, 0] }
+          : { scale: 1, rotate: 0 }
+      }
+      transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
+      key={playing ? 'playing' : 'paused'}
+    >
+      <PlayPauseGlyph playing={playing} size={size} />
+    </motion.span>
   );
 }
 
@@ -405,6 +400,16 @@ export function PlayerBar(props: PlayerProps) {
   // while the outgoing song is still on, and by the time the two meet the
   // interface has already moved on to the incoming one.
   const pending = cueForTrack(cue, player.current?.id);
+  const activeMixCue: MixCue | null =
+    pending ??
+    (player.blend?.from && player.blend?.to
+      ? {
+          from: player.blend.from,
+          to: player.blend.to,
+          seconds: Math.max(1, Math.ceil(player.blend.seconds * (1 - player.blend.progress))),
+          progress: 1,
+        }
+      : null);
   /**
    * The other half of a mix, when it has a picture of its own.
    *
@@ -422,7 +427,7 @@ export function PlayerBar(props: PlayerProps) {
   const blendProgress = Math.max(0, Math.min(1, player.blend?.progress ?? 0));
   const blendSeconds = (player.blend?.seconds ?? 0) * blendProgress;
   const idleListening = useIdleListening(
-    player.state.playing && !player.buffering && !!player.current && !props.queueOpen,
+    player.state.playing && !!player.current && !props.queueOpen,
     player.current?.id,
   );
   const idle = idleListening.immersive;
@@ -541,7 +546,7 @@ export function PlayerBar(props: PlayerProps) {
               */}
               <span className="compact-subline">
                 <AnimatePresence mode="wait" initial={false}>
-                  {pending ? (
+                  {activeMixCue ? (
                     <motion.span
                       className="compact-subline-item"
                       key="mixing"
@@ -550,7 +555,7 @@ export function PlayerBar(props: PlayerProps) {
                       exit={animation.enabled ? { opacity: 0, y: -6 } : undefined}
                       transition={animation.effects}
                     >
-                      <MixCueLabel cue={pending} />
+                      <MixCueLabel cue={activeMixCue} />
                     </motion.span>
                   ) : (
                     <motion.span
@@ -785,7 +790,7 @@ export function PlayerBar(props: PlayerProps) {
                 {...props}
                 time={time}
                 readerActive={!idle}
-                cue={pending}
+                cue={activeMixCue}
                 lyricsOpen={lyricsOpen}
                 onDisclosure={setLyricsOpen}
               />
@@ -794,7 +799,7 @@ export function PlayerBar(props: PlayerProps) {
               {idle && player.current && (
                 <motion.div
                   key="immersive"
-                  className={`immersive-stage${stageHasVideo ? ' with-video' : ''}${player.current.lyrics?.lines.length ? ' has-lyrics' : ' without-lyrics'}`}
+                  className={`immersive-stage${stageHasVideo ? ' with-video' : ''}${player.current.lyrics?.lines.length ? ' has-lyrics' : ' without-lyrics'}${player.blend || activeMixCue ? ' is-mixing' : ''}`}
                   aria-label={t('Immersive listening')}
                   initial={animation.enabled ? { opacity: 0, y: 8 } : false}
                   animate={{ opacity: 1, y: 0 }}
@@ -806,11 +811,33 @@ export function PlayerBar(props: PlayerProps) {
                   transition={animation.reveal}
                 >
                   <div className="immersive-art">
-                    <Artwork track={player.current} className="immersive-cover" />
+                    <div className="immersive-cover immersive-cover-frame">
+                      {player.blend ? (
+                        <MixVisual blend={player.blend} artworkClassName="immersive-cover-art" />
+                      ) : pending ? (
+                        <MixCueVisual cue={pending} artworkClassName="immersive-cover-art" />
+                      ) : (
+                        <Artwork track={player.current} className="immersive-cover-art" />
+                      )}
+                    </div>
                     <div className="immersive-credit">
                       <h2>{player.current.title}</h2>
                       <p>{player.current.artist}</p>
                       <p>{player.current.album}</p>
+                      <AnimatePresence initial={false}>
+                        {activeMixCue && (
+                          <motion.div
+                            className="immersive-mix-cue"
+                            key="immersive-mix-cue"
+                            initial={animation.enabled ? { opacity: 0, height: 0, y: 4 } : false}
+                            animate={{ opacity: 1, height: 'auto', y: 0 }}
+                            exit={animation.enabled ? { opacity: 0, height: 0, y: -2 } : undefined}
+                            transition={animation.effects}
+                          >
+                            <MixCueLabel cue={activeMixCue} />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                       <p className="immersive-time">
                         {formatTime(time)} <span aria-hidden="true">/</span>{' '}
                         {formatTime(player.duration)}

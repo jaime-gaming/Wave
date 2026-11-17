@@ -52,13 +52,56 @@ export async function contentIdentity(blob: Blob): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', bytes);
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
+function inferFolderContext(file: File): {
+  artist?: string;
+  album?: string;
+  year?: number;
+  trackNumber?: number;
+} {
+  const result: { artist?: string; album?: string; year?: number; trackNumber?: number } = {};
+  const leadTrack = /^\s*(\d{1,2})\s*[-._)]\s+/u.exec(file.name);
+  if (leadTrack) {
+    const n = Number(leadTrack[1]);
+    if (n > 0 && n <= 99) result.trackNumber = n;
+  }
+  const rel = (file as File & { webkitRelativePath?: string }).webkitRelativePath;
+  if (!rel || !rel.includes('/')) return result;
+  const dirs = rel
+    .split('/')
+    .slice(0, -1)
+    .map((segment) => segment.trim())
+    .filter(
+      (segment) =>
+        segment &&
+        !/^(?:music|audio|downloads?|library|songs?|tracks?|disc\s*\d+|cd\s*\d+)$/iu.test(segment),
+    );
+  if (!dirs.length) return result;
+  const rawAlbum = dirs[dirs.length - 1];
+  const yearMatch = /\s*[[(]((?:19|20)\d{2})[\])]\s*$/u.exec(rawAlbum);
+  if (yearMatch) {
+    result.year = Number(yearMatch[1]);
+  }
+  const cleanedAlbum = rawAlbum.replace(/\s*[[(](?:19|20)\d{2}[\])]\s*$/u, '').trim();
+  if (cleanedAlbum) result.album = cleanedAlbum;
+  if (dirs.length >= 2) {
+    const rawArtist = dirs[dirs.length - 2].trim();
+    if (rawArtist && rawArtist.toLowerCase() !== cleanedAlbum.toLowerCase()) {
+      result.artist = rawArtist;
+    }
+  }
+  return result;
+}
+
 export async function readTrack(file: File, id: string): Promise<Track> {
   const inferred = inferFileMetadata(file.name);
+  const folder = inferFolderContext(file);
   const track: Track = {
     id,
     title: inferred.title,
-    artist: inferred.artist ?? 'Unknown artist',
-    album: 'Unknown album',
+    artist: inferred.artist ?? folder.artist ?? 'Unknown artist',
+    album: folder.album ?? 'Unknown album',
+    ...(folder.year ? { year: folder.year } : {}),
+    ...(folder.trackNumber ? { trackNumber: folder.trackNumber } : {}),
     duration: 0,
     fileName: file.name,
     size: file.size,
@@ -80,7 +123,7 @@ export async function readTrack(file: File, id: string): Promise<Track> {
       (inferred.artist &&
       canonical(cleanTitle(inferred.title)) === canonical(cleanTitle(track.title))
         ? inferred.artist
-        : 'Unknown artist');
+        : (folder.artist ?? 'Unknown artist'));
     // A position in an album is not part of a song's name.
     const numbered = stripLeadingNumber(track.title);
     if (numbered) track.title = numbered;
@@ -104,7 +147,7 @@ export async function readTrack(file: File, id: string): Promise<Track> {
       metadata.common.year > 1000 &&
       metadata.common.year <= new Date().getFullYear() + 1
         ? metadata.common.year
-        : undefined;
+        : folder.year;
     track.duration =
       Number.isFinite(metadata.format.duration) && (metadata.format.duration ?? 0) > 0
         ? metadata.format.duration!
@@ -117,7 +160,7 @@ export async function readTrack(file: File, id: string): Promise<Track> {
     track.trackNumber =
       metadata.common.track.no && metadata.common.track.no > 0
         ? metadata.common.track.no
-        : undefined;
+        : folder.trackNumber;
     track.discNumber =
       metadata.common.disk.no && metadata.common.disk.no > 0 ? metadata.common.disk.no : undefined;
     const format = metadata.format;

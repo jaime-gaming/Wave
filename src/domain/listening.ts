@@ -28,17 +28,14 @@ export interface PlayEvent {
 
 /** Half the song or thirty seconds, whichever comes first; five seconds minimum. */
 export const PLAY_THRESHOLD_SECONDS = 30;
-/** How many plays are kept. Older ones are dropped, newest are kept. */
-export const MAX_PLAYS = 2_000;
+/** How many plays are kept. Large enough to retain full monthly and annual recaps. */
+export const MAX_PLAYS = 10_000;
 /**
- * The history Remix can look back on: four whole weeks.
- *
- * A play inside this window is kept whatever the count, because a week can only
- * be compared with the one before it if the one before it still exists.
+ * The recent history guaranteed to survive regardless of count: five full weeks.
  */
 export const HISTORY_DAYS = 35;
 /** The ceiling for that promise, so a library on repeat cannot grow without end. */
-export const HISTORY_PLAYS = 8_000;
+export const HISTORY_PLAYS = 12_000;
 
 export function playThreshold(duration: number): number {
   if (!Number.isFinite(duration) || duration <= 0) return PLAY_THRESHOLD_SECONDS;
@@ -499,4 +496,253 @@ export function weekRange(start: number, end: number): string {
   const month = (date: Date) => date.toLocaleDateString(undefined, { month: 'short' });
   if (first.getMonth() === last.getMonth()) return `${day(first)} – ${day(last)} ${month(last)}`;
   return `${day(first)} ${month(first)} – ${day(last)} ${month(last)}`;
+}
+
+export type RecapPeriod = 'week' | 'month' | 'year';
+
+export interface RecapBucket {
+  key: string;
+  label: string;
+  shortLabel: string;
+  seconds: number;
+  plays: number;
+}
+
+export interface PeriodRecap {
+  period: 'month' | 'year';
+  /** Stable identifier: e.g. "2026-11" or "2026". */
+  key: string;
+  /** Human label: e.g. "November 2026" or "2026". */
+  label: string;
+  start: number;
+  end: number;
+  seconds: number;
+  plays: number;
+  tracks: number;
+  artists: number;
+  previousSeconds: number;
+  buckets: RecapBucket[];
+  genres: { genre: string; seconds: number; plays: number }[];
+  topTracks: TrackTotal[];
+  topArtists: ArtistTotal[];
+  mix: Track[];
+}
+
+function summarizeRange(
+  plays: PlayEvent[],
+  tracks: Track[],
+  start: number,
+  endExclusive: number,
+  previousStart: number,
+  mixLimit: number,
+) {
+  const byId = new Map(tracks.map((track) => [track.id, track]));
+  const inRange = plays.filter((play) => play.at >= start && play.at < endExclusive);
+  const previous = plays.filter((play) => play.at >= previousStart && play.at < start);
+  const trackTotals = new Map<string, TrackTotal>();
+  const artistTotals = new Map<string, ArtistTotal>();
+  const genres = new Map<string, { genre: string; seconds: number; plays: number }>();
+  const heard = new Set<string>();
+
+  for (const play of inRange) {
+    const track = byId.get(play.trackId);
+    if (!track) continue;
+    heard.add(track.id);
+    const current = trackTotals.get(track.id);
+    if (current) {
+      current.plays++;
+      current.seconds += play.seconds;
+      current.lastPlayed = Math.max(current.lastPlayed, play.at);
+    } else {
+      trackTotals.set(track.id, {
+        track,
+        plays: 1,
+        seconds: play.seconds,
+        lastPlayed: play.at,
+      });
+    }
+    const name = track.artist || 'Unknown artist';
+    const artist = artistTotals.get(name);
+    if (artist) {
+      artist.plays++;
+      artist.seconds += play.seconds;
+      if (!artist.artwork && track.artwork) artist.artwork = track.artwork;
+    } else {
+      artistTotals.set(name, {
+        artist: name,
+        plays: 1,
+        seconds: play.seconds,
+        artwork: track.artwork,
+      });
+    }
+    for (const raw of track.genres ?? []) {
+      const genre = raw?.trim();
+      if (!genre) continue;
+      const entry = genres.get(genre) ?? { genre, seconds: 0, plays: 0 };
+      entry.seconds += play.seconds;
+      entry.plays++;
+      genres.set(genre, entry);
+    }
+  }
+
+  const ranked = [...trackTotals.values()].sort(
+    (a, b) => b.plays - a.plays || b.seconds - a.seconds || b.lastPlayed - a.lastPlayed,
+  );
+  const rankedArtists = [...artistTotals.values()].sort(
+    (a, b) => b.plays - a.plays || b.seconds - a.seconds,
+  );
+
+  return {
+    inRange,
+    seconds: inRange.reduce((total, play) => total + play.seconds, 0),
+    plays: inRange.length,
+    tracks: heard.size,
+    artists: artistTotals.size,
+    previousSeconds: previous.reduce((total, play) => total + play.seconds, 0),
+    genres: [...genres.values()].sort((a, b) => b.seconds - a.seconds),
+    topTracks: ranked.slice(0, 12),
+    topArtists: rankedArtists.slice(0, 5),
+    mix: ranked.map((entry) => entry.track).slice(0, mixLimit),
+  };
+}
+
+/** Calendar-month recap with 4–5 weekly activity buckets inside the month. */
+export function monthlyRecap(
+  plays: PlayEvent[],
+  tracks: Track[],
+  year: number,
+  monthIndex: number,
+): PeriodRecap {
+  const startDate = new Date(year, monthIndex, 1, 0, 0, 0, 0);
+  const nextMonth = new Date(year, monthIndex + 1, 1, 0, 0, 0, 0);
+  const prevMonth = new Date(year, monthIndex - 1, 1, 0, 0, 0, 0);
+  const start = startDate.getTime();
+  const endExclusive = nextMonth.getTime();
+  const end = endExclusive - 1;
+  const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+
+  const stats = summarizeRange(plays, tracks, start, endExclusive, prevMonth.getTime(), 15);
+  const bucketCount = Math.ceil(daysInMonth / 7);
+  const buckets: RecapBucket[] = Array.from({ length: bucketCount }, (_, i) => {
+    const firstDay = i * 7 + 1;
+    const lastDay = Math.min(daysInMonth, firstDay + 6);
+    return {
+      key: `${year}-${monthIndex + 1}-w${i + 1}`,
+      label: `${firstDay}-${lastDay}`,
+      shortLabel: `W${i + 1}`,
+      seconds: 0,
+      plays: 0,
+    };
+  });
+  for (const play of stats.inRange) {
+    const day = new Date(play.at).getDate();
+    const idx = Math.min(bucketCount - 1, Math.floor((day - 1) / 7));
+    buckets[idx].seconds += play.seconds;
+    buckets[idx].plays++;
+  }
+
+  const monthLabel = startDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  const key = `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
+  return {
+    period: 'month',
+    key,
+    label: monthLabel[0] ? monthLabel[0].toUpperCase() + monthLabel.slice(1) : monthLabel,
+    start,
+    end,
+    seconds: stats.seconds,
+    plays: stats.plays,
+    tracks: stats.tracks,
+    artists: stats.artists,
+    previousSeconds: stats.previousSeconds,
+    buckets,
+    genres: stats.genres,
+    topTracks: stats.topTracks,
+    topArtists: stats.topArtists,
+    mix: stats.mix,
+  };
+}
+
+/** Recent calendar months (newest first) plus any older months that have plays. */
+export function monthlyRecaps(
+  plays: PlayEvent[],
+  tracks: Track[],
+  now: number,
+  months = 12,
+): PeriodRecap[] {
+  const anchor = new Date(now);
+  const seen = new Set<string>();
+  const coords: { year: number; month: number }[] = [];
+  for (let offset = 0; offset < Math.max(1, months); offset++) {
+    const d = new Date(anchor.getFullYear(), anchor.getMonth() - offset, 1);
+    const key = `${d.getFullYear()}-${d.getMonth()}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      coords.push({ year: d.getFullYear(), month: d.getMonth() });
+    }
+  }
+  for (const play of plays) {
+    const d = new Date(play.at);
+    const key = `${d.getFullYear()}-${d.getMonth()}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      coords.push({ year: d.getFullYear(), month: d.getMonth() });
+    }
+  }
+  coords.sort((a, b) => b.year - a.year || b.month - a.month);
+  return coords.map(({ year, month }) => monthlyRecap(plays, tracks, year, month));
+}
+
+/** Calendar-year recap with 12 monthly activity bars (Jan–Dec). */
+export function yearlyRecap(plays: PlayEvent[], tracks: Track[], year: number): PeriodRecap {
+  const start = new Date(year, 0, 1, 0, 0, 0, 0).getTime();
+  const endExclusive = new Date(year + 1, 0, 1, 0, 0, 0, 0).getTime();
+  const prevStart = new Date(year - 1, 0, 1, 0, 0, 0, 0).getTime();
+  const stats = summarizeRange(plays, tracks, start, endExclusive, prevStart, 20);
+
+  const buckets: RecapBucket[] = Array.from({ length: 12 }, (_, monthIdx) => {
+    const sample = new Date(year, monthIdx, 1);
+    const longName = sample.toLocaleDateString(undefined, { month: 'long' });
+    const shortName = sample.toLocaleDateString(undefined, { month: 'short' });
+    return {
+      key: `${year}-${String(monthIdx + 1).padStart(2, '0')}`,
+      label: longName[0] ? longName[0].toUpperCase() + longName.slice(1) : longName,
+      shortLabel: shortName.slice(0, 1).toUpperCase(),
+      seconds: 0,
+      plays: 0,
+    };
+  });
+  for (const play of stats.inRange) {
+    const monthIdx = new Date(play.at).getMonth();
+    if (monthIdx >= 0 && monthIdx < 12) {
+      buckets[monthIdx].seconds += play.seconds;
+      buckets[monthIdx].plays++;
+    }
+  }
+
+  return {
+    period: 'year',
+    key: String(year),
+    label: String(year),
+    start,
+    end: endExclusive - 1,
+    seconds: stats.seconds,
+    plays: stats.plays,
+    tracks: stats.tracks,
+    artists: stats.artists,
+    previousSeconds: stats.previousSeconds,
+    buckets,
+    genres: stats.genres,
+    topTracks: stats.topTracks,
+    topArtists: stats.topArtists,
+    mix: stats.mix,
+  };
+}
+
+/** Calendar years with listening history plus the current year, newest first. */
+export function yearlyRecaps(plays: PlayEvent[], tracks: Track[], now: number): PeriodRecap[] {
+  const years = new Set<number>([new Date(now).getFullYear()]);
+  for (const play of plays) {
+    if (Number.isFinite(play.at)) years.add(new Date(play.at).getFullYear());
+  }
+  return [...years].sort((a, b) => b - a).map((year) => yearlyRecap(plays, tracks, year));
 }

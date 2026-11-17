@@ -2,6 +2,7 @@ import { mixCues, type MixCues } from '../domain/mix';
 import {
   handoverGains,
   levelTrim,
+  panSpread,
   planGains,
   smoothstep,
   type TransitionPlan,
@@ -358,8 +359,20 @@ export class MixAudio {
     this.graph?.setNormalization(deck.element, this.corrections.get(blob) ?? 1, true);
     deck.url = URL.createObjectURL(blob);
     deck.element.src = deck.url;
+    deck.element.load();
     deck.element.currentTime = 0;
     this.attachGraph(deck);
+  }
+  private blendProgress(fading: NonNullable<MixAudio['fading']>): number {
+    const raw = (fading.incoming.element.currentTime - fading.cue) / fading.seconds;
+    // Some browsers ignore a `currentTime = cue` write before metadata/play settles,
+    // leaving currentTime near 0 while cue > 0. Fall back to wall-clock elapsed time
+    // in that case so the mix still sweeps cleanly instead of stalling at 0%.
+    if (fading.cue > 0.5 && fading.incoming.element.currentTime < fading.cue - 0.5) {
+      const elapsed = (performance.now() - fading.start) / (fading.seconds * 1000);
+      return Math.max(0, Math.min(1, elapsed));
+    }
+    return Math.max(0, Math.min(1, raw));
   }
   private report() {
     const bounds = this.boundsOf(this.active);
@@ -378,13 +391,7 @@ export class MixAudio {
       return;
     }
     if (this.fading && this.fading.outgoing.blob && this.fading.incoming.blob) {
-      const p = Math.max(
-        0,
-        Math.min(
-          1,
-          (this.fading.incoming.element.currentTime - this.fading.cue) / this.fading.seconds,
-        ),
-      );
+      const p = this.blendProgress(this.fading);
       this.callbacks.blend?.({
         outgoing: this.fading.outgoing.blob,
         incoming: this.fading.incoming.blob,
@@ -411,6 +418,13 @@ export class MixAudio {
     this.applyGains();
   }
   async play() {
+    // If this deck is already playing as the incoming side of an active mix,
+    // leave it undisturbed: calling play/seek here on the `jump` state update
+    // could re-seek or interrupt the ongoing blend.
+    if (this.fading?.incoming === this.active && !this.active.element.paused) {
+      this.playing = true;
+      return;
+    }
     const intent = ++this.playIntent,
       deck = this.active;
     this.playing = true;
@@ -522,14 +536,24 @@ export class MixAudio {
       this.blocked === blob ||
       !incoming ||
       incoming.blob !== blob ||
-      incoming.element.readyState < 3 ||
+      // Local blob elements often sit at HAVE_METADATA (1) or HAVE_CURRENT_DATA (2)
+      // until play() is called; requiring readyState >= 3 silently skipped mixes.
+      incoming.element.readyState < 1 ||
       !Number.isFinite(incoming.element.duration) ||
       incoming.element.duration <= 0 ||
       !this.playing
     )
       return;
     const incomingCues = this.cues(incoming);
-    const cue = options.cue ?? incomingCues.start;
+    const incomingBounds = this.boundsOf(incoming);
+    const rawCue = options.cue ?? Math.max(incomingCues.start, incomingBounds.start);
+    // Hard safety cap: a mix cue may never start past 25% of the incoming song
+    // unless it is a tiny file, preventing accidental mid-song jumps.
+    const safeCueCap = Math.max(incomingBounds.start, incoming.element.duration * 0.25);
+    const cue =
+      options.cue !== undefined
+        ? Math.max(0, Math.min(rawCue, incoming.element.duration - 0.5))
+        : Math.max(0, Math.min(rawCue, safeCueCap));
     const length = Math.min(seconds, this.mixRemaining, incoming.element.duration - cue);
     if (length < 0.1) return;
     this.pending = true;
@@ -547,6 +571,14 @@ export class MixAudio {
           incoming.element.pause();
           this.pending = false;
           return;
+        }
+        // Re-assert cue if the browser reset currentTime to 0 when starting playback.
+        if (cue > 0.5 && incoming.element.currentTime < cue - 0.5) {
+          try {
+            incoming.element.currentTime = cue;
+          } catch {
+            /* Keep playing smoothly; blendProgress handles fallback timing. */
+          }
         }
         const outgoingTime = outgoing.element.currentTime;
         this.pending = false;
@@ -687,13 +719,7 @@ export class MixAudio {
       this.active.element.volume = master;
       return;
     }
-    const progress = Math.max(
-      0,
-      Math.min(
-        1,
-        (this.fading.incoming.element.currentTime - this.fading.cue) / this.fading.seconds,
-      ),
-    );
+    const progress = this.blendProgress(this.fading);
     // A mix is staged, not symmetric: the new song arrives early and stays, the
     // old one leaves afterwards. That difference is the whole point of the
     // feature — a symmetric equal-power slide is just a crossfade.
@@ -709,17 +735,17 @@ export class MixAudio {
     const headroom = Math.max(1, outgoingGain + incomingGain);
     this.applyDeckGain(this.fading.outgoing, outgoingGain / headroom);
     this.applyDeckGain(this.fading.incoming, incomingGain / headroom);
-    // Two records in one space: they separate in the stereo field as they meet
-    // and come back to the centre together. No level is touched.
+    // Two records in one space: they separate gently in the stereo field as they
+    // meet and return to exact centre by the end. No level is touched.
     if (this.fading.mixed && this.graph) {
-      this.graph.setPan(this.fading.outgoing.element, 0);
-      this.graph.setPan(this.fading.incoming.element, 0);
+      this.graph.setPan(this.fading.outgoing.element, panSpread(progress, 'outgoing'));
+      this.graph.setPan(this.fading.incoming.element, panSpread(progress, 'incoming'));
     }
     if (this.fading.bassSwap && this.graph) {
-      // A's lows close as B's open, so the kick never disappears between the two
-      // songs and the low end clearly changes hands once.
-      this.graph.setBass(this.fading.outgoing.element, bassShelfDb('outgoing', progress));
-      this.graph.setBass(this.fading.incoming.element, bassShelfDb('incoming', progress));
+      // A's lows close as B's open, timed around the plan's spectral swap point.
+      const swap = this.fading.bassSwapAt;
+      this.graph.setBass(this.fading.outgoing.element, bassShelfDb('outgoing', progress, swap));
+      this.graph.setBass(this.fading.incoming.element, bassShelfDb('incoming', progress, swap));
     }
     if (this.fading.filterOut && this.graph) {
       // The outgoing song loses its top as it leaves: the clearest sign that this

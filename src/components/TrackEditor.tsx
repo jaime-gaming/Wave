@@ -1,7 +1,11 @@
 import { AudioTrimEditor } from './AudioTrimEditor';
 import { useState } from 'react';
-import { RotateCcw, Save } from './Glyphs';
-import type { Track, TrackMetadata } from '../domain/types';
+import { RotateCcw, Save, Search } from './Glyphs';
+import { formatTime, type Track, type TrackMetadata } from '../domain/types';
+import { catalogueQuery, scoreRelease, type CatalogueRelease } from '../domain/catalogue';
+import { downloadCover, preferredCountry, searchCatalogue } from '../services/catalogue';
+import { readArtwork } from '../data/artwork';
+import { useOnline } from '../ui/network';
 import { Modal } from './Modal';
 import { ArtworkPicker } from './ArtworkPicker';
 import { ClipSection } from './ClipSection';
@@ -28,6 +32,7 @@ export function TrackEditor({
   onRestoreSilence?: (id: string) => Promise<void>;
 }) {
   const t = useT();
+  const online = useOnline();
   const [metadata, setMetadata] = useState<TrackMetadata>({
     title: track.title,
     artist: track.artist,
@@ -39,7 +44,60 @@ export function TrackEditor({
   const [saving, setSaving] = useState(false);
   const [imageBusy, setImageBusy] = useState(false);
   const [error, setError] = useState('');
-  const busy = saving || imageBusy;
+  const [matchingOpen, setMatchingOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState(() => catalogueQuery(track));
+  const [searching, setSearching] = useState(false);
+  const [matches, setMatches] = useState<Array<{ release: CatalogueRelease; score: number }>>([]);
+  const [searchNote, setSearchNote] = useState('');
+  const [applyingCover, setApplyingCover] = useState(false);
+  const busy = saving || imageBusy || applyingCover;
+
+  const runCatalogueSearch = async (termOverride?: string) => {
+    const query = (termOverride ?? searchTerm).trim();
+    if (!query || searching) return;
+    setSearching(true);
+    setSearchNote('');
+    const previewTrack: Track = {
+      ...track,
+      title: metadata.title,
+      artist: metadata.artist,
+      album: metadata.album,
+    };
+    const results = await searchCatalogue(query, { country: preferredCountry() });
+    const ranked = results
+      .map((release) => ({ release, score: scoreRelease(previewTrack, release) }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 4);
+    setMatches(ranked);
+    if (!ranked.length) {
+      setSearchNote(t('No matching releases found. Try adjusting the artist or title.'));
+    }
+    setSearching(false);
+  };
+
+  const applyMatch = async (release: CatalogueRelease) => {
+    setMetadata((current) => ({
+      ...current,
+      title: release.title || current.title,
+      artist: release.artist || current.artist,
+      album: release.album || current.album,
+    }));
+    if (release.artworkUrl) {
+      setApplyingCover(true);
+      try {
+        const file = await downloadCover(release.artworkUrl);
+        if (file) {
+          const artwork = await readArtwork(file);
+          setMetadata((current) => ({ ...current, artwork }));
+        }
+      } catch {
+        /* Text fields are already aligned even if cover download fails. */
+      } finally {
+        setApplyingCover(false);
+      }
+    }
+    setMatchingOpen(false);
+  };
   return (
     <Modal
       title={trimming ? 'Trim audio' : t('Edit song')}
@@ -103,6 +161,102 @@ export function TrackEditor({
                 />
               </label>
             ))}
+            {online && (
+              <div className="metadata-matcher">
+                <button
+                  type="button"
+                  className="editor-submenu-button"
+                  disabled={busy}
+                  onClick={() => {
+                    const nextOpen = !matchingOpen;
+                    setMatchingOpen(nextOpen);
+                    if (nextOpen && !matches.length) {
+                      const nextTerm = catalogueQuery({
+                        ...track,
+                        title: metadata.title,
+                        artist: metadata.artist,
+                      });
+                      setSearchTerm(nextTerm);
+                      void runCatalogueSearch(nextTerm);
+                    }
+                  }}
+                >
+                  <span>
+                    <strong>{t('Find song details')}</strong>
+                    <small>{t('Search and align title, artist, album and cover')}</small>
+                  </span>
+                  <Search size={18} aria-hidden="true" />
+                </button>
+                {matchingOpen && (
+                  <div className="metadata-matcher-panel">
+                    <div className="metadata-matcher-bar">
+                      <input
+                        type="search"
+                        value={searchTerm}
+                        placeholder={t('Artist and song title')}
+                        onChange={(event) => setSearchTerm(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') {
+                            event.preventDefault();
+                            void runCatalogueSearch();
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="tonal-button"
+                        disabled={searching || !searchTerm.trim()}
+                        onClick={() => void runCatalogueSearch()}
+                      >
+                        {searching ? t('Searching…') : t('Search')}
+                      </button>
+                    </div>
+                    {searchNote && <p className="metadata-matcher-note">{searchNote}</p>}
+                    {!!matches.length && (
+                      <div className="metadata-matcher-list">
+                        {matches.map(({ release, score }, index) => {
+                          const delta =
+                            track.duration > 0 && release.duration
+                              ? Math.abs(release.duration - track.duration)
+                              : null;
+                          const aligned = delta !== null && delta <= 4;
+                          return (
+                            <button
+                              key={`${release.title}-${release.artist}-${index}`}
+                              type="button"
+                              className="metadata-match-row"
+                              disabled={busy}
+                              onClick={() => void applyMatch(release)}
+                            >
+                              {release.artworkUrl && (
+                                <img src={release.artworkUrl} alt="" loading="lazy" />
+                              )}
+                              <span className="metadata-match-info">
+                                <strong>{release.title}</strong>
+                                <small>
+                                  {release.artist}
+                                  {release.album ? ` · ${release.album}` : ''}
+                                  {release.year ? ` (${release.year})` : ''}
+                                </small>
+                              </span>
+                              <span className="metadata-match-meta">
+                                {release.duration ? formatTime(release.duration) : ''}
+                                {aligned && (
+                                  <em className="metadata-match-badge">{t('Exact match')}</em>
+                                )}
+                                {!aligned && score >= 0.72 && (
+                                  <em className="metadata-match-badge">{t('Close match')}</em>
+                                )}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
             <ClipSection track={track} />
             {track.blob && (
               <button

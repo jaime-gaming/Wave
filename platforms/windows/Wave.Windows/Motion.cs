@@ -21,12 +21,12 @@ internal static class Motion
         preference && SystemParameters.ClientAreaAnimation;
 
     /// <summary>Fades an element in while it rises a few pixels into place.</summary>
-    public static void Rise(FrameworkElement element, bool enabled, double distance = 8, int milliseconds = 260)
+    public static void Rise(FrameworkElement element, bool enabled, double distance = 10, int milliseconds = 280)
     {
         if (!enabled) { element.BeginAnimation(UIElement.OpacityProperty, null); element.Opacity = 1; element.RenderTransform = Transform.Identity; return; }
         var offset = element.RenderTransform as TranslateTransform;
         if (offset == null) element.RenderTransform = offset = new TranslateTransform();
-        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+        var ease = new QuinticEase { EasingMode = EasingMode.EaseOut };
         element.BeginAnimation(UIElement.OpacityProperty,
             new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(milliseconds)) { EasingFunction = ease });
         offset.BeginAnimation(TranslateTransform.YProperty,
@@ -37,13 +37,13 @@ internal static class Motion
     /// A restrained, non-overshooting settle for content that arrives: a new
     /// cover, an opened page. Small enough to read as weight, not as a bounce.
     /// </summary>
-    public static void Settle(FrameworkElement element, bool enabled, double from = 0.975, int milliseconds = 220)
+    public static void Settle(FrameworkElement element, bool enabled, double from = 0.96, int milliseconds = 260)
     {
         if (!enabled) { element.BeginAnimation(UIElement.OpacityProperty, null); element.Opacity = 1; element.RenderTransform = Transform.Identity; return; }
         var scale = element.RenderTransform as ScaleTransform;
         if (scale == null || scale.IsFrozen) element.RenderTransform = scale = new ScaleTransform(1, 1);
         element.RenderTransformOrigin = new Point(0.5, 0.5);
-        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+        var ease = new QuinticEase { EasingMode = EasingMode.EaseOut };
         var duration = TimeSpan.FromMilliseconds(milliseconds);
         element.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, duration) { EasingFunction = ease });
         scale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(from, 1, duration) { EasingFunction = ease });
@@ -64,8 +64,8 @@ internal static class Motion
         if (!enabled) { element.BeginAnimation(UIElement.OpacityProperty, null); element.Opacity = 1; element.RenderTransform = Transform.Identity; return; }
         var offset = new TranslateTransform();
         element.RenderTransform = offset;
-        var duration = TimeSpan.FromMilliseconds(240);
-        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+        var duration = TimeSpan.FromMilliseconds(260);
+        var ease = new QuinticEase { EasingMode = EasingMode.EaseOut };
         offset.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation(18 * direction, 0, duration) { EasingFunction = ease, FillBehavior = FillBehavior.Stop });
         element.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, duration) { EasingFunction = ease, FillBehavior = FillBehavior.Stop });
     }

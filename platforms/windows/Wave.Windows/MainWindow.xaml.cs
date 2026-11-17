@@ -1,5 +1,6 @@
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -28,6 +29,18 @@ public partial class MainWindow : Window
     private MediaPlayer active = new();
     private MediaPlayer? spare, outgoing;
     private bool ready, spareReady, playing, initialized, lookingUp, lyricsVisible = true, preferencesDirty;
+
+    // Keep the Windows display awake while Wave is actively playing music.
+    private const uint EsContinuous = 0x80000000;
+    private const uint EsSystemRequired = 0x00000001;
+    private const uint EsDisplayRequired = 0x00000002;
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern uint SetThreadExecutionState(uint esFlags);
+    private void UpdateScreenWakeLock(bool keepAwake)
+    {
+        try { SetThreadExecutionState(keepAwake ? (EsContinuous | EsDisplayRequired | EsSystemRequired) : EsContinuous); }
+        catch { /* Wake lock is best-effort. */ }
+    }
     private double fadeLength, volume = .8, beforeMute = .8;
     private long lastVolumeFeedback;
     private bool syncingVolume;
@@ -44,6 +57,7 @@ public partial class MainWindow : Window
     private string? artShown;
     private string renderedPage = "";
     private bool railNarrow;
+    private int layoutTier = -1;
 
     public MainWindow() : this(null) { }
     public MainWindow(string? folder)
@@ -192,31 +206,61 @@ public partial class MainWindow : Window
     private void WindowResized(object sender, SizeChangedEventArgs e) => FitRail();
     private void FitRail()
     {
-        bool narrow = ActualWidth > 0 && ActualWidth < 1000;
-        if (narrow == railNarrow) return;
-        railNarrow = narrow;
-        if (NavigationPanel.Content is StackPanel rail)
+        double width = ActualWidth;
+        if (width <= 0) return;
+        int tier = width < 640 ? 0 : width < 1000 ? 1 : width < 1800 ? 2 : 3;
+        bool narrow = tier <= 1;
+        if (tier != layoutTier)
         {
-            rail.Margin = narrow ? new Thickness(8, 24, 8, 18) : new Thickness(16, 24, 12, 18);
-            foreach (var element in rail.Children.OfType<FrameworkElement>())
+            layoutTier = tier;
+            Heading.FontSize = tier switch { 0 => 28, 1 => 34, 2 => 40, _ => 44 };
+            WorkspaceGrid.Margin = tier switch
             {
-                if (element is Button button && button.Content is StackPanel content)
+                0 => new Thickness(4, 12, 10, 8),
+                1 => new Thickness(8, 16, 16, 10),
+                2 => new Thickness(10, 22, 22, 10),
+                _ => new Thickness(18, 26, 32, 14),
+            };
+            PageHeader.Margin = tier == 0 ? new Thickness(4, 0, 0, 12) : new Thickness(8, 0, 0, 18);
+        }
+        if (narrow != railNarrow)
+        {
+            railNarrow = narrow;
+            if (NavigationPanel.Content is StackPanel rail)
+            {
+                rail.Margin = narrow ? new Thickness(6, 20, 6, 14) : new Thickness(16, 24, 12, 18);
+                foreach (var element in rail.Children.OfType<FrameworkElement>())
                 {
-                    foreach (var label in content.Children.OfType<TextBlock>())
-                        label.Visibility = narrow ? Visibility.Collapsed : Visibility.Visible;
-                    button.HorizontalContentAlignment = narrow ? HorizontalAlignment.Center : HorizontalAlignment.Left;
-                }
-                else if (element is TextBlock or Viewbox)
-                {
-                    // The wordmark and "your collection" are words about the rail;
-                    // a rail of icons has room for neither.
-                    element.Visibility = narrow ? Visibility.Collapsed : Visibility.Visible;
+                    if (element is Button button && button.Content is StackPanel content)
+                    {
+                        foreach (var label in content.Children.OfType<TextBlock>())
+                            label.Visibility = narrow ? Visibility.Collapsed : Visibility.Visible;
+                        button.HorizontalContentAlignment = narrow ? HorizontalAlignment.Center : HorizontalAlignment.Left;
+                    }
+                    else if (element is TextBlock or Viewbox)
+                    {
+                        // The wordmark and "your collection" are words about the rail;
+                        // a rail of icons has room for neither.
+                        element.Visibility = narrow ? Visibility.Collapsed : Visibility.Visible;
+                    }
                 }
             }
         }
         ApplyRailWidth();
     }
-    private void ApplyRailWidth() => SidebarWidth.Width = new GridLength(page == "Now playing" ? 0 : railNarrow ? 96 : 216);
+    private void ApplyRailWidth()
+    {
+        double width = page == "Now playing"
+            ? 0
+            : layoutTier switch
+            {
+                0 => 62,
+                1 => 84,
+                3 => 240,
+                _ => 216,
+            };
+        SidebarWidth.Width = new GridLength(width);
+    }
     /// <summary>
     /// Home, Remix and Settings are pages made of headings, shelves and rows; they
     /// have no song list of their own below the fold, so their opening fills the
@@ -271,8 +315,20 @@ public partial class MainWindow : Window
     {
         var picker = new OpenFolderDialog { Title = Localization.T("Choose a folder of music"), Multiselect = false };
         if (picker.ShowDialog() != true) return;
+        var watched = (preferences.WatchedFolders ?? []).ToList();
+        if (!watched.Any(f => string.Equals(f, picker.FolderName, StringComparison.OrdinalIgnoreCase))) {
+            watched.Add(picker.FolderName);
+            preferences = preferences with { WatchedFolders = watched };
+            preferencesDirty = true;
+            SaveSession();
+        }
+        await ImportFolderPath(picker.FolderName);
+    }
+
+    private async Task ImportFolderPath(string folderPath)
+    {
         string[] found;
-        try { found = Directory.EnumerateFiles(picker.FolderName, "*", SearchOption.AllDirectories).ToArray(); }
+        try { found = Directory.EnumerateFiles(folderPath, "*", SearchOption.AllDirectories).ToArray(); }
         catch (Exception error) { Notify(error.Message); return; }
         // A folder is not curated the way a hand-picked set of files is, so an
         // odd file is skipped instead of failing the whole import.
@@ -284,6 +340,22 @@ public partial class MainWindow : Window
         await ImportPaths(usable);
     }
 
+    private async Task RescanWatchedFolders()
+    {
+        var folders = (preferences.WatchedFolders ?? []).Where(Directory.Exists).ToList();
+        if (folders.Count == 0) { Notify(Localization.T("No remembered folders are available right now.")); return; }
+        var usable = new List<string>();
+        foreach (var folder in folders) {
+            try {
+                usable.AddRange(Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories)
+                    .Where(path => AudioExtensions.Contains(System.IO.Path.GetExtension(path).ToLowerInvariant()))
+                    .Where(path => { try { var length = new FileInfo(path).Length; return length > 0 && length <= 209715200; } catch { return false; } }));
+            } catch { /* Skip inaccessible folder and continue. */ }
+        }
+        if (usable.Count == 0) { Notify(Localization.T("No music files found in remembered folders.")); return; }
+        await ImportPaths(usable);
+    }
+
     private bool importingFiles;
     private async Task ImportPaths(IEnumerable<string> paths)
     {
@@ -292,10 +364,23 @@ public partial class MainWindow : Window
         var list = paths.ToArray();
         try {
             Notify(Localization.T("Adding {count}…", new Dictionary<string, string> { ["count"] = $"{list.Length} {(list.Length == 1 ? Localization.T("file") : Localization.T("files"))}" }));
-            int added = await repository.Import(list);
+            int added = await repository.Import(list, preferences.CopyFilesToLibrary, preferences.CustomAudioFolder);
             tracks = repository.Load(); Notify(Localization.T("{count} tracks added; identical files skipped.", new Dictionary<string, string> { ["count"] = added.ToString() })); Refresh();
         } catch (Exception error) { tracks = repository.Load(); Refresh(); Notify(error.Message); }
         finally { importingFiles = false; }
+    }
+
+    private void RemoveFromLibrary(Song song)
+    {
+        bool wasCurrent = Current?.Id == song.Id;
+        if (wasCurrent) { CancelFade(); active.Stop(); active.Close(); playing = false; ready = false; UpdateScreenWakeLock(false); }
+        repository.Remove(song.Id, preferences);
+        tracks = repository.Load();
+        queue.RemoveAll(s => s.Id == song.Id);
+        if (index >= queue.Count) index = queue.Count - 1;
+        Refresh();
+        UpdatePlaybackLabels();
+        Notify(Localization.T("Removed from Wave library. Your original file was kept."));
     }
     private void ArtworkPlayClick(object sender, MouseButtonEventArgs e) { if (sender is Border { Tag: Song song }) { PlayCollection(visible, song.Id); e.Handled = true; } }
     private void ToggleArtwork(object sender, MouseButtonEventArgs e) { ToggleClick(sender, e); e.Handled = true; }
@@ -318,7 +403,13 @@ public partial class MainWindow : Window
     {
         if (position < 0 || position >= queue.Count) return;
         CancelFade(); active.Close(); spare?.Close(); spare = null; spareReady = ready = false;
-        index = position; active = Create(); var selected = active; var song = queue[index];
+        index = position; var song = queue[index];
+        if (!File.Exists(song.Path)) {
+            playing = false; UpdatePlaybackLabels();
+            Notify(Localization.T("File not found at its original location: {file}", new Dictionary<string, string> { ["file"] = song.FileName }));
+            return;
+        }
+        active = Create(); var selected = active;
         selected.MediaOpened += async (_, _) => {
             if (!ReferenceEquals(selected, active)) return;
             ready = true; double duration = selected.NaturalDuration.HasTimeSpan ? selected.NaturalDuration.TimeSpan.TotalSeconds : song.Duration;
@@ -432,6 +523,7 @@ public partial class MainWindow : Window
         Iconography.Set(NowToggle, playing ? "pause" : "play", 22);
         Iconography.Set(MiniToggle, playing ? "pause" : "play", 18);
         NowToggle.ToolTip = MiniToggle.ToolTip = Localization.T(playing ? "Pause" : "Play");
+        UpdateScreenWakeLock(playing && Current != null);
     }
     private void UpdateCurrent()
     {
@@ -576,5 +668,5 @@ public partial class MainWindow : Window
         if (preferencesDirty) { repository.SavePreferences(preferences); preferencesDirty = false; }
     });
     private void WindowKey(object sender, KeyEventArgs e) { if (e.OriginalSource is TextBox) return; if (e.Key == Key.Space && Keyboard.Modifiers == ModifierKeys.None) { ToggleClick(this, e); e.Handled = true; } else if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control) { ShowPage("Search"); searchBox?.Focus(); e.Handled = true; } }
-    private void ClosingWindow(object? sender, System.ComponentModel.CancelEventArgs e) { SaveSession(); timer.Stop(); active.Close(); spare?.Close(); outgoing?.Close(); client.Dispose(); }
+    private void ClosingWindow(object? sender, System.ComponentModel.CancelEventArgs e) { UpdateScreenWakeLock(false); SaveSession(); timer.Stop(); active.Close(); spare?.Close(); outgoing?.Close(); client.Dispose(); }
 }

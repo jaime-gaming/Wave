@@ -137,4 +137,16 @@ describe('YouTube song stage', () => {
     });
     expect(onEnded).not.toHaveBeenCalled();
   });
+
+  it('announces listening handshake on load so YouTube streams progress events', () => {
+    render(<YouTubeStage {...baseProps} playing={false} />);
+    const frame = screen.getByTitle(/youtube video for midnight city/i) as HTMLIFrameElement;
+    const post = vi.spyOn(frame.contentWindow!, 'postMessage');
+    act(() => {
+      frame.dispatchEvent(new Event('load'));
+    });
+    expect(
+      post.mock.calls.some(([message]) => String(message).includes('"event":"listening"')),
+    ).toBe(true);
+  });
 });

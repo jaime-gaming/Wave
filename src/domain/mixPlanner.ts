@@ -159,14 +159,40 @@ function alignOutgoing(analysis: TrackAnalysis, time: number): number {
  * in the part that would be skipped: a song that opens with a sung line starts
  * on its first beat like it always did.
  */
+/**
+ * Maximum safe intro skip for a given track.
+ *
+ * Club tracks can have 24–32s beatless intros on a 4–5 minute record, whereas a
+ * shorter pop or indie track must never lose a third or half of its runtime.
+ * Bounding by both MAX_ENTRY and 16% of the audible duration prevents skipping
+ * into the middle of short songs while keeping club-intro cueing intact.
+ */
+function maxEntryFor(analysis: TrackAnalysis): number {
+  const audible = Math.max(0, analysis.trimmed.end - analysis.trimmed.start);
+  return Math.min(MAX_ENTRY, Math.max(0, audible * 0.16));
+}
+
+/**
+ * Spectral-aware bass swap point: swap earlier when the incoming song brings
+ * a heavier kick/bass, hold the outgoing low end slightly longer when it carries
+ * the groove.
+ */
+function plannedBassSwapAt(outgoing: TrackAnalysis, incoming: TrackAnalysis): number {
+  const diff = (incoming.profile?.bass ?? 0) - (outgoing.profile?.bass ?? 0);
+  if (diff > 0.1) return 0.42;
+  if (diff < -0.1) return 0.62;
+  return 0.5;
+}
+
 function alignIncoming(analysis: TrackAnalysis): number {
   const { bpm, offset } = analysis.beats;
   const period = 60 / bpm;
   const start = analysis.trimmed.start;
+  const maxEntry = maxEntryFor(analysis);
   // The end of the intro, or the first place the kick is already playing if that
   // is later — a long intro often ends in a breakdown, not on a downbeat.
   const kick = kickStart(analysis, introEnd(analysis));
-  const body = clamp(kick ?? introEnd(analysis), start, start + MAX_ENTRY);
+  const body = clamp(kick ?? introEnd(analysis), start, start + maxEntry);
   const entry = body - start > period ? body : start;
   const skip = !overlapsRegion(analysis.vocals, start, entry, 0.05);
   const from = skip ? entry : start;
@@ -174,7 +200,14 @@ function alignIncoming(analysis: TrackAnalysis): number {
   const beats = (from - offset) / period;
   const bar = Math.ceil(beats / BEATS_PER_BAR) * BEATS_PER_BAR;
   const aligned = offset + bar * period;
-  return clamp(aligned, start, Math.max(start, analysis.trimmed.end - period));
+  return clamp(
+    aligned,
+    start,
+    Math.min(
+      start + maxEntry + period * BEATS_PER_BAR,
+      Math.max(start, analysis.trimmed.end - period),
+    ),
+  );
 }
 
 /**
@@ -198,7 +231,12 @@ function loudEntry(analysis: TrackAnalysis, from: number, length: number): numbe
     return segment ? segment.level : 0;
   };
   if (levelAt(from) >= loudest * 0.55) return from;
-  const cap = Math.min(from + Math.max(MAX_CUE_LEAD, period), analysis.trimmed.end - period);
+  const entryCeiling = analysis.trimmed.start + maxEntryFor(analysis) + period * BEATS_PER_BAR;
+  const cap = Math.min(
+    from + Math.max(MAX_CUE_LEAD, period),
+    entryCeiling,
+    analysis.trimmed.end - period,
+  );
   // Whole bars only: the entry has to stay on the downbeat it was placed on.
   const firstBar = Math.ceil((from - offset) / period / BEATS_PER_BAR);
   for (let step = 1; step <= 8; step++) {
@@ -292,17 +330,32 @@ export function planTransition(
     const start = hasGrid(outgoing)
       ? alignOutgoing(outgoing, outgoing.trimmed.end - seconds)
       : Math.max(outgoing.trimmed.start, outgoing.trimmed.end - seconds);
-    const cue = clamp(
-      kickStart(incoming) ?? introEnd(incoming),
+    // Never jump past the gentle intro bound on rubato/acoustic/ballad material:
+    // an uncapped kickStart used to leap past quiet first verses straight to the chorus.
+    const maxGentleSkip = Math.min(6, head * 0.08);
+    const introTarget = kickStart(incoming) ?? introEnd(incoming);
+    const hasEarlyVocal = overlapsRegion(
+      incoming.vocals,
       incoming.trimmed.start,
-      Math.max(incoming.trimmed.start, incoming.trimmed.end - seconds),
+      incoming.trimmed.start + maxGentleSkip,
+      0.05,
     );
+    const cue = hasEarlyVocal
+      ? incoming.trimmed.start
+      : clamp(
+          introTarget,
+          incoming.trimmed.start,
+          Math.min(
+            incoming.trimmed.start + maxGentleSkip,
+            Math.max(incoming.trimmed.start, incoming.trimmed.end - seconds),
+          ),
+        );
     return {
       mode: 'crossfade',
       seconds: Math.round(seconds * 100) / 100,
       startAt: Math.round(start * 1000) / 1000,
       cue: Math.round(cue * 1000) / 1000,
-      bassSwapAt: 0.5,
+      bassSwapAt: plannedBassSwapAt(outgoing, incoming),
       bars: 0,
       phaseAligned: false,
       notes,
@@ -439,7 +492,7 @@ export function planTransition(
     seconds: Math.round(seconds * 100) / 100,
     startAt: Math.round(startAt * 1000) / 1000,
     cue: Math.round(cue * 1000) / 1000,
-    bassSwapAt: 0.5,
+    bassSwapAt: plannedBassSwapAt(outgoing, incoming),
     bars,
     phaseAligned,
     notes,

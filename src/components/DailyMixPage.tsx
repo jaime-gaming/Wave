@@ -59,7 +59,10 @@ export function DailyMixPage({
           track={{
             title: mix.label,
             album: '',
-            artwork: songs.find((t) => t.artwork)?.artwork ?? playlistIcon(mix.id, mix.label),
+            artwork:
+              mix.covers?.map((c) => byId.get(c.id) ?? c).find((t) => t.artwork)?.artwork ??
+              songs.find((t) => t.artwork)?.artwork ??
+              playlistIcon(mix.id, mix.label),
           }}
         />
         <div className="daily-mix-heading">

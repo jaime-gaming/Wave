@@ -21,6 +21,8 @@ import {
 import { Artwork } from './Artwork';
 import { EmptyState } from './EmptyState';
 import { formatTime, type LibraryView, type Track } from '../domain/types';
+import { isYouTubeTrack } from '../domain/youtubeTrack';
+import { useOnline } from '../ui/network';
 
 import { useT } from '../i18n';
 export const LibraryContent = memo(function LibraryContent({
@@ -63,6 +65,7 @@ export const LibraryContent = memo(function LibraryContent({
   onMore: (track: Track) => void;
 }) {
   const t = useT();
+  const online = useOnline();
   const grouped = (view === 'albums' || view === 'artists') && !group;
   // Only the rows near the viewport exist at any moment; the rest arrive on scroll.
   const rows = useIncrementalRows(tracks.length);
@@ -185,94 +188,122 @@ export const LibraryContent = memo(function LibraryContent({
             data-count={tracks.length}
           >
             <AnimatePresence initial={false}>
-              {tracks.slice(0, rows.limit).map((track, index) => (
-                <AnimatedListItem
-                  key={track.id}
-                  trackId={track.id}
-                  // Only the first rows are worth an entrance animation; animating
-                  // hundreds of them costs more than it shows.
-                  animateLayout={index < 12}
-                  index={index}
-                  className={`song-row ${currentId === track.id ? 'current' : ''}`}
-                  onClick={(event) => {
-                    if (!(event.target as HTMLElement).closest('button,a,input'))
-                      onPlay(tracks, track.id);
-                  }}
-                >
-                  <button
-                    className="row-play"
-                    aria-label={`Play ${track.title}`}
-                    onClick={() => onPlay(tracks, track.id)}
+              {tracks.slice(0, rows.limit).map((track, index) => {
+                const offlineTrack = !online && isYouTubeTrack(track);
+                return (
+                  <AnimatedListItem
+                    key={track.id}
+                    trackId={track.id}
+                    // Only the first rows are worth an entrance animation; animating
+                    // hundreds of them costs more than it shows.
+                    animateLayout={index < 12}
+                    index={index}
+                    className={`song-row ${currentId === track.id ? 'current' : ''}${offlineTrack ? ' is-offline-track' : ''}`}
+                    aria-disabled={offlineTrack || undefined}
+                    onClick={(event) => {
+                      if (offlineTrack) return;
+                      if (!(event.target as HTMLElement).closest('button,a,input'))
+                        onPlay(tracks, track.id);
+                    }}
                   >
-                    {currentId === track.id && playing ? (
-                      <PlayingIndicator />
-                    ) : (
-                      <>
-                        <span>{index + 1}</span>
-                        <Play className="hover-play" size={19} />
-                      </>
-                    )}
-                  </button>
-                  <div className="song-title-button">
                     <button
-                      className="song-cover-play"
-                      aria-label={`Play artwork for ${track.title}`}
-                      onClick={() => onPlay(tracks, track.id)}
+                      className="row-play"
+                      aria-label={
+                        offlineTrack
+                          ? t('{title} requires an internet connection', { title: track.title })
+                          : `Play ${track.title}`
+                      }
+                      disabled={offlineTrack}
+                      onClick={() => {
+                        if (!offlineTrack) onPlay(tracks, track.id);
+                      }}
                     >
-                      <Artwork track={track} />
+                      {currentId === track.id && playing ? (
+                        <PlayingIndicator />
+                      ) : (
+                        <>
+                          <span>{index + 1}</span>
+                          <Play className="hover-play" size={19} />
+                        </>
+                      )}
                     </button>
-                    <div className="track-info">
+                    <div className="song-title-button">
                       <button
-                        className="song-name"
-                        onClick={() => onPlay(tracks, track.id)}
-                        aria-label={`Play ${track.title} by ${track.artist}`}
-                        title={track.title}
+                        className="song-cover-play"
+                        aria-label={`Play artwork for ${track.title}`}
+                        disabled={offlineTrack}
+                        onClick={() => {
+                          if (!offlineTrack) onPlay(tracks, track.id);
+                        }}
                       >
-                        <strong>{track.title}</strong>
+                        <Artwork track={track} />
                       </button>
-                      <button
-                        className="metadata-link song-artist-link"
-                        onClick={() => onArtist?.(track.artist)}
-                        aria-label={`Open artist ${track.artist}`}
-                        title={track.artist}
+                      <div className="track-info">
+                        <button
+                          className="song-name"
+                          disabled={offlineTrack}
+                          onClick={() => {
+                            if (!offlineTrack) onPlay(tracks, track.id);
+                          }}
+                          aria-label={
+                            offlineTrack
+                              ? t('{title} by {artist} (offline)', {
+                                  title: track.title,
+                                  artist: track.artist,
+                                })
+                              : `Play ${track.title} by ${track.artist}`
+                          }
+                          title={offlineTrack ? t('Needs an internet connection') : track.title}
+                        >
+                          <strong>{track.title}</strong>
+                          {offlineTrack && (
+                            <span className="offline-track-pill">{t('Offline')}</span>
+                          )}
+                        </button>
+                        <button
+                          className="metadata-link song-artist-link"
+                          onClick={() => onArtist?.(track.artist)}
+                          aria-label={`Open artist ${track.artist}`}
+                          title={track.artist}
+                        >
+                          {track.artist}
+                        </button>
+                      </div>
+                    </div>
+                    <button
+                      className="album-name metadata-link"
+                      onClick={() => onAlbum?.(track)}
+                      aria-label={`Open album ${track.album}`}
+                      title={track.album}
+                    >
+                      <Disc3 size={15} />
+                      <span>{track.album}</span>
+                    </button>
+                    <span className="song-duration">
+                      {track.duration ? formatTime(track.duration) : '-'}
+                    </span>
+                    <div className="song-actions">
+                      <PlayerActionButton
+                        action="favorite"
+                        value={track.favorite}
+                        className={`icon-button row-favorite ${track.favorite ? 'active' : ''}`}
+                        aria-label={`${track.favorite ? t('Unfavorite') : t('Favorite')} ${track.title}`}
+                        aria-pressed={track.favorite}
+                        onClick={() => onFavorite(track)}
                       >
-                        {track.artist}
+                        <Heart size={20} fill={track.favorite ? 'currentColor' : 'none'} />
+                      </PlayerActionButton>
+                      <button
+                        className="icon-button mobile-more"
+                        aria-label={`Options for ${track.title}`}
+                        onClick={() => onMore(track)}
+                      >
+                        <MoreVertical size={23} />
                       </button>
                     </div>
-                  </div>
-                  <button
-                    className="album-name metadata-link"
-                    onClick={() => onAlbum?.(track)}
-                    aria-label={`Open album ${track.album}`}
-                    title={track.album}
-                  >
-                    <Disc3 size={15} />
-                    <span>{track.album}</span>
-                  </button>
-                  <span className="song-duration">
-                    {track.duration ? formatTime(track.duration) : '—'}
-                  </span>
-                  <div className="song-actions">
-                    <PlayerActionButton
-                      action="favorite"
-                      value={track.favorite}
-                      className={`icon-button row-favorite ${track.favorite ? 'active' : ''}`}
-                      aria-label={`${track.favorite ? t('Unfavorite') : t('Favorite')} ${track.title}`}
-                      aria-pressed={track.favorite}
-                      onClick={() => onFavorite(track)}
-                    >
-                      <Heart size={20} fill={track.favorite ? 'currentColor' : 'none'} />
-                    </PlayerActionButton>
-                    <button
-                      className="icon-button mobile-more"
-                      aria-label={`Options for ${track.title}`}
-                      onClick={() => onMore(track)}
-                    >
-                      <MoreVertical size={23} />
-                    </button>
-                  </div>
-                </AnimatedListItem>
-              ))}
+                  </AnimatedListItem>
+                );
+              })}
               {rows.limit < tracks.length && (
                 <li ref={rows.sentinelRef} className="song-row-sentinel" aria-hidden="true" />
               )}

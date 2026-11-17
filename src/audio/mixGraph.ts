@@ -32,6 +32,7 @@ export const CLOSED_AIR_HZ = 1_600;
 
 type Chain = {
   limiter?: AudioParam;
+  limiterKnee?: AudioParam;
   normalization: AudioParam;
   gain: AudioParam;
   bass: AudioParam;
@@ -111,15 +112,15 @@ export class MixGraph {
         const normalization = this.context.createGain();
         normalization.gain.value = 1;
         source.connect(normalization);
-        // A safety ceiling catches inter-sample/decoder peaks a low-memory scan
-        // cannot measure exactly. At unity it stays bypass-equivalent (0 dB).
+        // A safety ceiling catches inter-sample/decoder peaks when boosting quiet tracks.
+        // At unity or below it stays bypass-equivalent (0 dB threshold, 0 dB knee).
         const limiter = this.context.createDynamicsCompressor?.();
         if (limiter) {
           limiter.threshold.value = 0;
           limiter.knee.value = 0;
-          limiter.ratio.value = 20;
-          limiter.attack.value = 0.003;
-          limiter.release.value = 0.1;
+          limiter.ratio.value = 12;
+          limiter.attack.value = 0.002;
+          limiter.release.value = 0.08;
           normalization.connect(limiter);
           limiter.connect(bass);
         } else normalization.connect(bass);
@@ -137,7 +138,7 @@ export class MixGraph {
         }
         this.sources.add(source);
         chain = {
-          ...(limiter ? { limiter: limiter.threshold } : {}),
+          ...(limiter ? { limiter: limiter.threshold, limiterKnee: limiter.knee } : {}),
           normalization: normalization.gain,
           gain: gain.gain,
           bass: bass.gain,
@@ -161,16 +162,23 @@ export class MixGraph {
     const chain = this.chains.get(element);
     if (!chain) return;
     const safe = Number.isFinite(gain) ? Math.max(0.01, Math.min(8, gain)) : 1;
+    const threshold = safe > 1 ? -1.5 : 0;
+    const knee = safe > 1 ? 6 : 0;
     if (immediate) {
       // New/reused sources begin at their own level, never the previous song's.
       chain.normalization.cancelScheduledValues?.(this.context.currentTime);
       chain.normalization.value = safe;
       if (chain.limiter) {
         chain.limiter.cancelScheduledValues?.(this.context.currentTime);
-        chain.limiter.value = safe > 1 ? -1 : 0;
+        chain.limiter.value = threshold;
+      }
+      if (chain.limiterKnee) {
+        chain.limiterKnee.cancelScheduledValues?.(this.context.currentTime);
+        chain.limiterKnee.value = knee;
       }
     } else {
-      chain.limiter?.setTargetAtTime(safe > 1 ? -1 : 0, this.context.currentTime, 0.02);
+      chain.limiter?.setTargetAtTime(threshold, this.context.currentTime, 0.02);
+      chain.limiterKnee?.setTargetAtTime(knee, this.context.currentTime, 0.02);
       chain.normalization.setTargetAtTime(safe, this.context.currentTime, 0.12);
     }
   }
@@ -239,11 +247,15 @@ export class MixGraph {
 }
 
 /** Bass shelf value for a deck at a given point of the swap. */
-export function bassShelfDb(role: 'outgoing' | 'incoming', progress: number): number {
+export function bassShelfDb(
+  role: 'outgoing' | 'incoming',
+  progress: number,
+  swapAt = 0.55,
+): number {
   const p = Math.max(0, Math.min(1, progress));
-  // The low end changes hands early — on the incoming song's first bars — because
-  // that is where the listener expects the new record to take over.
-  const t = Math.max(0, Math.min(1, p / 0.55));
+  const pivot = Math.max(0.25, Math.min(0.85, Number.isFinite(swapAt) ? swapAt : 0.55));
+  // The low end changes hands smoothly across the swap window so the kick never vanishes.
+  const t = Math.max(0, Math.min(1, p / pivot));
   const smooth = t * t * (3 - 2 * t);
   const value = role === 'outgoing' ? BASS_CUT_DB * smooth : BASS_CUT_DB * (1 - smooth);
   // Normalise -0 so setBass and tests see a plain zero.

@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { FolderOpen, FolderSearch, Link2, Video } from './Glyphs';
+import { FolderOpen, FolderSearch, Link2, Plus, Search, Video } from './Glyphs';
 import { Modal } from './Modal';
 import { networkAriaLabel, networkLabel, useOnline } from '../ui/network';
-import type { Track } from '../domain/types';
+import { formatTime, type Track } from '../domain/types';
+import { parseYouTubeLink } from '../domain/youtube';
+import { searchYouTubeCatalog, type YouTubeCatalogResult } from '../services/videoMeta';
 import {
   canShowFolderPicker,
   forgetFolder,
@@ -19,12 +21,11 @@ import type { RememberedFolder } from '../data/library';
 
 import { useT } from '../i18n';
 /**
- * "Add music" now asks where the song comes from.
- *
- * - **This device** imports files, exactly as before (MP3, WAV, M4A, OGG, FLAC).
- * - **YouTube** stores a reference to a video and plays it through the official
- *   embed. Nothing is downloaded, converted or extracted: playback needs a
- *   connection and the provider stays visible.
+ * "Add music" offers three ways to add songs:
+ * - **From this device**: individual music files.
+ * - **A whole folder**: reads folders recursively on this device.
+ * - **From YouTube**: unified search-or-link input that finds songs fast or
+ *   imports a pasted YouTube song or playlist link directly.
  */
 export function AddMusicDialog({
   onClose,
@@ -38,7 +39,10 @@ export function AddMusicDialog({
   onLocal: () => void;
   /** Files found in a folder, handed to the same importer as any other file. */
   onFolderFiles: (files: File[]) => void;
-  onYouTube: (link: string) => Promise<{ ok: boolean; error?: string; track?: Track }>;
+  onYouTube: (
+    link: string,
+    prefilled?: { title?: string; artist?: string; duration?: number; thumbnail?: string },
+  ) => Promise<{ ok: boolean; error?: string; track?: Track }>;
   onAdded: (track: Track) => void;
   busy?: boolean;
 }) {
@@ -46,9 +50,14 @@ export function AddMusicDialog({
   const [mode, setMode] = useState<'choose' | 'youtube'>('choose');
   const [link, setLink] = useState('');
   const [pending, setPending] = useState(false);
+  const [addingId, setAddingId] = useState('');
+  const [searching, setSearching] = useState(false);
+  const [searchDone, setSearchDone] = useState(false);
+  const [results, setResults] = useState<YouTubeCatalogResult[]>([]);
   const [error, setError] = useState('');
   const input = useRef<HTMLInputElement>(null);
   const directory = useRef<HTMLInputElement>(null);
+  const searchAbort = useRef<AbortController | null>(null);
   const online = useOnline();
   const [folders, setFolders] = useState<RememberedFolder[]>([]);
   const [folderBusy, setFolderBusy] = useState('');
@@ -57,6 +66,12 @@ export function AddMusicDialog({
   // frame, or where the API is missing, the folder input does the same job.
   const canPick = canShowFolderPicker();
   const canChooseDirectory = supportsDirectoryInput();
+
+  const trimmedInput = link.trim();
+  const parsedLink = trimmedInput ? parseYouTubeLink(trimmedInput) : null;
+  const looksLikeUrl =
+    !!parsedLink ||
+    /^(?:https?:\/\/|(?:www\.|m\.|music\.)?youtube\.com|youtu\.be)/iu.test(trimmedInput);
 
   useEffect(() => {
     if (mode === 'youtube') input.current?.focus();
@@ -70,6 +85,33 @@ export function AddMusicDialog({
       live = false;
     };
   }, []);
+
+  // Fast debounced live search whenever the unified input contains a search query (not a link).
+  useEffect(() => {
+    searchAbort.current?.abort();
+    searchAbort.current = null;
+    if (mode !== 'youtube' || !online || looksLikeUrl || trimmedInput.length < 2) {
+      return;
+    }
+    const controller = new AbortController();
+    searchAbort.current = controller;
+    const timer = window.setTimeout(() => {
+      setSearching(true);
+      setSearchDone(false);
+      void searchYouTubeCatalog(trimmedInput, { signal: controller.signal, limit: 8 }).then(
+        (items) => {
+          if (controller.signal.aborted) return;
+          setResults(items);
+          setSearching(false);
+          setSearchDone(true);
+        },
+      );
+    }, 240);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [mode, online, looksLikeUrl, trimmedInput]);
 
   /**
    * Reads a folder the listener has just granted, and hands its files to the
@@ -136,11 +178,58 @@ export function AddMusicDialog({
     void markFolderScanned(folder.id).catch(() => undefined);
   };
 
-  const submit = async () => {
-    if (!link.trim() || pending) return;
+  const addCandidate = async (candidate: YouTubeCatalogResult) => {
+    if (pending || addingId) return;
+    setAddingId(candidate.videoId);
     setPending(true);
     setError('');
-    const result = await onYouTube(link.trim());
+    const result = await onYouTube(`https://youtu.be/${candidate.videoId}`, {
+      title: candidate.title,
+      artist: candidate.artist,
+      duration: candidate.duration,
+      thumbnail: candidate.thumbnail,
+    });
+    setPending(false);
+    setAddingId('');
+    if (!result.ok || !result.track) {
+      setError(result.error ?? t('That song could not be added.'));
+      return;
+    }
+    onAdded(result.track);
+    onClose();
+  };
+
+  const runSearchNow = async () => {
+    if (!trimmedInput || trimmedInput.length < 2 || !online) return;
+    searchAbort.current?.abort();
+    const controller = new AbortController();
+    searchAbort.current = controller;
+    setSearching(true);
+    setSearchDone(false);
+    setError('');
+    const items = await searchYouTubeCatalog(trimmedInput, {
+      signal: controller.signal,
+      limit: 8,
+    });
+    if (controller.signal.aborted) return;
+    setResults(items);
+    setSearching(false);
+    setSearchDone(true);
+  };
+
+  const submit = async () => {
+    if (!trimmedInput || pending) return;
+    if (!looksLikeUrl) {
+      if (results.length > 0 && searchDone) {
+        await addCandidate(results[0]);
+      } else {
+        await runSearchNow();
+      }
+      return;
+    }
+    setPending(true);
+    setError('');
+    const result = await onYouTube(trimmedInput);
     setPending(false);
     if (!result.ok || !result.track) {
       setError(result.error ?? t('That link could not be added.'));
@@ -196,7 +285,7 @@ export function AddMusicDialog({
             >
               <Video size={24} aria-hidden="true" />
               <strong>{networkLabel(online, t('From YouTube'))}</strong>
-              <span>{online ? t('Paste a link.') : t('Needs a connection.')}</span>
+              <span>{online ? t('Search or paste a link.') : t('Needs a connection.')}</span>
             </button>
           </div>
           {!!folders.length && (
@@ -265,19 +354,36 @@ export function AddMusicDialog({
         </>
       ) : (
         <>
-          <div className="clip-link">
+          <div className="clip-link yt-unified-input">
             <label>
-              <Link2 size={16} aria-hidden="true" />
-              <span className="sr-only">{t('YouTube link')}</span>
+              {looksLikeUrl ? (
+                <Link2 size={16} aria-hidden="true" />
+              ) : (
+                <Search size={16} aria-hidden="true" />
+              )}
+              <span className="sr-only">{t('Search or paste a YouTube link')}</span>
               <input
                 ref={input}
-                type="url"
-                inputMode="url"
-                placeholder="https://youtu.be/…"
+                type="text"
+                inputMode="search"
+                autoComplete="off"
+                placeholder={t('Search a song or paste a YouTube link')}
                 value={link}
                 onChange={(event) => {
-                  setLink(event.target.value);
+                  const next = event.target.value;
+                  setLink(next);
                   setError('');
+                  const nextTrim = next.trim();
+                  const nextUrl =
+                    !!parseYouTubeLink(nextTrim) ||
+                    /^(?:https?:\/\/|(?:www\.|m\.|music\.)?youtube\.com|youtu\.be)/iu.test(
+                      nextTrim,
+                    );
+                  if (!nextTrim || nextUrl || nextTrim.length < 2) {
+                    setSearching(false);
+                    setSearchDone(false);
+                    if (!nextTrim || nextUrl) setResults([]);
+                  }
                 }}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter') void submit();
@@ -288,11 +394,61 @@ export function AddMusicDialog({
               type="button"
               className="text-button"
               onClick={() => void submit()}
-              disabled={!link.trim() || pending}
+              disabled={!trimmedInput || pending || (!looksLikeUrl && trimmedInput.length < 2)}
             >
-              {pending ? t('Adding…') : t('Add song')}
+              {pending
+                ? t('Adding…')
+                : looksLikeUrl
+                  ? parsedLink?.kind === 'playlist'
+                    ? t('Add playlist')
+                    : t('Add song')
+                  : searching
+                    ? t('Searching…')
+                    : t('Search')}
             </button>
           </div>
+          {!looksLikeUrl && (searching || results.length > 0 || searchDone) && (
+            <div className="yt-search-results" role="region" aria-label={t('YouTube results')}>
+              {searching && !results.length ? (
+                <p className="yt-search-status">{t('Searching YouTube…')}</p>
+              ) : results.length > 0 ? (
+                <ul className="yt-search-list">
+                  {results.map((item) => (
+                    <li key={item.videoId}>
+                      <button
+                        type="button"
+                        className="yt-search-row"
+                        disabled={pending}
+                        onClick={() => void addCandidate(item)}
+                      >
+                        <img
+                          className="yt-search-thumb"
+                          src={item.thumbnail}
+                          alt=""
+                          loading="lazy"
+                          decoding="async"
+                        />
+                        <span className="yt-search-meta">
+                          <strong>{item.title}</strong>
+                          <small>
+                            {item.artist}
+                            {item.duration > 0 ? ` · ${formatTime(item.duration)}` : ''}
+                          </small>
+                        </span>
+                        <span className="yt-search-add" aria-hidden="true">
+                          {addingId === item.videoId ? t('Adding…') : <Plus size={16} />}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="yt-search-status">
+                  {t('No matching songs found. Try another search or paste a YouTube link.')}
+                </p>
+              )}
+            </div>
+          )}
           {error && (
             <p className="form-error" role="alert">
               {error}
@@ -307,7 +463,7 @@ export function AddMusicDialog({
       )}
       <p className="add-music-note">
         {mode === 'youtube'
-          ? t('Only the link is sent. Audio is never downloaded.')
+          ? t('Search or paste a public YouTube link. Audio stays on YouTube.')
           : t('Your files stay on this device.')}
       </p>
     </Modal>

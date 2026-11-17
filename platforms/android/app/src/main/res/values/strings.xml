@@ -7,7 +7,9 @@
   <string name="shortcut_remix_long">Your week in music</string>
   <string name="shortcut_favorites">Favorites</string>
   <string name="shortcut_favorites_long">Your favorite songs</string>
-  <string name="widget_description">What is playing, with a play button</string>
+  <string name="widget_description">Now playing cover and full playback controls</string>
   <string name="widget_idle">Nothing playing</string>
   <string name="widget_toggle">Play or pause</string>
+  <string name="widget_previous">Previous song</string>
+  <string name="widget_next">Next song</string>
 </resources>

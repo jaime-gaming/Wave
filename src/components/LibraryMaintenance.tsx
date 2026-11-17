@@ -3,6 +3,7 @@ import type { Track } from '../domain/types';
 import { contentIdentity } from '../data/import';
 import { mergeExactDuplicates } from '../data/library';
 import { duplicateNames } from '../domain/duplicates';
+import { formatBytes } from '../data/storage';
 import { useT } from '../i18n';
 export function LibraryMaintenance({
   tracks,
@@ -21,7 +22,9 @@ export function LibraryMaintenance({
   return (
     <section className="maintenance-card">
       <h3>{t('Duplicate tracks')}</h3>
-      <p>{t('Same names can be different recordings. Only byte-identical files can be merged.')}</p>
+      <p>
+        {t('Same names can be different recordings. Only exact duplicate files can be merged.')}
+      </p>
       <button
         className="tonal-button"
         disabled={busy || !tracks.length}
@@ -40,7 +43,7 @@ export function LibraryMaintenance({
             setMessage(
               found.length
                 ? t('{count} identical groups found.', { count: found.length })
-                : t('No byte-identical duplicates.'),
+                : t('No exact duplicates found.'),
             );
           } catch {
             setMessage(t('Scan failed. Try again.'));
@@ -96,7 +99,7 @@ export function LibraryMaintenance({
               </strong>
               {group.map((track) => (
                 <p key={track.id}>
-                  {track.album} · {track.fileName} · {track.size} bytes
+                  {track.album} · {track.fileName} · {formatBytes(track.size)}
                 </p>
               ))}
             </div>

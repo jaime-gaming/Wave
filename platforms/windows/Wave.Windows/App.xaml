@@ -15,7 +15,7 @@
     <PathGeometry x:Key="IconLibrary" Figures="M9.6 4.4h6.9a2.2 2.2 0 0 1 2.2 2.2v6.9 M6.3 8.2h6.4a2.9 2.9 0 0 1 2.9 2.9v5.7a2.9 2.9 0 0 1 -2.9 2.9h-6.4a2.9 2.9 0 0 1 -2.9 -2.9v-5.7a2.9 2.9 0 0 1 2.9 -2.9Z M7.3 14a2.2 2.2 0 1 0 4.4 0a2.2 2.2 0 1 0 -4.4 0"/>
     <PathGeometry x:Key="IconRemix" Figures="M3.8 10.6v2.8 M7.4 7.4v9.2 M11 4.8v14.4 M14.6 8.2v7.6 M18.2 10.2v3.6 M21 11.4v1.2"/>
     <PathGeometry x:Key="IconPlus" Figures="M12 5.4v13.2 M5.4 12h13.2"/>
-    <PathGeometry x:Key="IconSettings" Figures="M7 4.2v4.6 M7 13.2v6.6 M12 4.2v9.2 M12 18v1.8 M17 4.2v2.4 M17 11v8.8 M4.7 10.9h4.6 M9.7 15.9h4.6 M14.7 9h4.6"/>
+    <PathGeometry x:Key="IconSettings" Figures="M10.21 5.75L10.59 3.11A9 9 0 0 1 13.41 3.11L13.79 5.75A6.5 6.5 0 0 1 16.52 7.32L18.99 6.34A9 9 0 0 1 20.4 8.77L18.31 10.43A6.5 6.5 0 0 1 18.31 13.57L20.4 15.23A9 9 0 0 1 18.99 17.66L16.52 16.68A6.5 6.5 0 0 1 13.79 18.25L13.41 20.89A9 9 0 0 1 10.59 20.89L10.21 18.25A6.5 6.5 0 0 1 7.48 16.68L5.01 17.66A9 9 0 0 1 3.6 15.23L5.69 13.57A6.5 6.5 0 0 1 5.69 10.43L3.6 8.77A9 9 0 0 1 5.01 6.34L7.48 7.32A6.5 6.5 0 0 1 10.21 5.75Z M9.2 12a2.8 2.8 0 1 0 5.6 0a2.8 2.8 0 1 0 -5.6 0"/>
     <PathGeometry x:Key="IconChevronDown" Figures="M6.3 9.5 12 15.2l5.7-5.7"/>
     <PathGeometry x:Key="IconChevronLeft" Figures="M14.5 5.9 8.4 12l6.1 6.1"/>
     <PathGeometry x:Key="IconChevronRight" Figures="M9.5 5.9 15.6 12l-6.1 6.1"/>

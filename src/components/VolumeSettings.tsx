@@ -9,7 +9,15 @@ export function VolumeSettings({
 }: {
   enabled: boolean;
   onChange: (enabled: boolean) => void;
-  status: { supported: boolean; working: boolean; ready: number; total: number; skipped: number };
+  status: {
+    supported: boolean;
+    working: boolean;
+    ready: number;
+    adjusted?: number;
+    untouched?: number;
+    total: number;
+    skipped: number;
+  };
 }) {
   const t = useT(),
     animation = useWaveMotion();
@@ -18,6 +26,11 @@ export function VolumeSettings({
       <div className="settings-switch-row">
         <div>
           <strong>{t('Fix volume')}</strong>
+          <p className="settings-switch-hint">
+            {t(
+              'Gently raises quiet recordings to a balanced listening level while leaving loud tracks untouched.',
+            )}
+          </p>
         </div>
         <button
           type="button"
@@ -41,7 +54,7 @@ export function VolumeSettings({
       ) : (
         enabled && (
           <div
-            className={`volume-settings-status${!status.working && !status.skipped ? ' sr-only' : ''}`}
+            className={`volume-settings-status${!status.working && !status.skipped && !status.total ? ' sr-only' : ''}`}
             role="status"
             aria-live="polite"
           >
@@ -54,10 +67,20 @@ export function VolumeSettings({
             </span>
             {status.total > 0 && (
               <small>
-                {t('{ready} of {total} recordings ready', {
-                  ready: status.ready,
-                  total: status.total,
-                })}
+                {status.working
+                  ? t('{ready} of {total} recordings ready', {
+                      ready: status.ready,
+                      total: status.total,
+                    })
+                  : typeof status.adjusted === 'number' && typeof status.untouched === 'number'
+                    ? t('{adjusted} adjusted · {untouched} already balanced', {
+                        adjusted: status.adjusted,
+                        untouched: status.untouched,
+                      })
+                    : t('{ready} of {total} recordings ready', {
+                        ready: status.ready,
+                        total: status.total,
+                      })}
               </small>
             )}
             {status.working && (

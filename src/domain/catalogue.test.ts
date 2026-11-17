@@ -53,6 +53,11 @@ describe('deciding what is worth asking about', () => {
     expect(catalogueQuery(makeTrack({ artist: 'Nils Frahm', title: 'Says' }))).toBe(
       'Nils Frahm Says',
     );
+    expect(
+      catalogueQuery(
+        makeTrack({ artist: 'Nils Frahm', title: '03 - Says (Official Audio) [320kbps]' }),
+      ),
+    ).toBe('Nils Frahm Says');
   });
 });
 
@@ -89,6 +94,14 @@ describe('matching a release to a track', () => {
 
   it('refuses an edition that is minutes off', () => {
     expect(bestRelease(track, [{ ...release, duration: 640 }])).toBeUndefined();
+  });
+
+  it('prefers exact-length studio recordings over karaoke or live knockoffs', () => {
+    const studio = { ...release, duration: 214 };
+    const karaoke = { ...release, title: 'Says (Karaoke Version)', duration: 214 };
+    const live = { ...release, title: 'Says (Live at Royal Albert Hall)', duration: 225 };
+    expect(bestRelease(track, [karaoke, live, studio])).toBe(studio);
+    expect(scoreRelease(track, karaoke)).toBeLessThan(scoreRelease(track, studio));
   });
 });
 

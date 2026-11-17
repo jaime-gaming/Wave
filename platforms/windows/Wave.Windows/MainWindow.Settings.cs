@@ -86,10 +86,46 @@ public partial class MainWindow
                 Toggle(Localization.T("Enable library editing"), preferences.Editor, value => preferences = preferences with { Editor = value });
                 SettingsBody.Children.Add(Label(Localization.T("Edit titles, artists, albums and covers in song options. These changes never rewrite your original audio."))); break;
             case "Storage":
-                SettingsBody.Children.Add(Label(Localization.T("{count} original files in {folder}. Keep your originals; deleting this folder removes this library.", new Dictionary<string, string> { ["count"] = tracks.Count.ToString(), ["folder"] = repository.Folder })));
-                SettingsBody.Children.Add(ActionButton(Localization.T("Open local library folder"), () => Process.Start(new ProcessStartInfo(repository.Folder) { UseShellExecute = true }))); break;
+                int linkedCount = tracks.Count(s => s.Linked || !repository.IsManagedCopy(s, preferences));
+                int copiedCount = tracks.Count - linkedCount;
+                SettingsBody.Children.Add(Label(Localization.T("{linked} linked in place · {copied} copied in Wave storage.", new Dictionary<string, string> { ["linked"] = linkedCount.ToString(), ["copied"] = copiedCount.ToString() })));
+                Toggle(Localization.T("Copy imported files to storage folder"), preferences.CopyFilesToLibrary, value => { preferences = preferences with { CopyFilesToLibrary = value }; RenderSettings("Storage"); });
+                SettingsBody.Children.Add(Label(Localization.T("Off by default: Wave links files and folders where they live without duplicating them into AppData. Removing a linked song from Wave never deletes your original file.")));
+                string activeStorage = repository.ResolveAudioFolder(preferences);
+                SettingsBody.Children.Add(Label(Localization.T("Copy storage folder: {folder}", new Dictionary<string, string> { ["folder"] = activeStorage })));
+                var storageActions = new WrapPanel();
+                storageActions.Children.Add(ActionButton(Localization.T("Choose storage folder…"), () => {
+                    var picker = new OpenFolderDialog { Title = Localization.T("Choose a storage folder for copied audio"), Multiselect = false };
+                    if (picker.ShowDialog() == true) {
+                        preferences = preferences with { CustomAudioFolder = picker.FolderName };
+                        preferencesDirty = true; SaveSession(); RenderSettings("Storage");
+                    }
+                }));
+                if (!string.IsNullOrWhiteSpace(preferences.CustomAudioFolder))
+                    storageActions.Children.Add(ActionButton(Localization.T("Reset to default folder"), () => {
+                        preferences = preferences with { CustomAudioFolder = null };
+                        preferencesDirty = true; SaveSession(); RenderSettings("Storage");
+                    }));
+                storageActions.Children.Add(ActionButton(Localization.T("Open local library folder"), () => Process.Start(new ProcessStartInfo(repository.Folder) { UseShellExecute = true })));
+                SettingsBody.Children.Add(storageActions);
+                var watched = preferences.WatchedFolders ?? [];
+                if (watched.Count > 0) {
+                    SettingsBody.Children.Add(Label(Localization.T("Remembered music folders"), 17));
+                    foreach (var folderPath in watched.ToList()) {
+                        var folderRow = new WrapPanel { Margin = new Thickness(0, 2, 0, 2) };
+                        folderRow.Children.Add(Label(folderPath, 13));
+                        folderRow.Children.Add(ActionButton(Localization.T("Forget"), () => {
+                            var updated = (preferences.WatchedFolders ?? []).Where(f => !string.Equals(f, folderPath, StringComparison.OrdinalIgnoreCase)).ToList();
+                            preferences = preferences with { WatchedFolders = updated };
+                            preferencesDirty = true; SaveSession(); RenderSettings("Storage");
+                        }));
+                        SettingsBody.Children.Add(folderRow);
+                    }
+                    SettingsBody.Children.Add(ActionButton(Localization.T("Rescan folders"), () => _ = RescanWatchedFolders()));
+                }
+                break;
             case "About":
-                SettingsBody.Children.Add(Label("Wave 0.2.1", 23));
+                SettingsBody.Children.Add(Label("Wave 0.2.2", 23));
                 SettingsBody.Children.Add(Label(Localization.T("Your music. Your collection. No account required.")));
                 SettingsBody.Children.Add(ActionButton(Localization.T("Source code"), () => Process.Start(new ProcessStartInfo("https://github.com/jaime-gaming/Wave") { UseShellExecute = true })));
                 SettingsBody.Children.Add(ActionButton(Localization.T("Wave on the web · link devices"), () => Process.Start(new ProcessStartInfo("https://wave.jaime-gaming.com/Settings") { UseShellExecute = true })));
@@ -129,6 +165,10 @@ public partial class MainWindow
         fields.Children.Add(Label(Localization.T("Search sends title/artist to LRCLIB, not audio. Results are saved only when you choose Save.")));
         fields.Children.Add(search); fields.Children.Add(preview); fields.Children.Add(use);
         var actions = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Right };
+        actions.Children.Add(ActionButton(Localization.T("Remove from library"), () => {
+            RemoveFromLibrary(song);
+            window.Close();
+        }));
         actions.Children.Add(ActionButton(Localization.T("Cancel"), window.Close));
         actions.Children.Add(ActionButton(Localization.T("Save"), () => {
             try {

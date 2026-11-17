@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.2.2 — 16 November 2026
+
+- Overhaul Fix Volume with K-weighted BS.1770 LUFS loudness gating, soft-knee peak limiting and a balanced deadband that leaves already-balanced tracks untouched while reliably boosting quiet recordings.
+- Harden Mix planning and deck scheduling so incoming cues never skip halfway through short/rubato songs, planned bar-aligned transitions are never cut short by premature fallback crossfades, and dynamic spectral bass-swap + stereo spread elevate blends.
+- Add automatic local mood & theme analysis (DSP + genres + English/Spanish lexical cues) running silently in the background to guide Home recommendations and AutoPlay without extra UI clutter.
+- Overhaul Daily Mixes across Web, Android and Windows with per-artist caps, 4-slot artist cooldown spacing, daily flow contours and multi-artist fallback mixes for untagged libraries.
+- Fix YouTube import end-to-end with CORS-free Worker endpoints (`/api/youtube-meta`, `/api/youtube-playlist`), full playlist & mobile share link parsing, automatic artwork thumbnails, Topic channel cleaning and IFrame API `listening` handshake.
+- Upgrade metadata detection, catalogue search and alignment with folder-path tag inference (`Artist/Album/Track`), cleaner multi-query fallback scoring, karaoke/live edition guards and an inline catalogue matcher inside Edit Song.
+- Add deep URL routes (`/Current`, `/Queue`, `/Library/*`, `/Settings/*`, `/Search?q=...`) and opt-in **Resume playback on reload** in Settings → Playback.
+- Keep the Idle Listening scene active seamlessly across song changes and Mix transitions, and keep the screen awake while playing on Web (Wake Lock API), Windows (`SetThreadExecutionState`) and Android (`keepScreenOn`).
+- Improve web fluidity and startup size by over 200 kB via O(1) track maps, lazy-split modals/pages, `content-visibility` rendering optimizations and clean static module imports.
+- Resolve GitHub Issue #14 on Windows 11: link imported files and folders in-place by default without copying to AppData, add Storage settings for optional copy mode, custom storage folders and watched-folder rescanning, and never delete original user files when removing songs from Wave.
+- Upgrade the Android home-screen widget to a resizable Material 3 player with rounded embedded album art and Previous / Play-Pause / Next controls, plus animated Now Playing transitions.
+
 ## 0.2.1 — 6 November 2026
 
 Release candidate; publication and the final date are confirmed separately.

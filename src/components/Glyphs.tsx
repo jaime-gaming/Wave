@@ -92,37 +92,52 @@ const paths =
  * The apex is not a peak but a shallow crest, echoing the mark: the house is
  * drawn by the same hand that draws the W.
  */
-export const Home = paths(() => [
-  'M3.3 10.7C6 8.1 9 5.5 11.2 4a1.5 1.5 0 0 1 1.7 0c2.2 1.5 5.2 4.1 7.9 6.7',
-  'M5.5 12.4v6.1a1.7 1.7 0 0 0 1.7 1.7h9.6a1.7 1.7 0 0 0 1.7-1.7v-6.1',
-  'M9.7 20.1v-4a2.3 2.3 0 0 1 4.6 0v4',
-]);
+export const Home = ({ children, className, ...props }: IconProps) => (
+  <Pen className={`wave-glyph wave-glyph--home${className ? ` ${className}` : ''}`} {...props}>
+    <path
+      className="glyph-roof"
+      d="M3.3 10.7C6 8.1 9 5.5 11.2 4a1.5 1.5 0 0 1 1.7 0c2.2 1.5 5.2 4.1 7.9 6.7"
+    />
+    <path
+      className="glyph-body"
+      d="M5.5 12.4v6.1a1.7 1.7 0 0 0 1.7 1.7h9.6a1.7 1.7 0 0 0 1.7-1.7v-6.1"
+    />
+    <path className="glyph-door" d="M9.7 20.1v-4a2.3 2.3 0 0 1 4.6 0v4" />
+    {children}
+  </Pen>
+);
 
 /** Two covers, one behind the other, with a record inside the front one. */
-export const Library = paths(() => [
-  'M9.6 4.4h6.9a2.2 2.2 0 0 1 2.2 2.2v6.9',
-  box(3.4, 8.2, 12.2, 11.5, 2.9),
-  ring(9.5, 14, 2.2),
-]);
+export const Library = ({ children, className, ...props }: IconProps) => (
+  <Pen className={`wave-glyph wave-glyph--library${className ? ` ${className}` : ''}`} {...props}>
+    <path className="glyph-back-sleeve" d="M9.6 4.4h6.9a2.2 2.2 0 0 1 2.2 2.2v6.9" />
+    <path className="glyph-front-sleeve" d={box(3.4, 8.2, 12.2, 11.5, 2.9)} />
+    <path className="glyph-disc" d={ring(9.5, 14, 2.2)} />
+    {children}
+  </Pen>
+);
 
 /** A magnifier, held at the angle a hand holds one. */
-export const Search = paths(() => [
-  'M10.6 3.9a6.7 6.7 0 1 1-4.7 2a6.6 6.6 0 0 1 4.7-2',
-  'M15.5 15.3l.9.9 4 3.9',
-]);
+export const Search = ({ children, className, ...props }: IconProps) => (
+  <Pen className={`wave-glyph wave-glyph--search${className ? ` ${className}` : ''}`} {...props}>
+    <g className="glyph-lens">
+      <path d="M10.6 3.9a6.7 6.7 0 1 1-4.7 2a6.6 6.6 0 0 1 4.7-2" />
+      <path d="M15.5 15.3l.9.9 4 3.9" />
+    </g>
+    {children}
+  </Pen>
+);
 
-/** A small mixer: three faders at different heights. */
-export const Settings = paths(() => [
-  'M7 4.2v4.6',
-  'M7 13.2v6.6',
-  'M12 4.2v9.2',
-  'M12 18v1.8',
-  'M17 4.2v2.4',
-  'M17 11v8.8',
-  'M4.7 10.9h4.6',
-  'M9.7 15.9h4.6',
-  'M14.7 9h4.6',
-]);
+/** A clean six-tooth gear with a simple centered hub. */
+export const Settings = ({ children, className, ...props }: IconProps) => (
+  <Pen className={`wave-glyph wave-glyph--settings${className ? ` ${className}` : ''}`} {...props}>
+    <g className="glyph-gear">
+      <path d="M10.21 5.75L10.59 3.11A9 9 0 0 1 13.41 3.11L13.79 5.75A6.5 6.5 0 0 1 16.52 7.32L18.99 6.34A9 9 0 0 1 20.4 8.77L18.31 10.43A6.5 6.5 0 0 1 18.31 13.57L20.4 15.23A9 9 0 0 1 18.99 17.66L16.52 16.68A6.5 6.5 0 0 1 13.79 18.25L13.41 20.89A9 9 0 0 1 10.59 20.89L10.21 18.25A6.5 6.5 0 0 1 7.48 16.68L5.01 17.66A9 9 0 0 1 3.6 15.23L5.69 13.57A6.5 6.5 0 0 1 5.69 10.43L3.6 8.77A9 9 0 0 1 5.01 6.34L7.48 7.32A6.5 6.5 0 0 1 10.21 5.75Z" />
+      <path d={ring(12, 12, 2.8)} />
+    </g>
+    {children}
+  </Pen>
+);
 
 /** A record with the light falling across it. */
 export const Record = paths(() => [
@@ -131,14 +146,17 @@ export const Record = paths(() => [
 ]);
 
 /** The waveform that stands for the automatic mix. */
-export const Remix = paths(() => [
-  'M3.8 10.6v2.8',
-  'M7.4 7.4v9.2',
-  'M11 4.8v14.4',
-  'M14.6 8.2v7.6',
-  'M18.2 10.2v3.6',
-  'M21 11.4v1.2',
-]);
+export const Remix = ({ children, className, ...props }: IconProps) => (
+  <Pen className={`wave-glyph wave-glyph--remix${className ? ` ${className}` : ''}`} {...props}>
+    <path className="glyph-bar-1" d="M3.8 10.6v2.8" />
+    <path className="glyph-bar-2" d="M7.4 7.4v9.2" />
+    <path className="glyph-bar-3" d="M11 4.8v14.4" />
+    <path className="glyph-bar-4" d="M14.6 8.2v7.6" />
+    <path className="glyph-bar-5" d="M18.2 10.2v3.6" />
+    <path className="glyph-bar-6" d="M21 11.4v1.2" />
+    {children}
+  </Pen>
+);
 
 /* ── Transport ────────────────────────────────────────────────────────────── */
 
@@ -159,44 +177,100 @@ export const Pause = ({ children, ...props }: IconProps) => (
   </Pen>
 );
 
-export const SkipBack = paths(() => [
-  'M6.1 5.8v12.4',
-  'M18.4 6.4v11.2a.9.9 0 0 1-1.4.7l-8-5.5a.9.9 0 0 1 0-1.6l8-5.5a.9.9 0 0 1 1.4.7Z',
-]);
+/** Morphing play/pause glyph whose shapes cross-pivot smoothly instead of snapping. */
+export const PlayPauseGlyph = ({
+  playing,
+  size = 24,
+  className,
+  ...props
+}: IconProps & { playing: boolean }) => (
+  <Pen
+    size={size}
+    className={`wave-glyph wave-glyph--playpause${playing ? ' is-playing' : ''}${className ? ` ${className}` : ''}`}
+    {...props}
+  >
+    <path
+      className="glyph-play-shape"
+      d="M7.7 4.9c0-.9 1-1.4 1.7-.9l9 6.2c.7.5.7 1.5 0 2l-9 6.2c-.7.5-1.7 0-1.7-.9Z"
+    />
+    <g className="glyph-pause-shape">
+      <path className="glyph-pause-left" d="M9.3 6.5v11" strokeWidth={2.7} />
+      <path className="glyph-pause-right" d="M14.7 6.5v11" strokeWidth={2.7} />
+    </g>
+  </Pen>
+);
 
-export const SkipForward = paths(() => [
-  'M17.9 5.8v12.4',
-  'M5.6 6.4v11.2a.9.9 0 0 0 1.4.7l8-5.5a.9.9 0 0 0 0-1.6l-8-5.5a.9.9 0 0 0-1.4.7Z',
-]);
+export const SkipBack = ({ children, className, ...props }: IconProps) => (
+  <Pen className={`wave-glyph wave-glyph--skip-back${className ? ` ${className}` : ''}`} {...props}>
+    <path className="glyph-skip-bar" d="M6.1 5.8v12.4" />
+    <path
+      className="glyph-skip-arrow"
+      d="M18.4 6.4v11.2a.9.9 0 0 1-1.4.7l-8-5.5a.9.9 0 0 1 0-1.6l8-5.5a.9.9 0 0 1 1.4.7Z"
+    />
+    {children}
+  </Pen>
+);
 
-export const Shuffle = paths(() => [
-  'M4 6.9h2.5c1.4 0 2.7.7 3.5 1.9l3.9 6.4c.8 1.2 2.1 1.9 3.5 1.9H20',
-  'M4 17.1h2.5c1.4 0 2.7-.7 3.5-1.9l3.9-6.4c.8-1.2 2.1-1.9 3.5-1.9H20',
-  'M17.7 4.6 20.2 6.9l-2.5 2.3',
-  'M17.7 14.8 20.2 17.1l-2.5 2.3',
-]);
+export const SkipForward = ({ children, className, ...props }: IconProps) => (
+  <Pen
+    className={`wave-glyph wave-glyph--skip-forward${className ? ` ${className}` : ''}`}
+    {...props}
+  >
+    <path className="glyph-skip-bar" d="M17.9 5.8v12.4" />
+    <path
+      className="glyph-skip-arrow"
+      d="M5.6 6.4v11.2a.9.9 0 0 0 1.4.7l8-5.5a.9.9 0 0 0 0-1.6l-8-5.5a.9.9 0 0 0-1.4.7Z"
+    />
+    {children}
+  </Pen>
+);
 
-export const Repeat = paths(() => [
-  'M6.6 7.2h10.9a2.5 2.5 0 0 1 2.5 2.5v2.4',
-  'M17.4 16.8H6.5A2.5 2.5 0 0 1 4 14.3v-2.4',
-  'M8.4 4.7 6 7.2l2.4 2.5',
-  'M15.6 19.3 18 16.8l-2.4-2.5',
-]);
+export const Shuffle = ({ children, className, ...props }: IconProps) => (
+  <Pen className={`wave-glyph wave-glyph--shuffle${className ? ` ${className}` : ''}`} {...props}>
+    <path
+      className="glyph-shuffle-a"
+      d="M4 6.9h2.5c1.4 0 2.7.7 3.5 1.9l3.9 6.4c.8 1.2 2.1 1.9 3.5 1.9H20"
+    />
+    <path
+      className="glyph-shuffle-b"
+      d="M4 17.1h2.5c1.4 0 2.7-.7 3.5-1.9l3.9-6.4c.8-1.2 2.1-1.9 3.5-1.9H20"
+    />
+    <path className="glyph-shuffle-tip-a" d="M17.7 4.6 20.2 6.9l-2.5 2.3" />
+    <path className="glyph-shuffle-tip-b" d="M17.7 14.8 20.2 17.1l-2.5 2.3" />
+    {children}
+  </Pen>
+);
 
-export const Repeat1 = paths(() => [
-  'M6.6 7.2h10.9a2.5 2.5 0 0 1 2.5 2.5v2.4',
-  'M17.4 16.8H6.5A2.5 2.5 0 0 1 4 14.3v-2.4',
-  'M8.4 4.7 6 7.2l2.4 2.5',
-  'M15.6 19.3 18 16.8l-2.4-2.5',
-  'M11.3 12.9l1.5-.9v3.8',
-]);
+export const Repeat = ({ children, className, ...props }: IconProps) => (
+  <Pen className={`wave-glyph wave-glyph--repeat${className ? ` ${className}` : ''}`} {...props}>
+    <path d="M6.6 7.2h10.9a2.5 2.5 0 0 1 2.5 2.5v2.4" />
+    <path d="M17.4 16.8H6.5A2.5 2.5 0 0 1 4 14.3v-2.4" />
+    <path d="M8.4 4.7 6 7.2l2.4 2.5" />
+    <path d="M15.6 19.3 18 16.8l-2.4-2.5" />
+    {children}
+  </Pen>
+);
+
+export const Repeat1 = ({ children, className, ...props }: IconProps) => (
+  <Pen className={`wave-glyph wave-glyph--repeat1${className ? ` ${className}` : ''}`} {...props}>
+    <path d="M6.6 7.2h10.9a2.5 2.5 0 0 1 2.5 2.5v2.4" />
+    <path d="M17.4 16.8H6.5A2.5 2.5 0 0 1 4 14.3v-2.4" />
+    <path d="M8.4 4.7 6 7.2l2.4 2.5" />
+    <path d="M15.6 19.3 18 16.8l-2.4-2.5" />
+    <path className="glyph-repeat-one" d="M11.3 12.9l1.5-.9v3.8" />
+    {children}
+  </Pen>
+);
 
 /** A speaker cone with two arcs leaving it. */
-export const Volume2 = paths(() => [
-  'M4.2 9.7h2.6l3.9-3.2c.6-.5 1.5 0 1.5.8v9.4c0 .8-.9 1.3-1.5.8l-3.9-3.2H4.2a1 1 0 0 1-1-1v-2.6a1 1 0 0 1 1-1.1Z',
-  'M15.6 9.1a4.3 4.3 0 0 1 0 5.8',
-  'M18.4 6.7a7.7 7.7 0 0 1 0 10.6',
-]);
+export const Volume2 = ({ children, className, ...props }: IconProps) => (
+  <Pen className={`wave-glyph wave-glyph--volume${className ? ` ${className}` : ''}`} {...props}>
+    <path d="M4.2 9.7h2.6l3.9-3.2c.6-.5 1.5 0 1.5.8v9.4c0 .8-.9 1.3-1.5.8l-3.9-3.2H4.2a1 1 0 0 1-1-1v-2.6a1 1 0 0 1 1-1.1Z" />
+    <path className="glyph-wave-inner" d="M15.6 9.1a4.3 4.3 0 0 1 0 5.8" />
+    <path className="glyph-wave-outer" d="M18.4 6.7a7.7 7.7 0 0 1 0 10.6" />
+    {children}
+  </Pen>
+);
 
 export const VolumeX = paths(() => [
   'M4.2 9.7h2.6l3.9-3.2c.6-.5 1.5 0 1.5.8v9.4c0 .8-.9 1.3-1.5.8l-3.9-3.2H4.2a1 1 0 0 1-1-1v-2.6a1 1 0 0 1 1-1.1Z',

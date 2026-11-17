@@ -679,3 +679,46 @@ it('overlaps a repeat with the same recording and respects the trimmed opening e
   expect(elements[0].paused).toBe(true);
   expect(engine.transitioning).toBe(false);
 });
+
+it('starts a mix reliably even when the buffered spare deck is at HAVE_METADATA (readyState 1)', async () => {
+  const started = vi.fn();
+  engine = new MixAudio(callbacks());
+  const a = new Blob(['a']),
+    b = new Blob(['b']);
+  engine.load(a);
+  await engine.play();
+  engine.prepare(b);
+  Object.defineProperty(elements[1], 'readyState', { value: 1, writable: true });
+  elements[0].currentTime = 2;
+  engine.transition(b, 2, () => true, started);
+  await Promise.resolve();
+  expect(started).toHaveBeenCalledOnce();
+  expect(engine.transitioning).toBe(true);
+  expect(engine.element).toBe(elements[1]);
+});
+
+it('does not interrupt or re-seek an active transitioning incoming deck when play() is called on jump', async () => {
+  engine = new MixAudio(callbacks());
+  const a = new Blob(['a']),
+    b = new Blob(['b']);
+  engine.setBounds(b, { start: 1.5, end: 4 });
+  engine.load(a);
+  await engine.play();
+  engine.prepare(b);
+  elements[0].currentTime = 2;
+  engine.transition(
+    b,
+    2,
+    () => true,
+    () => {},
+  );
+  await Promise.resolve();
+  const playSpy = vi.spyOn(elements[1], 'play');
+  playSpy.mockClear();
+  elements[1].currentTime = 0.1;
+  Object.defineProperty(elements[1], 'paused', { value: false, configurable: true });
+  await engine.play();
+  expect(playSpy).not.toHaveBeenCalled();
+  expect(elements[1].currentTime).toBeCloseTo(0.1);
+  expect(engine.transitioning).toBe(true);
+});

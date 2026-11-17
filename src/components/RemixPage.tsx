@@ -7,10 +7,14 @@ import { Artwork } from './Artwork';
 import { EmptyState } from './EmptyState';
 import { useWaveMotion } from '../ui/motion';
 import type { Track } from '../domain/types';
+import { isYouTubeTrack } from '../domain/youtubeTrack';
+import { useOnline } from '../ui/network';
 import {
   listeningTime,
   weekRange,
   type ListeningSummary,
+  type PeriodRecap,
+  type RecapPeriod,
   type WeekRecap,
 } from '../domain/listening';
 
@@ -56,11 +60,13 @@ function useTimeCountUp(seconds: number, enabled: boolean) {
 const weekday = (at: number) => new Date(at).toLocaleDateString(undefined, { weekday: 'short' });
 const dayNumber = (at: number) => new Date(at).getDate();
 
-/** A seven-day listening recap and a playable selection, made on this device. */
+/** Weekly, monthly and annual listening recaps with playable Remix selections, made on this device. */
 export function RemixPage({
   summary,
   recap: currentRecap,
   history,
+  monthlyHistory = [],
+  yearlyHistory = [],
   artists = [],
   artistPhotos,
   loaded,
@@ -78,31 +84,65 @@ export function RemixPage({
   recap: WeekRecap;
   artists?: ArtistGroup[];
   artistPhotos?: Map<string, string | undefined>;
-  /** This week and the three before it, newest first. */
+  /** This week and the weeks before it, newest first. */
   history: WeekRecap[];
+  /** Calendar month recaps, newest first. */
+  monthlyHistory?: PeriodRecap[];
+  /** Calendar year recaps, newest first. */
+  yearlyHistory?: PeriodRecap[];
   loaded: boolean;
   currentId?: string;
   playing: boolean;
   onPlay: (tracks: Track[], id: string) => void;
   onArtist: (name: string) => void;
-  onSave: (tracks: Track[], week: WeekRecap) => Promise<boolean> | boolean;
+  onSave: (
+    tracks: Track[],
+    recap: Pick<WeekRecap, 'start' | 'end'> & { label?: string },
+  ) => Promise<boolean> | boolean;
   onClear: () => Promise<void> | void;
   onAdd: () => void;
   /** Opens Settings on the section that shows what Wave keeps on this device. */
   onManageHistory: () => void;
 }) {
   const t = useT();
+  const online = useOnline();
   const animation = useWaveMotion();
   const heading = useRef<HTMLHeadingElement>(null);
+  const [period, setPeriod] = useState<RecapPeriod>('week');
   const [section, setSection] = useState<'time' | 'artist' | 'song' | null>(null);
   const [selectedWeek, setSelectedWeek] = useState<number | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
+  const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const [visibleWeeks, setVisibleWeeks] = useState(4);
   const availableWeeks = history.filter((week) => week.plays > 0);
   const earlierWeeks = availableWeeks.filter((week) => week.start !== currentRecap.start);
-  const recap =
+  const weekRecap =
     availableWeeks.find((week) => week.start === selectedWeek) ??
     (currentRecap.plays ? currentRecap : (availableWeeks[0] ?? currentRecap));
-  const historical = recap.start !== currentRecap.start;
+  const historicalWeek = weekRecap.start !== currentRecap.start;
+
+  const availableMonths = monthlyHistory.filter((month) => month.plays > 0);
+  const currentMonth = monthlyHistory[0];
+  const monthRecap =
+    availableMonths.find((month) => month.key === selectedMonth) ??
+    (currentMonth?.plays ? currentMonth : (availableMonths[0] ?? currentMonth));
+
+  const availableYears = yearlyHistory.filter((year) => year.plays > 0);
+  const currentYear = yearlyHistory[0];
+  const yearRecap =
+    availableYears.find((year) => year.key === selectedYear) ??
+    (currentYear?.plays ? currentYear : (availableYears[0] ?? currentYear));
+
+  const activePeriodRecap =
+    period === 'month' ? monthRecap : period === 'year' ? yearRecap : undefined;
+  const recap = period === 'week' || !activePeriodRecap ? weekRecap : activePeriodRecap;
+  const historical =
+    period === 'week'
+      ? historicalWeek
+      : period === 'month'
+        ? !!monthRecap && !!currentMonth && monthRecap.key !== currentMonth.key
+        : !!yearRecap && !!currentYear && yearRecap.key !== currentYear.key;
+  const hasMonthOrYear = monthlyHistory.length > 0 || yearlyHistory.length > 0;
   const portrait = (name: string) => (
     <ArtistPortrait
       artist={
@@ -147,10 +187,52 @@ export function RemixPage({
 
   const hero = recap.plays ? recap.mix : [];
   const delta = recap.seconds - recap.previousSeconds;
-  const peak = Math.max(1, ...recap.days.map((day) => day.seconds));
-  const busiestDay = [...recap.days].sort((a, b) => b.seconds - a.seconds)[0];
+  const chartItems =
+    period === 'week' || !activePeriodRecap
+      ? weekRecap.days.map((day, index) => ({
+          key: day.key,
+          label: `${weekday(day.at)} ${dayNumber(day.at)}`,
+          shortLabel: weekday(day.at).slice(0, 1),
+          fullName: weekday(day.at),
+          seconds: day.seconds,
+          plays: day.plays,
+          isCurrent: index === weekRecap.days.length - 1,
+        }))
+      : activePeriodRecap.buckets.map((bucket, index, list) => ({
+          key: bucket.key,
+          label: bucket.label,
+          shortLabel: bucket.shortLabel,
+          fullName: bucket.label,
+          seconds: bucket.seconds,
+          plays: bucket.plays,
+          isCurrent: !historical && index === list.length - 1,
+        }));
+  const peak = Math.max(1, ...chartItems.map((item) => item.seconds));
+  const busiest = [...chartItems].sort((a, b) => b.seconds - a.seconds)[0];
   const mostPlayed = recap.topTracks[0];
   const topArtist = recap.topArtists[0];
+  const subtitle =
+    period === 'week' || !activePeriodRecap
+      ? weekRange(weekRecap.start, weekRecap.end)
+      : activePeriodRecap.label;
+  const compareLabel =
+    period === 'month'
+      ? t('vs last month')
+      : period === 'year'
+        ? t('vs last year')
+        : 'vs last week';
+  const timeHint =
+    period === 'month'
+      ? historical
+        ? t('Selected month')
+        : t('This month')
+      : period === 'year'
+        ? historical
+          ? t('Selected year')
+          : t('This year')
+        : historical
+          ? t('Selected week')
+          : t('This week');
 
   return (
     <div className="remix-page">
@@ -159,7 +241,35 @@ export function RemixPage({
       </h2>
 
       <header className="remix-head">
-        <p className="remix-subtitle">{weekRange(recap.start, recap.end)}</p>
+        <div className="remix-head-copy">
+          <p className="remix-subtitle">{subtitle}</p>
+          {hasMonthOrYear && (
+            <div className="remix-period-tabs" role="tablist" aria-label={t('Recap period')}>
+              {(
+                [
+                  { id: 'week', label: t('Weekly') },
+                  { id: 'month', label: t('Monthly') },
+                  { id: 'year', label: t('Yearly') },
+                ] as const
+              ).map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={period === tab.id}
+                  className={`remix-period-tab${period === tab.id ? ' active' : ''}`}
+                  onClick={() => {
+                    setPeriod(tab.id);
+                    setSection(null);
+                    setHoveredDay(null);
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         {confirming ? (
           <div className="remix-confirm" role="group" aria-label={t('Clear listening history')}>
             <span>{t('Forget all of it?')}</span>
@@ -183,11 +293,11 @@ export function RemixPage({
         )}
       </header>
 
-      {availableWeeks.length > 0 && (
+      {period === 'week' && availableWeeks.length > 0 && (
         <label className="remix-week-select form-field">
           {t('Explore a week')}
           <select
-            value={recap.start}
+            value={weekRecap.start}
             onChange={(event) => {
               setSelectedWeek(Number(event.target.value));
               setSection(null);
@@ -204,6 +314,46 @@ export function RemixPage({
           </select>
         </label>
       )}
+      {period === 'month' && availableMonths.length > 0 && monthRecap && (
+        <label className="remix-week-select form-field">
+          {t('Explore a month')}
+          <select
+            value={monthRecap.key}
+            onChange={(event) => {
+              setSelectedMonth(event.target.value);
+              setSection(null);
+              setHoveredDay(null);
+            }}
+          >
+            {availableMonths.map((month) => (
+              <option key={month.key} value={month.key}>
+                {currentMonth && month.key === currentMonth.key ? t('This month') + ' · ' : ''}
+                {month.label} · {month.plays} {t(month.plays === 1 ? 'play' : 'plays')}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      {period === 'year' && availableYears.length > 0 && yearRecap && (
+        <label className="remix-week-select form-field">
+          {t('Explore a year')}
+          <select
+            value={yearRecap.key}
+            onChange={(event) => {
+              setSelectedYear(event.target.value);
+              setSection(null);
+              setHoveredDay(null);
+            }}
+          >
+            {availableYears.map((year) => (
+              <option key={year.key} value={year.key}>
+                {currentYear && year.key === currentYear.key ? t('This year') + ' · ' : ''}
+                {year.label} · {year.plays} {t(year.plays === 1 ? 'play' : 'plays')}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <div className="remix-highlights">
         {(
           [
@@ -211,7 +361,7 @@ export function RemixPage({
               id: 'time',
               label: 'Listening time',
               value: seconds,
-              hint: historical ? t('Selected week') : t('This week'),
+              hint: timeHint,
             },
             {
               id: 'artist',
@@ -294,25 +444,43 @@ export function RemixPage({
                       {recap.previousSeconds > 0 && (
                         <p className="remix-compare">
                           {delta >= 0 ? '+' : '−'}
-                          {listeningTime(Math.abs(delta))} vs last week
+                          {listeningTime(Math.abs(delta))} {compareLabel}
                         </p>
                       )}
-                      {/* Seven columns, one per day, under the figure they add up to. */}
-                      <section className="remix-week" aria-label={t('Listening per day')}>
-                        <div className="remix-bars" role="group" aria-label={t('Select a day')}>
-                          {recap.days.map((day, index) => {
-                            const today = index === recap.days.length - 1;
-                            const empty = day.seconds === 0;
+                      {/* Activity columns for the active period: days of the week, weeks of the month, or months of the year. */}
+                      <section
+                        className={`remix-week remix-bars-${period}`}
+                        aria-label={
+                          period === 'month'
+                            ? t('Listening per week')
+                            : period === 'year'
+                              ? t('Listening per month')
+                              : t('Listening per day')
+                        }
+                      >
+                        <div
+                          className="remix-bars"
+                          role="group"
+                          aria-label={
+                            period === 'month'
+                              ? t('Select a week')
+                              : period === 'year'
+                                ? t('Select a month')
+                                : t('Select a day')
+                          }
+                        >
+                          {chartItems.map((item, index) => {
+                            const empty = item.seconds === 0;
                             return (
                               <button
-                                key={day.key}
-                                className={`remix-bar${today ? ' today' : ''}${hoveredDay === index ? ' hovered' : ''}`}
+                                key={item.key}
+                                className={`remix-bar${item.isCurrent ? ' today' : ''}${hoveredDay === index ? ' hovered' : ''}`}
                                 onMouseEnter={() => setHoveredDay(index)}
                                 onMouseLeave={() => setHoveredDay(null)}
                                 onFocus={() => setHoveredDay(index)}
                                 onBlur={() => setHoveredDay(null)}
                                 onClick={() => setHoveredDay(index)}
-                                aria-label={`${weekday(day.at)} ${dayNumber(day.at)}: ${listeningTime(day.seconds)}`}
+                                aria-label={`${item.label}: ${listeningTime(item.seconds)}`}
                               >
                                 <motion.span
                                   className="remix-bar-fill"
@@ -320,27 +488,33 @@ export function RemixPage({
                                   initial={{
                                     height: animation.enabled
                                       ? 0
-                                      : `${(day.seconds / peak) * 100}%`,
+                                      : `${(item.seconds / peak) * 100}%`,
                                   }}
                                   animate={{
-                                    height: `${Math.max(empty ? 2 : 6, (day.seconds / peak) * 100)}%`,
+                                    height: `${Math.max(empty ? 2 : 6, (item.seconds / peak) * 100)}%`,
                                   }}
                                   transition={{
                                     ...animation.wobble,
-                                    delay: animation.enabled ? 0.05 * index : 0,
+                                    delay: animation.enabled ? 0.04 * index : 0,
                                   }}
                                 />
-                                <span className="remix-bar-day">{weekday(day.at).slice(0, 1)}</span>
+                                <span className="remix-bar-day">{item.shortLabel}</span>
                               </button>
                             );
                           })}
                         </div>
                         <p className="remix-caption">
-                          {hoveredDay === null
-                            ? busiestDay && busiestDay.seconds > 0
-                              ? `Most on ${weekday(busiestDay.at)}, ${listeningTime(busiestDay.seconds)}`
-                              : t('Quiet week')
-                            : `${listeningTime(recap.days[hoveredDay].seconds)} · ${recap.days[hoveredDay].plays} plays`}
+                          {hoveredDay === null || !chartItems[hoveredDay]
+                            ? busiest && busiest.seconds > 0
+                              ? period === 'week'
+                                ? `Most on ${busiest.fullName}, ${listeningTime(busiest.seconds)}`
+                                : `${t('Peak')}: ${busiest.fullName}, ${listeningTime(busiest.seconds)}`
+                              : period === 'month'
+                                ? t('Quiet month')
+                                : period === 'year'
+                                  ? t('Quiet year')
+                                  : t('Quiet week')
+                            : `${chartItems[hoveredDay].fullName} · ${listeningTime(chartItems[hoveredDay].seconds)} · ${chartItems[hoveredDay].plays} ${t(chartItems[hoveredDay].plays === 1 ? 'play' : 'plays')}`}
                         </p>
                       </section>
                     </>
@@ -404,7 +578,17 @@ export function RemixPage({
               <h3>{t('Your Remix')}</h3>
               <p>
                 {hero.length === 1 ? '1 song' : `${hero.length} songs`}{' '}
-                {historical ? t('played in this week.') : t('played this week.')}
+                {period === 'month'
+                  ? historical
+                    ? t('played in this month.')
+                    : t('played this month.')
+                  : period === 'year'
+                    ? historical
+                      ? t('played in this year.')
+                      : t('played this year.')
+                    : historical
+                      ? t('played in this week.')
+                      : t('played this week.')}
               </p>
             </div>
             <div className="remix-mix-actions">
@@ -431,10 +615,12 @@ export function RemixPage({
             {hero.map((track, index) => {
               const entry = recap.topTracks.find((item) => item.track.id === track.id);
               const current = track.id === currentId;
+              const offlineTrack = !online && isYouTubeTrack(track);
               return (
                 <motion.li
                   key={track.id}
-                  className={current ? 'current' : ''}
+                  className={`${current ? 'current' : ''}${offlineTrack ? ' is-offline-track' : ''}`.trim()}
+                  aria-disabled={offlineTrack || undefined}
                   initial={animation.enabled ? { opacity: 0, x: -8 } : { opacity: 1 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{
@@ -445,8 +631,15 @@ export function RemixPage({
                   <span className="remix-rank">{index + 1}</span>
                   <button
                     className="remix-cover"
-                    aria-label={`Play ${track.title}`}
-                    onClick={() => onPlay(hero, track.id)}
+                    disabled={offlineTrack}
+                    aria-label={
+                      offlineTrack
+                        ? t('{title} requires an internet connection', { title: track.title })
+                        : `Play ${track.title}`
+                    }
+                    onClick={() => {
+                      if (!offlineTrack) onPlay(hero, track.id);
+                    }}
                   >
                     <Artwork track={track} />
                     {current && playing && (
@@ -456,8 +649,17 @@ export function RemixPage({
                       </span>
                     )}
                   </button>
-                  <button className="remix-name" onClick={() => onPlay(hero, track.id)}>
-                    <strong>{track.title}</strong>
+                  <button
+                    className="remix-name"
+                    disabled={offlineTrack}
+                    onClick={() => {
+                      if (!offlineTrack) onPlay(hero, track.id);
+                    }}
+                  >
+                    <strong>
+                      {track.title}
+                      {offlineTrack && <span className="offline-track-pill">{t('Offline')}</span>}
+                    </strong>
                     <span>{track.artist}</span>
                   </button>
                   {entry && <span className="remix-count">{entry.plays}×</span>}
@@ -473,7 +675,7 @@ export function RemixPage({
         up to a year can be explored, so a quiet week can be compared with the week that
         earned it, and any of them can be played again.
       */}
-      {earlierWeeks.length > 0 && (
+      {period === 'week' && earlierWeeks.length > 0 && (
         <section className="remix-history" aria-label={t('Weeks before this one')}>
           <h3>{t('The weeks before')}</h3>
           <ol>

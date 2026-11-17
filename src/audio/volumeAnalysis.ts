@@ -1,10 +1,131 @@
-/** Non-destructive, peak-bounded gain. This is not denoising or mastering. */
+/**
+ * Broadcast-grade, non-destructive loudness normalization (ITU-R BS.1770-4 / EBU R128 inspired).
+ *
+ * Key principles for Wave 0.2.2:
+ * - Measures K-weighted gated integrated loudness (LUFS) instead of naive raw RMS.
+ * - Uses an upward-biased target (-11.0 LUFS) with a balanced deadband (-13.0 to -7.5 LUFS):
+ *   songs that are already well-leveled are left completely untouched (`applied: false, gain: 1`).
+ * - Mostly raises quiet tracks cleanly (with transient-aware headroom + soft-knee limiter support),
+ *   and only gently tames genuinely over-loud outliers (> -7.5 LUFS).
+ * - Never alters the stored audio file.
+ */
+export const VOLUME_FIX_VERSION = 2;
+
+/** Target perceived loudness for boosted quiet tracks. */
+export const TARGET_LUFS = -11.0;
+/** Balanced zone: recordings inside this window are left untouched (`gain = 1`). */
+export const BALANCED_MIN_LUFS = -13.0;
+export const BALANCED_MAX_LUFS = -7.5;
+/** Gentle ceiling target only for extremely hot tracks above BALANCED_MAX_LUFS. */
+export const HOT_CEILING_LUFS = -8.5;
+/** Maximum upward makeup gain (+10 dB ≈ 3.16x, or up to +14 dB for very quiet wide-headroom files). */
+export const MAX_BOOST_LINEAR = 5.0;
+/** Maximum downward trim for extreme outliers (-4.5 dB ≈ 0.60x) so loud songs are never crushed. */
+export const MIN_ATTENUATION_LINEAR = 0.55;
+/** Minimum meaningful gain change (~0.6 dB) before applying processing. */
+export const MIN_GAIN_DELTA_DB = 0.6;
+
+export type VolumeFixAction = 'boost' | 'trim' | 'balanced';
+
 export interface VolumeFix {
   gain: number;
   rmsDb: number;
   peakDb: number;
+  /** Gated K-weighted integrated loudness in LUFS. */
+  lufs?: number;
+  /** Whether a correction is actually applied (`false` means original level is kept). */
+  applied?: boolean;
+  /** Whether the boost relies on the playback soft-knee limiter for brief sparse peaks. */
+  limiterAssisted?: boolean;
+  action?: VolumeFixAction;
+  algorithmVersion?: number;
   measuredAt: number;
 }
+
+interface Biquad {
+  b0: number;
+  b1: number;
+  b2: number;
+  a1: number;
+  a2: number;
+}
+
+/** Pre-filter high-shelf (+4 dB @ ~1682 Hz) from ITU-R BS.1770 K-weighting. */
+function kWeightHighShelf(sampleRate: number): Biquad {
+  const fc = Math.min(1681.974450955533, sampleRate * 0.42);
+  const dbGain = 3.999843853973347;
+  const q = 0.7071752369554196;
+  const a = Math.pow(10, dbGain / 40);
+  const w0 = (2 * Math.PI * fc) / sampleRate;
+  const cos = Math.cos(w0);
+  const sin = Math.sin(w0);
+  const alpha = (sin / 2) * Math.sqrt((a + 1 / a) * (1 / q - 1) + 2);
+  const twoSqrtAAlpha = 2 * Math.sqrt(a) * alpha;
+
+  const b0 = a * (a + 1 + (a - 1) * cos + twoSqrtAAlpha);
+  const b1 = -2 * a * (a - 1 + (a + 1) * cos);
+  const b2 = a * (a + 1 + (a - 1) * cos - twoSqrtAAlpha);
+  const a0 = a + 1 - (a - 1) * cos + twoSqrtAAlpha;
+  const a1 = 2 * (a - 1 - (a + 1) * cos);
+  const a2 = a + 1 - (a - 1) * cos - twoSqrtAAlpha;
+
+  return { b0: b0 / a0, b1: b1 / a0, b2: b2 / a0, a1: a1 / a0, a2: a2 / a0 };
+}
+
+/** RLB high-pass (~38 Hz) from ITU-R BS.1770 K-weighting. */
+function kWeightHighPass(sampleRate: number): Biquad {
+  const fc = Math.min(38.13547087602444, sampleRate * 0.25);
+  const q = 0.5003270373238773;
+  const w0 = (2 * Math.PI * fc) / sampleRate;
+  const cos = Math.cos(w0);
+  const sin = Math.sin(w0);
+  const alpha = sin / (2 * q);
+
+  const b0 = (1 + cos) / 2;
+  const b1 = -(1 + cos);
+  const b2 = (1 + cos) / 2;
+  const a0 = 1 + alpha;
+  const a1 = -2 * cos;
+  const a2 = 1 - alpha;
+
+  return { b0: b0 / a0, b1: b1 / a0, b2: b2 / a0, a1: a1 / a0, a2: a2 / a0 };
+}
+
+function applyBiquad(input: Float32Array, frames: number, f: Biquad, out: Float32Array): void {
+  let x1 = 0,
+    x2 = 0,
+    y1 = 0,
+    y2 = 0;
+  const { b0, b1, b2, a1, a2 } = f;
+  for (let i = 0; i < frames; i++) {
+    const x0 = input[i];
+    const y0 = b0 * x0 + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2;
+    out[i] = y0;
+    x2 = x1;
+    x1 = x0;
+    y2 = y1;
+    y1 = y0;
+  }
+}
+
+/** Estimate inter-sample peak via Catmull-Rom midpoint evaluation without full 4x allocation. */
+function estimateTruePeak(channel: Float32Array, frames: number): number {
+  let peak = 0;
+  for (let i = 0; i < frames; i++) {
+    const s = channel[i];
+    if (!Number.isFinite(s)) throw Error('Audio could not be measured safely.');
+    const abs = Math.abs(s);
+    if (abs > peak) peak = abs;
+    if (i >= 1 && i + 2 < frames && abs > 0.25) {
+      const mid =
+        0.5625 * (channel[i] + channel[i + 1]) - 0.0625 * (channel[i - 1] + channel[i + 2]);
+      const absMid = Math.abs(mid);
+      if (absMid > peak) peak = absMid;
+    }
+  }
+  return peak;
+}
+
 export function volumeCorrection(
   channels: Float32Array[],
   sampleRate: number,
@@ -12,27 +133,158 @@ export function volumeCorrection(
   if (!channels.length || !Number.isFinite(sampleRate) || sampleRate <= 0)
     throw Error('No audio to measure.');
   const frames = Math.min(...channels.map((channel) => channel.length));
-  const block = Math.max(1, Math.round(sampleRate * 0.4));
-  const energies: number[] = [];
+  if (frames <= 0) throw Error('No audio to measure.');
+
+  const shelf = kWeightHighShelf(sampleRate);
+  const hp = kWeightHighPass(sampleRate);
+
   let peak = 0;
-  for (let start = 0; start < frames; start += block) {
-    let sum = 0;
-    const end = Math.min(frames, start + block);
-    for (const channel of channels)
-      for (let i = start; i < end; i++) {
-        const value = channel[i];
-        if (!Number.isFinite(value)) throw Error('Audio could not be measured safely.');
-        peak = Math.max(peak, Math.abs(value));
-        sum += value * value;
-      }
-    energies.push(sum / ((end - start) * channels.length));
+  const weightedChannels: Float32Array[] = [];
+  const temp = new Float32Array(frames);
+
+  for (const channel of channels) {
+    const chPeak = estimateTruePeak(channel, frames);
+    if (chPeak > peak) peak = chPeak;
+    applyBiquad(channel, frames, shelf, temp);
+    const filtered = new Float32Array(frames);
+    applyBiquad(temp, frames, hp, filtered);
+    weightedChannels.push(filtered);
   }
-  const maximum = energies.reduce((max, value) => Math.max(max, value), 0);
-  // Ignore silence and blocks more than 20 dB below the loudest passage.
-  const audible = energies.filter((value) => value > Math.max(1e-8, maximum * 0.01));
-  if (!audible.length || peak < 0.0001)
-    throw Error('This recording is silent or too quiet to measure safely.');
-  const rms = Math.sqrt(audible.reduce((a, b) => a + b, 0) / audible.length);
-  const gain = Math.min(8, Math.pow(10, -18 / 20) / rms, Math.pow(10, -1 / 20) / peak);
-  return { gain, rmsDb: 20 * Math.log10(rms), peakDb: 20 * Math.log10(peak) };
+
+  if (peak < 0.0001) throw Error('This recording is silent or too quiet to measure safely.');
+
+  // Overlapping 400 ms gating blocks (100 ms hop, 75% overlap per BS.1770-4).
+  const blockSize = Math.max(1, Math.min(frames, Math.round(sampleRate * 0.4)));
+  const hopSize = Math.max(1, Math.round(blockSize / 4));
+  const blockEnergies: number[] = [];
+  const rawEnergies: number[] = [];
+
+  for (let start = 0; start < frames; start += hopSize) {
+    const end = Math.min(frames, start + blockSize);
+    const count = end - start;
+    if (count < blockSize / 2 && blockEnergies.length > 0) break;
+    let kSum = 0;
+    let rawSum = 0;
+    for (let c = 0; c < channels.length; c++) {
+      const kCh = weightedChannels[c];
+      const rCh = channels[c];
+      let chKSum = 0;
+      let chRawSum = 0;
+      for (let i = start; i < end; i++) {
+        const kv = kCh[i];
+        const rv = rCh[i];
+        chKSum += kv * kv;
+        chRawSum += rv * rv;
+      }
+      // BS.1770 sums channel mean-squares; average mono/stereo consistently to stay
+      // comparable between mono and stereo masters of the same perceived level.
+      kSum += chKSum / count;
+      rawSum += chRawSum / count;
+    }
+    const meanK = kSum / channels.length;
+    const meanRaw = rawSum / channels.length;
+    blockEnergies.push(meanK);
+    rawEnergies.push(meanRaw);
+    if (end >= frames) break;
+  }
+
+  // Fine-grained 50 ms window peaks to distinguish isolated clicks from sustained peaks.
+  const fineWindow = Math.max(1, Math.round(sampleRate * 0.05));
+  const shortPeaks: number[] = [];
+  for (let start = 0; start < frames; start += fineWindow) {
+    const end = Math.min(frames, start + fineWindow);
+    let winPeak = 0;
+    for (const ch of channels) {
+      for (let i = start; i < end; i++) {
+        const abs = Math.abs(ch[i]);
+        if (abs > winPeak) winPeak = abs;
+      }
+    }
+    if (winPeak > 0.001) shortPeaks.push(winPeak);
+  }
+
+  const maxRaw = rawEnergies.reduce((m, v) => Math.max(m, v), 0);
+  const audibleRaw = rawEnergies.filter((v) => v > Math.max(1e-8, maxRaw * 0.01));
+  if (!audibleRaw.length) throw Error('This recording is silent or too quiet to measure safely.');
+  const rms = Math.sqrt(audibleRaw.reduce((a, b) => a + b, 0) / audibleRaw.length);
+  const rmsDb = 20 * Math.log10(Math.max(1e-9, rms));
+  const peakDb = 20 * Math.log10(Math.max(1e-9, peak));
+
+  // Absolute gate at -70 LUFS -> mean energy threshold = 10^((-70 + 0.691) / 10).
+  const absGateEnergy = Math.pow(10, (-70 + 0.691) / 10);
+  const afterAbs = blockEnergies.filter((e) => e > absGateEnergy);
+  if (!afterAbs.length) throw Error('This recording is silent or too quiet to measure safely.');
+  const ungatedMean = afterAbs.reduce((a, b) => a + b, 0) / afterAbs.length;
+  // Relative gate: 10 LU below ungated mean (factor 0.1 in linear energy).
+  const relGateEnergy = ungatedMean * 0.1;
+  const afterRel = afterAbs.filter((e) => e > relGateEnergy);
+  const gatedMean = afterRel.length
+    ? afterRel.reduce((a, b) => a + b, 0) / afterRel.length
+    : ungatedMean;
+  const lufs = -0.691 + 10 * Math.log10(Math.max(1e-12, gatedMean));
+
+  // Sustained peak (90th percentile of 50 ms window peaks) separates sparse clicks from body peaks.
+  shortPeaks.sort((a, b) => a - b);
+  const sustainedPeak = shortPeaks.length
+    ? shortPeaks[Math.min(shortPeaks.length - 1, Math.floor(shortPeaks.length * 0.9))]
+    : peak;
+
+  // Decide whether this track even needs Fix Volume.
+  const linearCeiling = Math.pow(10, -1 / 20) / peak;
+  let gain = 1;
+  let action: VolumeFixAction = 'balanced';
+  let applied = false;
+  let limiterAssisted = false;
+
+  if (lufs < BALANCED_MIN_LUFS) {
+    // Quiet recording: lift toward TARGET_LUFS.
+    const desiredGain = Math.min(MAX_BOOST_LINEAR, Math.pow(10, (TARGET_LUFS - lufs) / 20));
+    if (desiredGain <= linearCeiling) {
+      gain = desiredGain;
+    } else if (sustainedPeak < peak * 0.72) {
+      // Sparse transient peak (e.g. a lone click/snare) with plenty of body headroom:
+      // boost safely using sustained headroom and engage the transparent soft-knee limiter.
+      const sustainedCeiling = Math.pow(10, -1.5 / 20) / Math.max(sustainedPeak, 0.001);
+      // Cap limiter-assisted boost to +6 dB above linear ceiling so dynamics stay musical.
+      gain = Math.min(desiredGain, sustainedCeiling, Math.max(1, linearCeiling * 2.0));
+      limiterAssisted = gain > linearCeiling;
+    } else {
+      // Dense peaks close to 0 dBFS: stay cleanly inside -1 dBTP ceiling (never pull a quiet song down).
+      gain = Math.max(1, Math.min(desiredGain, linearCeiling));
+    }
+    const deltaDb = 20 * Math.log10(gain);
+    if (deltaDb >= MIN_GAIN_DELTA_DB) {
+      applied = true;
+      action = 'boost';
+    } else {
+      gain = 1;
+      applied = false;
+      limiterAssisted = false;
+      action = 'balanced';
+    }
+  } else if (lufs > BALANCED_MAX_LUFS) {
+    // Only genuinely over-loud recordings are trimmed gently, never crushed to -18.
+    const desiredGain = Math.max(
+      MIN_ATTENUATION_LINEAR,
+      Math.pow(10, (HOT_CEILING_LUFS - lufs) / 20),
+    );
+    const peakSafe = Math.min(desiredGain, Math.max(MIN_ATTENUATION_LINEAR, linearCeiling));
+    const deltaDb = Math.abs(20 * Math.log10(peakSafe));
+    if (peakSafe < 1 && deltaDb >= MIN_GAIN_DELTA_DB) {
+      gain = peakSafe;
+      applied = true;
+      action = 'trim';
+    }
+  }
+
+  return {
+    gain: Math.round(gain * 10000) / 10000,
+    rmsDb: Math.round(rmsDb * 100) / 100,
+    peakDb: Math.round(peakDb * 100) / 100,
+    lufs: Math.round(lufs * 100) / 100,
+    applied,
+    limiterAssisted,
+    action,
+    algorithmVersion: VOLUME_FIX_VERSION,
+  };
 }

@@ -1,19 +1,21 @@
 import { useEffect, useRef, type ButtonHTMLAttributes } from 'react';
 import { motion, useAnimationControls } from 'motion/react';
 import { useWaveMotion } from '../ui/motion';
-export type PlayerAction = 'repeat' | 'shuffle' | 'favorite' | 'clip' | 'volume';
+export type PlayerAction = 'repeat' | 'shuffle' | 'favorite' | 'clip' | 'volume' | 'play';
 function actionFrames(action: PlayerAction) {
   switch (action) {
     case 'repeat':
-      return { rotate: [0, 90, 0], scale: [1, 0.9, 1] };
+      return { rotate: [0, 180, 360], scale: [1, 0.88, 1.06, 1] };
     case 'shuffle':
-      return { x: [0, -3, 3, 0], rotate: [0, -9, 9, 0] };
+      return { x: [0, -3.5, 3.5, 0], scaleX: [1, 0.9, 1.08, 1], rotate: [0, -8, 8, 0] };
     case 'favorite':
-      return { scale: [1, 1.22, 0.96, 1] };
+      return { scale: [1, 1.32, 0.9, 1.1, 1], rotate: [0, -8, 6, 0] };
     case 'clip':
-      return { rotate: [0, -10, 4, 0], scale: [1, 0.9, 1] };
+      return { rotate: [0, -12, 5, 0], scale: [1, 0.88, 1.06, 1] };
     case 'volume':
-      return { scale: [1, 0.88, 1.1, 1] };
+      return { scale: [1, 0.86, 1.14, 1], x: [0, -1, 1.5, 0] };
+    case 'play':
+      return { scale: [1, 0.86, 1.08, 1] };
   }
 }
 /** Feedback belongs to the icon: no moving the transport or replaying on mount. */

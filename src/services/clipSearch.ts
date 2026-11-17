@@ -32,7 +32,7 @@ export const CLIP_SEARCH_TIMEOUT_MS = 9_000;
 /** How long one host is allowed to answer before the next one is asked. */
 export const CLIP_PROVIDER_TIMEOUT_MS = 4_000;
 /** How long a host gets on its own before the next one is asked as well. */
-export const CLIP_SEARCH_HEDGE_MS = 1_200;
+export const CLIP_SEARCH_HEDGE_MS = 850;
 /** How many hosts can be in flight at once. */
 export const CLIP_PROVIDERS_MAX_WORKERS = 4;
 /** A host that just failed is skipped for this long instead of being retried. */
@@ -238,6 +238,58 @@ async function askProviders(
 
   const candidates: ClipCandidate[] = [];
   let answered = false;
+
+  // Try Wave's same-origin `/api/youtube-search` first when running in a browser
+  // without injected test providers/fetcher. Fast, server-cached, and avoids
+  // flaky third-party community instances.
+  const canUseWorker =
+    !options.fetcher &&
+    !options.providers &&
+    typeof window !== 'undefined' &&
+    (window.location.protocol === 'http:' || window.location.protocol === 'https:');
+  if (canUseWorker && !options.signal?.aborted) {
+    const workerController = new AbortController();
+    const workerTimer = setTimeout(
+      () => workerController.abort(),
+      Math.min(3_200, Math.max(1_000, deadline - Date.now())),
+    );
+    const onAbort = () => workerController.abort();
+    options.signal?.addEventListener('abort', onAbort, { once: true });
+    try {
+      const response = await fetcher('/api/youtube-search', {
+        method: 'POST',
+        signal: workerController.signal,
+        headers: { 'content-type': 'application/json', accept: 'application/json' },
+        body: JSON.stringify({ q: query, limit: 10 }),
+      });
+      if (response?.ok) {
+        const payload = (await response.json().catch(() => null)) as {
+          items?: { videoId?: string; title?: string; author?: string; duration?: number }[];
+        } | null;
+        if (payload && Array.isArray(payload.items) && payload.items.length > 0) {
+          answered = true;
+          for (const item of payload.items) {
+            if (item.videoId && item.title) {
+              candidates.push({
+                videoId: item.videoId,
+                title: item.title,
+                author: item.author || 'YouTube',
+                duration: typeof item.duration === 'number' ? item.duration : 0,
+              });
+            }
+          }
+          if (!stopAt || stopAt(candidates)) {
+            return { status: 'answered', answered: true, candidates };
+          }
+        }
+      }
+    } catch {
+      /* Fall back seamlessly to public search mirrors below. */
+    } finally {
+      clearTimeout(workerTimer);
+      options.signal?.removeEventListener('abort', onAbort);
+    }
+  }
   let cursor = 0;
   let done = false;
   let release = () => {};

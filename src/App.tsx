@@ -3,7 +3,8 @@ import { VolumeSettings } from './components/VolumeSettings';
 import { useVolumeFix } from './hooks/useVolumeFix';
 import { LocalFeedback } from './components/LocalFeedback';
 import { PlatformLinks } from './components/PlatformLinks';
-import { usePageRoute } from './hooks/usePageRoute';
+import { formatAppRoute, parseAppRoute, usePageRoute } from './hooks/usePageRoute';
+import { useWakeLock } from './hooks/useWakeLock';
 import type { MixSelection } from './components/DailyMixPage';
 import type { SettingsSection } from './components/SettingsPage';
 import { LocalMetadataReview } from './components/LocalMetadataReview';
@@ -20,14 +21,12 @@ import { useInteractionRipples } from './hooks/useInteractionRipples';
 import { StartupAnimation } from './components/StartupAnimation';
 import { useMusicEnergy } from './hooks/useMusicEnergy';
 import { SearchPage } from './components/SearchPage';
-import { RemixPage } from './components/RemixPage';
 import { useListeningHistory } from './hooks/useListeningHistory';
 import { LibraryMaintenance } from './components/LibraryMaintenance';
 import { useAutomaticLyrics } from './hooks/useAutomaticLyrics';
 import { StorageSettings } from './components/StorageSettings';
 import { useCustomizations } from './hooks/useCustomizations';
 import { ArtistEditor } from './components/ArtistEditor';
-import { LyricsEditor } from './components/LyricsEditor';
 import { ReorderSongs } from './components/ReorderSongs';
 import { orderedTracks } from './domain/order';
 import type { ArtistProfile } from './domain/types';
@@ -48,8 +47,6 @@ import { languages } from './i18n/dictionary';
 import { usePlaylists } from './hooks/usePlaylists';
 import { PlaylistCollection, PlaylistHeader } from './components/PlaylistCollection';
 import { PlaylistDialog, AddSongsDialog, AddToPlaylistDialog } from './components/PlaylistDialog';
-import { MigrationSheet } from './components/MigrationSheet';
-import { TrackEditor } from './components/TrackEditor';
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Music2,
@@ -87,6 +84,18 @@ import { usePlayer } from './hooks/usePlayer';
  */
 const DevicesPage = lazy(() =>
   import('./components/DevicesPage').then((module) => ({ default: module.DevicesPage })),
+);
+const RemixPage = lazy(() =>
+  import('./components/RemixPage').then((module) => ({ default: module.RemixPage })),
+);
+const MigrationSheet = lazy(() =>
+  import('./components/MigrationSheet').then((module) => ({ default: module.MigrationSheet })),
+);
+const LyricsEditor = lazy(() =>
+  import('./components/LyricsEditor').then((module) => ({ default: module.LyricsEditor })),
+);
+const TrackEditor = lazy(() =>
+  import('./components/TrackEditor').then((module) => ({ default: module.TrackEditor })),
 );
 const SettingsPage = lazy(() =>
   import('./components/SettingsPage').then((module) => ({ default: module.SettingsPage })),
@@ -239,19 +248,28 @@ function WaveApp({
       void acceptDuration(currentId, decodedDuration);
   }, [decodedDuration, currentDuration, currentId, player.durationTrackId, acceptDuration]);
   const { dispatch } = player;
+  // Keep the screen awake while Wave is open and playing music.
+  useWakeLock(player.state.playing && !!player.current);
   /**
    * A pairing link opens straight into Settings → Devices. The link is a QR
    * code someone scanned or a URL they opened, and landing on Home would leave
    * them to find the page themselves.
    */
   const [pairLink] = useState(() => /(?:#|&|\?)wave-pair=/u.test(location.hash + location.search));
+  const [initialRoute] = useState(() => parseAppRoute(location.pathname, location.search));
   const [page, setPage, pageDirection] = usePageRoute(pairLink);
   const [dailySelection, setDailySelection] = useState<MixSelection | null>(null);
-  const [view, setView] = useState<LibraryView>('songs');
-  const [query, setQuery] = useState('');
-  const [sort, setSort] = useState('recent');
-  const [group, setGroup] = useState<string | null>(null);
-  const [queueOpen, setQueueOpen] = useState(false);
+  const [view, setView] = useState<LibraryView>(() => initialRoute.view ?? 'songs');
+  const [query, setQuery] = useState(() => initialRoute.query ?? '');
+  const [sort, setSort] = useState(() =>
+    initialRoute.playlistId
+      ? 'playlist'
+      : initialRoute.view === 'albums' && initialRoute.group
+        ? 'album'
+        : 'recent',
+  );
+  const [group, setGroup] = useState<string | null>(() => initialRoute.group ?? null);
+  const [queueOpen, setQueueOpen] = useState(() => initialRoute.overlay === 'queue');
   /** Listening history is counted from the playback clock and shown in Remix. */
   const listening = useListeningHistory({
     track: player.current,
@@ -260,15 +278,18 @@ function WaveApp({
     readTime: player.readTime,
     tracks: library.tracks,
   });
-  const [playerOpen, setPlayerOpen] = useState(false);
+  const [playerOpen, setPlayerOpen] = useState(() => initialRoute.overlay === 'current');
   const playerOpener = useRef<HTMLElement | null>(null);
   const settingsPrevious = useRef<Page>('home');
-  const [settingsSection, setSettingsSection] = useState<SettingsSection | null>(null);
+  const [settingsSection, setSettingsSection] = useState<SettingsSection | null>(
+    () => initialRoute.settingsSection ?? null,
+  );
   const settingsOpener = useRef<HTMLElement | null>(null);
-  const openSettings = (section: SettingsSection | null = null) => {
+  const openSettings = (section?: SettingsSection | null) => {
+    const nextSection = typeof section === 'string' ? section : null;
     if (page !== 'settings') settingsPrevious.current = page;
     settingsOpener.current = document.activeElement as HTMLElement;
-    setSettingsSection(section);
+    setSettingsSection(nextSection);
     setPage('settings');
   };
   const closeSettings = () => {
@@ -307,7 +328,66 @@ function WaveApp({
     online,
   });
   const [editingTrack, setEditingTrack] = useState<Track | null>(null);
-  const [playlistId, setPlaylistId] = useState<string | null>(null);
+  const [playlistId, setPlaylistId] = useState<string | null>(
+    () => initialRoute.playlistId ?? null,
+  );
+
+  // Keep deep URL routes (/Current, /Queue, /Library/*, /Settings/*, /Search?q=...)
+  // synchronized with app navigation so reloading lands directly where the listener was.
+  const routeSyncReady = useRef(false);
+  useEffect(() => {
+    // Preserve pairing links while on Settings -> Devices.
+    if (pairLink && page === 'settings') return;
+    const overlay = playerOpen ? 'current' : queueOpen ? 'queue' : undefined;
+    const nextUrl = formatAppRoute({
+      page,
+      overlay,
+      view,
+      group,
+      playlistId,
+      settingsSection,
+      query,
+    });
+    const currentUrl = location.pathname + location.search;
+    if (!routeSyncReady.current) {
+      routeSyncReady.current = true;
+      if (currentUrl !== nextUrl) {
+        history.replaceState(null, '', nextUrl + location.hash);
+      }
+      return;
+    }
+    if (currentUrl !== nextUrl) {
+      const isOverlayToggle =
+        nextUrl.endsWith('/Current') ||
+        nextUrl.endsWith('/Queue') ||
+        location.pathname.endsWith('/Current') ||
+        location.pathname.endsWith('/Queue');
+      if (isOverlayToggle) {
+        history.pushState(null, '', nextUrl + location.hash);
+      } else {
+        history.replaceState(null, '', nextUrl + location.hash);
+      }
+    }
+  }, [page, view, group, playlistId, settingsSection, query, playerOpen, queueOpen, pairLink]);
+
+  useEffect(() => {
+    const onPopState = () => {
+      const parsed = parseAppRoute(location.pathname, location.search);
+      setPlayerOpen(parsed.overlay === 'current');
+      setQueueOpen(parsed.overlay === 'queue');
+      if (parsed.page === 'library') {
+        setView(parsed.view ?? 'songs');
+        setGroup(parsed.group ?? null);
+        setPlaylistId(parsed.playlistId ?? null);
+      } else if (parsed.page === 'settings') {
+        setSettingsSection(parsed.settingsSection ?? null);
+      } else if (parsed.page === 'search') {
+        setQuery(parsed.query ?? '');
+      }
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
   const [playlistForm, setPlaylistForm] = useState<'new' | 'edit' | null>(null);
   const [addingSongs, setAddingSongs] = useState(false);
   const [addingTrack, setAddingTrack] = useState<Track | null>(null);
@@ -330,7 +410,39 @@ function WaveApp({
   const input = useRef<HTMLInputElement>(null);
   const searchInput = useRef<HTMLInputElement>(null);
   const categoryStrip = useRef<HTMLDivElement>(null);
+  const workspaceRef = useRef<HTMLElement>(null);
+  const headerRef = useRef<HTMLElement>(null);
   const dragDepth = useRef(0);
+
+  // Banner-covering scroll: keeps the banner stationary at full size while the
+  // content sheet moves up over it, filling out the top borders and revealing
+  // the docked animated section-title bar without re-rendering React on scroll.
+  useEffect(() => {
+    const workspace = workspaceRef.current;
+    if (!workspace) return;
+    let raf = 0;
+    const apply = () => {
+      raf = 0;
+      const bannerHeight = Math.max(88, headerRef.current?.offsetHeight ?? 124);
+      const progress = Math.max(0, Math.min(1, window.scrollY / bannerHeight));
+      const maxScroll = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+      const pageProgress = Math.max(0, Math.min(1, window.scrollY / maxScroll));
+      workspace.style.setProperty('--banner-cover', progress.toFixed(3));
+      workspace.style.setProperty('--page-scroll', pageProgress.toFixed(3));
+      workspace.dataset.bannerCovered = progress > 0.72 ? 'true' : 'false';
+    };
+    const onScroll = () => {
+      if (!raf) raf = window.requestAnimationFrame(apply);
+    };
+    apply();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll, { passive: true });
+    return () => {
+      if (raf) window.cancelAnimationFrame(raf);
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+    };
+  }, [page, view, group, playlistId, dailySelection, settingsSection]);
 
   useEffect(() => {
     const media = window.matchMedia('(prefers-color-scheme: light)');
@@ -455,6 +567,58 @@ function WaveApp({
    * the reason the header has a second line at all: a title alone leaves a band
    * of empty page under it. Nothing here is a status or a build note.
    */
+  const settingsSectionLabels: Record<SettingsSection, string> = {
+    appearance: t('Appearance'),
+    playback: t('Playback'),
+    lyrics: t('Lyrics'),
+    library: t('Library'),
+    devices: t('Devices'),
+    storage: t('Storage'),
+    about: t('About'),
+  };
+  const libraryViewLabels: Record<LibraryView, string> = {
+    songs: t('Songs'),
+    albums: t('Albums'),
+    artists: t('Artists'),
+    playlists: t('Playlists'),
+    favorites: t('Favorites'),
+  };
+  const activeAlbum = group && view === 'albums' ? albums.find((a) => a.id === group) : undefined;
+  const dockSectionParent =
+    page === 'home' && dailySelection
+      ? t('Home')
+      : page === 'library'
+        ? selectedPlaylist
+          ? t('Playlists')
+          : activeAlbum
+            ? t('Albums')
+            : selectedArtist
+              ? t('Artists')
+              : t('Library')
+        : page === 'settings' && settingsSection
+          ? t('Settings')
+          : '';
+  const dockSectionTitle =
+    page === 'home'
+      ? dailySelection
+        ? `Daily mix ${dailySelection.number} · ${dailySelection.mix.label}`
+        : t('Home')
+      : page === 'search'
+        ? t('Search')
+        : page === 'remix'
+          ? t('Remix')
+          : page === 'settings'
+            ? settingsSection
+              ? settingsSectionLabels[settingsSection]
+              : t('Settings')
+            : selectedPlaylist
+              ? selectedPlaylist.name
+              : activeAlbum
+                ? activeAlbum.name
+                : selectedArtist
+                  ? selectedArtist.name
+                  : libraryViewLabels[view];
+
   const pageSummary =
     page === 'search'
       ? t('Songs, albums and artists on this device')
@@ -479,9 +643,12 @@ function WaveApp({
   const [addBusy, setAddBusy] = useState(false);
   /** YouTube songs are added to the library and start playing straight away. */
   const addFromYouTube = useCallback(
-    async (link: string) => {
+    async (
+      link: string,
+      prefilled?: { title?: string; artist?: string; duration?: number; thumbnail?: string },
+    ) => {
       setAddBusy(true);
-      const result = await library.addYouTube(link);
+      const result = await library.addYouTube(link, prefilled);
       setAddBusy(false);
       return result;
     },
@@ -756,7 +923,7 @@ function WaveApp({
       <Navigation
         page={page}
         onPage={changePage}
-        onSettings={openSettings}
+        onSettings={() => openSettings()}
         view={view}
         onView={browse}
         counts={{
@@ -766,8 +933,8 @@ function WaveApp({
           favorites: favoriteCount,
         }}
       />
-      <main id="main" tabIndex={-1} className={`workspace ${page}-page`}>
-        <header className="library-header">
+      <main ref={workspaceRef} id="main" tabIndex={-1} className={`workspace ${page}-page`}>
+        <header ref={headerRef} className="library-header">
           {/* One banner: what this page is on the left, the two utilities on
               the right, both on the same line. There is no separate row for the
               buttons, so the header cannot leave an empty band behind. */}
@@ -847,6 +1014,25 @@ function WaveApp({
             </div>
           )}
         </header>
+        <div
+          className="section-scroll-dock"
+          aria-hidden="true"
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+        >
+          <div className="section-scroll-dock__bar">
+            <span className="section-scroll-dock__accent" />
+            <span
+              key={`${page}:${dockSectionParent}:${dockSectionTitle}`}
+              className="section-scroll-dock__copy"
+            >
+              {dockSectionParent && (
+                <span className="section-scroll-dock__parent">{dockSectionParent}</span>
+              )}
+              <strong className="section-scroll-dock__title">{dockSectionTitle}</strong>
+            </span>
+            <span className="section-scroll-dock__progress" />
+          </div>
+        </div>
         <AnimatePresence mode="wait" initial={false} custom={pageDirection}>
           <LibrarySurface
             key={`${page}:${dailySelection?.mix.id ?? ''}:${view}:${group ?? ''}:${playlistId ?? ''}`}
@@ -855,6 +1041,7 @@ function WaveApp({
               <Suspense fallback={<SurfaceLoading />}>
                 <SettingsPage
                   initialSection={settingsSection ?? (pairLink ? 'devices' : null)}
+                  onSectionChange={setSettingsSection}
                   onBack={closeSettings}
                   appearance={
                     <>
@@ -997,6 +1184,26 @@ function WaveApp({
                         >
                           <motion.span layout transition={animation.fast}>
                             {player.autoplay && <Check size={15} />}
+                          </motion.span>
+                        </button>
+                      </div>
+                      <div className="settings-switch-row">
+                        <div>
+                          <strong>{t('Resume playback on reload')}</strong>
+                          <p className="settings-note">
+                            {t('Continue playing where you left off when reopening Wave.')}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          className="material-switch"
+                          role="switch"
+                          aria-label={t('Resume playback on reload')}
+                          aria-checked={player.resumeOnReload}
+                          onClick={() => player.setResumeOnReload(!player.resumeOnReload)}
+                        >
+                          <motion.span layout transition={animation.fast}>
+                            {player.resumeOnReload && <Check size={15} />}
                           </motion.span>
                         </button>
                       </div>
@@ -1168,41 +1375,48 @@ function WaveApp({
                 onAdd={openAddMusic}
               />
             ) : page === 'remix' ? (
-              <RemixPage
-                summary={listening.summary}
-                recap={listening.recap}
-                artists={artists}
-                artistPhotos={artistPhotos}
-                history={listening.history}
-                loaded={listening.loaded}
-                currentId={player.current?.id}
-                playing={player.state.playing}
-                onPlay={player.play}
-                onArtist={openArtist}
-                onAdd={openAddMusic}
-                onManageHistory={() => openSettings('storage')}
-                onSave={async (songs, week) => {
-                  // Saving is explicit: the list becomes an ordinary playlist and
-                  // nothing about the history changes.
-                  const saved = await collections.create(
-                    {
-                      name: `Remix · ${new Date(week.end).toLocaleDateString(undefined, {
+              <Suspense fallback={<SurfaceLoading />}>
+                <RemixPage
+                  summary={listening.summary}
+                  recap={listening.recap}
+                  artists={artists}
+                  artistPhotos={artistPhotos}
+                  history={listening.history}
+                  monthlyHistory={listening.monthlyHistory}
+                  yearlyHistory={listening.yearlyHistory}
+                  loaded={listening.loaded}
+                  currentId={player.current?.id}
+                  playing={player.state.playing}
+                  onPlay={player.play}
+                  onArtist={openArtist}
+                  onAdd={openAddMusic}
+                  onManageHistory={() => openSettings('storage')}
+                  onSave={async (songs, periodRecap) => {
+                    // Saving is explicit: the list becomes an ordinary playlist and
+                    // nothing about the history changes.
+                    const label =
+                      periodRecap.label ??
+                      new Date(periodRecap.end).toLocaleDateString(undefined, {
                         day: 'numeric',
                         month: 'short',
                         year: 'numeric',
-                      })}`.slice(0, 100),
-                      description: t('Saved from Remix for {date}.', {
-                        date: new Date(week.end).toLocaleDateString(),
-                      }),
-                    },
-                    songs.map((track) => track.id),
-                  );
-                  if (!saved) return false;
-                  openPlaylist(saved.id);
-                  return true;
-                }}
-                onClear={listening.forget}
-              />
+                      });
+                    const saved = await collections.create(
+                      {
+                        name: `Remix · ${label}`.slice(0, 100),
+                        description: t('Saved from Remix for {date}.', {
+                          date: label,
+                        }),
+                      },
+                      songs.map((track) => track.id),
+                    );
+                    if (!saved) return false;
+                    openPlaylist(saved.id);
+                    return true;
+                  }}
+                  onClear={listening.forget}
+                />
+              </Suspense>
             ) : page === 'home' && dailySelection ? (
               <Suspense fallback={<SurfaceLoading />}>
                 <DailyMixPage
@@ -1238,6 +1452,7 @@ function WaveApp({
               <HomePage
                 tracks={library.tracks}
                 listening={listening.summary}
+                moodSignals={listening.moodSignals}
                 playlists={collections.playlists}
                 current={player.current}
                 playing={player.state.playing}
@@ -1452,12 +1667,13 @@ function WaveApp({
           />
         )}
         {migrationOpen && (
-          <MigrationSheet
-            key="migration"
-            tracks={library.tracks}
-            onSave={saveMigrated}
-            onClose={() => setMigrationOpen(false)}
-          />
+          <Suspense key="migration" fallback={null}>
+            <MigrationSheet
+              tracks={library.tracks}
+              onSave={saveMigrated}
+              onClose={() => setMigrationOpen(false)}
+            />
+          </Suspense>
         )}
         {queueOpen && (
           <Modal
@@ -1679,16 +1895,17 @@ function WaveApp({
           />
         )}
         {editingLyrics && (
-          <LyricsEditor
-            key={`lyrics-${editingLyrics.id}`}
-            track={editingLyrics}
-            retryAt={library.tracks.reduce(
-              (max, t) => Math.max(max, t.lyricsLookup?.retryAt ?? 0),
-              0,
-            )}
-            onSave={library.saveLyrics}
-            onClose={() => setEditingLyrics(null)}
-          />
+          <Suspense key={`lyrics-${editingLyrics.id}`} fallback={null}>
+            <LyricsEditor
+              track={editingLyrics}
+              retryAt={library.tracks.reduce(
+                (max, t) => Math.max(max, t.lyricsLookup?.retryAt ?? 0),
+                0,
+              )}
+              onSave={library.saveLyrics}
+              onClose={() => setEditingLyrics(null)}
+            />
+          </Suspense>
         )}
         {reordering && (
           <ReorderSongs
@@ -1721,17 +1938,18 @@ function WaveApp({
           />
         )}
         {editingTrack && editorEnabled && (
-          <TrackEditor
-            key={`edit-${editingTrack.id}`}
-            track={editingTrack}
-            onClose={() => setEditingTrack(null)}
-            onSave={library.editMetadata}
-            onRestore={library.restoreMetadata}
-            onRestoreSilence={(id) => library.silence(id, 'restore')}
-            onTrim={(bounds) => library.silence(editingTrack.id, 'trim', bounds)}
-            onPreview={player.pauseForPreview}
-            previewVolume={player.volume}
-          />
+          <Suspense key={`edit-${editingTrack.id}`} fallback={null}>
+            <TrackEditor
+              track={editingTrack}
+              onClose={() => setEditingTrack(null)}
+              onSave={library.editMetadata}
+              onRestore={library.restoreMetadata}
+              onRestoreSilence={(id) => library.silence(id, 'restore')}
+              onTrim={(bounds) => library.silence(editingTrack.id, 'trim', bounds)}
+              onPreview={player.pauseForPreview}
+              previewVolume={player.volume}
+            />
+          </Suspense>
         )}
         {playlistForm && (
           <PlaylistDialog

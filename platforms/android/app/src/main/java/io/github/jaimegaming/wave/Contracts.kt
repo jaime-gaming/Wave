@@ -221,27 +221,102 @@ fun rankSongs(songs: List<Song>, query: String): List<Song> {
 /** A mix of one kind of music, rebuilt each morning from the tags in the files. */
 data class DailyMix(val label: String, val songs: List<Song>)
 
+private fun mixDayHash(seed: String): Int {
+    var h = 2166136261L
+    for (c in seed) {
+        h = (h xor c.code.toLong()) * 16777619L
+        h = h and 0xFFFFFFFFL
+    }
+    return h.toInt()
+}
+
+private fun curateMixSongs(pool: List<Song>, day: String, label: String, limit: Int): List<Song> {
+    val maxCount = limit.coerceIn(0, 20)
+    if (maxCount == 0 || pool.isEmpty()) return emptyList()
+    val shuffled = pool.distinctBy { it.id }.sortedBy { mixDayHash("$day:$label:${it.id}") }
+    val distinctArtists = shuffled.map { it.artist.trim().lowercase() }.distinct().size
+    val maxPerArtist = when {
+        distinctArtists >= 6 -> 2
+        distinctArtists >= 3 -> 3
+        else -> maxCount
+    }
+
+    val picked = ArrayList<Song>(maxCount)
+    val overflow = ArrayList<Song>()
+    val counts = HashMap<String, Int>()
+    for (song in shuffled) {
+        val key = song.artist.trim().lowercase()
+        val seen = counts[key] ?: 0
+        if (seen < maxPerArtist) {
+            picked.add(song)
+            counts[key] = seen + 1
+        } else {
+            overflow.add(song)
+        }
+        if (picked.size >= maxCount) break
+    }
+    for (song in overflow) {
+        if (picked.size >= maxCount) break
+        picked.add(song)
+    }
+
+    // Spread artists widely (4-slot cooldown) to avoid repeating any artist back-to-back.
+    val remaining = picked.toMutableList()
+    val ordered = ArrayList<Song>(picked.size)
+    val recentArtists = ArrayDeque<String>()
+    while (remaining.isNotEmpty()) {
+        var bestIdx = 0
+        var bestPenalty = Int.MAX_VALUE
+        for (i in remaining.indices) {
+            val key = remaining[i].artist.trim().lowercase()
+            val lastPos = recentArtists.lastIndexOf(key)
+            var penalty = if (lastPos < 0) 0 else (lastPos + 1) * 100
+            if (ordered.isNotEmpty() && ordered.last().artist.trim().lowercase() == key) {
+                penalty += 10000
+            }
+            if (penalty < bestPenalty) {
+                bestPenalty = penalty
+                bestIdx = i
+                if (penalty == 0) break
+            }
+        }
+        val chosen = remaining.removeAt(bestIdx)
+        ordered.add(chosen)
+        recentArtists.addLast(chosen.artist.trim().lowercase())
+        if (recentArtists.size > 4) recentArtists.removeFirst()
+    }
+    return ordered
+}
+
 /**
- * Up to three mixes, one per tag, each at least three songs long.
- *
- * Nothing is generated and nothing is random: the songs are the listener's own,
- * grouped by the genre tag they already carry, and the order rotates with the
- * date so today's mix is not yesterday's mix. Within one day it never moves, so
- * a mix behaves like a playlist rather than a shuffle.
+ * Up to three mixes, rebuilt each morning from the library with per-artist caps,
+ * wide artist spacing (never back-to-back repeats) and daily variety rotation.
  */
 fun dailyMixes(songs: List<Song>, day: String, limit: Int = 20): List<DailyMix> {
-    val seed = day.fold(7) { acc, c -> (acc * 31 + c.code) and 0x7FFFFFFF }
-    return songs.distinctBy { it.id }
+    val unique = songs.distinctBy { it.id }
+    val byGenre = unique
         .filter { it.genre.isNotBlank() }
         .groupBy { it.genre.trim() }
         .filterValues { it.size >= 3 }
-        .map { (genre, group) ->
-            val rotation = if (group.isEmpty()) 0 else seed % group.size
-            val ordered = group.drop(rotation) + group.take(rotation)
-            DailyMix(genre, ordered.distinctBy { it.id }.take(limit.coerceIn(0, 20)))
+        .entries
+        .sortedWith(compareByDescending<Map.Entry<String, List<Song>>> { it.value.size }.thenBy { it.key.lowercase() })
+
+    val chosenGroups: List<Pair<String, List<Song>>> = when {
+        byGenre.isNotEmpty() -> {
+            val primary = byGenre.first().toPair()
+            val rotated = byGenre.drop(1)
+                .sortedBy { mixDayHash("$day:slot:${it.key.lowercase()}") }
+                .take(2)
+                .map { it.toPair() }
+            listOf(primary) + rotated
         }
-        .sortedWith(compareByDescending<DailyMix> { it.songs.size }.thenBy { it.label.lowercase() })
+        unique.size >= 3 -> listOf("Daily Mix" to unique)
+        else -> emptyList()
+    }
+
+    return chosenGroups
         .take(3)
+        .map { (label, group) -> DailyMix(label, curateMixSongs(group, day, label, limit)) }
 }
 
 /** One listen, as it was heard. */

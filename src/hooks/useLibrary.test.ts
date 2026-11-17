@@ -11,7 +11,7 @@ import {
   recordContentHash,
 } from '../data/library';
 import { readTrack } from '../data/import';
-import { fetchVideoMeta } from '../services/videoMeta';
+import { fetchVideoMeta, fetchYouTubePlaylist } from '../services/videoMeta';
 import { makeTrack } from '../test/fixtures';
 
 vi.mock('../data/library', () => ({
@@ -26,7 +26,10 @@ vi.mock('../data/library', () => ({
   saveLyricsResult: vi.fn(),
   saveTrackLyrics: vi.fn(),
 }));
-vi.mock('../services/videoMeta', () => ({ fetchVideoMeta: vi.fn() }));
+vi.mock('../services/videoMeta', () => ({
+  fetchVideoMeta: vi.fn(),
+  fetchYouTubePlaylist: vi.fn(),
+}));
 vi.mock('../data/import', async (original) => ({
   ...(await original<typeof import('../data/import')>()),
   readTrack: vi.fn(),
@@ -46,6 +49,7 @@ beforeEach(() => {
     author: 'M83',
     duration: 244,
   });
+  vi.mocked(fetchYouTubePlaylist).mockReset().mockResolvedValue(null);
 });
 describe('library workflow', () => {
   it('imports a file once and reports duplicate and unsupported files', async () => {
@@ -84,7 +88,7 @@ describe('library workflow', () => {
       expect.objectContaining({ source: 'youtube', videoId: 'dQw4w9WgXcQ' }),
     );
 
-    // Adding the same video twice, or a playlist, is refused with a reason.
+    // Adding the same video twice, or an unreadable playlist, is refused with a reason.
     await act(async () => {
       added = await result.current.addYouTube('https://youtu.be/dQw4w9WgXcQ');
     });
@@ -94,6 +98,39 @@ describe('library workflow', () => {
     });
     expect(added).toEqual(expect.objectContaining({ ok: false }));
     expect(result.current.tracks).toHaveLength(1);
+
+    // Public YouTube playlists import all new videos and skip duplicates cleanly.
+    vi.mocked(fetchYouTubePlaylist).mockResolvedValueOnce({
+      playlistId: 'PLabcdefgh12',
+      title: 'Synthwave Night',
+      videos: [
+        {
+          videoId: 'dQw4w9WgXcQ',
+          title: 'Midnight City',
+          artist: 'M83',
+          duration: 244,
+          thumbnail: 'https://i.ytimg.com/vi/dQw4w9WgXcQ/mqdefault.jpg',
+        },
+        {
+          videoId: '9bZkp7q19f0',
+          title: 'Nightcall',
+          artist: 'Kavinsky',
+          duration: 258,
+          thumbnail: 'https://i.ytimg.com/vi/9bZkp7q19f0/mqdefault.jpg',
+        },
+      ],
+    });
+    await act(async () => {
+      added = await result.current.addYouTube('https://www.youtube.com/playlist?list=PLabcdefgh12');
+    });
+    expect(added).toMatchObject({ ok: true, added: 1 });
+    expect(result.current.tracks).toHaveLength(2);
+    expect(result.current.tracks[1]).toMatchObject({
+      source: 'youtube',
+      videoId: '9bZkp7q19f0',
+      title: 'Nightcall',
+      artist: 'Kavinsky',
+    });
   });
   it('keeps successful imports when a later write fails', async () => {
     vi.mocked(saveTrack).mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('quota'));

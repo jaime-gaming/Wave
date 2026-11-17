@@ -81,7 +81,7 @@ it('drops a zero-padded album position but keeps real numbers', () => {
   expect(stripLeadingNumber('7 Rings')).toBe('7 Rings');
 });
 
-it('detects reversed roles across accents, punctuation and upload labels without erasing versions', () => {
+it('detects reversed roles from its own textual verdict as well as filename clues', () => {
   expect(
     rolesSwapped({
       title: 'Beyonce',
@@ -96,10 +96,38 @@ it('detects reversed roles across accents, punctuation and upload labels without
       fileName: 'AC_DC - Back in Black.flac',
     }),
   ).toBe(true);
+  // Trusts its own verdict even without filename clues or matching tags.
   expect(
-    rolesSwapped({ title: 'Artist', artist: 'Song (Live)', fileName: 'Artist - Song.mp3' }),
+    rolesSwapped({
+      title: 'Queen',
+      artist: 'Bohemian Rhapsody (Remastered 2011)',
+    }),
+  ).toBe(true);
+  expect(
+    rolesSwapped({
+      title: 'Coldplay',
+      artist: 'A Sky Full of Stars',
+      fileName: 'track04.mp3',
+    }),
+  ).toBe(true);
+  expect(
+    rolesSwapped({
+      title: 'Bad Bunny',
+      artist: 'Me Porto Bonito (feat. Chencho Corleone)',
+    }),
+  ).toBe(true);
+  // Correctly ordered songs and classic band names are not flagged.
+  expect(
+    rolesSwapped({ title: 'Song (Live)', artist: 'Artist', fileName: 'Artist - Song.mp3' }),
   ).toBe(false);
+  expect(rolesSwapped({ title: 'Yesterday', artist: 'The Beatles' })).toBe(false);
+  expect(rolesSwapped({ title: 'Says', artist: 'Nils Frahm' })).toBe(false);
   expect(rolesSwapped({ title: 'Artist', artist: 'Artist', fileName: 'Artist - Artist.mp3' })).toBe(
     false,
   );
+  // Filenames written "Song Title - Artist" flip cleanly when the verdict is strong.
+  expect(inferFileMetadata('Bohemian Rhapsody (Remastered) - Queen.mp3')).toEqual({
+    artist: 'Queen',
+    title: 'Bohemian Rhapsody (Remastered)',
+  });
 });

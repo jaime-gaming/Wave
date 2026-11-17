@@ -32,8 +32,9 @@ import {
   MAX_FILE_SIZE,
   readTrack,
 } from '../data/import';
-import { youtubeTrack, youTubeVideoOf } from '../domain/youtubeTrack';
-import { fetchVideoMeta } from '../services/videoMeta';
+import { parseYouTubeLink } from '../domain/youtube';
+import { youtubeTrack } from '../domain/youtubeTrack';
+import { fetchVideoMeta, fetchYouTubePlaylist } from '../services/videoMeta';
 import type { Track, TrackMetadata } from '../domain/types';
 
 export function useLibrary() {
@@ -166,30 +167,95 @@ export function useLibrary() {
   );
 
   /**
-   * Adds a song that lives on YouTube. The video is never downloaded: the record
-   * stores the video id and the official embed plays it. Title and artist come
-   * from YouTube's oEmbed endpoint when it answers, and stay editable.
+   * Adds a song or public playlist that lives on YouTube. Nothing is downloaded:
+   * each record stores the video id and the official embed plays it. Metadata
+   * comes from Wave's same-origin `/api/youtube-meta` / `/api/youtube-playlist`
+   * endpoint first (CORS-free) and falls back to public providers.
    */
   const addYouTube = useCallback(
-    async (link: string): Promise<{ ok: true; track: Track } | { ok: false; error: string }> => {
-      const video = youTubeVideoOf(link);
-      if (!video)
+    async (
+      link: string,
+      prefilled?: { title?: string; artist?: string; duration?: number; thumbnail?: string },
+    ): Promise<{ ok: true; track: Track; added?: number } | { ok: false; error: string }> => {
+      const parsed = parseYouTubeLink(link);
+      if (!parsed) {
         return {
           ok: false,
-          error: 'Paste a YouTube video link. Playlists and channels are not songs.',
+          error: 'Paste a valid YouTube song or public playlist link.',
         };
-      const id = `yt-${video.videoId}`;
-      if (existing.current.some((track) => track.id === id || track.videoId === video.videoId))
-        return { ok: false, error: 'This video is already in your library.' };
+      }
       setMessage('');
       setError('');
-      const meta = await fetchVideoMeta(video.videoId);
+
+      if (parsed.kind === 'playlist') {
+        const playlist = await fetchYouTubePlaylist(parsed.playlistId);
+        if (!playlist || !playlist.videos.length) {
+          return {
+            ok: false,
+            error:
+              'That YouTube playlist could not be read. Make sure it is public or unlisted and try again.',
+          };
+        }
+        const addedTracks: Track[] = [];
+        let skipped = 0;
+        for (const entry of playlist.videos) {
+          const id = `yt-${entry.videoId}`;
+          if (existing.current.some((t) => t.id === id || t.videoId === entry.videoId)) {
+            skipped++;
+            continue;
+          }
+          const track = youtubeTrack(
+            {
+              videoId: entry.videoId,
+              title: entry.title,
+              artist: entry.artist,
+              duration: entry.duration,
+              artwork: entry.thumbnail,
+            },
+            id,
+          );
+          try {
+            await saveTrack(track);
+            existing.current = [...existing.current, track];
+            addedTracks.push(track);
+          } catch {
+            break;
+          }
+        }
+        if (!addedTracks.length) {
+          return {
+            ok: false,
+            error:
+              skipped > 0
+                ? 'All videos from this YouTube playlist are already in your library.'
+                : 'These songs could not be saved. Please check browser storage.',
+          };
+        }
+        setTracks((current) => [...current, ...addedTracks]);
+        setMessage(
+          `Added ${addedTracks.length} ${addedTracks.length === 1 ? 'song' : 'songs'} from YouTube · ${playlist.title}${skipped ? ` (${skipped} already in your library)` : ''}`,
+        );
+        return { ok: true, track: addedTracks[0], added: addedTracks.length };
+      }
+
+      const id = `yt-${parsed.videoId}`;
+      if (existing.current.some((track) => track.id === id || track.videoId === parsed.videoId))
+        return { ok: false, error: 'This video is already in your library.' };
+      const meta = prefilled?.title
+        ? {
+            title: prefilled.title,
+            artist: prefilled.artist ?? '',
+            duration: prefilled.duration ?? 0,
+            thumbnail: prefilled.thumbnail,
+          }
+        : await fetchVideoMeta(parsed.videoId);
       const track = youtubeTrack(
         {
-          videoId: video.videoId,
+          videoId: parsed.videoId,
           title: meta?.title ?? '',
           artist: meta?.artist,
           duration: meta?.duration,
+          artwork: meta?.thumbnail,
         },
         id,
       );
@@ -198,7 +264,7 @@ export function useLibrary() {
         existing.current = [...existing.current, track];
         setTracks((current) => [...current, track]);
         setMessage(`Added from YouTube · ${track.title}`);
-        return { ok: true, track };
+        return { ok: true, track, added: 1 };
       } catch {
         setError('This song could not be saved. Please check browser storage.');
         return { ok: false, error: 'This song could not be saved.' };

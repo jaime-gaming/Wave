@@ -10,12 +10,21 @@
  * This module only builds and validates library records; the network lookup for
  * a nicer title lives in `services/videoMeta.ts`.
  */
-import { parseYouTubeLink, type YouTubeVideo } from './youtube';
+import { parseYouTubeLink, youtubeThumbnailUrl, type YouTubeVideo } from './youtube';
 import type { Track } from './types';
 
 export const YOUTUBE_ALBUM = 'YouTube';
 const NOISE =
   /\((?:official|lyrics?|audio|video|visuali[sz]er|hd|hq|4k|mv|explicit|remaster(?:ed)?|colou?r coded)[^)]*\)|\[[^\]]*\]/giu;
+
+/** Cleans a YouTube channel / uploader name into a usable artist credit. */
+export function cleanYouTubeAuthor(author: string | undefined): string {
+  if (!author) return '';
+  return author
+    .replace(/\s*[-–—]\s*topic\s*$/iu, '')
+    .replace(/\s+official(?:\s+channel)?\s*$/iu, '')
+    .trim();
+}
 
 /** Removes the usual YouTube decoration from a video title (pure, testable). */
 export function cleanVideoTitle(value: string): string {
@@ -28,15 +37,20 @@ export function cleanVideoTitle(value: string): string {
 
 /**
  * Splits a YouTube title into artist and song when it follows the near-universal
- * "Artist - Title" pattern. Anything else becomes the title alone.
+ * "Artist - Title" pattern. Falls back to the channel author when available so
+ * Topic/official uploads never lose their artist.
  */
-export function splitVideoTitle(raw: string): { title: string; artist: string } {
+export function splitVideoTitle(raw: string, author?: string): { title: string; artist: string } {
   const cleaned = cleanVideoTitle(raw);
   const match = /^(.{1,80}?)\s+[-–—]\s+(.{1,120})$/u.exec(cleaned);
-  if (!match) return { title: cleaned || raw.trim() || 'Untitled', artist: 'Unknown artist' };
+  if (!match) {
+    const channel = cleanYouTubeAuthor(author);
+    return {
+      title: cleaned || raw.trim() || 'Untitled',
+      artist: channel || 'Unknown artist',
+    };
+  }
   const [, artist, title] = match;
-  // "Artist - Topic" channels often upload as "Title - Artist"; prefer whichever
-  // side has more words only when the left side is implausibly long.
   return { title: title.trim(), artist: artist.trim() };
 }
 
@@ -52,7 +66,7 @@ export function youTubeVideoOf(link: string): YouTubeVideo | null {
  * storage code needs to know.
  */
 export function youtubeTrack(
-  input: { videoId: string; title: string; artist?: string; duration?: number },
+  input: { videoId: string; title: string; artist?: string; duration?: number; artwork?: string },
   id: string,
 ): Track {
   const title = input.title.trim() || 'Untitled';
@@ -68,6 +82,7 @@ export function youtubeTrack(
     favorite: false,
     source: 'youtube',
     videoId: input.videoId,
+    artwork: input.artwork ?? youtubeThumbnailUrl(input.videoId),
   };
 }
 

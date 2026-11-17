@@ -470,4 +470,32 @@ describe('The extra moves a mix makes', () => {
     expect(join.outgoing).toBe(1);
     expect(join.incoming).toBeLessThan(1);
   });
+
+  it('never skips halfway into a rubato ballad with a quiet first verse', () => {
+    const ballad = analysis({
+      duration: 240,
+      trimmed: { start: 0, end: 238 },
+      beats: { bpm: 84, offset: 0, confidence: 0.7, stability: 0.2 },
+      segments: [
+        { start: 0, end: 95, level: 0.22, kind: 'intro' },
+        { start: 95, end: 210, level: 0.9, kind: 'body' },
+      ],
+    });
+    const plan = planTransition(analysis(), ballad);
+    expect(plan.mode).toBe('crossfade');
+    expect(plan.cue).toBeLessThanOrEqual(6);
+  });
+
+  it('bounds intro skipping proportionally on short songs so half the song is never skipped', () => {
+    const shortSong = analysis({
+      duration: 75,
+      trimmed: { start: 0, end: 74 },
+      segments: [
+        { start: 0, end: 30, level: 0.2, kind: 'intro' },
+        { start: 30, end: 70, level: 0.9, kind: 'body' },
+      ],
+    });
+    const plan = planTransition(analysis(), shortSong);
+    expect(plan.cue).toBeLessThanOrEqual(16);
+  });
 });

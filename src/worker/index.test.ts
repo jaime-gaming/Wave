@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import worker, { publicPlaylistText } from './index';
+import worker, { extractYouTubeSearchResults, publicPlaylistText } from './index';
 import { parsePlaylistText } from '../domain/importFile';
 const env = { ASSETS: { fetch: vi.fn(async () => new Response('asset')) } };
 const request = (url: string, origin = 'https://wave.test') =>
@@ -71,4 +71,118 @@ it('keeps the application assets and unknown API routes separate', async () => {
     'asset',
   );
   expect((await worker.fetch(new Request('https://wave.test/api/unknown'), env)).status).toBe(404);
+});
+it('serves CORS-free YouTube video metadata from /api/youtube-meta', async () => {
+  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.includes('/oembed')) {
+      return new Response(
+        JSON.stringify({ title: 'Daft Punk - Digital Love', author_name: 'Daft Punk - Topic' }),
+        { status: 200 },
+      );
+    }
+    return new Response(
+      '<script>var ytInitialPlayerResponse = {"videoDetails":{"videoId":"dQw4w9WgXcQ","title":"Daft Punk - Digital Love","author":"Daft Punk - Topic","lengthSeconds":"301"}};</script>',
+      { status: 200 },
+    );
+  });
+  vi.stubGlobal('fetch', fetch);
+  const res = await worker.fetch(
+    new Request('https://wave.test/api/youtube-meta?id=dQw4w9WgXcQ', {
+      headers: { origin: 'https://wave.test' },
+    }),
+    env,
+  );
+  expect(res.status).toBe(200);
+  expect(await res.json()).toMatchObject({
+    videoId: 'dQw4w9WgXcQ',
+    title: 'Daft Punk - Digital Love',
+    author: 'Daft Punk - Topic',
+    duration: 301,
+  });
+});
+it('extracts public YouTube playlist entries from /api/youtube-playlist', async () => {
+  const html =
+    '<script>var ytInitialData = ' +
+    JSON.stringify({
+      metadata: { playlistMetadataRenderer: { title: 'Late Night Synth' } },
+      contents: [
+        {
+          playlistVideoRenderer: {
+            videoId: 'dQw4w9WgXcQ',
+            title: { runs: [{ text: 'M83 - Midnight City' }] },
+            shortBylineText: { runs: [{ text: 'M83' }] },
+            lengthSeconds: '244',
+          },
+        },
+      ],
+    }) +
+    ';</script>';
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(html, { status: 200 })));
+  const res = await worker.fetch(
+    new Request('https://wave.test/api/youtube-playlist', {
+      method: 'POST',
+      headers: { origin: 'https://wave.test', 'content-type': 'application/json' },
+      body: JSON.stringify({ url: 'https://www.youtube.com/playlist?list=PL1234567890' }),
+    }),
+    env,
+  );
+  expect(res.status).toBe(200);
+  expect(await res.json()).toMatchObject({
+    playlistId: 'PL1234567890',
+    title: 'Late Night Synth',
+    videos: [
+      expect.objectContaining({
+        videoId: 'dQw4w9WgXcQ',
+        title: 'M83 - Midnight City',
+        duration: 244,
+      }),
+    ],
+  });
+});
+
+it('extracts YouTube catalog search results cleanly and validates /api/youtube-search', async () => {
+  const items = extractYouTubeSearchResults({
+    contents: {
+      twoColumnSearchResultsRenderer: {
+        primaryContents: {
+          sectionListRenderer: {
+            contents: [
+              {
+                itemSectionRenderer: {
+                  contents: [
+                    {
+                      videoRenderer: {
+                        videoId: 'dQw4w9WgXcQ',
+                        title: { runs: [{ text: 'M83 - Midnight City (Official Video)' }] },
+                        ownerText: { runs: [{ text: 'M83' }] },
+                        lengthText: { simpleText: '4:04' },
+                      },
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        },
+      },
+    },
+  });
+  expect(items).toHaveLength(1);
+  expect(items[0]).toMatchObject({
+    videoId: 'dQw4w9WgXcQ',
+    title: 'M83 - Midnight City (Official Video)',
+    author: 'M83',
+    duration: 244,
+  });
+
+  const crossOrigin = await worker.fetch(
+    new Request('https://wave.test/api/youtube-search', {
+      method: 'POST',
+      headers: { origin: 'https://evil.example', 'content-type': 'application/json' },
+      body: JSON.stringify({ q: 'Midnight City' }),
+    }),
+    env,
+  );
+  expect(crossOrigin.status).toBe(403);
 });

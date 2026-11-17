@@ -3696,6 +3696,18 @@ section.settings-page {
 .compact-cover-open {
   padding: 0;
   flex-shrink: 0;
+  --cover-radius: 12px;
+  border-radius: var(--cover-radius);
+  overflow: hidden;
+  display: block;
+  transform: translateZ(0);
+}
+.compact-cover-open .mix-artwork,
+.compact-cover-open .mix-cue {
+  width: 40px;
+  height: 40px;
+  max-width: 40px;
+  border-radius: var(--cover-radius);
 }
 .compact-title-open {
   padding: 0;
@@ -8212,4 +8224,605 @@ h1 {
 /* A player action already animates its glyph; keep the hit target fixed. */
 .player-action-button:active:not(:disabled) {
   transform: none;
+}
+
+/* Metadata catalogue search & alignment inside Edit song. */
+.metadata-matcher {
+  display: grid;
+  gap: 10px;
+}
+.metadata-matcher-panel {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--container-high) 70%, transparent);
+  border: 1px solid var(--border);
+}
+.metadata-matcher-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.metadata-matcher-bar input {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+.metadata-matcher-note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.metadata-matcher-list {
+  display: grid;
+  gap: 6px;
+}
+.metadata-match-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 150ms ease,
+    border-color 150ms ease,
+    transform 150ms ease;
+}
+.metadata-match-row:hover {
+  background: var(--container-high);
+  border-color: var(--border);
+}
+.metadata-match-row img {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.metadata-match-info {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.metadata-match-info strong,
+.metadata-match-info small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.metadata-match-info small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.metadata-match-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  font-size: 12px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.metadata-match-badge {
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+}
+
+/* Rendering performance for long libraries without removing any animation. */
+.song-row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 64px;
+}
+.collection-card,
+.album-card,
+.artist-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 240px;
+}
+
+/* ==========================================================================
+   Wave 0.2.2 Polish: Banner-Covering Scroll, Expressive Icons, Remix Periods,
+   Unified YouTube Search, and All-Resolution Responsiveness
+   ========================================================================== */
+
+/* #14 Banner-covering scroll: the banner stays full-size and anchored underneath
+   while the foreground content sheet rises over it, filling out the top borders
+   and revealing an animated sticky section-title bar. */
+.workspace {
+  --banner-cover: 0;
+  --page-scroll: 0;
+}
+.workspace > .library-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  transform: none;
+  filter: none;
+  opacity: 1;
+}
+.workspace[data-banner-covered='true'] > .library-header {
+  pointer-events: none;
+}
+.workspace > .section-scroll-dock {
+  position: sticky;
+  top: 0;
+  z-index: 9;
+  height: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+.section-scroll-dock__bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 54px;
+  padding: 0 24px;
+  background: var(--header);
+  border-top: 1px solid color-mix(in srgb, var(--primary) 16%, var(--hairline));
+  border-bottom: 1.5px solid color-mix(in srgb, var(--primary) 26%, var(--hairline));
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 8%, transparent),
+    0 10px 26px rgba(0, 0, 0, 0.24);
+  transform: translate3d(0, -108%, 0);
+  opacity: 0;
+  pointer-events: none;
+  cursor: pointer;
+  overflow: hidden;
+  transition:
+    transform 0.36s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.24s ease;
+  will-change: transform, opacity;
+}
+.workspace[data-banner-covered='true'] .section-scroll-dock__bar {
+  transform: translate3d(0, 0, 0);
+  opacity: 1;
+  pointer-events: auto;
+}
+.section-scroll-dock__accent {
+  width: 4px;
+  height: 22px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  background: var(--primary);
+  transform: scaleY(0.35);
+  opacity: 0.4;
+  transition:
+    transform 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) 0.05s,
+    opacity 0.28s ease 0.05s;
+}
+.workspace[data-banner-covered='true'] .section-scroll-dock__accent {
+  transform: scaleY(1);
+  opacity: 1;
+}
+.section-scroll-dock__copy {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  min-width: 0;
+  animation: dock-title-enter 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.section-scroll-dock__parent {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--primary);
+  opacity: 0.68;
+  flex-shrink: 0;
+}
+.section-scroll-dock__parent::after {
+  content: '/';
+  margin-left: 9px;
+  opacity: 0.45;
+}
+.section-scroll-dock__title {
+  font-size: 18px;
+  font-weight: 760;
+  letter-spacing: -0.02em;
+  color: var(--primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.section-scroll-dock__progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2.5px;
+  background: var(--primary);
+  transform-origin: 0 50%;
+  transform: scaleX(var(--page-scroll, 0));
+  opacity: 0.78;
+}
+@keyframes dock-title-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 7px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+.workspace > .library-surface {
+  position: relative;
+  z-index: 4;
+  background: var(--surface);
+  border-radius: calc(28px * (1 - var(--banner-cover, 0))) calc(28px * (1 - var(--banner-cover, 0)))
+    0 0;
+  box-shadow:
+    0 calc(-18px * var(--banner-cover, 0)) calc(34px * var(--banner-cover, 0))
+      rgba(0, 0, 0, calc(0.24 * var(--banner-cover, 0))),
+    inset 0 1px 0 color-mix(in srgb, var(--primary) calc(16% * var(--banner-cover, 0)), transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .section-scroll-dock__bar,
+  .section-scroll-dock__accent,
+  .section-scroll-dock__copy {
+    transition: none;
+    animation: none;
+  }
+}
+
+/* #13 Expressive shape-playing icon animations. */
+.wave-glyph {
+  overflow: visible;
+}
+.wave-glyph path,
+.wave-glyph g {
+  transition:
+    transform 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.24s ease;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* Morphing Play <-> Pause glyph */
+.wave-glyph--playpause .glyph-play-shape {
+  opacity: 1;
+  transform: scale(1) rotate(0deg);
+}
+.wave-glyph--playpause .glyph-pause-shape {
+  opacity: 0;
+  transform: scale(0.55) rotate(-28deg);
+}
+.wave-glyph--playpause .glyph-pause-left {
+  transform: translateX(2.4px) scaleY(0.65);
+}
+.wave-glyph--playpause .glyph-pause-right {
+  transform: translateX(-2.4px) scaleY(0.65);
+}
+.wave-glyph--playpause.is-playing .glyph-play-shape {
+  opacity: 0;
+  transform: scale(0.52) rotate(32deg);
+}
+.wave-glyph--playpause.is-playing .glyph-pause-shape {
+  opacity: 1;
+  transform: scale(1) rotate(0deg);
+}
+.wave-glyph--playpause.is-playing .glyph-pause-left,
+.wave-glyph--playpause.is-playing .glyph-pause-right {
+  transform: translateX(0) scaleY(1);
+}
+
+/* Navigation & interactive glyph shape-play */
+button:hover .wave-glyph--home .glyph-roof,
+button[aria-current='page'] .wave-glyph--home .glyph-roof {
+  transform: translateY(-1.2px) scale(1.04);
+}
+button:hover .wave-glyph--home .glyph-door,
+button[aria-current='page'] .wave-glyph--home .glyph-door {
+  transform: scaleY(1.08);
+}
+
+button:hover .wave-glyph--library .glyph-back-sleeve,
+button[aria-current='page'] .wave-glyph--library .glyph-back-sleeve {
+  transform: translate(1.2px, -1.2px);
+}
+button:hover .wave-glyph--library .glyph-disc,
+button[aria-current='page'] .wave-glyph--library .glyph-disc {
+  transform: scale(1.16) rotate(45deg);
+}
+
+button:hover .wave-glyph--search .glyph-lens,
+button[aria-current='page'] .wave-glyph--search .glyph-lens {
+  transform: rotate(-10deg) scale(1.06);
+}
+
+button:hover .wave-glyph--settings .glyph-gear,
+button[aria-current='page'] .wave-glyph--settings .glyph-gear {
+  transform: rotate(45deg);
+}
+
+@keyframes wave-glyph-bar-dance {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  45% {
+    transform: scaleY(0.56);
+  }
+  75% {
+    transform: scaleY(1.16);
+  }
+}
+button:hover .wave-glyph--remix .glyph-bar-1,
+button[aria-current='page'] .wave-glyph--remix .glyph-bar-1 {
+  animation: wave-glyph-bar-dance 0.65s ease-in-out 0s 1;
+}
+button:hover .wave-glyph--remix .glyph-bar-2,
+button[aria-current='page'] .wave-glyph--remix .glyph-bar-2 {
+  animation: wave-glyph-bar-dance 0.65s ease-in-out 0.06s 1;
+}
+button:hover .wave-glyph--remix .glyph-bar-3,
+button[aria-current='page'] .wave-glyph--remix .glyph-bar-3 {
+  animation: wave-glyph-bar-dance 0.65s ease-in-out 0.12s 1;
+}
+button:hover .wave-glyph--remix .glyph-bar-4,
+button[aria-current='page'] .wave-glyph--remix .glyph-bar-4 {
+  animation: wave-glyph-bar-dance 0.65s ease-in-out 0.18s 1;
+}
+button:hover .wave-glyph--remix .glyph-bar-5,
+button[aria-current='page'] .wave-glyph--remix .glyph-bar-5 {
+  animation: wave-glyph-bar-dance 0.65s ease-in-out 0.24s 1;
+}
+
+button:active .wave-glyph--skip-back .glyph-skip-arrow {
+  transform: translateX(-2.2px);
+}
+button:active .wave-glyph--skip-forward .glyph-skip-arrow {
+  transform: translateX(2.2px);
+}
+button:hover .wave-glyph--volume .glyph-wave-inner {
+  transform: translateX(0.9px) scale(1.06);
+}
+button:hover .wave-glyph--volume .glyph-wave-outer {
+  transform: translateX(1.8px) scale(1.09);
+  transition-delay: 0.04s;
+}
+button:hover .wave-glyph--shuffle .glyph-shuffle-tip-a {
+  transform: translateX(1.3px);
+}
+button:hover .wave-glyph--shuffle .glyph-shuffle-tip-b {
+  transform: translateX(1.3px);
+  transition-delay: 0.05s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wave-glyph path,
+  .wave-glyph g {
+    transition: none;
+    animation: none !important;
+  }
+}
+
+/* #12 Monthly & Yearly Recap Period Switcher in Remix */
+.remix-head-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.remix-period-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--container);
+  border: 1px solid color-mix(in srgb, var(--line) 75%, transparent);
+  width: fit-content;
+  max-width: 100%;
+  flex-wrap: wrap;
+}
+.remix-period-tab {
+  min-height: 34px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  background: transparent;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    transform 0.16s ease;
+}
+.remix-period-tab:hover {
+  color: var(--text);
+}
+.remix-period-tab.active {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+.remix-bars-year .remix-bars {
+  gap: clamp(3px, 0.8vw, 10px);
+}
+.remix-bars-year .remix-bar-day {
+  font-size: 11px;
+}
+
+/* #9 Unified YouTube Search + Paste Link Results */
+.yt-search-results {
+  margin-top: 12px;
+  max-height: min(320px, 44dvh);
+  overflow-y: auto;
+  border-radius: 16px;
+  background: var(--container);
+  border: 1px solid color-mix(in srgb, var(--line) 75%, transparent);
+}
+.yt-search-status {
+  margin: 0;
+  padding: 16px;
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
+}
+.yt-search-list {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.yt-search-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  text-align: left;
+  color: var(--text);
+  background: transparent;
+  transition: background 0.15s ease;
+}
+.yt-search-row:hover:not(:disabled),
+.yt-search-row:focus-visible {
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+}
+.yt-search-thumb {
+  width: 52px;
+  height: 36px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--surface);
+}
+.yt-search-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+  gap: 2px;
+}
+.yt-search-meta strong,
+.yt-search-meta small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.yt-search-meta strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+.yt-search-meta small {
+  font-size: 12px;
+  color: var(--muted);
+}
+.yt-search-add {
+  display: inline-grid;
+  place-items: center;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  flex-shrink: 0;
+}
+
+/* #15 All-Resolution Responsive Web Support (320px ultra-compact -> 4K ultrawide) */
+@media (min-width: 1680px) {
+  .workspace {
+    max-width: 1680px;
+    margin-left: max(
+      calc(var(--rail-width) + 20px),
+      calc((100vw - 1680px + var(--rail-width)) / 2)
+    );
+    margin-right: auto;
+  }
+  .album-shelf,
+  .collection-grid {
+    grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .workspace {
+    margin: 6px 6px 0;
+    border-radius: 24px;
+  }
+  .workspace > .library-header {
+    padding: 16px 14px 18px;
+  }
+  .workspace > .library-header h1 {
+    font-size: clamp(22px, 6.8vw, 30px);
+  }
+  .workspace > .library-surface {
+    padding: 16px 10px 24px;
+    border-radius: calc(22px * (1 - var(--banner-cover, 0)))
+      calc(22px * (1 - var(--banner-cover, 0))) 0 0;
+  }
+  .section-scroll-dock__bar {
+    height: 48px;
+    padding: 0 14px;
+    gap: 10px;
+  }
+  .section-scroll-dock__title {
+    font-size: 16px;
+  }
+  .remix-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .remix-mix-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .remix-mix-actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .yt-unified-input {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .yt-search-thumb {
+    width: 44px;
+    height: 32px;
+  }
+}
+
+@media (max-width: 360px) {
+  .library-tabs button {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+  .remix-period-tab {
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+  .header-actions {
+    gap: 4px;
+  }
+  .header-actions .icon-button {
+    width: 38px;
+    height: 38px;
+  }
 }
