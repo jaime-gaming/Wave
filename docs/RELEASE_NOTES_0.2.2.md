@@ -26,5 +26,5 @@ Prepared 16 November 2026.
 
 ## Native Apps (Windows 11 & Android)
 
-- **Windows Library Storage (Issue #14)**: Imported files and folders now link in-place by default without copying into `%LOCALAPPDATA%\Wave\audio`. **Settings → Storage** adds an optional copy-to-storage toggle, custom storage folder chooser, remembered music folders with one-click rescan, and safe removal that never deletes original user files.
+- **Windows Library Storage ([Issue #14](https://github.com/jaime-gaming/Wave/issues/14))**: Imported files and folders now link in-place by default without copying into `%LOCALAPPDATA%\Wave\audio`. **Settings → Storage** adds an optional copy-to-storage toggle, custom storage folder chooser, remembered music folders with one-click rescan, and safe removal that never deletes original user files.
 - **Android Home-Screen Widget & Motion**: Replaced the minimal text widget with a resizable Material 3 home-screen widget featuring rounded embedded album artwork, artist/album details, and Previous / Play-Pause / Next controls synchronized live from `PlaybackService`, plus animated Now Playing transitions.
