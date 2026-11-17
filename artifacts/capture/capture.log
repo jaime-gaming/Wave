@@ -5,20 +5,17 @@
 docs/media/home-desktop.png
 docs/media/remix-desktop.png
 docs/media/remix-details-desktop.png
-docs/media/daily-mix-desktop.png
-docs/media/now-playing-desktop.png
-docs/media/immersive-desktop.png
 node:internal/modules/run_main:123
     triggerUncaughtException(
     ^
 
-locator.waitFor: Timeout 30000ms exceeded.
+locator.click: Timeout 30000ms exceeded.
 Call log:
-  - waiting for getByRole('region', { name: 'Volume balancing' }).getByRole('status').filter({ hasText: '9 of 9 recordings ready' }) to be visible
+  - waiting for getByRole('button', { name: /Open Daily mix .*Electronic/ })
 
-    at /home/runner/work/Wave/Wave/scripts/capture-docs.ts:236:89 {
+    at /home/runner/work/Wave/Wave/scripts/capture-docs.ts:218:73 {
   log: [
-    "  - waiting for getByRole('region', { name: 'Volume balancing' }).getByRole('status').filter({ hasText: '9 of 9 recordings ready' }) to be visible"
+    "  - waiting for getByRole('button', { name: /Open Daily mix .*Electronic/ })"
   ],
   name: 'TimeoutError'
 }
