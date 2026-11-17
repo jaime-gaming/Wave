@@ -10,6 +10,8 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
@@ -17,6 +19,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -228,13 +231,21 @@ fun WaveApp(version: String, opening: Opening = Opening.Default) {
         AnimatedVisibility(
             visible = state.nowPlayingOpen && currentSong != null,
             enter = slideInVertically(
-                animationSpec = tween(if (motionOn) 280 else 0, easing = FastOutSlowInEasing),
-                initialOffsetY = { it / 3 },
+                animationSpec = tween(if (motionOn) 300 else 0, easing = FastOutSlowInEasing),
+                initialOffsetY = { (it * 0.28f).toInt() },
+            ) + scaleIn(
+                animationSpec = tween(if (motionOn) 300 else 0, easing = FastOutSlowInEasing),
+                initialScale = 0.92f,
+                transformOrigin = TransformOrigin(0.5f, 0.96f),
             ) + fadeIn(tween(if (motionOn) 220 else 0)),
             exit = slideOutVertically(
-                animationSpec = tween(if (motionOn) 220 else 0, easing = FastOutSlowInEasing),
-                targetOffsetY = { it / 3 },
-            ) + fadeOut(tween(if (motionOn) 180 else 0)),
+                animationSpec = tween(if (motionOn) 250 else 0, easing = FastOutSlowInEasing),
+                targetOffsetY = { (it * 0.34f).toInt() },
+            ) + scaleOut(
+                animationSpec = tween(if (motionOn) 250 else 0, easing = FastOutSlowInEasing),
+                targetScale = 0.88f,
+                transformOrigin = TransformOrigin(0.5f, 0.96f),
+            ) + fadeOut(tween(if (motionOn) 200 else 0)),
         ) {
             currentSong?.let { activeSong ->
                 Box(

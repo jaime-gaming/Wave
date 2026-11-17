@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Check, ChevronLeft, ChevronRight, Music2, Search } from './Glyphs';
+import { ChevronLeft, ChevronRight, Music2, Search } from './Glyphs';
+import { MaterialSwitch } from './MaterialSwitch';
 import type { Track } from '../domain/types';
 import { describeIssues, knownArtistSet, metadataIssues } from '../domain/metadata';
 import { needsDetails } from '../domain/catalogue';
@@ -56,16 +57,11 @@ export function LocalMetadataReview({
           </span>
         </div>
         {onToggle && (
-          <button
-            type="button"
-            className="material-switch"
-            role="switch"
-            aria-label={t('Fill in missing details')}
-            aria-checked={enabled ?? false}
-            onClick={() => onToggle(!enabled)}
-          >
-            <span>{enabled && <Check size={15} />}</span>
-          </button>
+          <MaterialSwitch
+            label={t('Fill in missing details')}
+            checked={enabled ?? false}
+            onChange={onToggle}
+          />
         )}
       </div>
       <p>

@@ -156,11 +156,14 @@ public partial class MainWindow : Window
 
     /// <summary>
     /// Tracks scrolled section headings inside HeaderScroll and pins the active
-    /// section's clean borderless title text until the next section pushes it away.
+    /// section's clean borderless title text ONLY after the main header bar has
+    /// scrolled out of view and the section heading itself has passed the dock,
+    /// preventing duplicate headings.
     /// </summary>
     private void ContentScrolled(object sender, ScrollChangedEventArgs e)
     {
-        if (!WholePage || e.VerticalOffset < 28)
+        double headerClearance = Math.Max(PageHeader.ActualHeight, 84);
+        if (!WholePage || e.VerticalOffset < headerClearance)
         {
             StickySectionDock.Visibility = Visibility.Collapsed;
             return;
@@ -174,7 +177,9 @@ public partial class MainWindow : Window
         for (int i = 0; i < headings.Count; i++)
         {
             var top = headings[i].TranslatePoint(new Point(0, 0), HeaderScroll).Y;
-            if (top <= 42)
+            var bottom = top + Math.Max(headings[i].ActualHeight, 28);
+            // Bind only after the heading has scrolled past the dock so it is never duplicated.
+            if (bottom <= 48)
             {
                 activeTitle = (headings[i] as DockPanel)?.Children.OfType<TextBlock>().FirstOrDefault()?.Text;
                 if (i + 1 < headings.Count)
@@ -710,7 +715,8 @@ public partial class MainWindow : Window
         else RepeatButton.SetResourceReference(Control.ForegroundProperty, "AccentBrush");
     }
     private void NowClick(object sender, RoutedEventArgs e) { if (Current != null) ShowPage("Now playing"); }
-    private void CollapseClick(object sender, RoutedEventArgs e) => ShowPage(previousPage);
+    private void CollapseClick(object sender, RoutedEventArgs e) =>
+        Motion.CollapseToMini(NowView, Motion.Enabled(preferences.Animations), () => ShowPage(previousPage));
     private void NowArtistClick(object sender, RoutedEventArgs e) { if (Current != null) ShowPage("Artists", Current.Artist); }
     private void LyricsToggleClick(object sender, RoutedEventArgs e) { lyricsVisible = !lyricsVisible; SetLyricsVisibility(); }
     private void SetLyricsVisibility() { bool show = lyricsVisible && Current?.Lyrics.Length > 0; LyricsScroll.Visibility = show ? Visibility.Visible : Visibility.Collapsed; LyricsWidth.Width = new GridLength(show ? 1 : 0, GridUnitType.Star); }

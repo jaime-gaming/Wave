@@ -1522,6 +1522,9 @@ kbd {
   display: flex;
   justify-content: flex-start;
   align-items: center;
+  cursor: pointer;
+  touch-action: pan-y;
+  user-select: none;
 }
 .material-switch[aria-checked='true'] {
   background: var(--primary);
@@ -1535,10 +1538,34 @@ kbd {
   background: var(--outline);
   display: grid;
   place-items: center;
+  will-change: transform;
 }
 .material-switch[aria-checked='true'] > span {
   background: var(--on-primary);
   color: var(--primary);
+}
+.material-switch.is-dragging {
+  cursor: pointer;
+  justify-content: flex-start;
+  background: color-mix(
+    in srgb,
+    var(--primary) calc(var(--switch-drag, 0) * 100%),
+    var(--container-high)
+  );
+  outline-color: color-mix(
+    in srgb,
+    var(--primary) calc(var(--switch-drag, 0) * 100%),
+    var(--outline)
+  );
+}
+.material-switch.is-dragging > span {
+  background: color-mix(
+    in srgb,
+    var(--on-primary) calc(var(--switch-drag, 0) * 100%),
+    var(--outline)
+  );
+  color: var(--primary);
+  transition: none;
 }
 .form-field {
   display: flex;
@@ -8617,26 +8644,107 @@ button:hover .wave-glyph--volume .glyph-wave-outer {
     transform: translateX(1.1px);
   }
 }
-button:hover .wave-glyph--shuffle .glyph-shuffle-a,
-button:active .wave-glyph--shuffle .glyph-shuffle-a,
-button[aria-pressed='true'] .wave-glyph--shuffle .glyph-shuffle-a {
-  animation: wave-shuffle-separate-a 0.72s cubic-bezier(0.22, 1, 0.36, 1) 1;
+/* Shuffle separates into parallel paths and rejoins ONLY on click (never on hover). */
+.player-action-symbol.is-pulsing .wave-glyph--shuffle .glyph-shuffle-a {
+  animation: wave-shuffle-separate-a 0.68s cubic-bezier(0.22, 1, 0.36, 1) 1;
 }
-button:hover .wave-glyph--shuffle .glyph-shuffle-b,
-button:active .wave-glyph--shuffle .glyph-shuffle-b,
-button[aria-pressed='true'] .wave-glyph--shuffle .glyph-shuffle-b {
-  animation: wave-shuffle-separate-b 0.72s cubic-bezier(0.22, 1, 0.36, 1) 1;
+.player-action-symbol.is-pulsing .wave-glyph--shuffle .glyph-shuffle-b {
+  animation: wave-shuffle-separate-b 0.68s cubic-bezier(0.22, 1, 0.36, 1) 1;
 }
-button:hover .wave-glyph--shuffle .glyph-shuffle-tip-a,
-button:hover .wave-glyph--shuffle .glyph-shuffle-tip-b,
-button[aria-pressed='true'] .wave-glyph--shuffle .glyph-shuffle-tip-a,
-button[aria-pressed='true'] .wave-glyph--shuffle .glyph-shuffle-tip-b {
-  animation: wave-shuffle-tips 0.72s cubic-bezier(0.22, 1, 0.36, 1) 1;
+.player-action-symbol.is-pulsing .wave-glyph--shuffle .glyph-shuffle-tip-a,
+.player-action-symbol.is-pulsing .wave-glyph--shuffle .glyph-shuffle-tip-b {
+  animation: wave-shuffle-tips 0.68s cubic-bezier(0.22, 1, 0.36, 1) 1;
+}
+
+/* Repeat spins ONLY the two loop arrows around the center, leaving any "1" badge upright. */
+.wave-glyph .glyph-repeat-arrows {
+  transform-box: view-box;
+  transform-origin: 12px 12px;
+}
+@keyframes wave-repeat-arrows-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+.player-action-symbol.is-pulsing .wave-glyph--repeat .glyph-repeat-arrows,
+.player-action-symbol.is-pulsing .wave-glyph--repeat1 .glyph-repeat-arrows {
+  animation: wave-repeat-arrows-spin 0.56s cubic-bezier(0.22, 1, 0.36, 1) 1;
+}
+
+/* Videoclip glides its inner filmstrip upward like a movie reel inside its steady frame. */
+@keyframes wave-film-roll-up {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-12.6px);
+  }
+}
+.player-action-symbol.is-pulsing .wave-glyph--film .glyph-film-strip {
+  animation: wave-film-roll-up 0.52s cubic-bezier(0.25, 0.85, 0.35, 1) 1;
+}
+
+/* Daily Mix skeleton loader while today's mix is being built. */
+.daily-mix-status-note {
+  color: var(--primary);
+  font-weight: 600;
+}
+.daily-mix-skeleton {
+  pointer-events: none;
+  cursor: default;
+}
+.skeleton-box {
+  display: block;
+  border-radius: 10px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--container-high) 92%, transparent) 0%,
+    color-mix(in srgb, var(--outline) 26%, var(--container-high)) 50%,
+    color-mix(in srgb, var(--container-high) 92%, transparent) 100%
+  );
+  background-size: 220% 100%;
+  animation: wave-skeleton-shimmer 2.1s ease-in-out infinite;
+}
+.skeleton-sleeve {
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  flex-shrink: 0;
+}
+.skeleton-line {
+  height: 12px;
+  border-radius: 999px;
+}
+.skeleton-line--title {
+  width: 68%;
+  height: 15px;
+}
+.skeleton-line--sub {
+  width: 48%;
+  margin-top: 6px;
+}
+.skeleton-line--meta {
+  width: 58%;
+  height: 10px;
+  margin-top: 6px;
+  opacity: 0.7;
+}
+@keyframes wave-skeleton-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .wave-glyph path,
-  .wave-glyph g {
+  .wave-glyph g,
+  .skeleton-box {
     transition: none;
     animation: none !important;
   }
@@ -8662,6 +8770,8 @@ button[aria-pressed='true'] .wave-glyph--shuffle .glyph-shuffle-tip-b {
   flex-wrap: wrap;
 }
 .remix-period-tab {
+  position: relative;
+  isolation: isolate;
   min-height: 34px;
   padding: 6px 14px;
   border-radius: 999px;
@@ -8670,16 +8780,28 @@ button[aria-pressed='true'] .wave-glyph--shuffle .glyph-shuffle-tip-b {
   color: var(--muted);
   background: transparent;
   transition:
-    background 0.2s ease,
     color 0.2s ease,
     transform 0.16s ease;
+}
+.remix-period-tab__label {
+  position: relative;
+  z-index: 1;
+}
+.remix-period-pill {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: 999px;
+  background: var(--primary);
 }
 .remix-period-tab:hover {
   color: var(--text);
 }
 .remix-period-tab.active {
-  background: var(--primary);
   color: var(--on-primary);
+}
+.remix-period-stage {
+  will-change: transform, opacity;
 }
 .remix-bars-year .remix-bars {
   gap: clamp(3px, 0.8vw, 10px);

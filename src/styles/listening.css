@@ -29,6 +29,9 @@
   border-radius: 50%;
   will-change: transform, opacity;
   filter: blur(22px);
+  transition:
+    transform 0.9s linear,
+    opacity 0.9s ease;
 }
 .music-backdrop i {
   filter: blur(26px);

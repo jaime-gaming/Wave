@@ -1,12 +1,12 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { makeTrack } from '../test/fixtures';
 import { DailyMixes } from './DailyMixes';
 
-const rockTracks = (count = 8) =>
+const rockTracks = (count = 8, prefix = 'rock') =>
   Array.from({ length: count }, (_, i) =>
     makeTrack({
-      id: `rock-${i}`,
+      id: `${prefix}-${i}`,
       title: `Rock ${i}`,
       artist: `Artist ${i}`,
       genres: ['Rock'],
@@ -16,26 +16,37 @@ const rockTracks = (count = 8) =>
   );
 
 describe('DailyMixes', () => {
-  it('withholds mixes under 7 songs, while loading or importing, and delivers once complete', () => {
-    const tracks = rockTracks(8);
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('shows a skeleton loader while creating and delivers saved mixes instantaneously once ready', () => {
+    const tracks = rockTracks(8, 'build');
     const onOpen = vi.fn();
-    const { rerender } = render(
-      <DailyMixes tracks={rockTracks(6)} loading={false} busy={false} onOpen={onOpen} />,
+    const { rerender, unmount } = render(
+      <DailyMixes tracks={rockTracks(6, 'small')} loading={false} busy={false} onOpen={onOpen} />,
     );
     expect(screen.queryByRole('region', { name: 'Daily mixes' })).not.toBeInTheDocument();
 
+    // While importing/creating with enough songs, show the friendly skeleton loader.
     rerender(<DailyMixes tracks={tracks} loading={false} busy={true} onOpen={onOpen} />);
-    expect(screen.queryByRole('region', { name: 'Daily mixes' })).not.toBeInTheDocument();
+    expect(screen.getByText('Your daily mix is on its way')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Open Daily mix/i })).not.toBeInTheDocument();
 
-    rerender(<DailyMixes tracks={tracks} loading={true} busy={false} onOpen={onOpen} />);
-    expect(screen.queryByRole('region', { name: 'Daily mixes' })).not.toBeInTheDocument();
-
+    // Once complete, mixes appear and are persisted to localStorage.
     rerender(<DailyMixes tracks={tracks} loading={false} busy={false} onOpen={onOpen} />);
-    expect(screen.getByRole('region', { name: 'Daily mixes' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Open Daily mix 1/i })).toBeInTheDocument();
+    expect(localStorage.getItem('wave-daily-mixes-v2')).toBeTruthy();
+
+    // Remounting restores today's persisted mixes instantaneously without showing a skeleton.
+    unmount();
+    render(<DailyMixes tracks={tracks} loading={false} busy={false} onOpen={onOpen} />);
+    expect(screen.queryByText('Your daily mix is on its way')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Open Daily mix 1/i })).toBeInTheDocument();
   });
 
   it('keeps the exact same cover sleeves across listening updates and track edits', () => {
-    const tracks = rockTracks();
+    const tracks = rockTracks(8, 'steady');
     const onOpen = vi.fn();
     const { container, rerender } = render(
       <DailyMixes tracks={tracks} loading={false} busy={false} onOpen={onOpen} />,

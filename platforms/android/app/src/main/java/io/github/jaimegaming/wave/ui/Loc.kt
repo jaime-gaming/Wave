@@ -823,6 +823,9 @@ object Loc {
             "Your full year in music" to "Todo tu año en música",
             "Scroll to top" to "Volver arriba",
             "Daily Mix" to "Mix diario",
+            "Your daily mix is on its way" to "Tu mix diario está en camino",
+            "Preparing your daily mix" to "Preparando tu mix diario",
+            "Play your local music with lock-screen controls, a home-screen widget and quick settings. Download Wave for Android from Releases." to "Reproduce tu música local con controles en pantalla de bloqueo, widget de inicio y ajustes rápidos. Descarga Wave para Android desde Releases.",
         )
 
     /** What the person chose: "system", "en" or "es". */

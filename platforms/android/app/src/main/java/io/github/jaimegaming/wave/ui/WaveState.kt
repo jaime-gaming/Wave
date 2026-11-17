@@ -339,10 +339,43 @@ class WaveState(
         .groupBy { it.artist.ifBlank { "Unknown artist" } }
         .toSortedMap(String.CASE_INSENSITIVE_ORDER)
 
-    /** Complete-only Daily Mixes: withheld while a bulk import is actively running. */
-    fun mixes(): List<DailyMix> =
-        if (busy) emptyList()
-        else dailyMixes(songs, SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()))
+    /**
+     * Persisted complete-only Daily Mixes: already-created mixes appear
+     * instantaneously from local preferences; while a bulk import is running
+     * with no saved mix yet, returns empty so Home shows the skeleton loader.
+     */
+    fun mixes(): List<DailyMix> {
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+        val signature = "${songs.size}:" + songs.map { it.id }.sorted().take(48).joinToString(",")
+        val byId = songs.associateBy { it.id }
+        val savedDay = preferences.getString(KEY_MIX_DAY, null)
+        val savedSig = preferences.getString(KEY_MIX_SIG, null)
+        val savedRaw = preferences.getString(KEY_MIX_DATA, null)
+        if (savedDay == today && savedSig == signature && !savedRaw.isNullOrBlank()) {
+            val hydrated = savedRaw.split("\u001e").mapNotNull { record ->
+                val parts = record.split("\u001f")
+                if (parts.size < 2) return@mapNotNull null
+                val label = parts[0]
+                val trackList = parts[1].split(",").mapNotNull { byId[it] }
+                if (trackList.size < 7) return@mapNotNull null
+                DailyMix(label = label, songs = trackList)
+            }.take(3)
+            if (hydrated.isNotEmpty()) return hydrated
+        }
+        if (busy) return emptyList()
+        val built = dailyMixes(songs, today)
+        if (built.isNotEmpty()) {
+            val serialized = built.joinToString("\u001e") { mix ->
+                "${mix.label}\u001f${mix.songs.joinToString(",") { it.id }}"
+            }
+            preferences.edit()
+                .putString(KEY_MIX_DAY, today)
+                .putString(KEY_MIX_SIG, signature)
+                .putString(KEY_MIX_DATA, serialized)
+                .apply()
+        }
+        return built
+    }
 
     fun playlistSongs(playlist: Playlist): List<Song> {
         val byId = songs.associateBy { it.id }
@@ -556,6 +589,9 @@ class WaveState(
         const val KEY_AUTOPLAY = "autoplay"
         const val KEY_LYRICS = "lyrics"
         const val KEY_RECENT = "recent-searches"
+        const val KEY_MIX_DAY = "daily-mixes-day"
+        const val KEY_MIX_SIG = "daily-mixes-sig"
+        const val KEY_MIX_DATA = "daily-mixes-data"
         /** A character no phrase contains, so one string can hold the list. */
         const val RECENT_SEPARATOR = "\u001f"
         const val LYRIC_COOLDOWN = 15 * 60 * 1000L

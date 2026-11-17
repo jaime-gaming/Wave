@@ -258,10 +258,8 @@ function PlayerDetails({
                   key={player.repeatSerial}
                   className="repeat-symbol"
                   aria-hidden="true"
-                  initial={
-                    animation.enabled && player.repeatSerial ? { rotate: -180, scale: 0.8 } : false
-                  }
-                  animate={{ rotate: 0, scale: 1 }}
+                  initial={animation.enabled && player.repeatSerial ? { scale: 0.88 } : false}
+                  animate={{ scale: 1 }}
                   transition={animation.effects}
                 >
                   {state.repeat === 'one' ? <Repeat1 size={22} /> : <Repeat size={22} />}
@@ -676,20 +674,37 @@ export function PlayerBar(props: PlayerProps) {
           <Modal
             title={t('Now playing')}
             fullScreen
-            // Closing folds the player back down into the bar it came from: it
-            // slides towards the bottom, tightens a little, and is gone before the
-            // movement ends, so there is no ghost hanging in the middle.
+            // Opening unfolds smoothly out of the mini-player bar; closing compresses
+            // the full-screen player straight back down into the compact player bar.
+            enterMotion={
+              animation.enabled
+                ? {
+                    opacity: 0.25,
+                    y: '34vh',
+                    scaleX: 0.92,
+                    scaleY: 0.18,
+                    borderRadius: '28px',
+                  }
+                : undefined
+            }
             exitMotion={
               animation.enabled
-                ? { opacity: 0, scale: 0.9, y: 64, transitionEnd: { display: 'none' } }
+                ? {
+                    opacity: 0,
+                    y: '38vh',
+                    scaleX: 0.91,
+                    scaleY: 0.14,
+                    borderRadius: '28px',
+                    transitionEnd: { display: 'none' },
+                  }
                 : undefined
             }
             exitTransition={
               animation.enabled
                 ? {
-                    duration: 0.3,
-                    ease: [0.32, 0, 0.24, 1],
-                    opacity: { duration: 0.18, ease: 'easeOut' },
+                    duration: 0.34,
+                    ease: [0.32, 0.72, 0, 1],
+                    opacity: { duration: 0.24, delay: 0.08, ease: 'easeIn' },
                   }
                 : { duration: 0 }
             }
@@ -708,7 +723,7 @@ export function PlayerBar(props: PlayerProps) {
             closeIcon={<ChevronDown size={24} />}
             returnFocusRef={expanded ? returnFocusRef : undefined}
             className={`player-modal${idle ? ' is-idle is-immersive' : ''}`}
-            style={{ ...colors, transformOrigin: 'bottom center' }}
+            style={{ ...colors, transformOrigin: '50% calc(100% - 36px)' }}
             onClose={() => {
               idleListening.wake();
               setStageGone(false);

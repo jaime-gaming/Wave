@@ -51,7 +51,7 @@ The Worker entry is `src/worker/index.ts`. Static assets use the `ASSETS` bindin
 
 ## Windows
 
-For development you need Windows and the .NET 10 SDK. To _use_ it you need neither: the published ZIP is self-contained, so it carries its own runtime. Download it, unzip it, run `Wave.Windows.exe`. No installer, no command, no elevation.
+For development you need Windows and the .NET 10 SDK. To _use_ it you need neither: the release deliverable is a single signed self-contained **`Wave.exe`**. Download it and open it directly — no ZIP, no loose DLLs, no installer, no elevation.
 
 ```powershell
 dotnet run --project platforms/windows/Wave.Contracts.Tests -c Release
@@ -70,7 +70,7 @@ Metadata reading remains limited to ID3/WAV. Automatic embedded artwork extracti
 exchange is specified in [`PAIRING.md`](PAIRING.md) so that a native client can implement the same
 one instead of a second, incompatible one. OS codecs govern playback. Do not call this complete web parity.
 
-See [WINDOWS_RELEASE](WINDOWS_RELEASE.md) for checksums, signing and Defender limits. Test ZIPs are clearly labeled unsigned. Upstream .NET license/notices remain bundled; future self-contained packages must inventory their exact runtime pack.
+See [WINDOWS_RELEASE](WINDOWS_RELEASE.md) for single-file packaging, Authenticode signing and Defender scanning. Upstream notices live in the repository (`THIRD_PARTY_NOTICES.md` and `platforms/windows/`) rather than cluttering the user's download folder beside `Wave.exe`.
 
 ## iOS
 
@@ -84,12 +84,12 @@ then, Safari's **Add to Home Screen** gives a full-screen Wave that behaves like
 Requirements: JDK 17, SDK/build tools 36, Gradle 8.13 and Android Studio supporting AGP 8.13. Minimum API 26. Open `platforms/android`, let the IDE create local SDK configuration, then:
 
 ```sh
-gradle -p platforms/android testDebugUnitTest lintDebug assembleDebug
+gradle -p platforms/android testDebugUnitTest lintDebug assembleRelease
 ```
 
-Output: `platforms/android/app/build/outputs/apk/debug/app-debug.apk`, a debug test artifact. The pinned Ubuntu CI runner provides the SDK and runs the unit tests, lint and the assembly. Tests cover the LRC, search, mix and listening contracts. Actual device import/playback, audio focus, the media session on a lock screen, the widget, the tile and signing remain gates: none of them was exercised outside a build.
+Output: a single signed **`Wave.apk`** verified via `apksigner verify` in CI (using the repository keystore when `ANDROID_KEYSTORE_BASE64` is configured, or a generated 4096-bit PKCS12 signing key otherwise). The pinned Ubuntu CI runner provides the SDK and runs unit tests, lint, Compose screenshot verification and release APK signing. Tests cover the LRC, search, mix and listening contracts.
 
-The web client does not promote Android on Home and no longer opens an automatic download sheet. Settings → About keeps quiet APK/Windows download links; `ANDROID_APP_URL` points to Releases. Android is improved as a native application, not through web advertising. APKs currently remain test builds.
+The web client does not promote Android on Home and no longer opens an automatic download sheet. Settings → About keeps quiet **Wave for Android** and **Wave for Windows** links; `ANDROID_APP_URL` points to Releases.
 
 The current source smooths tab indicator/tint changes, reduces button spring overshoot, reveals decoded artwork briefly, raises inactive lyric contrast and eases line focus. Lyric auto-follow pauses around a manual drag; the Now Playing slider previews position locally and performs one seek when released instead of repeated decoder seeks during the gesture. These are native-source changes, not a claim of device-verified performance or fresh Android screenshots. Compose animations follow the system animator duration scale.
 

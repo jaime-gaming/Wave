@@ -134,26 +134,26 @@ export function useMusicEnergy(player: ReturnType<typeof usePlayer>) {
                   ),
                 )
               : energy;
-          // Snappy attack on rises, silky organic glow decay on drops.
-          const attack = band === 'bass' ? 0.56 : band === 'body' ? 0.45 : 0.42;
-          const release = band === 'bass' ? 0.14 : 0.11;
+          // Calm, slow organic breathing instead of fast strobe movement.
+          const attack = band === 'bass' ? 0.18 : band === 'body' ? 0.15 : 0.13;
+          const release = band === 'bass' ? 0.055 : 0.045;
           bands[band] += (target - bands[band]) * (target > bands[band] ? attack : release);
           if (energy > 0.001 && bands[band] > 0.006)
             phases[band] +=
               delta *
-              (0.18 + bands[band] * (band === 'bass' ? 0.95 : band === 'body' ? 1.25 : 1.55));
+              (0.032 + bands[band] * (band === 'bass' ? 0.11 : band === 'body' ? 0.14 : 0.17));
           write(`--music-${band}`, bands[band].toFixed(3));
-          write(`--music-${band}-x`, (Math.sin(phases[band]) * 24).toFixed(2) + '%');
-          write(`--music-${band}-y`, (Math.cos(phases[band] * 0.73) * 19).toFixed(2) + '%');
+          write(`--music-${band}-x`, (Math.sin(phases[band]) * 14).toFixed(2) + '%');
+          write(`--music-${band}-y`, (Math.cos(phases[band] * 0.73) * 11).toFixed(2) + '%');
         }
-        // Detect rhythmic transients above the trailing bass floor so kicks bloom smoothly.
-        bassAvg += (bands.bass - bassAvg) * 0.08;
-        const beatHit = Math.max(0, (bands.bass - bassAvg) * 3.1);
-        pulse += (Math.min(1, beatHit) - pulse) * (beatHit > pulse ? 0.62 : 0.16);
+        // Subtle, serene rhythmic bloom so kicks feel warm rather than jittery.
+        bassAvg += (bands.bass - bassAvg) * 0.04;
+        const beatHit = Math.max(0, (bands.bass - bassAvg) * 1.45);
+        pulse += (Math.min(0.65, beatHit) - pulse) * (beatHit > pulse ? 0.2 : 0.06);
         write('--music-pulse', pulse.toFixed(3));
-        write('--music-angle', ((phases.body * 18) % 360).toFixed(1) + 'deg');
+        write('--music-angle', ((phases.body * 5) % 360).toFixed(1) + 'deg');
 
-        smooth += (energy - smooth) * (energy > smooth ? 0.46 : 0.15);
+        smooth += (energy - smooth) * (energy > smooth ? 0.16 : 0.06);
         write('--music-energy', smooth.toFixed(3));
         const active = String(energy > 0.001);
         if (root.dataset.musicActive !== active) root.dataset.musicActive = active;

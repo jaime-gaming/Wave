@@ -1,9 +1,18 @@
 package io.github.jaimegaming.wave.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -84,21 +93,26 @@ fun HomeScreen(state: WaveState, onAddMusic: () -> Unit, onOpenSong: (Song) -> U
     )
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
-    val stickySection by remember(mixes.size, albums.size, added.size) {
+    val buildingMixes = state.busy && songs.size >= 7 && mixes.isEmpty()
+    val stickySection by remember(mixes.size, buildingMixes, albums.size, added.size) {
         derivedStateOf {
+            // Never show the sticky bar while the top Home header + collection card is still visible.
             val idx = listState.firstVisibleItemIndex
-            val off = listState.firstVisibleItemScrollOffset
-            if (idx == 0 && off < 140) null
+            if (idx < 1) null
             else {
-                val mixStart = 1
-                val mixEnd = if (mixes.isNotEmpty()) mixStart + mixes.size else mixStart - 1
-                val albumIndex = if (albums.isNotEmpty()) mixEnd + 1 else -1
-                val addedIndex = if (added.isNotEmpty()) (if (albumIndex >= 0) albumIndex + 1 else mixEnd + 1) else -1
+                var cursor = 1
+                val mixHeaderIdx = if (mixes.isNotEmpty() || buildingMixes) cursor else -1
+                if (mixes.isNotEmpty()) cursor += 1 + mixes.size
+                else if (buildingMixes) cursor += 1
+                val albumIdx = if (albums.isNotEmpty()) cursor else -1
+                if (albums.isNotEmpty()) cursor += 1
+                val addedHeaderIdx = cursor
+                // Bind a section ONLY after the user has scrolled past its heading item so titles never duplicate.
                 when {
-                    addedIndex >= 0 && idx >= addedIndex -> Loc.t("Recently added songs")
-                    albumIndex >= 0 && idx >= albumIndex -> Loc.t("Recently added albums")
-                    mixes.isNotEmpty() && idx >= mixStart -> Loc.t("Daily mixes")
-                    else -> Loc.t("Your collection")
+                    added.isNotEmpty() && idx > addedHeaderIdx -> Loc.t("Recently added songs")
+                    albumIdx >= 0 && idx > albumIdx -> Loc.t("Recently added albums")
+                    mixHeaderIdx >= 0 && idx > mixHeaderIdx -> Loc.t("Daily mixes")
+                    else -> null
                 }
             }
         }
@@ -149,7 +163,27 @@ fun HomeScreen(state: WaveState, onAddMusic: () -> Unit, onOpenSong: (Song) -> U
                     }
                 }
             }
-            if (mixes.isNotEmpty()) {
+            if (buildingMixes) {
+                item(key = "home-mix-loading") {
+                    SectionTitle("Daily mixes")
+                    Text(
+                        text = Loc.t("Your daily mix is on its way"),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(bottom = 10.dp),
+                    )
+                    repeat(2) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                                .height(72.dp)
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.72f)),
+                        )
+                    }
+                }
+            } else if (mixes.isNotEmpty()) {
                 item(key = "home-mix-header") { SectionTitle("Daily mixes") }
                 itemsIndexed(mixes, key = { _, mix -> "mix-" + mix.label }) { index, mix ->
                     DailyMixRow(mix, index + 1) { state.open = Open.Mix(mix.label) }
@@ -897,23 +931,34 @@ fun RemixScreen(state: WaveState) {
     ) {
         item {
             ScreenTitle(title = "Remix", subtitle = subtitle)
+            val motionOn = waveMotionEnabled()
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.padding(bottom = 14.dp),
             ) {
                 listOf("weekly" to "Weekly", "monthly" to "Monthly", "yearly" to "Yearly").forEach { (id, label) ->
                     val selected = period == id
+                    val pillBg by animateColorAsState(
+                        targetValue = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainer,
+                        animationSpec = tween(if (motionOn) 240 else 0, easing = FastOutSlowInEasing),
+                        label = "remix period bg",
+                    )
+                    val pillFg by animateColorAsState(
+                        targetValue = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        animationSpec = tween(if (motionOn) 240 else 0, easing = FastOutSlowInEasing),
+                        label = "remix period fg",
+                    )
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(50))
-                            .background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer)
+                            .background(pillBg)
                             .clickable { state.remixPeriod = id }
                             .padding(horizontal = 14.dp, vertical = 8.dp),
                     ) {
                         Text(
                             text = Loc.t(label),
                             style = MaterialTheme.typography.labelLarge,
-                            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = pillFg,
                         )
                     }
                 }
@@ -929,85 +974,110 @@ fun RemixScreen(state: WaveState) {
             return@LazyColumn
         }
         item {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    rangeLabel,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(1f),
-                )
-                // Clearing is asked twice, in the page rather than in a dialog:
-                // the second thought belongs where the first one was.
-                if (confirming) {
-                    Text(
-                        Loc.t("Yes, clear"),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.clip(RoundedCornerShape(10.dp))
-                            .clickable { confirming = false; state.clearHistory() }
-                            .padding(horizontal = 8.dp, vertical = 8.dp),
-                    )
-                    Text(
-                        Loc.t("Keep it"),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.clip(RoundedCornerShape(10.dp))
-                            .clickable { confirming = false }
-                            .padding(horizontal = 8.dp, vertical = 8.dp),
-                    )
-                } else {
-                    Text(
-                        Loc.t("Clear history"),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.clip(RoundedCornerShape(10.dp))
-                            .clickable { confirming = true }
-                            .padding(8.dp),
-                    )
+            val periodOrder = listOf("weekly", "monthly", "yearly")
+            val motionOn = waveMotionEnabled()
+            AnimatedContent(
+                targetState = period,
+                transitionSpec = {
+                    val dir = if (periodOrder.indexOf(targetState) >= periodOrder.indexOf(initialState)) 1 else -1
+                    val dur = if (motionOn) 260 else 0
+                    (slideInHorizontally(tween(dur, easing = FastOutSlowInEasing)) { dir * (it / 7) } + fadeIn(tween(dur)))
+                        .togetherWith(slideOutHorizontally(tween(dur, easing = FastOutSlowInEasing)) { -dir * (it / 9) } + fadeOut(tween(dur)))
+                },
+                label = "remix period hero",
+            ) { shownPeriod ->
+                val shownRecap = when (shownPeriod) {
+                    "monthly" -> state.monthlyRecap
+                    "yearly" -> state.yearlyRecap
+                    else -> state.recap
                 }
-            }
-            // The week in one figure, with the sleeve of the song that earned it.
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                verticalAlignment = Alignment.Bottom,
-            ) {
-                Column(Modifier.weight(1f).padding(bottom = 4.dp)) {
-                    Text(
-                        text = listeningTime(recap.seconds),
-                        fontSize = 52.sp,
-                        lineHeight = 56.sp,
-                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                        letterSpacing = (-2).sp,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                    Text(
-                        text = "${count(recap.plays, "play")} · ${count(recap.tracks, "song")} · ${count(recap.artists, "artist")}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 4.dp),
-                    )
-                    val delta = recap.seconds - recap.previousSeconds
-                    if (recap.previousSeconds > 0) {
-                        Text(
-                            text = (if (delta >= 0) "+" else "−") + listeningTime(kotlin.math.abs(delta)) + " vs last week",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = if (delta >= 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 6.dp),
-                        )
-                    }
+                val shownRange = when (shownPeriod) {
+                    "monthly" -> monthRange(shownRecap.start)
+                    "yearly" -> yearRange(shownRecap.start)
+                    else -> weekRange(shownRecap.start, shownRecap.end)
                 }
-                recap.topSongs.firstOrNull()?.let { (hero, _) ->
-                    Column(
-                        horizontalAlignment = Alignment.End,
-                        modifier = Modifier.padding(start = 16.dp),
-                    ) {
-                        Cover(hero, size = 92.dp, radius = 18.dp)
+                Column(Modifier.fillMaxWidth()) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            Loc.t("Most played"),
-                            style = MaterialTheme.typography.labelSmall,
+                            shownRange,
+                            style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 6.dp),
+                            modifier = Modifier.weight(1f),
                         )
+                        // Clearing is asked twice, in the page rather than in a dialog:
+                        // the second thought belongs where the first one was.
+                        if (confirming) {
+                            Text(
+                                Loc.t("Yes, clear"),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.clip(RoundedCornerShape(10.dp))
+                                    .clickable { confirming = false; state.clearHistory() }
+                                    .padding(horizontal = 8.dp, vertical = 8.dp),
+                            )
+                            Text(
+                                Loc.t("Keep it"),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.clip(RoundedCornerShape(10.dp))
+                                    .clickable { confirming = false }
+                                    .padding(horizontal = 8.dp, vertical = 8.dp),
+                            )
+                        } else {
+                            Text(
+                                Loc.t("Clear history"),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.clip(RoundedCornerShape(10.dp))
+                                    .clickable { confirming = true }
+                                    .padding(8.dp),
+                            )
+                        }
+                    }
+                    // The week in one figure, with the sleeve of the song that earned it.
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                        verticalAlignment = Alignment.Bottom,
+                    ) {
+                        Column(Modifier.weight(1f).padding(bottom = 4.dp)) {
+                            Text(
+                                text = listeningTime(shownRecap.seconds),
+                                fontSize = 52.sp,
+                                lineHeight = 56.sp,
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                                letterSpacing = (-2).sp,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                            Text(
+                                text = "${count(shownRecap.plays, "play")} · ${count(shownRecap.tracks, "song")} · ${count(shownRecap.artists, "artist")}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 4.dp),
+                            )
+                            val delta = shownRecap.seconds - shownRecap.previousSeconds
+                            if (shownRecap.previousSeconds > 0) {
+                                Text(
+                                    text = (if (delta >= 0) "+" else "−") + listeningTime(kotlin.math.abs(delta)) + " vs last week",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = if (delta >= 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(top = 6.dp),
+                                )
+                            }
+                        }
+                        shownRecap.topSongs.firstOrNull()?.let { (hero, _) ->
+                            Column(
+                                horizontalAlignment = Alignment.End,
+                                modifier = Modifier.padding(start = 16.dp),
+                            ) {
+                                Cover(hero, size = 92.dp, radius = 18.dp)
+                                Text(
+                                    Loc.t("Most played"),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(top = 6.dp),
+                                )
+                            }
+                        }
                     }
                 }
             }

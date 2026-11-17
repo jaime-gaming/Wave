@@ -57,10 +57,88 @@ public partial class MainWindow
         SettingsBody.Children.Add(backToAll);
         SettingsBody.Children.Add(Label(Localization.T(section), 26));
         void Toggle(string text, bool value, Action<bool> changed) {
-            var check = new CheckBox { Content = text, IsChecked = value };
-            check.Checked += (_, _) => { changed(true); preferencesDirty = true; SaveSession(); };
-            check.Unchecked += (_, _) => { changed(false); preferencesDirty = true; SaveSession(); };
-            SettingsBody.Children.Add(check);
+            bool state = value;
+            bool dragging = false;
+            bool moved = false;
+            double startX = 0;
+            double progress = state ? 1.0 : 0.0;
+            const double travel = 22.0;
+
+            var row = new Grid { Margin = new Thickness(2, 6, 2, 6), Cursor = System.Windows.Input.Cursors.Hand };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var caption = new TextBlock { Text = text, FontSize = 15, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap };
+            row.Children.Add(caption);
+
+            var thumbShift = new TranslateTransform(state ? travel : 0, 0);
+            var thumb = new Border {
+                Width = 22, Height = 22, CornerRadius = new CornerRadius(11),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Center,
+                RenderTransform = thumbShift,
+            };
+            var track = new Border {
+                Width = 54, Height = 32, CornerRadius = new CornerRadius(16),
+                Padding = new Thickness(5, 0, 5, 0),
+                BorderThickness = new Thickness(1.5),
+                Child = thumb,
+                Cursor = System.Windows.Input.Cursors.Hand,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(14, 0, 0, 0),
+                ToolTip = text,
+            };
+            System.Windows.Automation.AutomationProperties.SetName(track, text);
+
+            void Paint(double p) {
+                bool on = p >= 0.5;
+                track.Background = (Brush)Application.Current.Resources[on ? "AccentBrush" : "TonalBrush"];
+                track.BorderBrush = (Brush)Application.Current.Resources[on ? "AccentBrush" : "MutedBrush"];
+                thumb.Background = (Brush)Application.Current.Resources[on ? "OnAccentBrush" : "MutedBrush"];
+                thumbShift.X = Math.Clamp(p, 0, 1) * travel;
+            }
+            void Commit(bool next) {
+                if (next == state) { Paint(state ? 1.0 : 0.0); return; }
+                state = next;
+                progress = state ? 1.0 : 0.0;
+                Paint(progress);
+                changed(state);
+                preferencesDirty = true;
+                SaveSession();
+            }
+            Paint(progress);
+
+            track.MouseLeftButtonDown += (_, args) => {
+                dragging = true;
+                moved = false;
+                startX = args.GetPosition(track).X;
+                track.CaptureMouse();
+                args.Handled = true;
+            };
+            track.MouseMove += (_, args) => {
+                if (!dragging) return;
+                double delta = args.GetPosition(track).X - startX;
+                if (Math.Abs(delta) >= 3) moved = true;
+                if (!moved) return;
+                progress = Math.Clamp((state ? 1.0 : 0.0) + delta / travel, 0.0, 1.0);
+                Paint(progress);
+            };
+            track.MouseLeftButtonUp += (_, args) => {
+                if (!dragging) return;
+                dragging = false;
+                track.ReleaseMouseCapture();
+                Commit(moved ? progress >= 0.5 : !state);
+                moved = false;
+                args.Handled = true;
+            };
+            row.MouseLeftButtonUp += (_, args) => {
+                if (args.Handled) return;
+                Commit(!state);
+            };
+
+            Grid.SetColumn(track, 1);
+            row.Children.Add(track);
+            SettingsBody.Children.Add(row);
         }
         switch (section) {
             case "Appearance":
@@ -129,7 +207,7 @@ public partial class MainWindow
                 SettingsBody.Children.Add(Label(Localization.T("Your music. Your collection. No account required.")));
                 SettingsBody.Children.Add(ActionButton(Localization.T("Source code"), () => Process.Start(new ProcessStartInfo("https://github.com/jaime-gaming/Wave") { UseShellExecute = true })));
                 SettingsBody.Children.Add(ActionButton(Localization.T("Wave on the web · link devices"), () => Process.Start(new ProcessStartInfo("https://wave.jaime-gaming.com/Settings") { UseShellExecute = true })));
-                SettingsBody.Children.Add(ActionButton(Localization.T("Wave for Android · APK"), () => Process.Start(new ProcessStartInfo("https://github.com/jaime-gaming/Wave/releases/latest") { UseShellExecute = true })));
+                SettingsBody.Children.Add(ActionButton(Localization.T("Wave for Android"), () => Process.Start(new ProcessStartInfo("https://github.com/jaime-gaming/Wave/releases/latest") { UseShellExecute = true })));
                 SettingsBody.Children.Add(ActionButton(Localization.T("Privacy & rights"), () => Process.Start(new ProcessStartInfo("https://wave.jaime-gaming.com/privacy.html") { UseShellExecute = true })));
                 SettingsBody.Children.Add(Label(Localization.T("Use audio and lyrics you may lawfully access. See the repository privacy information."))); break;
         }

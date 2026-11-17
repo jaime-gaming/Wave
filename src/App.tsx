@@ -1,5 +1,6 @@
 import { SurfaceLoading } from './components/SurfaceLoading';
 import { VolumeSettings } from './components/VolumeSettings';
+import { MaterialSwitch } from './components/MaterialSwitch';
 import { useVolumeFix } from './hooks/useVolumeFix';
 import { LocalFeedback } from './components/LocalFeedback';
 import { PlatformLinks } from './components/PlatformLinks';
@@ -421,8 +422,9 @@ function WaveApp({
   const [scrolledHeading, setScrolledHeading] = useState('');
 
   // Banner-covering scroll + live borderless section heading handoff:
-  // Keeps the banner full-size while the content sheet glides up over it, and
-  // pins the active section's heading text cleanly until the next section arrives.
+  // Only reveals the borderless dock once the top header is completely covered
+  // (<= 8px remaining), and only binds a section heading AFTER you have scrolled
+  // completely past that heading so no title is ever shown twice on screen.
   useEffect(() => {
     const workspace = workspaceRef.current;
     if (!workspace) return;
@@ -430,8 +432,15 @@ function WaveApp({
     const apply = () => {
       raf = 0;
       const bannerHeight = Math.max(88, headerRef.current?.offsetHeight ?? 124);
-      const progress = Math.max(0, Math.min(1, window.scrollY / bannerHeight));
-      const covered = progress > 0.72;
+      const surface = workspace.querySelector<HTMLElement>(':scope > .library-surface');
+      const surfaceTop = surface?.getBoundingClientRect().top;
+      const visibleBannerPx =
+        surfaceTop !== undefined
+          ? Math.max(0, surfaceTop)
+          : Math.max(0, bannerHeight - window.scrollY);
+      const progress = Math.max(0, Math.min(1, 1 - visibleBannerPx / bannerHeight));
+      // Show the sticky title bar strictly when the top header is no longer visible.
+      const covered = visibleBannerPx <= 8;
       workspace.style.setProperty('--banner-cover', progress.toFixed(3));
       workspace.dataset.bannerCovered = covered ? 'true' : 'false';
       setBannerCovered((prev) => (prev === covered ? prev : covered));
@@ -442,24 +451,28 @@ function WaveApp({
         ),
       ).filter((el) => el.offsetParent !== null && Boolean(el.textContent?.trim()));
 
-      const dockLine = 54;
+      // Only bind a heading once its bottom edge has passed behind the top bar
+      // (so the original heading is no longer visible below the dock — never duplicated).
+      const dockHeight = 54;
+      const passThreshold = dockHeight - 6;
       let activeIndex = -1;
       for (let i = 0; i < headings.length; i++) {
-        if (headings[i].getBoundingClientRect().top <= dockLine) activeIndex = i;
+        const rect = headings[i].getBoundingClientRect();
+        if (rect.bottom <= passThreshold) activeIndex = i;
         else break;
       }
 
       const activeText = activeIndex >= 0 ? (headings[activeIndex].textContent?.trim() ?? '') : '';
       setScrolledHeading((prev) => (prev === activeText ? prev : activeText));
 
-      // Smoothly nudge the pinned title up as the next section heading pushes it away.
+      // Gently nudge the current docked title upward as the next heading slides under it.
       let push = 0;
-      const next = activeIndex >= 0 ? headings[activeIndex + 1] : undefined;
-      if (next) {
-        const nextTop = next.getBoundingClientRect().top;
-        const handoffZone = dockLine + 40;
-        if (nextTop < handoffZone && nextTop > 0) {
-          push = Math.max(0, Math.min(40, handoffZone - nextTop));
+      const next = headings[activeIndex + 1];
+      if (covered && next) {
+        const nextRect = next.getBoundingClientRect();
+        const handoffStart = dockHeight + 28;
+        if (nextRect.top < handoffStart && nextRect.bottom > passThreshold) {
+          push = Math.max(0, Math.min(34, handoffStart - nextRect.top));
         }
       }
       workspace.style.setProperty('--section-push', `${-push.toFixed(1)}px`);
@@ -1122,35 +1135,21 @@ function WaveApp({
                         <div>
                           <strong>{t('Larger text')}</strong>
                         </div>
-                        <button
-                          type="button"
-                          className="material-switch"
-                          role="switch"
-                          aria-label={t('Larger text')}
-                          aria-checked={largeText}
-                          onClick={() => setLargeText(!largeText)}
-                        >
-                          <motion.span layout transition={animation.fast}>
-                            {largeText && <Check size={15} />}
-                          </motion.span>
-                        </button>
+                        <MaterialSwitch
+                          label={t('Larger text')}
+                          checked={largeText}
+                          onChange={setLargeText}
+                        />
                       </div>
                       <div className="settings-switch-row">
                         <div>
                           <strong>{t('Animations')}</strong>
                         </div>
-                        <button
-                          type="button"
-                          className="material-switch"
-                          role="switch"
-                          aria-label={t('Animations')}
-                          aria-checked={animations}
-                          onClick={() => onAnimations(!animations)}
-                        >
-                          <motion.span layout transition={animation.fast}>
-                            {animations && <Check size={15} />}
-                          </motion.span>
-                        </button>
+                        <MaterialSwitch
+                          label={t('Animations')}
+                          checked={animations}
+                          onChange={onAnimations}
+                        />
                       </div>
                     </>
                   }
@@ -1178,57 +1177,36 @@ function WaveApp({
                         <div>
                           <strong>{t('Mix')}</strong>
                         </div>
-                        <button
-                          type="button"
-                          className="material-switch"
-                          role="switch"
-                          aria-label={t('Mix')}
-                          aria-checked={player.mixEnabled}
-                          onClick={() => {
-                            player.setMixEnabled(!player.mixEnabled);
+                        <MaterialSwitch
+                          label={t('Mix')}
+                          checked={player.mixEnabled}
+                          onChange={(next) => {
+                            player.setMixEnabled(next);
                             window.dispatchEvent(
                               new CustomEvent('wave:feature-used', { detail: 'Mix' }),
                             );
                           }}
-                        >
-                          <motion.span layout transition={animation.fast}>
-                            {player.mixEnabled && <Check size={15} />}
-                          </motion.span>
-                        </button>
+                        />
                       </div>
                       <div className="settings-switch-row">
                         <div>
                           <strong>{t('Video clip')}</strong>
                         </div>
-                        <button
-                          type="button"
-                          className="material-switch"
-                          role="switch"
-                          aria-label={t('Video clip')}
-                          aria-checked={videoClip}
-                          onClick={() => setVideoClip(!videoClip)}
-                        >
-                          <motion.span layout transition={animation.fast}>
-                            {videoClip && <Check size={15} />}
-                          </motion.span>
-                        </button>
+                        <MaterialSwitch
+                          label={t('Video clip')}
+                          checked={videoClip}
+                          onChange={setVideoClip}
+                        />
                       </div>
                       <div className="settings-switch-row">
                         <div>
                           <strong>{t('Autoplay')}</strong>
                         </div>
-                        <button
-                          type="button"
-                          className="material-switch"
-                          role="switch"
-                          aria-label={t('Autoplay')}
-                          aria-checked={player.autoplay}
-                          onClick={() => player.setAutoplay(!player.autoplay)}
-                        >
-                          <motion.span layout transition={animation.fast}>
-                            {player.autoplay && <Check size={15} />}
-                          </motion.span>
-                        </button>
+                        <MaterialSwitch
+                          label={t('Autoplay')}
+                          checked={player.autoplay}
+                          onChange={player.setAutoplay}
+                        />
                       </div>
                       <div className="settings-switch-row">
                         <div>
@@ -1237,18 +1215,11 @@ function WaveApp({
                             {t('Continue playing where you left off when reopening Wave.')}
                           </p>
                         </div>
-                        <button
-                          type="button"
-                          className="material-switch"
-                          role="switch"
-                          aria-label={t('Resume playback on reload')}
-                          aria-checked={player.resumeOnReload}
-                          onClick={() => player.setResumeOnReload(!player.resumeOnReload)}
-                        >
-                          <motion.span layout transition={animation.fast}>
-                            {player.resumeOnReload && <Check size={15} />}
-                          </motion.span>
-                        </button>
+                        <MaterialSwitch
+                          label={t('Resume playback on reload')}
+                          checked={player.resumeOnReload}
+                          onChange={player.setResumeOnReload}
+                        />
                       </div>
                     </>
                   }
@@ -1261,45 +1232,31 @@ function WaveApp({
                             {t('Unofficial sources. Only the title and artist are sent.')}
                           </p>
                         </div>
-                        <button
-                          type="button"
-                          className="material-switch"
-                          role="switch"
-                          aria-label={t('Word-level lyric sources')}
-                          aria-checked={wordSources}
-                          onClick={() => {
-                            const next = !wordSources;
+                        <MaterialSwitch
+                          label={t('Word-level lyric sources')}
+                          checked={wordSources}
+                          onChange={(next) => {
                             setWordSources(next);
                             setExtendedLyrics(next);
                           }}
-                        >
-                          <motion.span layout transition={animation.fast}>
-                            {wordSources && <Check size={15} />}
-                          </motion.span>
-                        </button>
+                        />
                       </div>
                       <div className="settings-switch-row">
                         <div>
                           <strong>{t('Automatic lyrics')}</strong>
                         </div>
-                        <button
-                          className="material-switch"
-                          role="switch"
-                          aria-label={t('Automatic lyrics')}
-                          aria-checked={automaticLyrics}
-                          onClick={() => {
-                            setAutomaticLyrics((value) => !value);
+                        <MaterialSwitch
+                          label={t('Automatic lyrics')}
+                          checked={automaticLyrics}
+                          onChange={(next) => {
+                            setAutomaticLyrics(next);
                             try {
                               localStorage.setItem('wave-lyrics-consent-v1', 'true');
                             } catch {
                               /* Session-only consent. */
                             }
                           }}
-                        >
-                          <motion.span layout transition={animation.fast}>
-                            {automaticLyrics && <Check size={15} />}
-                          </motion.span>
-                        </button>
+                        />
                       </div>
                     </>
                   }
@@ -1310,18 +1267,11 @@ function WaveApp({
                         <div>
                           <strong>{t('Library editing')}</strong>
                         </div>
-                        <button
-                          type="button"
-                          className="material-switch"
-                          role="switch"
-                          aria-label={t('Library editing')}
-                          aria-checked={editorEnabled}
-                          onClick={() => setEditorEnabled(!editorEnabled)}
-                        >
-                          <motion.span layout transition={animation.fast}>
-                            {editorEnabled && <Check size={15} />}
-                          </motion.span>
-                        </button>
+                        <MaterialSwitch
+                          label={t('Library editing')}
+                          checked={editorEnabled}
+                          onChange={setEditorEnabled}
+                        />
                       </div>
                       <LocalMetadataReview
                         tracks={library.tracks}

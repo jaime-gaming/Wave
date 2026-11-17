@@ -819,6 +819,9 @@ public static partial class Localization {
             ["Your full year in music"] = "Todo tu año en música",
             ["Scroll to top"] = "Volver arriba",
             ["Daily Mix"] = "Mix diario",
+            ["Your daily mix is on its way"] = "Tu mix diario está en camino",
+            ["Preparing your daily mix"] = "Preparando tu mix diario",
+            ["Play your local music with lock-screen controls, a home-screen widget and quick settings. Download Wave for Android from Releases."] = "Reproduce tu música local con controles en pantalla de bloqueo, widget de inicio y ajustes rápidos. Descarga Wave para Android desde Releases.",
         };
 
     /// <summary>What the person chose: "system", "en" or "es".</summary>

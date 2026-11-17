@@ -155,21 +155,39 @@ public partial class MainWindow
         }
         CollectionHeader.Children.Add(shortcuts);
 
-        if (!importingFiles)
+        var daily = DailyGroups();
+        if (importingFiles && tracks.Count >= 7 && daily.Count == 0)
         {
-            var daily = DailyGroups();
-            if (daily.Count > 0) {
-                CollectionHeader.Children.Add(SectionHeading(Localization.T("Daily mixes")));
-                for (int i = 0; i < daily.Count; i++) {
-                    var mix = daily[i];
-                    var coverArt = (mix.Covers?.FirstOrDefault(s => !string.IsNullOrWhiteSpace(s.Artwork))
-                        ?? mix.Songs.FirstOrDefault(s => !string.IsNullOrWhiteSpace(s.Artwork)))?.Artwork;
-                    CollectionHeader.Children.Add(MixRow(
-                        Localization.T("Daily mix {number}", new Dictionary<string, string> { ["number"] = (i + 1).ToString() }),
-                        $"{mix.Label} · {NativeCollections.Count(mix.Songs.Count, "song")}",
-                        coverArt,
-                        () => ShowPage("Daily mix", mix.Id)));
-                }
+            CollectionHeader.Children.Add(SectionHeading(Localization.T("Daily mixes")));
+            var note = Label(Localization.T("Your daily mix is on its way"), 13.5);
+            note.Foreground = (Brush)Application.Current.Resources["AccentBrush"];
+            note.FontWeight = FontWeights.SemiBold;
+            CollectionHeader.Children.Add(note);
+            for (int s = 0; s < 2; s++)
+            {
+                var skeleton = new Border
+                {
+                    Height = 76,
+                    CornerRadius = new CornerRadius(16),
+                    Margin = new Thickness(2, 4, 2, 4),
+                    Background = (Brush)Application.Current.Resources["TonalBrush"],
+                    Opacity = 0.62,
+                };
+                CollectionHeader.Children.Add(skeleton);
+            }
+        }
+        else if (daily.Count > 0)
+        {
+            CollectionHeader.Children.Add(SectionHeading(Localization.T("Daily mixes")));
+            for (int i = 0; i < daily.Count; i++) {
+                var mix = daily[i];
+                var coverArt = (mix.Covers?.FirstOrDefault(s => !string.IsNullOrWhiteSpace(s.Artwork))
+                    ?? mix.Songs.FirstOrDefault(s => !string.IsNullOrWhiteSpace(s.Artwork)))?.Artwork;
+                CollectionHeader.Children.Add(MixRow(
+                    Localization.T("Daily mix {number}", new Dictionary<string, string> { ["number"] = (i + 1).ToString() }),
+                    $"{mix.Label} · {NativeCollections.Count(mix.Songs.Count, "song")}",
+                    coverArt,
+                    () => ShowPage("Daily mix", mix.Id)));
             }
         }
 
@@ -654,7 +672,53 @@ public partial class MainWindow
         return new StackPanel { Margin = new Thickness(0, 6, 0, 0), Children = { bars, labels, caption } };
     }
 
-    private List<NativeMix> DailyGroups() => NativeCollections.DailyMixes(tracks, DateOnly.FromDateTime(DateTime.Today));
+    private sealed record SavedDailyMix(string Id, string Label, List<string> SongIds, List<string> CoverIds);
+    private sealed record DailyMixStore(string Day, string Signature, List<SavedDailyMix> Mixes);
+
+    private List<NativeMix> DailyGroups()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        string dayKey = today.ToString("yyyy-MM-dd");
+        string signature = $"{tracks.Count}:{string.Join(",", tracks.Select(s => s.Id).OrderBy(id => id, StringComparer.Ordinal).Take(48))}";
+        var byId = tracks.ToDictionary(s => s.Id, StringComparer.Ordinal);
+        try
+        {
+            var saved = NativeCollections.Load<DailyMixStore>(repository.Folder, "daily-mixes.json");
+            if (saved != null && saved.Day == dayKey && saved.Signature == signature && saved.Mixes.Count > 0)
+            {
+                var hydrated = saved.Mixes
+                    .Select(entry => new NativeMix(
+                        entry.Id,
+                        entry.Label,
+                        entry.SongIds.Where(byId.ContainsKey).Select(id => byId[id]).ToList(),
+                        entry.CoverIds.Where(byId.ContainsKey).Select(id => byId[id]).ToList()))
+                    .Where(mix => mix.Songs.Count >= 7)
+                    .Take(3)
+                    .ToList();
+                if (hydrated.Count > 0) return hydrated;
+            }
+        }
+        catch { /* Rebuild cleanly if cache file is unreadable. */ }
+        if (importingFiles) return [];
+        var built = NativeCollections.DailyMixes(tracks, today);
+        if (built.Count > 0)
+        {
+            try
+            {
+                var store = new DailyMixStore(
+                    dayKey,
+                    signature,
+                    built.Select(mix => new SavedDailyMix(
+                        mix.Id,
+                        mix.Label,
+                        mix.Songs.Select(s => s.Id).ToList(),
+                        (mix.Covers ?? mix.Songs.Take(3).ToList()).Select(s => s.Id).ToList())).ToList());
+                NativeCollections.Save(repository.Folder, "daily-mixes.json", store);
+            }
+            catch { /* Never block Home on cache write failure. */ }
+        }
+        return built;
+    }
     private void SavePlaylists(List<NativePlaylist> updated) { NativeCollections.Save(repository.Folder, "playlists.json", updated); playlists = updated; }
     private Window Dialog(string title, double height = 540) => new() { Owner = this, Title = title, Width = 520, Height = height, MinWidth = 400, MinHeight = 320, WindowStartupLocation = WindowStartupLocation.CenterOwner, Background = (Brush)Application.Current.Resources["SurfaceBrush"], Foreground = (Brush)Application.Current.Resources["InkBrush"], FontFamily = FontFamily, FontSize = FontSize };
     private void EditPlaylist(NativePlaylist? playlist)

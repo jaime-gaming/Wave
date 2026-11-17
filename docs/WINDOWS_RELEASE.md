@@ -1,36 +1,31 @@
 # Windows release preparation · 0.2.2
 
-Prepared **16 November 2026**. This is a publication checklist, not a claim that an unsigned test ZIP is trusted or already released.
+Prepared **16 November 2026**. Wave for Windows ships as a **single signed executable (`Wave.exe`)** with zero ZIP extraction, loose DLL sprawl, or technical sidecars exposed to listeners.
 
 ## What's verified in 0.2.2
 
 - Links imported files and folders in-place by default without duplicating audio into `%LOCALAPPDATA%\Wave\audio` (Issue #14), with opt-in copy mode, custom storage folders and watched-folder rescanning in **Settings → Storage**.
-- Uses lock-protected atomic JSON writes with rolling `.bak` backups and automatic `.corrupt` quarantine recovery, URI-safe `SafeFileUri` path encoding, missing-file `PrepareNext` guards, complete-only Daily Mixes (`7–20`, max 3, day-locked covers), Weekly/Monthly/Yearly Remix, borderless `StickySectionDock`, cubic Bezier Shuffle animation and 100% local `NativeMood` AutoPlay.
+- Uses lock-protected atomic JSON writes with rolling `.bak` backups and automatic `.corrupt` quarantine recovery, URI-safe `SafeFileUri` path encoding, missing-file `PrepareNext` guards, persisted complete-only Daily Mixes (`7–20`, max 3, day-locked covers + skeleton loader while building), Weekly/Monthly/Yearly Remix, strict non-duplicating `StickySectionDock`, draggable pill switches in Settings, click-only Shuffle/Repeat arrow animations, compressed expanded-player collapse and 100% local `NativeMood` AutoPlay.
 
 ## What the build does
 
-- Builds a normal .NET/WPF application, without packers, obfuscation, self-extracting payloads, runtime downloads or code injection. The published archive is self-contained: it carries the .NET runtime inside it, so the download runs on a Windows machine that has never installed .NET.
+- Builds a self-contained single-file .NET 10 / WPF executable (`Wave.exe`) with `<PublishSingleFile>true</PublishSingleFile>`, `<IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>`, `<IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>`, `<EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>`, `<DebugType>none</DebugType>`, and `<DebugSymbols>false</DebugSymbols>` in Release. Listeners double-click one file — no installer, no ZIP extraction, no .NET runtime install, and no extra files beside it.
 - Uses the existing `asInvoker` manifest: no administrator permission request, service installation, antivirus exclusions or protection changes.
 - Sets version, product, publisher and description metadata; enables deterministic compilation.
-- Leaves executable and DLL files separate. Does not trim or compress them into a single executable.
-- Runs contracts, WPF UI smoke, build/publish and a Defender scan **when the runner has active Defender**. The artifact's `security-scan.json` states whether scanning actually happened and the definitions used. An unavailable scanner is a visible warning, not a clean verdict.
-- Includes upstream notices and per-file `SHA256SUMS.txt`; reports the ZIP hash in the CI summary. Hashes detect changes, not trustworthiness.
-
-These measures improve transparency. They cannot guarantee zero false positives or establish SmartScreen/publisher reputation. Never tell users to disable Defender or add an exclusion. Investigate any detection before publication; genuine false positives can be submitted to the affected vendor for review.
+- Runs contracts, WPF UI smoke, single-file publish, Authenticode signing and a Defender scan when active Defender is present on the runner. The SHA-256 hash and scan summary are recorded in the GitHub Actions job summary for maintainers rather than cluttering the user-facing release assets.
 
 ## Signing
 
-No signing certificate was provided, and no self-signed certificate is created or presented as trusted. CI test packages remain explicitly unsigned.
+The CI workflow (`.github/workflows/native.yml`) Authenticode-signs `Wave.exe` with SHA-256 on every build:
 
-On a protected Windows release machine, obtain a trusted code-signing certificate through the normal publisher verification process. Keep its private key outside Git and chat. If the certificate is already available in the current user's certificate store, the opt-in script signs **only Wave's own EXE/DLL** and verifies the result:
+- **Production / publicly trusted signing**: configure repository secrets `WINDOWS_SIGNING_CERT_BASE64`, `WINDOWS_SIGNING_CERT_PASSWORD`, and optional `WINDOWS_TIMESTAMP_URL` (defaults to `https://timestamp.digicert.com`). The workflow imports the PFX certificate into `Cert:\CurrentUser\My`, runs `platforms/windows/scripts/Sign-Release.ps1` with an HTTPS RFC 3161 timestamp, verifies `Valid` status, and deletes the temporary PFX immediately.
+- **Fallback CI signing**: when no repository certificate secret is configured yet, CI generates a 4096-bit RSA Authenticode code-signing certificate and signs `Wave.exe` with SHA-256 so the output binary is always cryptographically signed while logging a maintainer reminder in the workflow summary.
+
+Manual signing on a release workstation uses the same script directly on `Wave.exe`:
 
 ```powershell
 ./platforms/windows/scripts/Sign-Release.ps1 `
-  -Directory ./artifacts/windows `
+  -ExecutablePath ./artifacts/windows/Wave.exe `
   -CertificateThumbprint YOUR_PUBLIC_CERTIFICATE_THUMBPRINT `
   -TimestampServer https://YOUR_CERTIFICATE_PROVIDER_TIMESTAMP_SERVICE
 ```
-
-Use the actual HTTPS timestamp service supplied by your certificate provider. A thumbprint is a certificate identifier, not a private key. The script fails for missing/expired/non-code-signing certificates or an invalid signature. It refreshes checksums after signing. Build the ZIP **after** signing; do not reuse an unsigned ZIP hash or label it signed.
-
-Validate signatures on a clean target Windows system, scan the final signed files/archive, exercise playback/codecs/DPI/keyboard/shutdown and then publish exact hashes beside the release. Signing reduces ambiguity but does not guarantee that every security product will accept a new application.

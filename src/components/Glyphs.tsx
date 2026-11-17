@@ -4,7 +4,7 @@
  * no other: there is nothing here that is not a drawing.
  */
 /* eslint-disable react-refresh/only-export-components */
-import type { ReactNode, SVGProps } from 'react';
+import { useId, type ReactNode, type SVGProps } from 'react';
 
 /**
  * Wave's own icons.
@@ -237,20 +237,24 @@ export const Shuffle = ({ children, className, ...props }: IconProps) => (
 
 export const Repeat = ({ children, className, ...props }: IconProps) => (
   <Pen className={`wave-glyph wave-glyph--repeat${className ? ` ${className}` : ''}`} {...props}>
-    <path d="M6.6 7.2h10.9a2.5 2.5 0 0 1 2.5 2.5v2.4" />
-    <path d="M17.4 16.8H6.5A2.5 2.5 0 0 1 4 14.3v-2.4" />
-    <path d="M8.4 4.7 6 7.2l2.4 2.5" />
-    <path d="M15.6 19.3 18 16.8l-2.4-2.5" />
+    <g className="glyph-repeat-arrows">
+      <path d="M6.6 7.2h10.9a2.5 2.5 0 0 1 2.5 2.5v2.4" />
+      <path d="M17.4 16.8H6.5A2.5 2.5 0 0 1 4 14.3v-2.4" />
+      <path d="M8.4 4.7 6 7.2l2.4 2.5" />
+      <path d="M15.6 19.3 18 16.8l-2.4-2.5" />
+    </g>
     {children}
   </Pen>
 );
 
 export const Repeat1 = ({ children, className, ...props }: IconProps) => (
   <Pen className={`wave-glyph wave-glyph--repeat1${className ? ` ${className}` : ''}`} {...props}>
-    <path d="M6.6 7.2h10.9a2.5 2.5 0 0 1 2.5 2.5v2.4" />
-    <path d="M17.4 16.8H6.5A2.5 2.5 0 0 1 4 14.3v-2.4" />
-    <path d="M8.4 4.7 6 7.2l2.4 2.5" />
-    <path d="M15.6 19.3 18 16.8l-2.4-2.5" />
+    <g className="glyph-repeat-arrows">
+      <path d="M6.6 7.2h10.9a2.5 2.5 0 0 1 2.5 2.5v2.4" />
+      <path d="M17.4 16.8H6.5A2.5 2.5 0 0 1 4 14.3v-2.4" />
+      <path d="M8.4 4.7 6 7.2l2.4 2.5" />
+      <path d="M15.6 19.3 18 16.8l-2.4-2.5" />
+    </g>
     <path className="glyph-repeat-one" d="M11.3 12.9l1.5-.9v3.8" />
     {children}
   </Pen>
@@ -380,12 +384,32 @@ export const Heart = ({ children, ...props }: IconProps) => (
   </Pen>
 );
 
-export const Film = paths(() => [
-  box(2.9, 5.2, 18.2, 13.6, 3),
-  'M7.5 5.4v13.2',
-  'M16.5 5.4v13.2',
-  'M3 12h18',
-]);
+export const Film = ({ children, className, ...props }: IconProps) => {
+  const clipId = useId();
+  return (
+    <Pen className={`wave-glyph wave-glyph--film${className ? ` ${className}` : ''}`} {...props}>
+      <defs>
+        <clipPath id={clipId}>
+          <rect x="3.4" y="5.7" width="17.2" height="12.6" rx="2.3" />
+        </clipPath>
+      </defs>
+      <g clipPath={`url(#${clipId})`}>
+        <g className="glyph-film-strip">
+          {/* Two stacked film frames that scroll smoothly upward like a projector strip on click. */}
+          <path d="M7.5 4.8v26.4" />
+          <path d="M16.5 4.8v26.4" />
+          <path d="M3 12h18" />
+          <path d="M3 8.8h4.5M16.5 8.8H21M3 15.2h4.5M16.5 15.2H21" />
+          <path d="M3 18.6h18" />
+          <path d="M3 24.6h18" />
+          <path d="M3 21.4h4.5M16.5 21.4H21M3 27.8h4.5M16.5 27.8H21" />
+        </g>
+      </g>
+      <path className="glyph-film-frame" d={box(2.9, 5.2, 18.2, 13.6, 3)} />
+      {children}
+    </Pen>
+  );
+};
 
 export const Video = paths(() => [
   box(2.9, 6.4, 12.6, 11.2, 3),
