@@ -213,7 +213,7 @@ fun WaveNavigationRail(destination: Destination, onDestination: (Destination) ->
     }
 }
 
-/** A local icon response; playback and neighbouring controls never move. */
+/** A local icon response; Shuffle smoothly separates into parallel ribbons and rejoins. */
 @Composable
 fun WaveActionButton(icon: String, label: String, onClick: () -> Unit, active: Boolean? = null, enabled: Boolean = true) {
     val motionEnabled = waveMotionEnabled()
@@ -223,7 +223,17 @@ fun WaveActionButton(icon: String, label: String, onClick: () -> Unit, active: B
     androidx.compose.runtime.LaunchedEffect(motionEnabled) { if (!motionEnabled) pulse.snapTo(0f) }
     IconButton(
         onClick = {
-            if (motionEnabled) scope.launch { pulse.snapTo(1f); pulse.animateTo(0f, tween(260)) }
+            if (motionEnabled) {
+                scope.launch {
+                    if (icon == "shuffle") {
+                        pulse.animateTo(1f, tween(240))
+                        pulse.animateTo(0f, tween(320))
+                    } else {
+                        pulse.snapTo(1f)
+                        pulse.animateTo(0f, tween(260))
+                    }
+                }
+            }
             onClick()
         },
         enabled = enabled,
@@ -233,11 +243,15 @@ fun WaveActionButton(icon: String, label: String, onClick: () -> Unit, active: B
             if (active != null) selected = active
         },
     ) {
-        Box(Modifier.graphicsLayer {
-            val response = if (motionEnabled) pulse.value else 0f
-            scaleX = 1f + response * 0.09f
-            scaleY = scaleX
-            rotationZ = if (icon == "shuffle") response * -10f else 0f
-        }) { WaveIcon(icon, 21.dp, if (active == true) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant) }
+        val tint = if (active == true) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+        val response = if (motionEnabled) pulse.value else 0f
+        if (icon == "shuffle") {
+            WaveShuffleIcon(separation = response, size = 21.dp, tint = tint)
+        } else {
+            Box(Modifier.graphicsLayer {
+                scaleX = 1f + response * 0.09f
+                scaleY = scaleX
+            }) { WaveIcon(icon, 21.dp, tint) }
+        }
     }
 }

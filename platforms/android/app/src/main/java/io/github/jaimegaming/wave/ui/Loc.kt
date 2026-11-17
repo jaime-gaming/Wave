@@ -819,6 +819,10 @@ object Loc {
             "{title} requires an internet connection" to "{title} necesita conexión a internet",
             "{title} by {artist} (offline)" to "{title} de {artist} (sin conexión)",
             "Offline" to "Sin conexión",
+            "The songs that shaped your month" to "Las canciones que marcaron tu mes",
+            "Your full year in music" to "Todo tu año en música",
+            "Scroll to top" to "Volver arriba",
+            "Daily Mix" to "Mix diario",
         )
 
     /** What the person chose: "system", "en" or "es". */

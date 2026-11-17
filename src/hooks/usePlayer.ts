@@ -2,6 +2,7 @@ import { automaticMixSeconds, mixWindowReached } from '../domain/mix';
 import { isUsablePlan, planTransitionCached, realignPlan } from '../domain/mixPlanner';
 import { analyzeTrack, cachedAnalysis } from '../audio/mixAnalysis';
 import { continuationQueue } from '../domain/continuation';
+import type { ListeningSignal } from '../domain/mood';
 import {
   readPlaybackSession,
   readResumeOnReload,
@@ -81,6 +82,10 @@ export function usePlayer(
   const autoResumeHandled = useRef(!saved.wasPlaying || !readResumeOnReload());
   /** Bumped when a background analysis lands, so tempo readouts refresh. */
   const recent = useRef<string[]>([]);
+  const moodSignalsRef = useRef<ListeningSignal[] | undefined>(undefined);
+  const setMoodSignals = useCallback((signals: ListeningSignal[]) => {
+    moodSignalsRef.current = signals;
+  }, []);
   const positions = useRef(saved.positions);
   const resumeId = useRef<string | undefined>(saved.state.queue[saved.state.index]);
   const readyRef = useRef(libraryReady);
@@ -341,7 +346,7 @@ export function usePlayer(
         Math.random,
         12,
         (track) => cachedAnalysis(track.blob),
-        undefined,
+        moodSignalsRef.current,
         ctx.online,
       );
       if (!ids.length) return false;
@@ -1008,6 +1013,7 @@ export function usePlayer(
     mixCue,
     mixEnabled,
     setMixEnabled,
+    setMoodSignals,
     autoplay,
     setAutoplay,
     resumeOnReload,

@@ -25,7 +25,7 @@ internal static class Motion
     {
         if (!enabled) { element.BeginAnimation(UIElement.OpacityProperty, null); element.Opacity = 1; element.RenderTransform = Transform.Identity; return; }
         var offset = element.RenderTransform as TranslateTransform;
-        if (offset == null) element.RenderTransform = offset = new TranslateTransform();
+        if (offset == null || offset.IsFrozen) element.RenderTransform = offset = new TranslateTransform();
         var ease = new QuinticEase { EasingMode = EasingMode.EaseOut };
         element.BeginAnimation(UIElement.OpacityProperty,
             new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(milliseconds)) { EasingFunction = ease });
@@ -89,10 +89,22 @@ internal static class Motion
             animation.KeyFrames.Add(new EasingDoubleKeyFrame(baseline, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(260)), new CubicEase { EasingMode = EasingMode.EaseOut }));
             target.BeginAnimation(property, animation);
         }
-        Animate(scale, ScaleTransform.ScaleXProperty, 1, kind == "favorite" ? 1.18 : .91);
-        Animate(scale, ScaleTransform.ScaleYProperty, 1, kind == "favorite" ? 1.18 : .91);
+        Animate(scale, ScaleTransform.ScaleXProperty, 1, kind == "favorite" ? 1.18 : .93);
+        Animate(scale, ScaleTransform.ScaleYProperty, 1, kind == "favorite" ? 1.18 : kind == "shuffle" ? 1.14 : .93);
         if (kind == "repeat") Animate(rotate, RotateTransform.AngleProperty, 0, 80);
-        if (kind == "shuffle") Animate(offset, TranslateTransform.XProperty, 0, 3);
+        if (kind == "shuffle")
+        {
+            Animate(offset, TranslateTransform.XProperty, 0, 2.2);
+            if (glyph is System.Windows.Shapes.Path path &&
+                Application.Current?.TryFindResource("IconShuffleParallel") is Geometry parallel &&
+                Application.Current?.TryFindResource("IconShuffle") is Geometry crossed)
+            {
+                path.Data = parallel;
+                var restore = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(260) };
+                restore.Tick += (_, _) => { restore.Stop(); path.Data = crossed; };
+                restore.Start();
+            }
+        }
     }
 
 }

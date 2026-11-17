@@ -220,18 +220,22 @@ export function useListeningHistory({
   );
   const moodSignals = useMemo<ListeningSignal[]>(() => {
     const byId = new Map(tracks.map((item) => [item.id, item]));
-    const persisted = plays.slice(-16).map((play) => ({
+    // Keep up to 48 local persisted plays so the mood engine can learn personal
+    // circadian listening habits strictly on-device alongside live session dwell.
+    const recentPersisted = plays.slice(-48);
+    const persisted = recentPersisted.map((play, idx) => ({
       trackId: play.trackId,
       seconds: play.seconds,
       duration: byId.get(play.trackId)?.duration,
       completed: play.completed,
+      replayed: idx > 0 && recentPersisted[idx - 1].trackId === play.trackId,
       at: play.at,
     }));
     const merged = new Map<string, ListeningSignal>();
     for (const sig of [...persisted, ...liveSignals]) {
       merged.set(`${sig.trackId}:${sig.at ?? 0}`, sig);
     }
-    return [...merged.values()].sort((a, b) => (a.at ?? 0) - (b.at ?? 0)).slice(-16);
+    return [...merged.values()].sort((a, b) => (a.at ?? 0) - (b.at ?? 0)).slice(-48);
   }, [plays, liveSignals, tracks]);
   return {
     plays,

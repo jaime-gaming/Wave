@@ -110,4 +110,74 @@ describe('Local song mood engine', () => {
     expect(['chill', 'focus']).toContain(session!.primary);
     expect(session!.vector.energy).toBeLessThan(0.45);
   });
+
+  it('uses detected musical key mode and detects rising or winding-down session momentum', () => {
+    const baseTrack = makeTrack({ id: 'k1', title: 'Untitled Piece', genres: undefined });
+    const baseAnalysis = {
+      duration: 180,
+      frameSeconds: 0.02,
+      beats: { bpm: 112, offset: 0, confidence: 0.8 },
+      trimmed: { start: 0, end: 180 },
+      segments: [{ start: 0, end: 180, level: 0.55, kind: 'body' as const }],
+      vocals: [],
+      profile: { bass: 0.25, low: 0.25, mid: 0.3, high: 0.2 },
+      peak: 0.65,
+    };
+    const majorMood = analyzeSongMood(baseTrack, {
+      ...baseAnalysis,
+      key: { tonic: 0, mode: 'major', name: 'C major', camelot: '8B', confidence: 0.85 },
+    });
+    const minorMood = analyzeSongMood(baseTrack, {
+      ...baseAnalysis,
+      key: { tonic: 9, mode: 'minor', name: 'A minor', camelot: '8A', confidence: 0.85 },
+    });
+    expect(majorMood.vector.valence).toBeGreaterThan(minorMood.vector.valence + 0.08);
+
+    const calm1 = makeTrack({ id: 'm1', title: 'Soft Rain', genres: ['Ambient'], duration: 200 });
+    const calm2 = makeTrack({ id: 'm2', title: 'Quiet Drift', genres: ['Lo-fi'], duration: 200 });
+    const hype1 = makeTrack({ id: 'm3', title: 'Power Pulse', genres: ['House'], duration: 200 });
+    const hype2 = makeTrack({ id: 'm4', title: 'Turbo Fire', genres: ['Techno'], duration: 200 });
+    const now = Date.now();
+    const rising = inferListeningMood([calm1, calm2, hype1, hype2], [], undefined, undefined, [
+      { trackId: 'm1', seconds: 180, duration: 200, completed: true, at: now - 800_000 },
+      { trackId: 'm2', seconds: 180, duration: 200, completed: true, at: now - 600_000 },
+      { trackId: 'm3', seconds: 180, duration: 200, completed: true, at: now - 400_000 },
+      { trackId: 'm4', seconds: 180, duration: 200, completed: true, at: now - 200_000 },
+    ]);
+    expect(rising?.momentum).toBe('rising');
+
+    const winding = inferListeningMood([calm1, calm2, hype1, hype2], [], undefined, undefined, [
+      { trackId: 'm4', seconds: 180, duration: 200, completed: true, at: now - 800_000 },
+      { trackId: 'm3', seconds: 180, duration: 200, completed: true, at: now - 600_000 },
+      { trackId: 'm2', seconds: 180, duration: 200, completed: true, at: now - 400_000 },
+      { trackId: 'm1', seconds: 180, duration: 200, completed: true, at: now - 200_000 },
+    ]);
+    expect(winding?.momentum).toBe('winding-down');
+  });
+
+  it('learns personal circadian listening habits strictly from local past sessions', () => {
+    const dnb = makeTrack({
+      id: 'p1',
+      title: 'Late Velocity',
+      genres: ['Drum & Bass'],
+      duration: 200,
+    });
+    const ambient = makeTrack({ id: 'p2', title: 'Quiet Fog', genres: ['Ambient'], duration: 200 });
+    const lateNight = new Date(2026, 10, 16, 23, 30, 0).getTime();
+    const dayMs = 86_400_000;
+    const habitSession = inferListeningMood(
+      [dnb, ambient],
+      [],
+      ambient,
+      undefined,
+      [
+        { trackId: 'p1', seconds: 195, duration: 200, completed: true, at: lateNight - dayMs * 3 },
+        { trackId: 'p1', seconds: 195, duration: 200, completed: true, at: lateNight - dayMs * 2 },
+        { trackId: 'p1', seconds: 195, duration: 200, completed: true, at: lateNight - dayMs },
+      ],
+      lateNight,
+    );
+    const coldSession = inferListeningMood([dnb, ambient], [], ambient, undefined, [], lateNight);
+    expect(habitSession!.vector.energy).toBeGreaterThan(coldSession!.vector.energy + 0.08);
+  });
 });

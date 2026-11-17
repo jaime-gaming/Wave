@@ -79,9 +79,25 @@
           <Grid Grid.Row="1">
             <Grid x:Name="LibraryView">
               <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+              <!-- Borderless sticky section heading dock: pins the active scrolled section title
+                   cleanly until the next section pushes it away, with compact + and Gear buttons. -->
+              <Grid x:Name="StickySectionDock" Panel.ZIndex="8" Height="46" VerticalAlignment="Top" Visibility="Collapsed" IsHitTestVisible="True" Margin="10,0,10,0" Background="{DynamicResource SurfaceBrush}">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <Button Click="ScrollTopClick" Style="{StaticResource TextButton}" HorizontalContentAlignment="Left" Padding="4,0" Margin="0">
+                  <TextBlock x:Name="StickySectionTitle" FontSize="19" FontWeight="Bold" Foreground="{DynamicResource InkBrush}" TextTrimming="CharacterEllipsis"/>
+                </Button>
+                <StackPanel x:Name="StickySectionActions" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                  <Button x:Name="StickyImportButton" Style="{StaticResource IconButton}" Width="34" Height="34" MinWidth="34" MinHeight="34" Click="ImportClick" ToolTip="Add music" Margin="0,0,4,0">
+                    <Path Style="{StaticResource IconPath}" Data="{StaticResource IconPlus}" Width="18" Height="18"/>
+                  </Button>
+                  <Button x:Name="StickySettingsButton" Style="{StaticResource IconButton}" Width="34" Height="34" MinWidth="34" MinHeight="34" Tag="Settings" Click="NavigateClick" ToolTip="Settings">
+                    <Path Style="{StaticResource IconPath}" Data="{StaticResource IconSettings}" Width="18" Height="18"/>
+                  </Button>
+                </StackPanel>
+              </Grid>
               <!-- The page's own opening: headings, shelves, tabs. It never grows a
                    scrollbar of its own next to the list; see LayoutPage. -->
-              <ScrollViewer x:Name="HeaderScroll" VerticalScrollBarVisibility="Auto" Padding="12,0,10,0">
+              <ScrollViewer x:Name="HeaderScroll" VerticalScrollBarVisibility="Auto" Padding="12,0,10,0" ScrollChanged="ContentScrolled">
                 <StackPanel x:Name="CollectionHeader"/>
               </ScrollViewer>
               <ListBox x:Name="Songs" Grid.Row="1" BorderThickness="0" Background="Transparent" Padding="6,0,4,4" HorizontalContentAlignment="Stretch" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" ScrollViewer.CanContentScroll="True" MouseDoubleClick="SongDoubleClick">

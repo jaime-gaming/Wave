@@ -8344,11 +8344,11 @@ h1 {
    ========================================================================== */
 
 /* #14 Banner-covering scroll: the banner stays full-size and anchored underneath
-   while the foreground content sheet rises over it, filling out the top borders
-   and revealing an animated sticky section-title bar. */
+   while the foreground content sheet rises over it, filling out the top corners
+   and pinning each section's clean borderless title text until the next arrives. */
 .workspace {
   --banner-cover: 0;
-  --page-scroll: 0;
+  --section-push: 0px;
 }
 .workspace > .library-header {
   position: sticky;
@@ -8373,23 +8373,25 @@ h1 {
   position: relative;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
   height: 54px;
   padding: 0 24px;
-  background: var(--header);
-  border-top: 1px solid color-mix(in srgb, var(--primary) 16%, var(--hairline));
-  border-bottom: 1.5px solid color-mix(in srgb, var(--primary) 26%, var(--hairline));
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, #fff 8%, transparent),
-    0 10px 26px rgba(0, 0, 0, 0.24);
-  transform: translate3d(0, -108%, 0);
+  background: linear-gradient(
+    180deg,
+    var(--surface) 74%,
+    color-mix(in srgb, var(--surface) 88%, transparent) 92%,
+    color-mix(in srgb, var(--surface) 0%, transparent) 100%
+  );
+  border: 0;
+  box-shadow: none;
+  transform: translate3d(0, -105%, 0);
   opacity: 0;
   pointer-events: none;
-  cursor: pointer;
   overflow: hidden;
   transition:
-    transform 0.36s cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 0.24s ease;
+    transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.2s ease;
   will-change: transform, opacity;
 }
 .workspace[data-banner-covered='true'] .section-scroll-dock__bar {
@@ -8397,71 +8399,60 @@ h1 {
   opacity: 1;
   pointer-events: auto;
 }
-.section-scroll-dock__accent {
-  width: 4px;
-  height: 22px;
-  border-radius: 999px;
-  flex-shrink: 0;
-  background: var(--primary);
-  transform: scaleY(0.35);
-  opacity: 0.4;
-  transition:
-    transform 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) 0.05s,
-    opacity 0.28s ease 0.05s;
-}
-.workspace[data-banner-covered='true'] .section-scroll-dock__accent {
-  transform: scaleY(1);
-  opacity: 1;
-}
-.section-scroll-dock__copy {
-  display: flex;
-  align-items: baseline;
-  gap: 9px;
+.section-scroll-dock__heading {
+  flex: 1;
   min-width: 0;
-  animation: dock-title-enter 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-.section-scroll-dock__parent {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--primary);
-  opacity: 0.68;
-  flex-shrink: 0;
-}
-.section-scroll-dock__parent::after {
-  content: '/';
-  margin-left: 9px;
-  opacity: 0.45;
+  display: flex;
+  align-items: center;
+  text-align: left;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  overflow: hidden;
 }
 .section-scroll-dock__title {
-  font-size: 18px;
+  display: block;
+  font-size: 20px;
   font-weight: 760;
   letter-spacing: -0.02em;
-  color: var(--primary);
+  line-height: 1.2;
+  color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  transform: translate3d(0, var(--section-push, 0px), 0);
+  animation: dock-title-enter 0.26s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
-.section-scroll-dock__progress {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 2.5px;
-  background: var(--primary);
-  transform-origin: 0 50%;
-  transform: scaleX(var(--page-scroll, 0));
-  opacity: 0.78;
+.section-scroll-dock__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.section-scroll-dock__actions .icon-button {
+  width: 36px;
+  height: 36px;
+  background: color-mix(in srgb, var(--primary-container) 72%, transparent);
+  color: var(--primary);
+}
+.section-scroll-dock__actions .icon-button:hover:not(:disabled) {
+  background: var(--primary-container);
+}
+@media (max-width: 460px) {
+  .section-scroll-dock__actions {
+    display: none;
+  }
 }
 @keyframes dock-title-enter {
   from {
     opacity: 0;
-    transform: translate3d(0, 7px, 0);
+    transform: translate3d(0, 10px, 0);
   }
   to {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    transform: translate3d(0, var(--section-push, 0px), 0);
   }
 }
 .workspace > .library-surface {
@@ -8470,15 +8461,12 @@ h1 {
   background: var(--surface);
   border-radius: calc(28px * (1 - var(--banner-cover, 0))) calc(28px * (1 - var(--banner-cover, 0)))
     0 0;
-  box-shadow:
-    0 calc(-18px * var(--banner-cover, 0)) calc(34px * var(--banner-cover, 0))
-      rgba(0, 0, 0, calc(0.24 * var(--banner-cover, 0))),
-    inset 0 1px 0 color-mix(in srgb, var(--primary) calc(16% * var(--banner-cover, 0)), transparent);
+  box-shadow: 0 calc(-16px * var(--banner-cover, 0)) calc(30px * var(--banner-cover, 0))
+    rgba(0, 0, 0, calc(0.2 * var(--banner-cover, 0)));
 }
 @media (prefers-reduced-motion: reduce) {
   .section-scroll-dock__bar,
-  .section-scroll-dock__accent,
-  .section-scroll-dock__copy {
+  .section-scroll-dock__title {
     transition: none;
     animation: none;
   }
@@ -8600,12 +8588,50 @@ button:hover .wave-glyph--volume .glyph-wave-outer {
   transform: translateX(1.8px) scale(1.09);
   transition-delay: 0.04s;
 }
-button:hover .wave-glyph--shuffle .glyph-shuffle-tip-a {
-  transform: translateX(1.3px);
+@keyframes wave-shuffle-separate-a {
+  0%,
+  100% {
+    d: path('M4 6.9C9.8 6.9 10.4 17.1 16.4 17.1L20 17.1');
+  }
+  38%,
+  58% {
+    d: path('M4 6.9C9.8 6.9 10.4 6.9 16.4 6.9L20 6.9');
+  }
 }
-button:hover .wave-glyph--shuffle .glyph-shuffle-tip-b {
-  transform: translateX(1.3px);
-  transition-delay: 0.05s;
+@keyframes wave-shuffle-separate-b {
+  0%,
+  100% {
+    d: path('M4 17.1C9.8 17.1 10.4 6.9 16.4 6.9L20 6.9');
+  }
+  38%,
+  58% {
+    d: path('M4 17.1C9.8 17.1 10.4 17.1 16.4 17.1L20 17.1');
+  }
+}
+@keyframes wave-shuffle-tips {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  45% {
+    transform: translateX(1.1px);
+  }
+}
+button:hover .wave-glyph--shuffle .glyph-shuffle-a,
+button:active .wave-glyph--shuffle .glyph-shuffle-a,
+button[aria-pressed='true'] .wave-glyph--shuffle .glyph-shuffle-a {
+  animation: wave-shuffle-separate-a 0.72s cubic-bezier(0.22, 1, 0.36, 1) 1;
+}
+button:hover .wave-glyph--shuffle .glyph-shuffle-b,
+button:active .wave-glyph--shuffle .glyph-shuffle-b,
+button[aria-pressed='true'] .wave-glyph--shuffle .glyph-shuffle-b {
+  animation: wave-shuffle-separate-b 0.72s cubic-bezier(0.22, 1, 0.36, 1) 1;
+}
+button:hover .wave-glyph--shuffle .glyph-shuffle-tip-a,
+button:hover .wave-glyph--shuffle .glyph-shuffle-tip-b,
+button[aria-pressed='true'] .wave-glyph--shuffle .glyph-shuffle-tip-a,
+button[aria-pressed='true'] .wave-glyph--shuffle .glyph-shuffle-tip-b {
+  animation: wave-shuffle-tips 0.72s cubic-bezier(0.22, 1, 0.36, 1) 1;
 }
 
 @media (prefers-reduced-motion: reduce) {

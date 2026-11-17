@@ -490,9 +490,10 @@ it('moves the low end and closes the outgoing top when a mix is possible', async
   Object.defineProperty(elements[1], 'duration', { value: 30 });
   elements[1].dispatchEvent(new Event('loadedmetadata'));
   await Promise.resolve();
-  expect(filters.length).toBeGreaterThanOrEqual(4);
-  const [outShelf, outAir, inShelf, inAir] = filters;
+  expect(filters.length).toBeGreaterThanOrEqual(6);
+  const [outShelf, outAir, outMid, inShelf, inAir, inMid] = filters;
   expect(outShelf.type).toBe('lowshelf');
+  expect(outMid.type).toBe('peaking');
   expect(inAir.type).toBe('lowpass');
 
   elements[0].currentTime = 26;
@@ -508,16 +509,19 @@ it('moves the low end and closes the outgoing top when a mix is possible', async
   // Halfway through the overlap the low end has changed hands...
   expect(outShelf.gain.value).toBeLessThan(-10);
   expect(inShelf.gain.value).toBeGreaterThan(-10);
-  // ...and the outgoing song has lost its top.
+  // ...the outgoing song carves a midrange vocal pocket and rolls down its top...
+  expect(outMid.gain.value).toBeLessThan(-1);
   expect(outAir.frequency.value).toBeLessThan(20_000);
-  // The incoming song is never filtered.
+  // ...and the incoming song is wide open by the midpoint.
   expect(inAir.frequency.value).toBe(20_000);
+  expect(inMid.gain.value).toBe(0);
 
   // When the handover ends nothing stays filtered or shifted.
   elements[1].currentTime = 6;
   vi.advanceTimersByTime(100);
   expect(inAir.frequency.value).toBe(20_000);
   expect(inShelf.gain.value).toBe(0);
+  expect(inMid.gain.value).toBe(0);
 });
 
 it('keeps the arriving song silent while the blend is still being set up', async () => {

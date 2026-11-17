@@ -155,12 +155,21 @@ public partial class MainWindow
         }
         CollectionHeader.Children.Add(shortcuts);
 
-        var daily = DailyGroups();
-        if (daily.Count > 0) {
-            CollectionHeader.Children.Add(SectionHeading(Localization.T("Daily mixes")));
-            for (int i = 0; i < daily.Count; i++) {
-                var mix = daily[i];
-                CollectionHeader.Children.Add(MixRow(Localization.T("Daily mix {number}", new Dictionary<string, string> { ["number"] = (i + 1).ToString() }), mix.Label, mix.Songs.FirstOrDefault()?.Artwork, () => ShowPage("Daily mix", mix.Id)));
+        if (!importingFiles)
+        {
+            var daily = DailyGroups();
+            if (daily.Count > 0) {
+                CollectionHeader.Children.Add(SectionHeading(Localization.T("Daily mixes")));
+                for (int i = 0; i < daily.Count; i++) {
+                    var mix = daily[i];
+                    var coverArt = (mix.Covers?.FirstOrDefault(s => !string.IsNullOrWhiteSpace(s.Artwork))
+                        ?? mix.Songs.FirstOrDefault(s => !string.IsNullOrWhiteSpace(s.Artwork)))?.Artwork;
+                    CollectionHeader.Children.Add(MixRow(
+                        Localization.T("Daily mix {number}", new Dictionary<string, string> { ["number"] = (i + 1).ToString() }),
+                        $"{mix.Label} · {NativeCollections.Count(mix.Songs.Count, "song")}",
+                        coverArt,
+                        () => ShowPage("Daily mix", mix.Id)));
+                }
             }
         }
 
@@ -225,7 +234,7 @@ public partial class MainWindow
     /// <summary>A section heading with, optionally, the one action that belongs to it.</summary>
     private FrameworkElement SectionHeading(string text, UIElement? trailing = null)
     {
-        var row = new DockPanel { Margin = new Thickness(2, 18, 2, 10) };
+        var row = new DockPanel { Tag = "section-heading", Margin = new Thickness(2, 18, 2, 10) };
         if (trailing != null) { DockPanel.SetDock(trailing, Dock.Right); row.Children.Add(trailing); }
         row.Children.Add(new TextBlock { Text = text, FontSize = 19, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center });
         return row;
@@ -418,15 +427,35 @@ public partial class MainWindow
     /// </summary>
     private void RenderRemix()
     {
-        var recap = Listening.Recap(plays, tracks, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+        long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var periodStrip = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 10) };
+        foreach (var (id, label) in new[] { ("weekly", "Weekly"), ("monthly", "Monthly"), ("yearly", "Yearly") })
+        {
+            periodStrip.Children.Add(Pill(Localization.T(label), remixPeriod == id, () => { remixPeriod = id; Refresh(); }));
+        }
+        CollectionHeader.Children.Add(periodStrip);
+
+        var recap = remixPeriod switch
+        {
+            "monthly" => Listening.MonthlyRecap(plays, tracks, now),
+            "yearly" => Listening.YearlyRecap(plays, tracks, now),
+            _ => Listening.Recap(plays, tracks, now),
+        };
+        var rangeLabel = remixPeriod switch
+        {
+            "monthly" => Listening.MonthRange(recap.Start),
+            "yearly" => Listening.YearRange(recap.Start),
+            _ => Listening.WeekRange(recap.Start, recap.End),
+        };
         var head = new Grid { Margin = new Thickness(2, 4, 2, 10) };
         head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        head.Children.Add(Label(Listening.WeekRange(recap.Start, recap.End), 13));
+        head.Children.Add(Label(rangeLabel, 13));
         var clear = ActionButton(Localization.T("Clear history"), () => {
             if (MessageBox.Show(this, Localization.T("Clear the listening history? The songs stay in your library."), "Wave", MessageBoxButton.YesNo) != MessageBoxResult.Yes) return;
             Listening.Clear(repository.Folder);
             plays = [];
+            moodSignals.Clear();
             Refresh();
         });
         clear.Style = (Style)FindResource("TextButton");

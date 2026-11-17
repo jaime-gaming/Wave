@@ -1,6 +1,11 @@
-# Windows release preparation · 0.2.1
+# Windows release preparation · 0.2.2
 
-Candidate prepared **6 November 2026**; publication date is not confirmed. This is a publication checklist, not a claim that an unsigned test ZIP is trusted or already released.
+Prepared **16 November 2026**. This is a publication checklist, not a claim that an unsigned test ZIP is trusted or already released.
+
+## What's verified in 0.2.2
+
+- Links imported files and folders in-place by default without duplicating audio into `%LOCALAPPDATA%\Wave\audio` (Issue #14), with opt-in copy mode, custom storage folders and watched-folder rescanning in **Settings → Storage**.
+- Uses lock-protected atomic JSON writes with rolling `.bak` backups and automatic `.corrupt` quarantine recovery, URI-safe `SafeFileUri` path encoding, missing-file `PrepareNext` guards, complete-only Daily Mixes (`7–20`, max 3, day-locked covers), Weekly/Monthly/Yearly Remix, borderless `StickySectionDock`, cubic Bezier Shuffle animation and 100% local `NativeMood` AutoPlay.
 
 ## What the build does
 

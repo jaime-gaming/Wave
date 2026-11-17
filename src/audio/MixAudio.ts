@@ -7,7 +7,14 @@ import {
   smoothstep,
   type TransitionPlan,
 } from '../domain/mixPlanner';
-import { bassShelfDb, filterOutHz, MixGraph, OPEN_AIR_HZ } from './mixGraph';
+import {
+  bassShelfDb,
+  filterOutHz,
+  incomingAirHz,
+  midCarveDb,
+  MixGraph,
+  OPEN_AIR_HZ,
+} from './mixGraph';
 import type { TrackAnalysis } from './dsp';
 import { sourceEnvelope } from './sourceEnvelope';
 interface Deck {
@@ -47,6 +54,8 @@ export class MixAudio {
     bassSwapAt: number;
     /** Rolling the outgoing song's top down, only with Web Audio. */
     filterOut: boolean;
+    /** Deeper 1.4 kHz outgoing carve when both tracks carry active vocals. */
+    vocalOverlap: boolean;
     /** Level match between the two records, applied only for the overlap. */
     trim: { outgoing: number; incoming: number };
     /** Playback rate the outgoing deck is bent towards, and by when. */
@@ -354,7 +363,10 @@ export class MixAudio {
   }
   private assign(deck: Deck, blob: Blob) {
     this.release(deck);
-    if (this.graph) this.graph.setAir(deck.element, OPEN_AIR_HZ);
+    if (this.graph) {
+      this.graph.setAir(deck.element, OPEN_AIR_HZ);
+      this.graph.setMid(deck.element, 0);
+    }
     deck.blob = blob;
     this.graph?.setNormalization(deck.element, this.corrections.get(blob) ?? 1, true);
     deck.url = URL.createObjectURL(blob);
@@ -506,6 +518,7 @@ export class MixAudio {
     this.startTransition(blob, plan.seconds, guard, onStarted, {
       cue: plan.cue,
       bassSwapAt: plan.bassSwapAt,
+      vocalOverlap: plan.vocalOverlap,
     });
   }
   transition(blob: Blob, seconds: number, guard: () => boolean, onStarted: () => void) {
@@ -525,6 +538,7 @@ export class MixAudio {
       bassSwap?: boolean;
       bassSwapAt?: number;
       filterOut?: boolean;
+      vocalOverlap?: boolean;
       miniRepeat?: boolean;
     },
   ) {
@@ -607,6 +621,7 @@ export class MixAudio {
           bassSwap: options.bassSwap ?? this.eqAvailable,
           bassSwapAt: options.bassSwapAt ?? 0.5,
           filterOut: options.filterOut ?? this.eqAvailable,
+          vocalOverlap: !!options.vocalOverlap,
         };
         this.applyGains();
         this.callbacks.buffering(false);
@@ -635,6 +650,7 @@ export class MixAudio {
       deck.element.preservesPitch = true;
       if (this.graph) {
         this.graph.setBass(deck.element, 0);
+        this.graph.setMid(deck.element, 0);
         this.graph.setAir(deck.element, OPEN_AIR_HZ);
         this.graph.setPan(deck.element, 0);
         this.graph.setGain(deck.element, 1);
@@ -713,6 +729,7 @@ export class MixAudio {
       for (const deck of [this.active, this.spare]) {
         if (deck && this.graph) {
           this.graph.setBass(deck.element, 0);
+          this.graph.setMid(deck.element, 0);
           this.graph.setGain(deck.element, this.silenced(deck) ? 0 : 1);
         }
       }
@@ -748,15 +765,21 @@ export class MixAudio {
       this.graph.setBass(this.fading.incoming.element, bassShelfDb('incoming', progress, swap));
     }
     if (this.fading.filterOut && this.graph) {
-      // The outgoing song loses its top as it leaves: the clearest sign that this
-      // is a mix and not two songs sliding past each other.
+      // The outgoing song loses its top and opens a gentle 1.4 kHz vocal pocket
+      // while the incoming record blooms into wide-open air for studio cohesion.
       this.graph.setAir(this.fading.outgoing.element, filterOutHz(progress));
+      this.graph.setMid(
+        this.fading.outgoing.element,
+        midCarveDb(progress, this.fading.vocalOverlap),
+      );
+      this.graph.setAir(this.fading.incoming.element, incomingAirHz(progress, this.fading.mixed));
     }
     if (progress >= 1) {
       const finished = this.fading;
       this.release(finished.outgoing);
       if (this.graph) {
         this.graph.setBass(finished.incoming.element, 0);
+        this.graph.setMid(finished.incoming.element, 0);
         this.graph.setAir(finished.incoming.element, OPEN_AIR_HZ);
         this.graph.setPan(finished.incoming.element, 0);
       }

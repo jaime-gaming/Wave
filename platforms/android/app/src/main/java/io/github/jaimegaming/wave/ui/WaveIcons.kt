@@ -8,6 +8,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -66,6 +67,51 @@ fun WaveIcon(name: String, size: Dp = 22.dp, tint: Color = MaterialTheme.colorSc
     Canvas(Modifier.size(size)) {
         scale(this.size.width / 24f, this.size.height / 24f, pivot = Offset.Zero) {
             paths.forEach { drawPath(it, tint, style = Stroke(weight, cap = StrokeCap.Round, join = StrokeJoin.Round)) }
+        }
+    }
+}
+
+/**
+ * Animated Shuffle glyph whose crossed cubic Bezier ribbons smoothly separate
+ * into two straight parallel paths (`separation = 1f`) and glide back together.
+ */
+@Composable
+fun WaveShuffleIcon(
+    separation: Float,
+    size: Dp = 21.dp,
+    tint: Color = MaterialTheme.colorScheme.onSurface,
+) {
+    val s = separation.coerceIn(0f, 1f)
+    Canvas(Modifier.size(size)) {
+        scale(this.size.width / 24f, this.size.height / 24f, pivot = Offset.Zero) {
+            val stroke = Stroke(1.8f, cap = StrokeCap.Round, join = StrokeJoin.Round)
+            val endTopY = 17.1f - 10.2f * s
+            val endBotY = 6.9f + 10.2f * s
+            val tipShift = 1.1f * s
+            val topRibbon = Path().apply {
+                moveTo(4f, 6.9f)
+                cubicTo(9.8f, 6.9f, 10.4f, endTopY, 16.4f, endTopY)
+                lineTo(20f, endTopY)
+            }
+            val botRibbon = Path().apply {
+                moveTo(4f, 17.1f)
+                cubicTo(9.8f, 17.1f, 10.4f, endBotY, 16.4f, endBotY)
+                lineTo(20f, endBotY)
+            }
+            val arrowTop = Path().apply {
+                moveTo(17.7f + tipShift, 4.6f)
+                lineTo(20.2f + tipShift, 6.9f)
+                lineTo(17.7f + tipShift, 9.2f)
+            }
+            val arrowBot = Path().apply {
+                moveTo(17.7f + tipShift, 14.8f)
+                lineTo(20.2f + tipShift, 17.1f)
+                lineTo(17.7f + tipShift, 19.4f)
+            }
+            drawPath(topRibbon, tint, style = stroke)
+            drawPath(botRibbon, tint, style = stroke)
+            drawPath(arrowTop, tint, style = stroke)
+            drawPath(arrowBot, tint, style = stroke)
         }
     }
 }

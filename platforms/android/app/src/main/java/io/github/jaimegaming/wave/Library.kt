@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.media.MediaMetadataRetriever
 import android.net.Uri
+import android.os.Build
 import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.provider.OpenableColumns
@@ -65,16 +66,18 @@ class Library(private val context: Context) {
     @Synchronized
     fun load(): List<Song> {
         val values = readArray(index)
-        return (0 until values.length()).map { i ->
-            val o = values.getJSONObject(i)
+        return (0 until values.length()).mapNotNull { i ->
+            val o = values.optJSONObject(i) ?: return@mapNotNull null
+            val id = o.optString("id").takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            val path = o.optString("path").takeIf { it.isNotBlank() } ?: return@mapNotNull null
             Song(
-                id = o.getString("id"),
-                title = o.getString("title"),
-                artist = o.getString("artist"),
-                album = o.getString("album"),
-                filename = o.getString("filename"),
-                path = o.getString("path"),
-                duration = o.optDouble("duration", 0.0),
+                id = id,
+                title = o.optString("title").ifBlank { "Untitled" },
+                artist = o.optString("artist").ifBlank { "Unknown artist" },
+                album = o.optString("album").ifBlank { "Unknown album" },
+                filename = o.optString("filename"),
+                path = path,
+                duration = o.optDouble("duration", 0.0).takeIf { it.isFinite() } ?: 0.0,
                 favorite = o.optBoolean("favorite"),
                 lyrics = o.optString("lyrics"),
                 checkedAt = o.optLong("checkedAt"),
@@ -127,13 +130,14 @@ class Library(private val context: Context) {
     @Synchronized
     fun loadPlaylists(): List<Playlist> {
         val values = readArray(lists)
-        return (0 until values.length()).map { i ->
-            val o = values.getJSONObject(i)
+        return (0 until values.length()).mapNotNull { i ->
+            val o = values.optJSONObject(i) ?: return@mapNotNull null
+            val id = o.optString("id").takeIf { it.isNotBlank() } ?: return@mapNotNull null
             val ids = o.optJSONArray("trackIds") ?: JSONArray()
             Playlist(
-                id = o.getString("id"),
-                name = o.getString("name"),
-                trackIds = (0 until ids.length()).map { ids.getString(it) },
+                id = id,
+                name = o.optString("name").ifBlank { "Playlist" },
+                trackIds = (0 until ids.length()).mapNotNull { idx -> ids.optString(idx).takeIf { it.isNotBlank() } },
                 createdAt = o.optLong("createdAt"),
             )
         }
@@ -181,9 +185,10 @@ class Library(private val context: Context) {
     @Synchronized
     fun loadPlays(): List<Play> {
         val values = readArray(history)
-        return (0 until values.length()).map { i ->
-            val o = values.getJSONObject(i)
-            Play(o.getString("songId"), o.optLong("at"), o.optInt("seconds"), o.optBoolean("completed"))
+        return (0 until values.length()).mapNotNull { i ->
+            val o = values.optJSONObject(i) ?: return@mapNotNull null
+            val songId = o.optString("songId").takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            Play(songId, o.optLong("at"), o.optInt("seconds"), o.optBoolean("completed"))
         }.sortedBy { it.at }
     }
 
@@ -223,6 +228,8 @@ class Library(private val context: Context) {
     @Synchronized
     fun importFiles(uris: List<Uri>): Int {
         val songs = load().toMutableList()
+        val knownIds = songs.mapTo(HashSet()) { it.id }
+        val copiedFiles = mutableListOf<File>()
         var added = 0
         for (uri in uris) {
             val name = displayName(uri)
@@ -245,21 +252,30 @@ class Library(private val context: Context) {
                 } ?: error("Cannot read $name.")
                 require(size > 0) { "$name is empty." }
                 val hash = digest.digest().joinToString("") { "%02x".format(it) }
-                if (songs.any { it.id == hash }) continue
+                if (!knownIds.add(hash)) continue
                 val extension = name.substringAfterLast('.', "audio").lowercase()
                     .takeIf { it.matches(Regex("[a-z0-9]{1,8}")) } ?: "audio"
                 val target = File(audio, "$hash.$extension")
-                require(temp.renameTo(target)) { "Cannot store $name." }
-                songs.add(read(target, hash, name, target.path))
-                try {
-                    save(songs)
-                } catch (error: Exception) {
-                    target.delete()
-                    throw error
+                if (target.exists()) target.delete()
+                val moved = temp.renameTo(target) || run {
+                    temp.copyTo(target, overwrite = true)
+                    temp.delete()
+                    target.exists()
                 }
+                require(moved) { "Cannot store $name." }
+                copiedFiles.add(target)
+                songs.add(read(target, hash, name, target.path))
                 added++
             } finally {
-                temp.delete()
+                if (temp.exists()) temp.delete()
+            }
+        }
+        if (added > 0) {
+            try {
+                save(songs)
+            } catch (error: Exception) {
+                copiedFiles.forEach { runCatching { it.delete() } }
+                throw error
             }
         }
         return added
@@ -278,15 +294,17 @@ class Library(private val context: Context) {
     @Synchronized
     fun importFromMediaStore(): Int {
         val songs = load().toMutableList()
+        val knownIds = songs.mapTo(HashSet()) { it.id }
         var added = 0
-        val projection = arrayOf(
-            MediaStore.Audio.Media._ID,
-            MediaStore.Audio.Media.TITLE,
-            MediaStore.Audio.Media.ARTIST,
-            MediaStore.Audio.Media.ALBUM,
-            MediaStore.Audio.Media.DISPLAY_NAME,
-            MediaStore.Audio.Media.DURATION,
-        )
+        val projection = buildList {
+            add(MediaStore.Audio.Media._ID)
+            add(MediaStore.Audio.Media.TITLE)
+            add(MediaStore.Audio.Media.ARTIST)
+            add(MediaStore.Audio.Media.ALBUM)
+            add(MediaStore.Audio.Media.DISPLAY_NAME)
+            add(MediaStore.Audio.Media.DURATION)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) add(MediaStore.Audio.Media.GENRE)
+        }.toTypedArray()
         val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
         context.contentResolver.query(
             MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
@@ -301,14 +319,18 @@ class Library(private val context: Context) {
             val albumColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
             val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
             val durationColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
+            val genreColumn = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                cursor.getColumnIndex(MediaStore.Audio.Media.GENRE)
+            } else -1
             while (cursor.moveToNext()) {
                 val uri = Uri.withAppendedPath(
                     MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
                     cursor.getLong(idColumn).toString(),
                 )
                 val id = "media-" + digestOf(uri.toString()).take(24)
-                if (songs.any { it.id == id }) continue
+                if (!knownIds.add(id)) continue
                 val name = cursor.getString(nameColumn) ?: "Audio"
+                val genre = if (genreColumn >= 0) cursor.getString(genreColumn)?.trim().orEmpty() else ""
                 songs.add(
                     Song(
                         id = id,
@@ -320,6 +342,7 @@ class Library(private val context: Context) {
                         filename = name,
                         path = uri.toString(),
                         duration = cursor.getLong(durationColumn) / 1000.0,
+                        genre = genre,
                         addedAt = System.currentTimeMillis(),
                     ),
                 )
@@ -344,26 +367,28 @@ class Library(private val context: Context) {
         while (queue.isNotEmpty() && uris.size < MAX_FILES) {
             val documentId = queue.removeFirst()
             val childUri = DocumentsContract.buildChildDocumentsUriUsingTree(tree, documentId)
-            context.contentResolver.query(
-                childUri,
-                arrayOf(
-                    DocumentsContract.Document.COLUMN_DOCUMENT_ID,
-                    DocumentsContract.Document.COLUMN_DISPLAY_NAME,
-                    DocumentsContract.Document.COLUMN_MIME_TYPE,
-                ),
-                null,
-                null,
-                null,
-            )?.use { cursor ->
-                while (cursor.moveToNext()) {
-                    val id = cursor.getString(0)
-                    val name = cursor.getString(1) ?: "Audio"
-                    val mime = cursor.getString(2) ?: ""
-                    val child = DocumentsContract.buildDocumentUriUsingTree(tree, id)
-                    if (mime == DocumentsContract.Document.MIME_TYPE_DIR) {
-                        queue.add(id)
-                    } else if (mime.startsWith("audio/") || name.substringAfterLast('.', "").lowercase() in AUDIO_EXTENSIONS) {
-                        uris.add(child)
+            runCatching {
+                context.contentResolver.query(
+                    childUri,
+                    arrayOf(
+                        DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+                        DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+                        DocumentsContract.Document.COLUMN_MIME_TYPE,
+                    ),
+                    null,
+                    null,
+                    null,
+                )?.use { cursor ->
+                    while (cursor.moveToNext()) {
+                        val id = cursor.getString(0) ?: continue
+                        val name = cursor.getString(1) ?: "Audio"
+                        val mime = cursor.getString(2) ?: ""
+                        val child = DocumentsContract.buildDocumentUriUsingTree(tree, id)
+                        if (mime == DocumentsContract.Document.MIME_TYPE_DIR) {
+                            queue.add(id)
+                        } else if (mime.startsWith("audio/") || name.substringAfterLast('.', "").lowercase() in AUDIO_EXTENSIONS) {
+                            uris.add(child)
+                        }
                     }
                 }
             }

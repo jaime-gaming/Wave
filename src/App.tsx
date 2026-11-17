@@ -278,6 +278,10 @@ function WaveApp({
     readTime: player.readTime,
     tracks: library.tracks,
   });
+  const setPlayerMoodSignals = player.setMoodSignals;
+  useEffect(() => {
+    setPlayerMoodSignals(listening.moodSignals);
+  }, [setPlayerMoodSignals, listening.moodSignals]);
   const [playerOpen, setPlayerOpen] = useState(() => initialRoute.overlay === 'current');
   const playerOpener = useRef<HTMLElement | null>(null);
   const settingsPrevious = useRef<Page>('home');
@@ -413,10 +417,12 @@ function WaveApp({
   const workspaceRef = useRef<HTMLElement>(null);
   const headerRef = useRef<HTMLElement>(null);
   const dragDepth = useRef(0);
+  const [bannerCovered, setBannerCovered] = useState(false);
+  const [scrolledHeading, setScrolledHeading] = useState('');
 
-  // Banner-covering scroll: keeps the banner stationary at full size while the
-  // content sheet moves up over it, filling out the top borders and revealing
-  // the docked animated section-title bar without re-rendering React on scroll.
+  // Banner-covering scroll + live borderless section heading handoff:
+  // Keeps the banner full-size while the content sheet glides up over it, and
+  // pins the active section's heading text cleanly until the next section arrives.
   useEffect(() => {
     const workspace = workspaceRef.current;
     if (!workspace) return;
@@ -425,11 +431,38 @@ function WaveApp({
       raf = 0;
       const bannerHeight = Math.max(88, headerRef.current?.offsetHeight ?? 124);
       const progress = Math.max(0, Math.min(1, window.scrollY / bannerHeight));
-      const maxScroll = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
-      const pageProgress = Math.max(0, Math.min(1, window.scrollY / maxScroll));
+      const covered = progress > 0.72;
       workspace.style.setProperty('--banner-cover', progress.toFixed(3));
-      workspace.style.setProperty('--page-scroll', pageProgress.toFixed(3));
-      workspace.dataset.bannerCovered = progress > 0.72 ? 'true' : 'false';
+      workspace.dataset.bannerCovered = covered ? 'true' : 'false';
+      setBannerCovered((prev) => (prev === covered ? prev : covered));
+
+      const headings = Array.from(
+        workspace.querySelectorAll<HTMLElement>(
+          '.library-surface section > .section-heading h2, .library-surface .remix-head h2, .library-surface .remix-section h3, .library-surface .settings-page > h2',
+        ),
+      ).filter((el) => el.offsetParent !== null && Boolean(el.textContent?.trim()));
+
+      const dockLine = 54;
+      let activeIndex = -1;
+      for (let i = 0; i < headings.length; i++) {
+        if (headings[i].getBoundingClientRect().top <= dockLine) activeIndex = i;
+        else break;
+      }
+
+      const activeText = activeIndex >= 0 ? (headings[activeIndex].textContent?.trim() ?? '') : '';
+      setScrolledHeading((prev) => (prev === activeText ? prev : activeText));
+
+      // Smoothly nudge the pinned title up as the next section heading pushes it away.
+      let push = 0;
+      const next = activeIndex >= 0 ? headings[activeIndex + 1] : undefined;
+      if (next) {
+        const nextTop = next.getBoundingClientRect().top;
+        const handoffZone = dockLine + 40;
+        if (nextTop < handoffZone && nextTop > 0) {
+          push = Math.max(0, Math.min(40, handoffZone - nextTop));
+        }
+      }
+      workspace.style.setProperty('--section-push', `${-push.toFixed(1)}px`);
     };
     const onScroll = () => {
       if (!raf) raf = window.requestAnimationFrame(apply);
@@ -584,20 +617,6 @@ function WaveApp({
     favorites: t('Favorites'),
   };
   const activeAlbum = group && view === 'albums' ? albums.find((a) => a.id === group) : undefined;
-  const dockSectionParent =
-    page === 'home' && dailySelection
-      ? t('Home')
-      : page === 'library'
-        ? selectedPlaylist
-          ? t('Playlists')
-          : activeAlbum
-            ? t('Albums')
-            : selectedArtist
-              ? t('Artists')
-              : t('Library')
-        : page === 'settings' && settingsSection
-          ? t('Settings')
-          : '';
   const dockSectionTitle =
     page === 'home'
       ? dailySelection
@@ -955,7 +974,11 @@ function WaveApp({
               </h1>
               <p className="library-summary">{pageSummary}</p>
             </div>
-            <div className="header-actions">
+            <div
+              className="header-actions"
+              aria-hidden={bannerCovered || undefined}
+              inert={bannerCovered || undefined}
+            >
               <button
                 className="icon-button import-header"
                 disabled={busy}
@@ -1014,23 +1037,43 @@ function WaveApp({
             </div>
           )}
         </header>
-        <div
-          className="section-scroll-dock"
-          aria-hidden="true"
-          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-        >
+        <div className="section-scroll-dock">
           <div className="section-scroll-dock__bar">
-            <span className="section-scroll-dock__accent" />
-            <span
-              key={`${page}:${dockSectionParent}:${dockSectionTitle}`}
-              className="section-scroll-dock__copy"
+            <button
+              type="button"
+              className="section-scroll-dock__heading"
+              tabIndex={bannerCovered ? 0 : -1}
+              aria-hidden={!bannerCovered || undefined}
+              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
             >
-              {dockSectionParent && (
-                <span className="section-scroll-dock__parent">{dockSectionParent}</span>
-              )}
-              <strong className="section-scroll-dock__title">{dockSectionTitle}</strong>
-            </span>
-            <span className="section-scroll-dock__progress" />
+              <span
+                key={scrolledHeading || dockSectionTitle}
+                className="section-scroll-dock__title"
+              >
+                {scrolledHeading || dockSectionTitle}
+              </span>
+            </button>
+            {bannerCovered && (
+              <div className="section-scroll-dock__actions">
+                <button
+                  type="button"
+                  className="icon-button"
+                  disabled={busy}
+                  onClick={() => setAddOpen(true)}
+                  aria-label={t('Add music')}
+                >
+                  <Plus size={20} />
+                </button>
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label={t('Open settings')}
+                  onClick={() => openSettings()}
+                >
+                  <Settings size={20} />
+                </button>
+              </div>
+            )}
           </div>
         </div>
         <AnimatePresence mode="wait" initial={false} custom={pageDirection}>

@@ -26,6 +26,10 @@ export interface MixFeatures {
 
 export type FeatureMap = Record<string, MixFeatures | undefined>;
 
+export const MIN_DAILY_MIX_TRACKS = 7;
+export const MAX_DAILY_MIX_TRACKS = 20;
+export const MAX_DAILY_MIXES = 3;
+
 export interface DailyMix {
   id: string;
   label: string;
@@ -270,7 +274,7 @@ export function dailyMixes(
   });
   const untaggedArtists = new Set(validUntagged.map(artistKeyOf).filter(Boolean));
 
-  if (untaggedArtists.size >= 2 && validUntagged.length >= 3) {
+  if (untaggedArtists.size >= 2 && validUntagged.length >= MIN_DAILY_MIX_TRACKS) {
     const moodBuckets = new Map<MoodLabel, Track[]>();
     for (const track of validUntagged) {
       const mood = analyzeSongMood(track, features[track.id]?.analysis);
@@ -279,7 +283,7 @@ export function dailyMixes(
       moodBuckets.set(mood.primary, bucket);
     }
     for (const [mood, list] of moodBuckets) {
-      if (list.length < 3) continue;
+      if (list.length < MIN_DAILY_MIX_TRACKS) continue;
       const key = `mood:${mood}`;
       groups.set(key, {
         id: key,
@@ -290,10 +294,10 @@ export function dailyMixes(
         descriptor: '',
       });
     }
-    // If tracks spread so thin across moods that no bucket hit 3, build a combined
-    // multi-artist Discovery mix from the untagged pool.
+    // If tracks spread across moods so no single mood hits the minimum yet,
+    // combine the untagged pool into one complete multi-artist Daily Mix.
     const hasMoodGroup = [...groups.values()].some((g) => g.basis === 'mood');
-    if (!hasMoodGroup && validUntagged.length >= 3) {
+    if (!hasMoodGroup && validUntagged.length >= MIN_DAILY_MIX_TRACKS) {
       groups.set('mood:discovery', {
         id: 'mood:discovery',
         label: 'Daily Mix',
@@ -320,7 +324,9 @@ export function dailyMixes(
     }
   }
 
-  const eligible = [...groups.values()].filter((group) => group.tracks.length >= 3);
+  const eligible = [...groups.values()].filter(
+    (group) => group.tracks.length >= MIN_DAILY_MIX_TRACKS,
+  );
   const basisRank = (basis: DailyMix['basis']) =>
     basis === 'genre' ? 2 : basis === 'mood' ? 1 : 0;
   const hasFav = (group: DailyMix) =>
@@ -344,9 +350,12 @@ export function dailyMixes(
   // Rotate slightly among extra eligible groups across days so a large library
   // doesn't show the exact same 3 genres every single day of the year.
   const selected =
-    ranked.length > 3
-      ? [ranked[0], ...seededOrder(ranked.slice(1), hash(`picks:${day}`)).slice(0, 2)]
-      : ranked.slice(0, 3);
+    ranked.length > MAX_DAILY_MIXES
+      ? [
+          ranked[0],
+          ...seededOrder(ranked.slice(1), hash(`picks:${day}`)).slice(0, MAX_DAILY_MIXES - 1),
+        ]
+      : ranked.slice(0, MAX_DAILY_MIXES);
 
   return selected.map((group) => {
     const bpmOf = (track: Track) => features[track.id]?.bpm;
@@ -357,12 +366,12 @@ export function dailyMixes(
     const shuffled = seededOrder(sorted, seed);
 
     // Cap per-artist concentration BEFORE flow shaping so no artist hijacks the mix.
-    let ordered = balanceArtists(shuffled, 20);
+    let ordered = balanceArtists(shuffled, MAX_DAILY_MIX_TRACKS);
 
     if (measured >= Math.ceil(group.tracks.length / 2)) {
       ordered = shapeDailyFlow(ordered, seed, bpmOf, energyOf);
     }
-    ordered = spreadArtistsWide(ordered).slice(0, 20);
+    ordered = spreadArtistsWide(ordered).slice(0, MAX_DAILY_MIX_TRACKS);
 
     const enoughMeasured = measured >= Math.ceil(ordered.length / 2);
     const bpms = enoughMeasured

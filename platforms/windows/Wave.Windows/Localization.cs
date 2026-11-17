@@ -815,6 +815,10 @@ public static partial class Localization {
             ["{title} requires an internet connection"] = "{title} necesita conexión a internet",
             ["{title} by {artist} (offline)"] = "{title} de {artist} (sin conexión)",
             ["Offline"] = "Sin conexión",
+            ["The songs that shaped your month"] = "Las canciones que marcaron tu mes",
+            ["Your full year in music"] = "Todo tu año en música",
+            ["Scroll to top"] = "Volver arriba",
+            ["Daily Mix"] = "Mix diario",
         };
 
     /// <summary>What the person chose: "system", "en" or "es".</summary>

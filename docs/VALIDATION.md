@@ -1,6 +1,12 @@
 # Validation record
 
-Development target: 0.2.1. Released baseline: 0.2.0 · 3 November 2026. Historical run dates are retained below.
+Development target: 0.2.2 · 16 November 2026. Historical run dates are retained below.
+
+## 0.2.2 full-stack release validation — 16 November 2026
+
+- **777 web tests across 119 files passed (`npm test`).** Coverage includes 12-bin chroma & Camelot musical key estimation (`dsp.ts`), harmonic 3-band EQ `MixGraph` + `MixAudio` handover (`bass` low-shelf + `1.4 kHz` peaking `mid` carve + `air` roll-off/rise), key-clash tightening and `outroStart` exit anchors (`mixPlanner.ts`), 100% local on-device Mood Engine (`mood.ts` bilingual EN/ES cues, behavioral dwell/replay/consecutive-skip momentum, personal local circadian prior and AutoPlay continuation), complete-only Daily Mixes (`7–20` tracks, max 3, day-locked `covers`), BS.1770 LUFS Fix Volume, Weekly/Monthly/Yearly Remix, YouTube search/import/offline handling and deep routes.
+- **Zero lint errors/warnings (`npm run lint`), clean formatting (`npm run format:check`), clean TypeScript + Vite production build (`npm run build`), `npm run release:check` (`v0.2.2` verified across Web, Android, Windows, i18n and release notes) and `npm run test:release` (15/15 passing).**
+- **Native Windows 11 & Android source parity and contract tests updated** (`Library.cs` atomic `.bak`/`.corrupt` recovery + `SafeFileUri` + Issue #14 in-place linking, `Collections.cs` `NativeMood` + `7–20`/day-locked Daily Mixes, `Listening.cs` 366-day Monthly/Yearly Remix, `Motion.cs`/`App.xaml`/`MainWindow` Bezier Shuffle + borderless `StickySectionDock`; `Library.kt` crash-proof JSON + batched `importFiles` + MediaStore `GENRE` + `SecurityException`-safe folders, `Contracts.kt` `7–20`/day-locked Daily Mixes + local Mood + Monthly/Yearly Remix, `Player.kt` `AssetFileDescriptor` check + AutoPlay hook, Compose Canvas `WaveShuffleIcon` + borderless sticky Home heading handoff). Native SDKs (`dotnet`, `gradle`/JDK) are absent from this sandbox; native CI builds and device passes run on the GitHub runners after push.
 
 ## 0.2.1 launch candidate — 6 November 2026
 

@@ -1,6 +1,10 @@
 package io.github.jaimegaming.wave
+import kotlin.math.abs
 import kotlin.math.cos
+import kotlin.math.exp
+import kotlin.math.pow
 import kotlin.math.sin
+import kotlin.math.sqrt
 import java.text.Normalizer
 
 data class LyricWord(val time: Double, val text: String, val end: Double? = null)
@@ -218,8 +222,217 @@ fun rankSongs(songs: List<Song>, query: String): List<Song> {
         .map { it.first }
 }
 
-/** A mix of one kind of music, rebuilt each morning from the tags in the files. */
-data class DailyMix(val label: String, val songs: List<Song>)
+/** Minimum, maximum tracks per Daily Mix and maximum simultaneous mixes, synced with Web 0.2.2. */
+const val MIN_DAILY_MIX_TRACKS = 7
+const val MAX_DAILY_MIX_TRACKS = 20
+const val MAX_DAILY_MIXES = 3
+
+/** A mix of one kind of music, rebuilt each morning with day-locked cover sleeves. */
+data class DailyMix(val label: String, val songs: List<Song>, val covers: List<Song> = songs.take(3))
+
+/** 4-axis local musical mood vector (0..1 per dimension), computed strictly on-device. */
+data class MoodVector(val energy: Double, val valence: Double, val intensity: Double, val intimacy: Double)
+
+/** Behavioral dwell / quick-skip sample for live on-device mood detection. */
+data class MoodSignal(
+    val songId: String,
+    val seconds: Int,
+    val duration: Double,
+    val completed: Boolean,
+    val at: Long,
+)
+
+private val MOOD_GENRE_PROFILES: List<Pair<List<String>, MoodVector>> = listOf(
+    listOf("ambient", "drone", "sleep", "meditation", "soundscape") to MoodVector(0.14, 0.48, 0.12, 0.94),
+    listOf("lo-fi", "lofi", "chill", "downtempo", "lounge", "trip-hop") to MoodVector(0.28, 0.52, 0.22, 0.82),
+    listOf("classical", "piano", "instrumental", "soundtrack", "orchestral", "neoclassical") to MoodVector(0.30, 0.48, 0.25, 0.86),
+    listOf("jazz", "bossa", "acoustic", "folk", "unplugged", "trova") to MoodVector(0.36, 0.54, 0.28, 0.76),
+    listOf("ballad", "balada", "bolero", "blues", "sad", "shoegaze", "dream pop", "emo") to MoodVector(0.32, 0.24, 0.32, 0.76),
+    listOf("soul", "r&b", "rnb", "flamenco", "tango", "corrido") to MoodVector(0.50, 0.55, 0.45, 0.64),
+    listOf("synthwave", "retrowave", "darkwave", "vaporwave", "outrun") to MoodVector(0.68, 0.44, 0.62, 0.62),
+    listOf("indie", "alternative", "alt-rock", "post-punk", "britpop") to MoodVector(0.58, 0.48, 0.54, 0.48),
+    listOf("pop", "disco", "funk", "k-pop", "dance-pop", "synth-pop") to MoodVector(0.76, 0.80, 0.62, 0.24),
+    listOf("reggaeton", "reggaetón", "latin", "salsa", "bachata", "cumbia", "afrobeat", "reggae") to MoodVector(0.78, 0.82, 0.68, 0.22),
+    listOf("house", "edm", "electronic", "trance", "club", "phonk") to MoodVector(0.84, 0.66, 0.78, 0.30),
+    listOf("techno", "dubstep", "dnb", "drum & bass", "hardstyle", "rave", "hyperpop") to MoodVector(0.92, 0.45, 0.92, 0.35),
+    listOf("hip-hop", "rap", "trap", "drill", "urbano") to MoodVector(0.70, 0.48, 0.74, 0.36),
+    listOf("rock", "classic rock", "hard rock", "grunge") to MoodVector(0.76, 0.52, 0.78, 0.28),
+    listOf("metal", "punk", "hardcore", "metalcore") to MoodVector(0.94, 0.28, 0.96, 0.22),
+)
+
+private val MOOD_LEXICAL_CUES: List<Pair<List<String>, MoodVector>> = listOf(
+    listOf("night", "midnight", "moon", "neon", "shadow", "dark", "noche", "medianoche", "luna", "madrugada", "oscuro") to MoodVector(-0.06, -0.10, 0.0, 0.22),
+    listOf("sad", "tears", "alone", "lonely", "heartbreak", "rain", "goodbye", "triste", "soledad", "dolor", "lluvia", "nostalgia", "desamor") to MoodVector(-0.14, -0.26, -0.10, 0.20),
+    listOf("calm", "quiet", "sleep", "dream", "soft", "ocean", "waves", "peace", "sunset", "calma", "suave", "brisa", "mar", "paz", "silencio") to MoodVector(-0.22, 0.08, -0.20, 0.22),
+    listOf("dance", "party", "summer", "sunshine", "happy", "smile", "fiesta", "bailar", "verano", "feliz", "alegria", "euforia") to MoodVector(0.20, 0.24, 0.12, -0.18),
+    listOf("fire", "run", "power", "electric", "storm", "rush", "fuego", "fuerza", "tormenta", "velocidad", "energia") to MoodVector(0.22, 0.0, 0.22, -0.16),
+)
+
+/** 100% on-device mood analysis combining EN/ES genres, title/album cues and duration contour. */
+fun analyzeSongMood(song: Song): MoodVector {
+    var e = 0.20; var v = 0.20; var i = 0.20; var n = 0.20; var w = 0.40
+    val genre = song.genre.trim().lowercase()
+    if (genre.isNotEmpty()) {
+        val hit = MOOD_GENRE_PROFILES.firstOrNull { (tokens, _) -> tokens.any { genre.contains(it) } }
+        if (hit != null) {
+            e += hit.second.energy * 1.4; v += hit.second.valence * 1.4
+            i += hit.second.intensity * 1.4; n += hit.second.intimacy * 1.4
+            w += 1.4
+        }
+    }
+    val text = canonical("${song.title} ${song.album}")
+    var de = 0.0; var dv = 0.0; var di = 0.0; var dn = 0.0
+    for ((words, delta) in MOOD_LEXICAL_CUES) {
+        if (words.any { text.contains(it) }) {
+            de += delta.energy; dv += delta.valence; di += delta.intensity; dn += delta.intimacy
+        }
+    }
+    return MoodVector(
+        energy = (e / w + de.coerceIn(-0.32, 0.32)).coerceIn(0.0, 1.0),
+        valence = (v / w + dv.coerceIn(-0.32, 0.32)).coerceIn(0.0, 1.0),
+        intensity = (i / w + di.coerceIn(-0.32, 0.32)).coerceIn(0.0, 1.0),
+        intimacy = (n / w + dn.coerceIn(-0.32, 0.32)).coerceIn(0.0, 1.0),
+    )
+}
+
+fun classifyMood(vec: MoodVector): String = when {
+    vec.energy < 0.36 && vec.valence < 0.35 -> "Melancholic"
+    vec.energy < 0.38 && vec.intimacy >= 0.80 -> "Focus"
+    vec.energy < 0.42 -> "Chill"
+    vec.intimacy >= 0.62 && vec.valence < 0.48 -> "Late Night"
+    vec.energy >= 0.82 && vec.valence < 0.40 -> "Intense"
+    vec.valence >= 0.68 && vec.energy >= 0.60 -> "Upbeat"
+    else -> "Energetic"
+}
+
+fun dwellEngagement(seconds: Int, duration: Double, completed: Boolean): Double {
+    val ratio = if (duration > 0) (seconds / duration).coerceIn(0.0, 1.0) else 0.0
+    return when {
+        completed || ratio >= 0.85 || seconds >= 180 -> 1.35
+        seconds >= 25 || (ratio >= 0.35 && seconds >= 12) -> 0.55 + ratio * 0.65
+        seconds >= 12 -> 0.22
+        seconds >= 2 -> -(0.40 - (seconds / 12.0) * 0.24)
+        else -> 0.0
+    }
+}
+
+fun moodSimilarity(a: MoodVector, b: MoodVector): Double {
+    val de = (a.energy - b.energy) * 1.25
+    val dv = (a.valence - b.valence) * 1.15
+    val di = (a.intensity - b.intensity) * 1.0
+    val dn = (a.intimacy - b.intimacy) * 0.95
+    return (1.0 - sqrt(de * de + dv * dv + di * di + dn * dn) / 2.2).coerceIn(0.0, 1.0)
+}
+
+/**
+ * Infers the listener's live automatic session mood from local dwell/skip signals,
+ * current playback, and local time-of-day prior. Never leaves the device.
+ */
+fun inferListeningMood(
+    songs: List<Song>,
+    signals: List<MoodSignal>,
+    current: Song?,
+    now: Long = System.currentTimeMillis(),
+): MoodVector {
+    val byId = songs.associateBy { it.id }
+    val recent = signals.sortedByDescending { it.at }.take(14)
+    val hour = java.util.Calendar.getInstance().apply { timeInMillis = now }.get(java.util.Calendar.HOUR_OF_DAY)
+    val prior = when {
+        hour >= 22 || hour < 5 -> MoodVector(0.38, 0.40, 0.36, 0.74)
+        hour in 6..10 -> MoodVector(0.56, 0.64, 0.46, 0.48)
+        else -> MoodVector(0.54, 0.56, 0.48, 0.52)
+    }
+    var e = prior.energy * 0.28; var v = prior.valence * 0.28
+    var i = prior.intensity * 0.28; var n = prior.intimacy * 0.28; var w = 0.28
+    val skips = mutableListOf<Pair<MoodVector, Double>>()
+    var positives = 0
+    recent.forEachIndexed { idx, sig ->
+        val song = byId[sig.songId] ?: return@forEachIndexed
+        val eng = dwellEngagement(sig.seconds, if (sig.duration > 0) sig.duration else song.duration, sig.completed)
+        if (abs(eng) < 0.01) return@forEachIndexed
+        val ageHours = ((now - sig.at).coerceAtLeast(0L)) / 3_600_000.0
+        val recency = 0.78.pow(idx) * (0.25 + 0.75 * exp(-ageHours / 18.0))
+        val vec = analyzeSongMood(song)
+        if (eng > 0) {
+            val weight = recency * eng
+            e += vec.energy * weight; v += vec.valence * weight; i += vec.intensity * weight; n += vec.intimacy * weight
+            w += weight; positives++
+        } else {
+            skips.add(vec to (recency * abs(eng)))
+        }
+    }
+    if (positives == 0 && current != null) {
+        val cur = analyzeSongMood(current)
+        e += cur.energy * 1.5; v += cur.valence * 1.5; i += cur.intensity * 1.5; n += cur.intimacy * 1.5
+        w += 1.5
+    }
+    var ve = e / w; var vv = v / w; var vi = i / w; var vn = n / w
+    for ((vec, sw) in skips) {
+        val push = minOf(0.28, sw * 0.28)
+        ve += (ve - vec.energy) * push
+        vv += (vv - vec.valence) * push
+        vi += (vi - vec.intensity) * push
+        vn += (vn - vec.intimacy) * push
+    }
+    return MoodVector(ve.coerceIn(0.0, 1.0), vv.coerceIn(0.0, 1.0), vi.coerceIn(0.0, 1.0), vn.coerceIn(0.0, 1.0))
+}
+
+/** Local mood-aware Autoplay picker for Android when the queue ends. */
+fun pickAutoplayNext(
+    library: List<Song>,
+    current: Song,
+    recentIds: List<String>,
+    signals: List<MoodSignal>,
+    draw: Double = Math.random(),
+): Song? {
+    val avoid = recentIds.takeLast(12).toSet()
+    val all = library.filter { it.id != current.id }
+    if (all.isEmpty()) return null
+    val candidates = all.filterNot { it.id in avoid }.ifEmpty { all }
+    val session = inferListeningMood(library, signals, current)
+    val curMood = analyzeSongMood(current)
+    val weighted = candidates.map { song ->
+        val mood = analyzeSongMood(song)
+        val sim = moodSimilarity(mood, session) * 0.65 + moodSimilarity(mood, curMood) * 0.35
+        val sameGenre = song.genre.isNotBlank() && song.genre.equals(current.genre, ignoreCase = true)
+        val sameArtist = song.artist.equals(current.artist, ignoreCase = true)
+        val durFit = if (song.duration > 0 && current.duration > 0) {
+            minOf(song.duration, current.duration) / maxOf(song.duration, current.duration)
+        } else 0.5
+        val score = (0.8 + maxOf(0.0, sim - 0.32) * 6.5 + (if (sameGenre) 2.4 else 0.0) + durFit + (if (song.favorite) 0.5 else 0.0)) *
+            (if (sameArtist) 0.45 else 1.0) *
+            (if (sim < 0.42) 0.35 else 1.0)
+        song to maxOf(0.05, score)
+    }
+    val total = weighted.sumOf { it.second }
+    var ticket = draw.coerceIn(0.0, 0.999999) * total
+    for ((song, weight) in weighted) {
+        ticket -= weight
+        if (ticket <= 0) return song
+    }
+    return weighted.first().first
+}
+
+/** Locks up to 3 distinct cover songs for the calendar day so covers never flicker. */
+fun mixCovers(pool: List<Song>, day: String, label: String): List<Song> {
+    val ordered = pool.distinctBy { it.id }.sortedBy { mixDayHash("cover:$day:${label.lowercase()}:${it.id}") }
+    val picked = ArrayList<Song>(3)
+    val seenAlbums = HashSet<String>()
+    for (song in ordered) {
+        val key = "${song.artist.lowercase()}|${song.album.lowercase()}"
+        if (seenAlbums.add(key)) {
+            picked.add(song)
+            if (picked.size >= 3) return picked
+        }
+    }
+    for (song in ordered) {
+        if (picked.none { it.id == song.id }) {
+            picked.add(song)
+            if (picked.size >= 3) break
+        }
+    }
+    return picked
+}
 
 private fun mixDayHash(seed: String): Int {
     var h = 2166136261L
@@ -289,15 +502,16 @@ private fun curateMixSongs(pool: List<Song>, day: String, label: String, limit: 
 }
 
 /**
- * Up to three mixes, rebuilt each morning from the library with per-artist caps,
- * wide artist spacing (never back-to-back repeats) and daily variety rotation.
+ * Up to three complete Daily Mixes (min 7 songs, max 20 songs, max 3 mixes),
+ * rebuilt each morning with day-locked covers, per-artist caps, wide spacing
+ * and mood grouping for untagged libraries.
  */
-fun dailyMixes(songs: List<Song>, day: String, limit: Int = 20): List<DailyMix> {
+fun dailyMixes(songs: List<Song>, day: String, limit: Int = MAX_DAILY_MIX_TRACKS): List<DailyMix> {
     val unique = songs.distinctBy { it.id }
     val byGenre = unique
         .filter { it.genre.isNotBlank() }
         .groupBy { it.genre.trim() }
-        .filterValues { it.size >= 3 }
+        .filterValues { it.size >= MIN_DAILY_MIX_TRACKS }
         .entries
         .sortedWith(compareByDescending<Map.Entry<String, List<Song>>> { it.value.size }.thenBy { it.key.lowercase() })
 
@@ -306,17 +520,33 @@ fun dailyMixes(songs: List<Song>, day: String, limit: Int = 20): List<DailyMix> 
             val primary = byGenre.first().toPair()
             val rotated = byGenre.drop(1)
                 .sortedBy { mixDayHash("$day:slot:${it.key.lowercase()}") }
-                .take(2)
+                .take(MAX_DAILY_MIXES - 1)
                 .map { it.toPair() }
             listOf(primary) + rotated
         }
-        unique.size >= 3 -> listOf("Daily Mix" to unique)
+        unique.size >= MIN_DAILY_MIX_TRACKS -> {
+            val byMood = unique
+                .groupBy { classifyMood(analyzeSongMood(it)) }
+                .filterValues { it.size >= MIN_DAILY_MIX_TRACKS }
+                .entries
+                .sortedWith(compareByDescending<Map.Entry<String, List<Song>>> { it.value.size }.thenBy { it.key.lowercase() })
+                .take(MAX_DAILY_MIXES)
+                .map { it.toPair() }
+            if (byMood.isNotEmpty()) byMood else listOf("Daily Mix" to unique)
+        }
         else -> emptyList()
     }
 
     return chosenGroups
-        .take(3)
-        .map { (label, group) -> DailyMix(label, curateMixSongs(group, day, label, limit)) }
+        .take(MAX_DAILY_MIXES)
+        .map { (label, group) ->
+            DailyMix(
+                label = label,
+                songs = curateMixSongs(group, day, label, limit.coerceAtMost(MAX_DAILY_MIX_TRACKS)),
+                covers = mixCovers(group, day, label),
+            )
+        }
+        .filter { it.songs.size >= MIN_DAILY_MIX_TRACKS }
 }
 
 /** One listen, as it was heard. */
@@ -330,9 +560,9 @@ data class Play(
 /** Seconds after which a listen is counted as a play. */
 const val PLAY_THRESHOLD_SECONDS = 30
 
-/** Four weeks of history survive the count, so Remix can look back. */
-const val HISTORY_DAYS = 35
-const val HISTORY_PLAYS = 8000
+/** Full year of local history survives so Weekly, Monthly and Yearly Remix stay complete. */
+const val HISTORY_DAYS = 366
+const val HISTORY_PLAYS = 20000
 
 /** The oldest plays above this count fall away first. */
 const val MAX_PLAYS = 2000
@@ -604,3 +834,106 @@ fun weekRange(start: Long, end: Long): String {
             "${last.get(java.util.Calendar.DAY_OF_MONTH)} ${month.format(last.time)}"
     }
 }
+
+private fun rangeRecap(
+    plays: List<Play>,
+    songs: List<Song>,
+    start: Long,
+    finish: Long,
+    prevStart: Long,
+    prevFinish: Long,
+    now: Long,
+    buckets: Int,
+): WeekRecap {
+    val byId = songs.associateBy { it.id }
+    val span = plays.filter { it.at in start until finish }
+    val prev = plays.filter { it.at in prevStart until prevFinish }
+    val bucketCount = buckets.coerceIn(1, 12)
+    val bucketSeconds = IntArray(bucketCount)
+    val bucketPlays = IntArray(bucketCount)
+    val hours = IntArray(24)
+    val counts = mutableMapOf<String, Int>()
+    val artists = mutableMapOf<String, Int>()
+    val genres = mutableMapOf<String, GenreSlice>()
+    val totalMs = (finish - start).coerceAtLeast(1L)
+    for (play in span) {
+        val idx = (((play.at - start) * bucketCount) / totalMs).toInt().coerceIn(0, bucketCount - 1)
+        bucketSeconds[idx] += play.seconds
+        bucketPlays[idx] += 1
+        val hour = java.util.Calendar.getInstance().apply { timeInMillis = play.at }
+            .get(java.util.Calendar.HOUR_OF_DAY)
+        hours[hour] += 1
+        val song = byId[play.songId] ?: continue
+        counts[song.id] = (counts[song.id] ?: 0) + 1
+        val name = song.artist.ifBlank { "Unknown artist" }
+        artists[name] = (artists[name] ?: 0) + 1
+        val genre = song.genre.trim()
+        if (genre.isNotEmpty()) {
+            val seen = genres[genre]
+            genres[genre] = GenreSlice(genre, (seen?.seconds ?: 0) + play.seconds, (seen?.plays ?: 0) + 1)
+        }
+    }
+    val top = counts.entries
+        .mapNotNull { entry -> byId[entry.key]?.let { it to entry.value } }
+        .sortedWith(compareByDescending<Pair<Song, Int>> { it.second }.thenBy { canonical(it.first.title) })
+    val mix = top.map { it.first }.toMutableList()
+    if (mix.size < REMIX_LENGTH) {
+        val seen = mix.map { it.id }.toMutableSet()
+        for ((song, _) in listeningSummary(plays, songs, now).topSongs) {
+            if (mix.size >= REMIX_LENGTH) break
+            if (seen.add(song.id)) mix.add(song)
+        }
+    }
+    val step = (totalMs / bucketCount).coerceAtLeast(86_400_000L)
+    return WeekRecap(
+        start = start,
+        end = finish - 1L,
+        seconds = span.sumOf { it.seconds },
+        plays = span.size,
+        tracks = counts.size,
+        artists = artists.size,
+        previousSeconds = prev.sumOf { it.seconds },
+        topSongs = top.take(8),
+        topArtists = artists.entries
+            .sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key.lowercase() })
+            .take(3)
+            .map { it.key to it.value },
+        songs = mix.take(REMIX_LENGTH),
+        days = (0 until bucketCount).map { i -> DaySlice(start + i * step, bucketSeconds[i], bucketPlays[i]) },
+        hours = hours.toList(),
+        genres = genres.values.sortedByDescending { it.seconds },
+    )
+}
+
+/** Monthly Remix recap for a calendar month (0 = current month). */
+fun monthlyRecap(plays: List<Play>, songs: List<Song>, now: Long, monthsAgo: Int = 0): WeekRecap {
+    val cal = java.util.Calendar.getInstance().apply {
+        timeInMillis = startOfDay(now)
+        add(java.util.Calendar.MONTH, -monthsAgo.coerceAtLeast(0))
+        set(java.util.Calendar.DAY_OF_MONTH, 1)
+    }
+    val start = cal.timeInMillis
+    val finish = (cal.clone() as java.util.Calendar).apply { add(java.util.Calendar.MONTH, 1) }.timeInMillis
+    val prevStart = (cal.clone() as java.util.Calendar).apply { add(java.util.Calendar.MONTH, -1) }.timeInMillis
+    return rangeRecap(plays, songs, start, finish, prevStart, start, now, buckets = 8)
+}
+
+/** Yearly Remix recap for a calendar year (0 = current year). */
+fun yearlyRecap(plays: List<Play>, songs: List<Song>, now: Long, yearsAgo: Int = 0): WeekRecap {
+    val cal = java.util.Calendar.getInstance().apply {
+        timeInMillis = startOfDay(now)
+        add(java.util.Calendar.YEAR, -yearsAgo.coerceAtLeast(0))
+        set(java.util.Calendar.MONTH, java.util.Calendar.JANUARY)
+        set(java.util.Calendar.DAY_OF_MONTH, 1)
+    }
+    val start = cal.timeInMillis
+    val finish = (cal.clone() as java.util.Calendar).apply { add(java.util.Calendar.YEAR, 1) }.timeInMillis
+    val prevStart = (cal.clone() as java.util.Calendar).apply { add(java.util.Calendar.YEAR, -1) }.timeInMillis
+    return rangeRecap(plays, songs, start, finish, prevStart, start, now, buckets = 12)
+}
+
+fun monthRange(start: Long): String =
+    java.text.SimpleDateFormat("MMMM yyyy", java.util.Locale.getDefault()).format(java.util.Date(start))
+
+fun yearRange(start: Long): String =
+    java.util.Calendar.getInstance().apply { timeInMillis = start }.get(java.util.Calendar.YEAR).toString()

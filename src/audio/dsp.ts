@@ -62,6 +62,18 @@ export interface VocalRegion {
   strength: number;
 }
 
+export interface HarmonicKey {
+  /** Pitch class 0..11 (C = 0, C# = 1, ..., B = 11). */
+  tonic: number;
+  mode: 'major' | 'minor';
+  /** Human-readable musical key, e.g. 'A minor' or 'C major'. */
+  name: string;
+  /** Camelot wheel code ('1A'..'12B') for harmonic mixing. */
+  camelot: string;
+  /** Krumhansl-Schmuckler tonal correlation confidence in 0..1. */
+  confidence: number;
+}
+
 export interface TrackAnalysis {
   /** Seconds covered by the analysis (the whole file unless truncated). */
   duration: number;
@@ -76,6 +88,8 @@ export interface TrackAnalysis {
   profile: BandEnergies;
   /** Largest RMS in the file, used to normalise levels. */
   peak: number;
+  /** Detected musical key and Camelot wheel position when tonal energy is clear. */
+  key?: HarmonicKey;
 }
 
 const BASS = [20, 160] as const;
@@ -158,14 +172,24 @@ export function frameFeatures(
   samples: Float32Array,
   sampleRate: number,
   options: FrameOptions = {},
-): { frames: FrameFeatures[]; frameSeconds: number } {
+): { frames: FrameFeatures[]; frameSeconds: number; chroma: Float32Array } {
   const frameSize = options.frameSize ?? 1024;
   const hopSize = options.hopSize ?? 256;
   const window = hann(frameSize);
   const re = new Float32Array(frameSize);
   const im = new Float32Array(frameSize);
   const magnitudes = new Float32Array(frameSize / 2 + 1);
+  const chroma = new Float32Array(12);
   const binHz = sampleRate / frameSize;
+  const binPitchClass = new Int8Array(magnitudes.length);
+  binPitchClass.fill(-1);
+  for (let bin = 1; bin < magnitudes.length; bin++) {
+    const hz = bin * binHz;
+    if (hz >= 65 && hz <= 2000) {
+      const midi = Math.round(69 + 12 * Math.log2(hz / 440));
+      binPitchClass[bin] = ((midi % 12) + 12) % 12;
+    }
+  }
   const frames: FrameFeatures[] = [];
   for (let start = 0; start + frameSize <= samples.length; start += hopSize) {
     let sum = 0;
@@ -175,9 +199,17 @@ export function frameFeatures(
       re[index] = sample * window[index];
       im[index] = 0;
     }
+    const rms = Math.sqrt(sum / frameSize);
     fft(re, im);
-    for (let bin = 0; bin < magnitudes.length; bin++)
-      magnitudes[bin] = Math.hypot(re[bin], im[bin]) / frameSize;
+    const tonal = rms > 0.01;
+    for (let bin = 0; bin < magnitudes.length; bin++) {
+      const mag = Math.hypot(re[bin], im[bin]) / frameSize;
+      magnitudes[bin] = mag;
+      if (tonal) {
+        const pc = binPitchClass[bin];
+        if (pc >= 0) chroma[pc] += mag * mag;
+      }
+    }
     const bands: BandEnergies = {
       bass: bandEnergy(magnitudes, binHz, BASS),
       low: bandEnergy(magnitudes, binHz, LOW),
@@ -186,12 +218,123 @@ export function frameFeatures(
     };
     const total = bands.bass + bands.low + bands.mid + bands.high;
     frames.push({
-      rms: Math.sqrt(sum / frameSize),
+      rms,
       bands,
       brightness: total > 0 ? (bands.mid + bands.high) / total : 0,
     });
   }
-  return { frames, frameSeconds: hopSize / sampleRate };
+  return { frames, frameSeconds: hopSize / sampleRate, chroma };
+}
+
+const PITCH_NAMES = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'] as const;
+const CAMELOT_MAJOR = [8, 3, 10, 5, 12, 7, 2, 9, 4, 11, 6, 1] as const;
+const CAMELOT_MINOR = [5, 12, 7, 2, 9, 4, 11, 6, 1, 8, 3, 10] as const;
+const KS_MAJOR = [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88];
+const KS_MINOR = [6.33, 2.68, 3.52, 5.38, 2.6, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17];
+
+function pearsonRotation(chroma: Float32Array, profile: number[], shift: number): number {
+  let meanC = 0;
+  let meanP = 0;
+  for (let i = 0; i < 12; i++) {
+    meanC += chroma[i];
+    meanP += profile[i];
+  }
+  meanC /= 12;
+  meanP /= 12;
+  let num = 0;
+  let denC = 0;
+  let denP = 0;
+  for (let i = 0; i < 12; i++) {
+    const dc = chroma[(i + shift) % 12] - meanC;
+    const dp = profile[i] - meanP;
+    num += dc * dp;
+    denC += dc * dc;
+    denP += dp * dp;
+  }
+  const denom = Math.sqrt(denC * denP);
+  return denom > 1e-9 ? num / denom : 0;
+}
+
+/**
+ * Estimates musical key and Camelot wheel code from a 12-bin pitch-class chroma
+ * using the Krumhansl-Schmuckler tonal correlation profiles. Purely local DSP.
+ */
+export function estimateKeyFromChroma(chroma: Float32Array): HarmonicKey | undefined {
+  let total = 0;
+  for (let i = 0; i < 12; i++) total += chroma[i];
+  if (total <= 1e-12) return undefined;
+
+  const norm = new Float32Array(12);
+  for (let i = 0; i < 12; i++) norm[i] = chroma[i] / total;
+
+  let bestR = -2;
+  let secondR = -2;
+  let bestTonic = 0;
+  let bestMode: 'major' | 'minor' = 'major';
+
+  for (let tonic = 0; tonic < 12; tonic++) {
+    for (const mode of ['major', 'minor'] as const) {
+      const r = pearsonRotation(norm, mode === 'major' ? KS_MAJOR : KS_MINOR, tonic);
+      if (r > bestR) {
+        secondR = bestR;
+        bestR = r;
+        bestTonic = tonic;
+        bestMode = mode;
+      } else if (r > secondR) {
+        secondR = r;
+      }
+    }
+  }
+
+  if (bestR < 0.24) return undefined;
+  const strength = Math.max(0, Math.min(1, (bestR - 0.14) / 0.62));
+  const margin = Math.max(0.28, Math.min(1, (bestR - Math.max(0, secondR)) * 5 + 0.36));
+  const confidence = Math.round(strength * margin * 1000) / 1000;
+  const num = bestMode === 'major' ? CAMELOT_MAJOR[bestTonic] : CAMELOT_MINOR[bestTonic];
+  const letter = bestMode === 'major' ? 'B' : 'A';
+  return {
+    tonic: bestTonic,
+    mode: bestMode,
+    name: `${PITCH_NAMES[bestTonic]} ${bestMode}`,
+    camelot: `${num}${letter}`,
+    confidence,
+  };
+}
+
+/**
+ * Camelot-wheel harmonic compatibility in 0..1 between two tracks.
+ * Returns neutral ~0.62 when either key is missing or low-confidence so
+ * unmeasured tracks are never unfairly penalized.
+ */
+export function harmonicCompatibility(a?: HarmonicKey, b?: HarmonicKey): number {
+  const NEUTRAL = 0.62;
+  if (!a || !b) return NEUTRAL;
+  const reliability = Math.min(a.confidence, b.confidence);
+  if (reliability < 0.2) return NEUTRAL;
+
+  const numA = Number.parseInt(a.camelot, 10);
+  const numB = Number.parseInt(b.camelot, 10);
+  const letterA = a.camelot.slice(-1);
+  const letterB = b.camelot.slice(-1);
+  if (!Number.isFinite(numA) || !Number.isFinite(numB)) return NEUTRAL;
+
+  const rawDiff = Math.abs(numA - numB);
+  const wheelDist = Math.min(rawDiff, 12 - rawDiff);
+  const sameMode = letterA === letterB;
+  const forwardStep = (numB - numA + 12) % 12;
+
+  let rawScore = 0.42;
+  if (wheelDist === 0 && sameMode) rawScore = 1.0;
+  else if (wheelDist === 0 && !sameMode) rawScore = 0.95;
+  else if (wheelDist === 1 && sameMode) rawScore = 0.92;
+  else if (wheelDist === 1 && !sameMode) rawScore = 0.8;
+  else if (forwardStep === 2 && sameMode) rawScore = 0.78;
+  else if (wheelDist === 2 && sameMode) rawScore = 0.72;
+  else if (wheelDist === 3 && sameMode) rawScore = 0.58;
+  else if (wheelDist >= 5) rawScore = 0.22;
+
+  const weight = Math.max(0, Math.min(1, (reliability - 0.15) / 0.55));
+  return Math.round((NEUTRAL + (rawScore - NEUTRAL) * weight) * 1000) / 1000;
 }
 
 /**
@@ -510,7 +653,7 @@ export function analyzePcm(
   sampleRate: number,
   options: FrameOptions = {},
 ): TrackAnalysis {
-  const { frames, frameSeconds } = frameFeatures(samples, sampleRate, options);
+  const { frames, frameSeconds, chroma } = frameFeatures(samples, sampleRate, options);
   const duration = samples.length / sampleRate;
   const onset = normalise(onsetEnvelope(frames));
   const beats: Beats = {
@@ -528,6 +671,7 @@ export function analyzePcm(
     totals.high += frame.bands.high;
   }
   const grand = totals.bass + totals.low + totals.mid + totals.high || 1;
+  const key = estimateKeyFromChroma(chroma);
   return {
     duration: Math.round(duration * 100) / 100,
     frameSeconds,
@@ -542,6 +686,7 @@ export function analyzePcm(
       high: Math.round((totals.high / grand) * 100) / 100,
     },
     peak: Math.round(peak * 1000) / 1000,
+    ...(key ? { key } : {}),
   };
 }
 

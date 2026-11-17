@@ -1,6 +1,7 @@
 import type { TrackAnalysis } from '../audio/dsp';
 import { canonical, mainArtist } from './lyricsMatch';
 import { missingTag } from './metadata';
+import { transitionCompatibility } from './mixPlanner';
 import { analyzeSongMood, inferListeningMood, moodSimilarity, type ListeningSignal } from './mood';
 import type { Track } from './types';
 
@@ -95,6 +96,18 @@ export function continuationQueue(
           ? 0.35
           : 1;
 
+      // Studio Mix compatibility: harmonically and rhythmically matched tracks get a
+      // clear lift so Autoplay + Mix transitions land seamlessly on-key and on-tempo.
+      const anchorAnalysis = analysisLookup?.(anchor);
+      const candidateAnalysis = analysisLookup?.(t);
+      const mixFit =
+        anchorAnalysis && candidateAnalysis
+          ? transitionCompatibility(anchorAnalysis, candidateAnalysis)
+          : 0.55;
+      const mixBoost = mixFit > 0.62 ? (mixFit - 0.62) * 8.5 : 0;
+      const mixClashDamp =
+        anchorAnalysis?.key && candidateAnalysis?.key && mixFit < 0.38 ? 0.65 : 1;
+
       // An artist heard a moment ago steps back, so a shuffle does not turn into
       // five songs by the same band in a row.
       const justHeard = avoid.has(t.id) ? 0.2 : 1;
@@ -116,12 +129,14 @@ export function continuationQueue(
             (shared ? 3.5 : 0) +
             moodWeight +
             themeMatch +
+            mixBoost +
             (decade ? 1 : 0) +
             duration +
             (t.favorite ? 0.5 : 0)) *
           justHeard *
           variety *
-          whiplashPenalty,
+          whiplashPenalty *
+          mixClashDamp,
       };
     });
     const draw = random();

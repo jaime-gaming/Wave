@@ -1,6 +1,6 @@
 <p align="center"><img src="public/wave-wordmark.svg" alt="Wave" width="270" /></p>
 <p align="center"><strong>Your music files, played properly.</strong></p>
-<p align="center"><a href="https://wave.jaime-gaming.com">wave.jaime-gaming.com</a> · Candidate <strong>0.2.1</strong> · <a href="#get-started">Get started</a> · <a href="docs/WHY_WAVE.md">Why Wave</a> · <a href="docs/media/wave-promo.mp4">Watch the demo</a> · <a href="docs/RELEASE_NOTES_0.2.1.md">What's new</a></p>
+<p align="center"><a href="https://wave.jaime-gaming.com">wave.jaime-gaming.com</a> · Release <strong>0.2.2</strong> · <a href="#get-started">Get started</a> · <a href="docs/WHY_WAVE.md">Why Wave</a> · <a href="docs/media/wave-promo.mp4">Watch the demo</a> · <a href="docs/RELEASE_NOTES_0.2.2.md">What's new</a></p>
 
 ![Wave Home on the web: a local collection, album artwork and daily mixes](docs/media/home-desktop.png)
 
@@ -37,18 +37,23 @@ own runtime; the Android download is a normal APK you tap to install. They are t
   collection, ranked by how well they answer, and forgiving a letter in the wrong place.
 - **Fills in the gaps.** Songs that know nothing but their filename get their artist, album, year,
   genre and cover looked up while you listen — never over something you typed.
-- **Daily mixes** from the genre tags your files already carry: play one, shuffle it, or save it
-  as an ordinary playlist.
+- **Daily mixes** built from your genres or local mood groups (7–20 tracks, up to 3 mixes,
+  day-locked covers and wide artist spacing): play one, shuffle it, or save it as a playlist.
 - **Lyrics that follow the song**, word by word when the file carries timings. Saved lyrics work
   offline.
-- **Mix** joins two songs on a bar with a twelve to twenty-four second overlap, level-matched on the
-  fly, each record at the tempo it was recorded at. The files on disk are untouched.
-- **Remix**: the week you just had. One number, the songs you played most, and a list you can
-  play or save as a playlist.
+- **Studio-grade Mix** joins two songs on a bar with Camelot musical-key awareness, 3-band EQ
+  handovers (bass swap, vocal mid-pocket carve and air roll-off), stereo spread and live level
+  matching, each record at its original tempo. The files on disk are untouched.
+- **100% local Mood Engine** silently tracks audio cues, genres, bilingual themes and live
+  listening momentum on-device to guide Home recommendations and AutoPlay with zero cloud calls.
+- **Remix**: Weekly, Monthly and Yearly recaps backed by a full year of local history — one
+  headline number, the songs you played most, and a list you can play or save as a playlist.
+- **Fix volume**: K-weighted BS.1770 LUFS loudness leveling that boosts quiet tracks cleanly
+  without touching already-balanced masters or modifying source files.
 - **Real video clips** behind the player, muted, full screen, drawn under the player's own text and
   with no YouTube interface showing. A still picture is not a clip, so a song either has a moving
   one or none.
-- **YouTube songs** by link, for the ones you do not own yet.
+- **YouTube search & links**, with offline awareness, for the songs you do not own yet.
 - **Brings playlists over** from another app: try a public Spotify/YouTube URL, paste a list or choose its exported `.m3u` or
   `.csv`, see which songs you already have, and turn the confirmed ones into a playlist.
 - **Device linking** with a QR code and no server, so two of your devices can share a song by
@@ -114,9 +119,10 @@ service never will:
 - **It is open source**, so you can read what it does with your files, and run your own copy.
 
 What it does not do: it has no catalogue to stream, so a song you do not own is not there — you
-can add it from YouTube by link, or buy the file. There is no social feed, no cloud sync between
-devices, and no recommendation engine. [Why Wave](docs/WHY_WAVE.md) has the full comparison,
-including the parts where the big services are the better choice.
+can search or add it from YouTube by link, or buy the file. There is no social feed, no cloud sync
+between devices, and no server-side profiling (all mood matching and AutoPlay run 100% locally on
+your own collection). [Why Wave](docs/WHY_WAVE.md) has the full comparison, including the parts
+where the big services are the better choice.
 
 ## Where it runs
 

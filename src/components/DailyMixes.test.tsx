@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { makeTrack } from '../test/fixtures';
 import { DailyMixes } from './DailyMixes';
 
-const rockTracks = () =>
-  Array.from({ length: 5 }, (_, i) =>
+const rockTracks = (count = 8) =>
+  Array.from({ length: count }, (_, i) =>
     makeTrack({
       id: `rock-${i}`,
       title: `Rock ${i}`,
@@ -16,12 +16,15 @@ const rockTracks = () =>
   );
 
 describe('DailyMixes', () => {
-  it('withholds mixes while the library is loading or importing and delivers once complete', () => {
-    const tracks = rockTracks();
+  it('withholds mixes under 7 songs, while loading or importing, and delivers once complete', () => {
+    const tracks = rockTracks(8);
     const onOpen = vi.fn();
     const { rerender } = render(
-      <DailyMixes tracks={tracks} loading={false} busy={true} onOpen={onOpen} />,
+      <DailyMixes tracks={rockTracks(6)} loading={false} busy={false} onOpen={onOpen} />,
     );
+    expect(screen.queryByRole('region', { name: 'Daily mixes' })).not.toBeInTheDocument();
+
+    rerender(<DailyMixes tracks={tracks} loading={false} busy={true} onOpen={onOpen} />);
     expect(screen.queryByRole('region', { name: 'Daily mixes' })).not.toBeInTheDocument();
 
     rerender(<DailyMixes tracks={tracks} loading={true} busy={false} onOpen={onOpen} />);

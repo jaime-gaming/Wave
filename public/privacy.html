@@ -19,20 +19,25 @@
         <p class="intro">
           Understand what stays here, when Wave connects, and the controls you have.
         </p>
-        <p class="updated">Updated 6 November 2026</p>
+        <p class="updated">Updated 16 November 2026</p>
       </header>
       <p class="notice">
         Wave is local-first, not a backup service: keep your original music files. Public deployment
         operators are responsible for their own legal identity and privacy contact.
       </p>
       <section class="privacy-topic">
-        <h2>Public playlist links and private feedback</h2>
+        <h2>Public playlist &amp; YouTube links and private feedback</h2>
         <p>
-          When you explicitly read a Spotify or YouTube URL, the Wave Worker requests that
-          provider's public page metadata. No account, audio, local library or listening history is
-          uploaded. Public results can be incomplete; review before saving or use an exported file.
-          Cloudflare processes the request; the provider sees the Worker connection. Wave does not
-          store or cache these lists on its server.
+          When you explicitly search YouTube or paste a Spotify or YouTube URL, the Wave Worker
+          requests bounded public metadata from that provider. No account, audio, local library or
+          listening history is uploaded. Public results can be incomplete; review before saving or
+          use an exported file. Cloudflare processes the request; the provider sees the Worker
+          connection. Wave does not store or cache these lists on its server.
+        </p>
+        <p>
+          Automatic mood detection, harmonic Mix analysis, BS.1770 Fix Volume and
+          Weekly/Monthly/Yearly Remix calculations run 100% locally on your device — never sent to
+          any external server.
         </p>
         <p>
           A very rare feature-opinion prompt keeps up to ten answers, a cooldown and an opt-out only

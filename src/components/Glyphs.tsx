@@ -227,14 +227,8 @@ export const SkipForward = ({ children, className, ...props }: IconProps) => (
 
 export const Shuffle = ({ children, className, ...props }: IconProps) => (
   <Pen className={`wave-glyph wave-glyph--shuffle${className ? ` ${className}` : ''}`} {...props}>
-    <path
-      className="glyph-shuffle-a"
-      d="M4 6.9h2.5c1.4 0 2.7.7 3.5 1.9l3.9 6.4c.8 1.2 2.1 1.9 3.5 1.9H20"
-    />
-    <path
-      className="glyph-shuffle-b"
-      d="M4 17.1h2.5c1.4 0 2.7-.7 3.5-1.9l3.9-6.4c.8-1.2 2.1-1.9 3.5-1.9H20"
-    />
+    <path className="glyph-shuffle-a" d="M4 6.9C9.8 6.9 10.4 17.1 16.4 17.1L20 17.1" />
+    <path className="glyph-shuffle-b" d="M4 17.1C9.8 17.1 10.4 6.9 16.4 6.9L20 6.9" />
     <path className="glyph-shuffle-tip-a" d="M17.7 4.6 20.2 6.9l-2.5 2.3" />
     <path className="glyph-shuffle-tip-b" d="M17.7 14.8 20.2 17.1l-2.5 2.3" />
     {children}

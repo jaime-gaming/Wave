@@ -89,32 +89,99 @@ public sealed class Library
         return false;
     }
 
-    public List<Song> Load() =>
-        File.Exists(Index) ? JsonSerializer.Deserialize<List<Song>>(File.ReadAllText(Index)) ?? [] : [];
+    private static readonly object IoLock = new();
 
-    public void Save(List<Song> songs)
+    /// <summary>
+    /// Builds a safe absolute file URI that preserves special filename characters
+    /// such as #, %, and ? so MediaPlayer and BitmapImage never misparse them.
+    /// </summary>
+    public static Uri SafeFileUri(string path)
     {
-        Directory.CreateDirectory(Folder);
-        var temp = Index + ".tmp";
-        File.WriteAllText(temp, JsonSerializer.Serialize(songs));
-        File.Move(temp, Index, true);
+        var full = System.IO.Path.GetFullPath(path).Replace('\\', '/');
+        var escaped = full
+            .Replace("%", "%25")
+            .Replace("#", "%23")
+            .Replace("?", "%3F");
+        if (!escaped.StartsWith('/')) escaped = "/" + escaped;
+        return new Uri("file://" + escaped);
     }
 
-    public Preferences LoadPreferences()
+    internal static void WriteJsonAtomic<T>(string path, T value)
     {
-        var path = System.IO.Path.Combine(Folder, "preferences.json");
-        return File.Exists(path)
-            ? JsonSerializer.Deserialize<Preferences>(File.ReadAllText(path)) ?? new(Mix: true)
-            : new(Mix: true);
+        var dir = System.IO.Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+        var payload = JsonSerializer.Serialize(value);
+        lock (IoLock)
+        {
+            var temp = $"{path}.{Guid.NewGuid():N}.tmp";
+            var backup = path + ".bak";
+            try
+            {
+                using (var stream = new FileStream(temp, FileMode.Create, FileAccess.Write, FileShare.None, 4096, FileOptions.WriteThrough))
+                using (var writer = new StreamWriter(stream, new UTF8Encoding(false)))
+                {
+                    writer.Write(payload);
+                    writer.Flush();
+                }
+                if (File.Exists(path))
+                {
+                    try { File.Copy(path, backup, true); } catch { /* Best-effort rolling backup. */ }
+                }
+                File.Move(temp, path, true);
+            }
+            finally
+            {
+                if (File.Exists(temp))
+                {
+                    try { File.Delete(temp); } catch { }
+                }
+            }
+        }
     }
 
-    public void SavePreferences(Preferences value)
+    internal static T? ReadJsonSafe<T>(string path)
     {
-        Directory.CreateDirectory(Folder);
-        var path = System.IO.Path.Combine(Folder, "preferences.json");
-        File.WriteAllText(path + ".tmp", JsonSerializer.Serialize(value));
-        File.Move(path + ".tmp", path, true);
+        lock (IoLock)
+        {
+            var backup = path + ".bak";
+            foreach (var candidate in new[] { path, backup })
+            {
+                if (!File.Exists(candidate)) continue;
+                try
+                {
+                    var text = File.ReadAllText(candidate);
+                    if (string.IsNullOrWhiteSpace(text)) continue;
+                    var parsed = JsonSerializer.Deserialize<T>(text);
+                    if (parsed != null)
+                    {
+                        if (candidate == backup)
+                        {
+                            try { File.Copy(backup, path, true); } catch { }
+                        }
+                        return parsed;
+                    }
+                }
+                catch
+                {
+                    if (candidate == path)
+                    {
+                        try { File.Move(path, path + ".corrupt", true); } catch { }
+                    }
+                }
+            }
+            return default;
+        }
     }
+
+    public List<Song> Load() => ReadJsonSafe<List<Song>>(Index) ?? [];
+
+    public void Save(List<Song> songs) => WriteJsonAtomic(Index, songs);
+
+    public Preferences LoadPreferences() =>
+        ReadJsonSafe<Preferences>(System.IO.Path.Combine(Folder, "preferences.json")) ?? new(Mix: true);
+
+    public void SavePreferences(Preferences value) =>
+        WriteJsonAtomic(System.IO.Path.Combine(Folder, "preferences.json"), value);
 
     /// <summary>
     /// Imports audio files into the Wave library.
@@ -143,8 +210,11 @@ public sealed class Library
         }
 
         int count = 0;
+        var addedSongs = new List<Song>();
+        var copiedPaths = new List<string>();
         foreach (var rawPath in paths)
         {
+            if (string.IsNullOrWhiteSpace(rawPath) || !File.Exists(rawPath)) continue;
             var fullPath = System.IO.Path.GetFullPath(rawPath);
             if (knownPaths.Contains(fullPath)) continue;
             var info = new FileInfo(fullPath);
@@ -162,6 +232,7 @@ public sealed class Library
                 storedPath = System.IO.Path.Combine(copyRoot, hash + info.Extension.ToLowerInvariant());
                 File.Copy(fullPath, storedPath, true);
                 linked = false;
+                copiedPaths.Add(storedPath);
             }
 
             var metadata = await Task.Run(() => Metadata.Read(fullPath));
@@ -174,7 +245,6 @@ public sealed class Library
                 ? metadata.Album
                 : folderAlbum ?? "Unknown album";
 
-            songs = Load();
             var song = new Song(
                 hash,
                 rawTitle,
@@ -185,19 +255,32 @@ public sealed class Library
                 metadata.Duration,
                 Genre: metadata.Genre,
                 Linked: linked);
-            songs.Add(song);
-            try
-            {
-                Save(songs);
-            }
-            catch
-            {
-                if (!linked && File.Exists(storedPath)) File.Delete(storedPath);
-                throw;
-            }
+            addedSongs.Add(song);
             knownIds.Add(hash);
             knownPaths.Add(fullPath);
             count++;
+        }
+
+        if (addedSongs.Count > 0)
+        {
+            var merged = Load();
+            var mergedIds = new HashSet<string>(merged.Select(s => s.Id), StringComparer.OrdinalIgnoreCase);
+            foreach (var song in addedSongs)
+            {
+                if (mergedIds.Add(song.Id)) merged.Add(song);
+            }
+            try
+            {
+                Save(merged);
+            }
+            catch
+            {
+                foreach (var copy in copiedPaths)
+                {
+                    try { if (File.Exists(copy)) File.Delete(copy); } catch { }
+                }
+                throw;
+            }
         }
         return count;
     }

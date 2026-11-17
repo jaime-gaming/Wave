@@ -1,8 +1,8 @@
 # Wave Internal API Reference
 
-**Candidate: 0.2.1 · Prepared 6 November 2026. Released baseline: 0.2.0.**
+**Version: 0.2.2 · Prepared 16 November 2026.**
 
-This document describes the implemented TypeScript modules. Wave has no HTTP API or backend. These interfaces are internal and may change during `0.x` development.
+This document describes the implemented TypeScript modules (`src/audio/dsp.ts`, `src/audio/mixGraph.ts`, `src/audio/MixAudio.ts`, `src/domain/mixPlanner.ts`, `src/domain/mood.ts`, `src/domain/dailyMixes.ts`, `src/domain/listening.ts`, `src/domain/continuation.ts`, and `src/worker/index.ts`). Wave has no user database or account backend; bounded Worker endpoints exist strictly for CORS-free public playlist and YouTube metadata/search lookups. These interfaces are internal and may change during `0.x` development.
 
 Earlier Kotlin examples for `MediaPlayerController`, `MusicLibrary`, playlists, and settings managers were proposals, not working APIs. Their relevant behavior is now represented by the modules below; unimplemented features remain on the [roadmap](ROADMAP.md).
 

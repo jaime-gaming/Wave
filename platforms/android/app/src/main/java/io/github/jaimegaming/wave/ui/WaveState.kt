@@ -14,15 +14,19 @@ import io.github.jaimegaming.wave.Library
 import io.github.jaimegaming.wave.ListeningSummary
 import io.github.jaimegaming.wave.ListeningCounter
 import io.github.jaimegaming.wave.LyricsClient
+import io.github.jaimegaming.wave.MoodSignal
 import io.github.jaimegaming.wave.Play
 import io.github.jaimegaming.wave.Player
 import io.github.jaimegaming.wave.Playlist
 import io.github.jaimegaming.wave.Song
 import io.github.jaimegaming.wave.dailyMixes
 import io.github.jaimegaming.wave.listeningSummary
+import io.github.jaimegaming.wave.monthlyRecap
+import io.github.jaimegaming.wave.pickAutoplayNext
 import io.github.jaimegaming.wave.rankSongs
 import io.github.jaimegaming.wave.weekRecap
 import io.github.jaimegaming.wave.weeklyRecaps
+import io.github.jaimegaming.wave.yearlyRecap
 import io.github.jaimegaming.wave.wave
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -102,6 +106,15 @@ class WaveState(
     /** The last four weeks, newest first, so the page keeps a record. */
     var recaps by mutableStateOf(weeklyRecaps(plays, songs, System.currentTimeMillis()))
         private set
+    var monthlyRecap by mutableStateOf(monthlyRecap(plays, songs, System.currentTimeMillis()))
+        private set
+    var yearlyRecap by mutableStateOf(yearlyRecap(plays, songs, System.currentTimeMillis()))
+        private set
+    var remixPeriod by mutableStateOf("weekly")
+    var autoplayEnabled by mutableStateOf(context.wave.preferences().getBoolean(KEY_AUTOPLAY, true))
+        private set
+    private val moodSignals = mutableListOf<MoodSignal>()
+    private val recentPlayedIds = mutableListOf<String>()
 
     var destination by mutableStateOf(Destination.Home)
     var shelf by mutableStateOf(Shelf.Songs)
@@ -146,8 +159,18 @@ class WaveState(
         io.github.jaimegaming.wave.PlaybackService.refresh(context)
     }
 
+    private var lastObservedSongId: String? = null
+    private var lastObservedSerial: Long = -1L
+    private var lastObservedPos: Double = 0.0
+    private var lastObservedDuration: Double = 0.0
+
     init {
         player.crossfade = if (mixEnabled) BLEND_SECONDS else 0.0
+        player.onQueueEnded = {
+            val activeSong = player.current
+            if (!autoplayEnabled || activeSong == null || songs.size < 2) null
+            else pickAutoplayNext(songs, activeSong, recentPlayedIds, moodSignals)
+        }
         player.observe(listener)
         scope.launch {
             while (true) {
@@ -155,6 +178,21 @@ class WaveState(
                 sampleListening()
             }
         }
+    }
+
+    private fun recordSignal(songId: String, seconds: Int, duration: Double, completed: Boolean) {
+        if (seconds < 2) return
+        moodSignals.add(MoodSignal(songId, seconds, duration, completed, System.currentTimeMillis()))
+        if (moodSignals.size > 48) moodSignals.removeAt(0)
+    }
+
+    private fun refreshAnalytics() {
+        val now = System.currentTimeMillis()
+        summary = listeningSummary(plays, songs, now)
+        recap = weekRecap(plays, songs, now)
+        recaps = weeklyRecaps(plays, songs, now)
+        monthlyRecap = monthlyRecap(plays, songs, now)
+        yearlyRecap = yearlyRecap(plays, songs, now)
     }
 
     // --- listening ---------------------------------------------------------
@@ -169,18 +207,40 @@ class WaveState(
      */
     private fun sampleListening() {
         val song = player.current
+        val serial = player.playbackSerial
+        val duration = player.duration.takeIf { it > 0 } ?: song?.duration ?: 0.0
+        if (song?.id != lastObservedSongId || serial != lastObservedSerial) {
+            lastObservedSongId?.let { prevId ->
+                val secs = kotlin.math.round(lastObservedPos).toInt()
+                val completed = lastObservedDuration > 0 && lastObservedPos >= lastObservedDuration * 0.85
+                recordSignal(prevId, secs, lastObservedDuration, completed)
+            }
+            if (song != null) {
+                recentPlayedIds.add(song.id)
+                if (recentPlayedIds.size > 24) recentPlayedIds.removeAt(0)
+            }
+            lastObservedSongId = song?.id
+            lastObservedSerial = serial
+            lastObservedPos = 0.0
+            lastObservedDuration = duration
+        } else {
+            lastObservedPos = maxOf(lastObservedPos, player.time)
+            if (duration > 0) lastObservedDuration = duration
+        }
         val play = listeningCounter.sample(
-            serial = player.playbackSerial,
+            serial = serial,
             songId = song?.id,
             playing = player.playing,
             position = player.time,
-            duration = player.duration.takeIf { it > 0 } ?: song?.duration ?: 0.0,
+            duration = duration,
             now = System.currentTimeMillis(),
         )
         if (play != null) record(play.songId, play.at, play.seconds, play.completed)
     }
 
     private fun record(songId: String, at: Long, seconds: Int, completed: Boolean) {
+        val duration = songs.find { it.id == songId }?.duration ?: 0.0
+        recordSignal(songId, seconds, duration, completed)
         scope.launch {
             withContext(Dispatchers.IO) {
                 repository.addPlay(Play(songId, at, seconds, completed))
@@ -192,9 +252,7 @@ class WaveState(
             }
             plays = repository.loadPlays()
             songs = repository.load()
-            summary = listeningSummary(plays, songs, System.currentTimeMillis())
-            recap = weekRecap(plays, songs, System.currentTimeMillis())
-            recaps = weeklyRecaps(plays, songs, System.currentTimeMillis())
+            refreshAnalytics()
         }
     }
 
@@ -217,9 +275,8 @@ class WaveState(
         scope.launch {
             withContext(Dispatchers.IO) { repository.clearPlays() }
             plays = emptyList()
-            summary = listeningSummary(plays, songs, System.currentTimeMillis())
-            recap = weekRecap(plays, songs, System.currentTimeMillis())
-            recaps = weeklyRecaps(plays, songs, System.currentTimeMillis())
+            moodSignals.clear()
+            refreshAnalytics()
             notice = Loc.t("Listening history cleared.")
         }
     }
@@ -230,6 +287,11 @@ class WaveState(
         mixEnabled = enabled
         player.crossfade = if (enabled) BLEND_SECONDS else 0.0
         context.wave.preferences().edit().putBoolean(KEY_MIX, enabled).apply()
+    }
+
+    fun setAutoplay(enabled: Boolean) {
+        autoplayEnabled = enabled
+        context.wave.preferences().edit().putBoolean(KEY_AUTOPLAY, enabled).apply()
     }
 
     fun setLyricsOnline(enabled: Boolean) {
@@ -277,8 +339,10 @@ class WaveState(
         .groupBy { it.artist.ifBlank { "Unknown artist" } }
         .toSortedMap(String.CASE_INSENSITIVE_ORDER)
 
+    /** Complete-only Daily Mixes: withheld while a bulk import is actively running. */
     fun mixes(): List<DailyMix> =
-        dailyMixes(songs, SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()))
+        if (busy) emptyList()
+        else dailyMixes(songs, SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()))
 
     fun playlistSongs(playlist: Playlist): List<Song> {
         val byId = songs.associateBy { it.id }
@@ -337,9 +401,7 @@ class WaveState(
             withContext(Dispatchers.IO) { repository.delete(song.id) }
             songs = repository.load()
             playlists = repository.loadPlaylists()
-            summary = listeningSummary(plays, songs, System.currentTimeMillis())
-            recap = weekRecap(plays, songs, System.currentTimeMillis())
-            recaps = weeklyRecaps(plays, songs, System.currentTimeMillis())
+            refreshAnalytics()
         }
         notice = "${song.title} removed from this device."
     }
@@ -432,9 +494,7 @@ class WaveState(
                 val added = withContext(Dispatchers.IO) { work() }
                 songs = repository.load()
                 playlists = repository.loadPlaylists()
-                summary = listeningSummary(plays, songs, System.currentTimeMillis())
-            recap = weekRecap(plays, songs, System.currentTimeMillis())
-            recaps = weeklyRecaps(plays, songs, System.currentTimeMillis())
+                refreshAnalytics()
                 notice = when (added) {
                     0 -> Loc.t("Nothing new: those files are already here.")
                     1 -> Loc.t("One song added.")
@@ -493,6 +553,7 @@ class WaveState(
 
     private companion object {
         const val KEY_MIX = "mix"
+        const val KEY_AUTOPLAY = "autoplay"
         const val KEY_LYRICS = "lyrics"
         const val KEY_RECENT = "recent-searches"
         /** A character no phrase contains, so one string can hold the list. */

@@ -21,9 +21,13 @@ it('makes three disjoint coherent groups, stable within the day and independent 
     dailyMixes(source, '2026-10-16').map((g) => g.tracks.map((t) => t.id)),
   );
 });
-it('does not fabricate three groups or classify unknown artists/genres', () => {
+it('does not fabricate groups under 7 songs or classify unknown artists/genres', () => {
   expect(dailyMixes([makeTrack()], '2026-10-15')).toEqual([]);
-  const same = Array.from({ length: 4 }, (_, i) => makeTrack({ id: String(i), genres: undefined }));
+  const tooSmall = Array.from({ length: 6 }, (_, i) =>
+    makeTrack({ id: `s-${i}`, genres: ['Rock'] }),
+  );
+  expect(dailyMixes(tooSmall, '2026-10-15')).toEqual([]);
+  const same = Array.from({ length: 7 }, (_, i) => makeTrack({ id: String(i), genres: undefined }));
   expect(dailyMixes(same, '2026-10-15')).toMatchObject([{ basis: 'artist', label: 'Wave Tests' }]);
   expect(
     dailyMixes(
@@ -43,7 +47,7 @@ it('caps results, does not mutate originals, deduplicates IDs and uses local cal
 });
 
 it('shapes a measured mix with daily flow variety and never repeats an artist back to back', () => {
-  const source = Array.from({ length: 6 }, (_, i) =>
+  const source = Array.from({ length: 8 }, (_, i) =>
     makeTrack({
       id: `t${i}`,
       genres: ['House'],
@@ -51,20 +55,20 @@ it('shapes a measured mix with daily flow variety and never repeats an artist ba
     }),
   );
   const features = Object.fromEntries(
-    source.map((track, i) => [track.id, { bpm: 140 - i * 5, energy: 0.2 + i * 0.1 }]),
+    source.map((track, i) => [track.id, { bpm: 140 - i * 4, energy: 0.2 + i * 0.08 }]),
   );
   const [mixA] = dailyMixes(source, '2026-10-15', features);
   const [mixB] = dailyMixes(source, '2026-10-16', features);
   const [mixC] = dailyMixes(source, '2026-10-17', features);
-  expect(mixA.tracks).toHaveLength(6);
+  expect(mixA.tracks).toHaveLength(8);
   for (let i = 1; i < mixA.tracks.length; i++)
     expect(mixA.tracks[i].artist).not.toBe(mixA.tracks[i - 1].artist);
   // Across consecutive days, measured mixes rotate contours instead of playing the exact same order.
   const orders = new Set([mixA, mixB, mixC].map((m) => m.tracks.map((t) => t.id).join(',')));
   expect(orders.size).toBeGreaterThan(1);
-  expect(mixA.bpm).toBe(127.5);
+  expect(mixA.bpm).toBe(126);
   expect(mixA.descriptor).toContain('BPM');
-  expect(mixA.descriptor).toContain('6 songs');
+  expect(mixA.descriptor).toContain('8 songs');
 });
 
 it('caps any dominant artist and spaces artists widely to prevent artist burnout', () => {
@@ -91,19 +95,23 @@ it('builds multi-artist mood mixes instead of single-artist mixes when genre tag
     makeTrack({ id: 'u2', title: 'Quiet Sleep', artist: 'Artist Two', genres: undefined }),
     makeTrack({ id: 'u3', title: 'Soft Breeze', artist: 'Artist Three', genres: undefined }),
     makeTrack({ id: 'u4', title: 'Gentle Waves', artist: 'Artist Four', genres: undefined }),
+    makeTrack({ id: 'u5', title: 'Calm Sunset', artist: 'Artist Five', genres: undefined }),
+    makeTrack({ id: 'u6', title: 'Silent Drift', artist: 'Artist Six', genres: undefined }),
+    makeTrack({ id: 'u7', title: 'Peaceful Sea', artist: 'Artist Seven', genres: undefined }),
   ];
   const mixes = dailyMixes(untagged, '2026-11-16');
   expect(mixes.length).toBeGreaterThanOrEqual(1);
   expect(mixes[0].basis).toBe('mood');
-  expect(new Set(mixes[0].tracks.map((t) => t.artist)).size).toBeGreaterThanOrEqual(3);
+  expect(mixes[0].tracks).toHaveLength(7);
+  expect(new Set(mixes[0].tracks.map((t) => t.artist)).size).toBeGreaterThanOrEqual(5);
 });
 
 it('keeps the shuffled order when too little is measured to sort', () => {
-  const source = Array.from({ length: 4 }, (_, i) =>
-    makeTrack({ id: `u${i}`, genres: ['Folk'], artist: `A${i % 2}` }),
+  const source = Array.from({ length: 7 }, (_, i) =>
+    makeTrack({ id: `u${i}`, genres: ['Folk'], artist: `A${i % 3}` }),
   );
   const [mix] = dailyMixes(source, '2026-10-15', { u0: { bpm: 90 } });
-  expect(mix.tracks).toHaveLength(4);
+  expect(mix.tracks).toHaveLength(7);
   expect(mix.descriptor).not.toContain('BPM');
 });
 
