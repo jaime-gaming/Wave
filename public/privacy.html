@@ -135,13 +135,15 @@
           against an external catalogue.
         </p>
         <p>
-          Online catalogue checks and cover downloading have been removed. Imports and metadata
-          review make no MusicBrainz or Cover Art Archive requests, including when an older
-          verification preference is saved. Previously saved details and covers remain local; they
-          are not automatically erased or reverted. Prior provider requests cannot be recalled. Use
-          local editing/restoration or browser site-data controls to manage saved data. The separate
-          optional lyric-search policy is unchanged.
+          Optional song-detail lookups are off by default. When enabled in Settings, Wave sends the
+          title and artist of incomplete songs to Apple’s iTunes Search API and may download a
+          matching cover; those services receive connection information such as your IP address.
+          Audio, existing artwork and listening history are not sent. Turning the option off stops
+          new lookups, but cannot recall a request already sent. Saved details and covers remain
+          local. Local checks do not use MusicBrainz or Cover Art Archive.
         </p>
+      </section>
+      <section class="privacy-topic">
         <h2>Local continuous listening</h2>
         <p>
           Autoplay selects only from your local songs, using artist, album, available genre/year,
@@ -180,6 +182,8 @@
           a code is read or the panel is dismissed. The picture is examined in the page and no frame
           is stored or sent anywhere. A device with no camera can open the pairing link instead.
         </p>
+      </section>
+      <section class="privacy-topic">
         <h2>Video clips and songs from YouTube</h2>
         <p>
           <strong>Clips.</strong> To find the video behind a song, Wave sends only the song title

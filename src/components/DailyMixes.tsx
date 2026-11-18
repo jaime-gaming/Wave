@@ -293,23 +293,14 @@ export const DailyMixes = memo(function DailyMixes({
       >
         <div className="section-heading">
           <h2>{t('Daily mixes')}</h2>
-          <p className="daily-mix-status-note">{t('Your daily mix is on its way')}</p>
         </div>
-        <div className="daily-mix-grid" aria-hidden="true">
-          {[0, 1, 2].map((slot) => (
-            <div key={slot} className="daily-mix-card daily-mix-skeleton">
-              <span className="daily-mix-sleeves">
-                <span className="skeleton-box skeleton-sleeve" />
-                <span className="skeleton-box skeleton-sleeve" />
-                <span className="skeleton-box skeleton-sleeve" />
-              </span>
-              <span className="daily-mix-copy">
-                <span className="skeleton-box skeleton-line skeleton-line--title" />
-                <span className="skeleton-box skeleton-line skeleton-line--sub" />
-                <span className="skeleton-box skeleton-line skeleton-line--meta" />
-              </span>
-            </div>
-          ))}
+        <div className="daily-mix-grid">
+          <div className="daily-mix-card daily-mix-skeleton" role="status">
+            <span className="skeleton-box skeleton-sleeve" aria-hidden="true" />
+            <span className="daily-mix-copy">
+              <span className="daily-mix-status-note">{t('Your daily mix is on its way')}</span>
+            </span>
+          </div>
         </div>
       </section>
     );

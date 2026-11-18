@@ -52,7 +52,7 @@ Provider: https://lrclib.net/docs. Its terms/privacy endpoints were not availabl
 
 Imported files are inspected on your device for title, artist, album, duration, source format, track/disc numbers, year/genre and supported embedded covers. A same-origin worker parses tags where supported. Original audio is saved unchanged; local checks do not identify recordings against an external catalogue.
 
-Online catalogue verification and cover downloading have been removed. Imports and metadata review make no MusicBrainz or Cover Art Archive requests, even if an older verification preference remains in this browser. Previously saved details/covers remain local and are not automatically erased or reverted. Prior requests already received by a provider cannot be recalled. Use local editing/restoration or browser site-data controls to manage saved data. The separate optional LRCLIB lyric policy above is unchanged.
+Local checks do not use MusicBrainz or Cover Art Archive. Optional iTunes catalogue lookups and cover downloads are described above and are off by default. Previously saved details/covers remain local and are not automatically erased or reverted. Prior requests already received by a provider cannot be recalled. Use local editing/restoration or browser site-data controls to manage saved data. The separate optional LRCLIB lyric policy above is unchanged.
 
 ## Offline copy of the interface
 

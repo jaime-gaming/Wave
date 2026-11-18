@@ -1529,7 +1529,7 @@ kbd {
 .material-switch[aria-checked='true'] {
   background: var(--primary);
   outline: none;
-  justify-content: flex-end;
+  justify-content: flex-start;
 }
 .material-switch > span {
   width: 22px;
@@ -8973,4 +8973,33 @@ button:hover .wave-glyph--volume .glyph-wave-outer {
     width: 38px;
     height: 38px;
   }
+}
+
+/* Keep the option label and its explanation on separate lines. */
+.local-metadata .settings-switch-row > div {
+  display: grid;
+  gap: 5px;
+}
+.local-metadata .settings-switch-row > div > span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.daily-mix-skeleton .skeleton-sleeve {
+  width: 96px;
+  height: 96px;
+  border-radius: 16px;
+}
+.daily-mix-skeleton .daily-mix-copy {
+  min-width: 0;
+}
+.daily-mix-skeleton .daily-mix-status-note {
+  margin: 0;
+  line-height: 1.45;
+}
+.section-scroll-dock__back {
+  flex-shrink: 0;
+}
+.workspace:not([data-banner-covered='true']) .section-scroll-dock__bar {
+  transition: none;
 }

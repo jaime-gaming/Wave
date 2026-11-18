@@ -2,6 +2,12 @@
 
 Development target: 0.2.2 · 16 November 2026. Historical run dates are retained below.
 
+## 0.2.2 review — 16 November 2026
+
+- Web unit suite: 780 tests in 120 files passed; release metadata and 15 release checks passed. Lint, format and production build passed. These checks do not replace a browser/device review.
+- The last hosted native run at `42de3a2` failed: Android compilation referenced an undeclared preferences variable, and Windows UI smoke retained an obsolete three-song Daily Mix expectation. Both sources have been corrected locally, but have not yet been validated by a new native run. The same hosted Checks run failed its required browser smoke and documentation capture; the capture had an obsolete genre-specific Daily Mix selector and has been updated. The remaining browser smoke failure is not yet diagnosed.
+- Native SDKs and browser binaries are not available in this workspace; no native build, device playback, full browser suite, live provider access, trusted signing or publication is claimed. Release packaging requires persistent Android signing and a Windows certificate; temporary keys are for branch CI only.
+
 ## 0.2.2 full-stack release validation — 16 November 2026
 
 - **777 web tests across 119 files passed (`npm test`).** Coverage includes 12-bin chroma & Camelot musical key estimation (`dsp.ts`), harmonic 3-band EQ `MixGraph` + `MixAudio` handover (`bass` low-shelf + `1.4 kHz` peaking `mid` carve + `air` roll-off/rise), key-clash tightening and `outroStart` exit anchors (`mixPlanner.ts`), 100% local on-device Mood Engine (`mood.ts` bilingual EN/ES cues, behavioral dwell/replay/consecutive-skip momentum, personal local circadian prior and AutoPlay continuation), complete-only Daily Mixes (`7–20` tracks, max 3, day-locked `covers`), BS.1770 LUFS Fix Volume, Weekly/Monthly/Yearly Remix, YouTube search/import/offline handling and deep routes.

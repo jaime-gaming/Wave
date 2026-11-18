@@ -28,7 +28,7 @@ it.each<PlayerAction>(['repeat', 'shuffle', 'favorite', 'clip', 'volume'])(
     expect(click).toHaveBeenCalledOnce();
     expect(controls.start).toHaveBeenCalledOnce();
     expect(controls.start).toHaveBeenCalledWith(
-      expect.objectContaining({ transition: { duration: 0.28, ease: 'easeOut' } }),
+      expect.objectContaining({ transition: { duration: 0.38, ease: [0.22, 1, 0.36, 1] } }),
     );
   },
 );

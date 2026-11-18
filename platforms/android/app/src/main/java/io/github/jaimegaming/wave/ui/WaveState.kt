@@ -348,6 +348,7 @@ class WaveState(
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
         val signature = "${songs.size}:" + songs.map { it.id }.sorted().take(48).joinToString(",")
         val byId = songs.associateBy { it.id }
+        val preferences = context.wave.preferences()
         val savedDay = preferences.getString(KEY_MIX_DAY, null)
         val savedSig = preferences.getString(KEY_MIX_SIG, null)
         val savedRaw = preferences.getString(KEY_MIX_DATA, null)

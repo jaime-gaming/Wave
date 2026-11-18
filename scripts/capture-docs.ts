@@ -215,7 +215,7 @@ await home.setViewportSize({ width: 1440, height: 900 });
 await home.getByRole('button', { name: 'Home', exact: true }).click();
 await home.waitForTimeout(600);
 
-await home.getByRole('button', { name: /Open Daily mix .*Electronic/ }).click();
+await home.getByRole('button', { name: /Open Daily mix 1/ }).click();
 await home.waitForTimeout(650);
 await shot(home, 'daily-mix-desktop.png');
 

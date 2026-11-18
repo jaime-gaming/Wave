@@ -48,6 +48,7 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          RELEASE_TAG: ${{ inputs.tag }}
         run: |
           set -euo pipefail
           KEYSTORE_PATH="$RUNNER_TEMP/wave-release.keystore.p12"
@@ -59,6 +60,10 @@ jobs:
             echo "WAVE_ANDROID_KEY_PASSWORD=${ANDROID_KEY_PASSWORD:-$ANDROID_KEYSTORE_PASSWORD}" >> "$GITHUB_ENV"
             echo "Android APK signing: repository release keystore." >> "$GITHUB_STEP_SUMMARY"
           else
+            if [[ -n "${RELEASE_TAG:-}" ]]; then
+              echo "::error::A persistent Android release keystore is required to publish an update-compatible APK."
+              exit 1
+            fi
             EPHEMERAL_PASS="$(openssl rand -hex 24)"
             keytool -genkeypair -v \
               -keystore "$KEYSTORE_PATH" \
@@ -202,6 +207,7 @@ jobs:
           WINDOWS_SIGNING_CERT_BASE64: ${{ secrets.WINDOWS_SIGNING_CERT_BASE64 }}
           WINDOWS_SIGNING_CERT_PASSWORD: ${{ secrets.WINDOWS_SIGNING_CERT_PASSWORD }}
           WINDOWS_TIMESTAMP_URL: ${{ secrets.WINDOWS_TIMESTAMP_URL }}
+          RELEASE_TAG: ${{ inputs.tag }}
         run: |
           $ErrorActionPreference = 'Stop'
           $exe = (Resolve-Path artifacts/windows/Wave.exe).Path
@@ -215,6 +221,9 @@ jobs:
             Remove-Item $pfxPath -Force -ErrorAction SilentlyContinue
             "Windows signing: Authenticode SHA-256 with trusted repository certificate." | Add-Content $env:GITHUB_STEP_SUMMARY
           } else {
+            if (-not [string]::IsNullOrWhiteSpace($env:RELEASE_TAG)) {
+              throw 'A trusted Windows signing certificate is required for release publication.'
+            }
             $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=Wave, O=Jaime Gaming" -KeyAlgorithm RSA -KeyLength 4096 -HashAlgorithm SHA256 -CertStoreLocation Cert:\CurrentUser\My -NotAfter (Get-Date).AddYears(3)
             $sig = Set-AuthenticodeSignature -FilePath $exe -Certificate $cert -HashAlgorithm SHA256
             if ($null -eq $sig.SignerCertificate -or $sig.Status -eq 'HashMismatch') {

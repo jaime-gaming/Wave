@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { Check } from './Glyphs';
 import { useWaveMotion } from '../ui/motion';
 
-const TRACK_TRAVEL_PX = 22;
+const TRACK_TRAVEL_PX = 24;
 const DRAG_THRESHOLD_PX = 3;
 
 /**
@@ -120,15 +120,9 @@ export function MaterialSwitch({
       }}
     >
       <motion.span
-        layout={!isDragging}
-        transition={animation.fast}
-        style={
-          isDragging
-            ? {
-                transform: `translate3d(${(dragProgress * TRACK_TRAVEL_PX).toFixed(2)}px, 0, 0) scaleX(1.12)`,
-              }
-            : undefined
-        }
+        initial={false}
+        animate={{ x: (dragProgress ?? (checked ? 1 : 0)) * TRACK_TRAVEL_PX }}
+        transition={isDragging ? { duration: 0 } : animation.fast}
       >
         {visualChecked && <Check size={15} />}
       </motion.span>

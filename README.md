@@ -24,8 +24,9 @@ Nothing else needs setting up. The same build is published at
 [wave.jaime-gaming.com](https://wave.jaime-gaming.com).
 
 Windows and Android builds are on the [Releases](https://github.com/jaime-gaming/Wave/releases)
-page, and neither asks you to install anything else or type a command. The Windows zip carries its
-own runtime; the Android download is a normal APK you tap to install. They are test builds: Windows is unsigned and Android uses debug signing, not a production publisher key. Windows may show a SmartScreen warning and Android asks you to allow the install.
+page when published. The Windows build is a self-contained `Wave.exe`; Android uses `Wave.apk`.
+Windows may show a SmartScreen warning and Android asks you to allow installation. Signing and
+update compatibility depend on the release credentials; CI-only builds may use temporary keys.
 
 ## What it does
 
@@ -97,7 +98,7 @@ match, each one a row that opens it:
 </p>
 
 Every image is a real capture, not a mock-up. The web ones come from `npm run capture:docs`
-against a generated demo library; the Windows ones are drawn by `Wave.Windows.exe --smoke-test`
+against a generated demo library; the Windows ones are drawn by `Wave.exe --smoke-test`
 on its own throwaway library; the Android ones are rendered by the app's `ScreenshotTest` on the
 real Compose stack. Each of those runs on CI and commits what it produced, so the pictures here
 are the current build. See [Platforms](docs/PLATFORMS.md) for the pages that are not shown.
@@ -145,8 +146,8 @@ it opens without a connection once loaded. The published site is built and serve
 [Cloudflare](docs/PLATFORMS.md#browser-and-cloudflare); to host your own copy, see the
 same page.
 
-**Windows.** A native C#/WPF app. Unzip the download, run `Wave.Windows.exe`, and add your
-folders: there is no runtime to install first. Unsigned builds can trigger SmartScreen; see
+**Windows.** A native C#/WPF app. Run `Wave.exe` and add your
+folders: there is no runtime to install first. Builds without a trusted signature can trigger SmartScreen; see
 [Windows release preparation](docs/WINDOWS_RELEASE.md).
 
 **Android.** A native Kotlin/Compose app for API 26 and newer, installed from the APK in the
@@ -227,8 +228,8 @@ Fix volume uses the same Settings switch row as Mix, Video clip and Autoplay; on
 
 Android adds an animated favorite/upcoming-queue shuffle and an in-player volume/mute row, a persistent Animations preference, directional pages and a scrollable record column on short wide displays. Shuffling preserves the current recording and clock. Audio-focus ducking now changes a separate output multiplier instead of overwriting the user's volume or unmuting them. Windows adds matching icon responses, synchronized dock/expanded volume with remembered mute, directional pages/Settings sections and clearer keyboard focus; same-page updates no longer fade the whole library. Native build/device verification runs separately in CI; this does not add native clip playback or native Fix volume analysis.
 
-### Preparing 0.2.1 for launch
+### Preparing 0.2.2 for launch
 
-See the [release checklist](docs/RELEASE_READINESS_0.2.1.md) and [publishable notes](docs/RELEASE_NOTES_0.2.1.md). `npm run test:smoke` is a required browser gate in Checks and Release assets. The candidate remains unpublished until explicit approval; a tag does not deploy the website.
+See the [release notes](docs/RELEASE_NOTES_0.2.2.md) and [validation record](docs/VALIDATION.md). `npm run test:smoke` is a required browser gate in Checks and Release assets. Publication requires approval, passing native checks and stable signing credentials; a tag does not deploy the website.
 
 Unselected Remix highlights now compact around the open detail. Search adds genre/year matching and category-aware keyboard actions; Mix preserves short or incompletely measured recordings, and AutoPlay filters missing sources, deduplicates batches and balances recent-artist variety. App-surface/runtime dependency checks guard against decorative magic icons, model branding and model-service dependencies.

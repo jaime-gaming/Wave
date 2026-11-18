@@ -17,6 +17,8 @@ test('native release builds check out the selected tag and attach clean signed s
   assert.match(native, /workflow_call:/);
   assert.equal((native.match(/ref: \$\{\{ inputs.tag \|\| github.sha \}\}/g) ?? []).length, 2);
   assert.match(native, /apksigner" verify/);
+  assert.match(native, /persistent Android release keystore is required/);
+  assert.match(native, /trusted Windows signing certificate is required/);
   assert.match(native, /Set-AuthenticodeSignature|Sign-Release\.ps1/);
   assert.match(native, /gh release upload "\$RELEASE_TAG" artifacts\/android\/Wave\.apk --clobber/);
   assert.match(

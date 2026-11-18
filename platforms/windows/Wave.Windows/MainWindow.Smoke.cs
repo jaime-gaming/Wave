@@ -41,11 +41,12 @@ public partial class MainWindow
         Check(matches!.Children.OfType<Button>().Count() == 1, "The album found by name should open from the search.");
         await Capture("search");
         searchBox.Text = "Local song 3"; Check(visible.Count == 1, "Native search failed.");
-        ShowPage("Daily mix", DailyGroups()[0].Id); Check(visible.Count == 3, "Native daily mix is not browsable.");
+        var mix = DailyGroups().First();
+        ShowPage("Daily mix", mix.Id); Check(visible.Select(s => s.Id).SequenceEqual(mix.Songs.Select(s => s.Id)) && visible.Count >= 7, "Native daily mix is not browsable.");
         Check(Summary.Text.Contains("·"), "A browsing page should count the library under its title.");
         await Capture("daily-mix");
         var snapshot = new NativePlaylist("smoke", "Morning collection", "Saved local selection", visible.Select(s => s.Id).ToList());
-        SavePlaylists(new() { snapshot }); ShowPage("Playlists", snapshot.Id); Check(visible.Count == 3, "Playlist snapshot lost songs."); await Capture("playlist");
+        SavePlaylists(new() { snapshot }); ShowPage("Playlists", snapshot.Id); Check(visible.Select(s => s.Id).SequenceEqual(snapshot.TrackIds), "Playlist snapshot lost songs."); await Capture("playlist");
         // Remix over the seeded week: the figure and its sleeve, then the list it earns.
         ShowPage("Remix");
         // The page is built from grids and panels now, so the words have to be read

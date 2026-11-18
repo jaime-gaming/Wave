@@ -87,7 +87,7 @@ Requirements: JDK 17, SDK/build tools 36, Gradle 8.13 and Android Studio support
 gradle -p platforms/android testDebugUnitTest lintDebug assembleRelease
 ```
 
-Output: a single signed **`Wave.apk`** verified via `apksigner verify` in CI (using the repository keystore when `ANDROID_KEYSTORE_BASE64` is configured, or a generated 4096-bit PKCS12 signing key otherwise). The pinned Ubuntu CI runner provides the SDK and runs unit tests, lint, Compose screenshot verification and release APK signing. Tests cover the LRC, search, mix and listening contracts.
+Output: a single signed **`Wave.apk`** verified via `apksigner verify` in CI (using the repository keystore when `ANDROID_KEYSTORE_BASE64` is configured, or a generated 4096-bit PKCS12 signing key for branch-only test builds; tagged releases require the persistent keystore). The pinned Ubuntu CI runner provides the SDK and runs unit tests, lint, Compose screenshot verification and release APK signing. Tests cover the LRC, search, mix and listening contracts.
 
 The web client does not promote Android on Home and no longer opens an automatic download sheet. Settings → About keeps quiet **Wave for Android** and **Wave for Windows** links; `ANDROID_APP_URL` points to Releases.
 
@@ -107,11 +107,11 @@ The phone screens in `docs/media/android-*.png` are rendered by `ScreenshotTest`
 
 ## Publication gates
 
-Run checks at the latest revision, perform real target-device playback/accessibility/DPI checks, state the reduced native scope, review exact runtime notices and sign using credentials kept outside the repository. At the approved merge, tag its actual merged commit as `v0.2.0` and create the GitHub Release. Never include signing keys or personal music. [Privacy](../PRIVACY.md) and existing rights restrictions remain applicable.
+Run checks at the latest revision, perform real target-device playback/accessibility/DPI checks, state the reduced native scope, review exact runtime notices and sign using credentials kept outside the repository. At the approved merge, tag its actual merged commit with the approved release version and create the GitHub Release. Never include signing keys or personal music. [Privacy](../PRIVACY.md) and existing rights restrictions remain applicable.
 
 ### Lyric-service traffic
 
-The clients retain LRCLIB as the only online lyric provider. Web requests use a shared 500 ms queue, same-origin Web Locks when supported, concurrent lookup sharing and safelisted headers. Native Windows serializes requests per client with bounded cancellation; Android retains its synchronized queue. Both native clients space request starts by 500 ms. Windows accepts short numeric and HTTP-date retry deadlines; Android preserves deadlines longer than one day. None of these measures removes provider-side/IP limits. Native retry-deadline contracts have been added; the latest local web validation does not certify a new native build.
+LRCLIB is the primary online lyric provider on all clients; the web also offers opt-in NetEase and Kugou word-timing sources. Web requests use a shared 500 ms queue, same-origin Web Locks when supported, concurrent lookup sharing and safelisted headers. Native Windows serializes requests per client with bounded cancellation; Android retains its synchronized queue. Both native clients space request starts by 500 ms. Windows accepts short numeric and HTTP-date retry deadlines; Android preserves deadlines longer than one day. None of these measures removes provider-side/IP limits. Native retry-deadline contracts have been added; the latest local web validation does not certify a new native build.
 
 ## Native interaction refinement — 0.2.1
 
@@ -119,4 +119,4 @@ The clients retain LRCLIB as the only online lyric provider. Web requests use a 
 - Windows: `Motion.IconAction` animates only the glyph and uses non-accumulating, bounded keyframes; OS/app motion preferences gate it. Repeat, shuffle, favorite and volume respond locally. Dock/full-player sound controls synchronize without recursive feedback, and mute restores the previous level. Native directional page/Settings motion replaces whole-list flashes on same-page updates. Icon controls expose keyboard focus and localized sound/repeat/favorite names.
 - New Android player control tests and extended Windows UI smoke checks are committed for native CI. They are not a claim of a local native build: this workspace lacks both SDKs. Clip and Fix volume processing remain web capabilities, not newly advertised native controls.
 
-Candidate native CI (`6e57af4`) completed successfully for Android and Windows after correcting screenshot publication from detached checkouts. This verifies the automated native build/test/package steps, not manual headphone/device/signing checks. Refer to [release readiness](RELEASE_READINESS_0.2.1.md) before launch.
+Candidate native CI (`6e57af4`) completed successfully for Android and Windows after correcting screenshot publication from detached checkouts. This verifies the automated native build/test/package steps, not manual headphone/device/signing checks. That run was for 0.2.1; check the latest 0.2.2 native CI and device results before launch.

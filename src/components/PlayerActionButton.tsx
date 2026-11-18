@@ -74,7 +74,7 @@ export function PlayerActionButton({
       triggerSymbolPulse();
       void controls.start({
         ...actionFrames(action),
-        transition: { duration: 0.28, ease: 'easeOut' },
+        transition: { duration: 0.38, ease: [0.22, 1, 0.36, 1] },
       });
     }
   }, [action, value, motionPreference.enabled, controls, triggerSymbolPulse]);
@@ -89,7 +89,7 @@ export function PlayerActionButton({
           triggerSymbolPulse();
           void controls.start({
             ...actionFrames(action),
-            transition: { duration: 0.28, ease: 'easeOut' },
+            transition: { duration: 0.38, ease: [0.22, 1, 0.36, 1] },
           });
         }
         onClick?.(event);

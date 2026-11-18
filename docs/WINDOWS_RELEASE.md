@@ -19,7 +19,7 @@ Prepared **16 November 2026**. Wave for Windows ships as a **single signed execu
 The CI workflow (`.github/workflows/native.yml`) Authenticode-signs `Wave.exe` with SHA-256 on every build:
 
 - **Production / publicly trusted signing**: configure repository secrets `WINDOWS_SIGNING_CERT_BASE64`, `WINDOWS_SIGNING_CERT_PASSWORD`, and optional `WINDOWS_TIMESTAMP_URL` (defaults to `https://timestamp.digicert.com`). The workflow imports the PFX certificate into `Cert:\CurrentUser\My`, runs `platforms/windows/scripts/Sign-Release.ps1` with an HTTPS RFC 3161 timestamp, verifies `Valid` status, and deletes the temporary PFX immediately.
-- **Fallback CI signing**: when no repository certificate secret is configured yet, CI generates a 4096-bit RSA Authenticode code-signing certificate and signs `Wave.exe` with SHA-256 so the output binary is always cryptographically signed while logging a maintainer reminder in the workflow summary.
+- **Branch-only fallback CI signing**: when no repository certificate secret is configured, CI generates a 4096-bit RSA Authenticode code-signing certificate and signs `Wave.exe` with SHA-256 for test artifacts. This certificate is not publicly trusted. Tagged release builds fail without a configured signing certificate; a signature alone does not guarantee SmartScreen reputation.
 
 Manual signing on a release workstation uses the same script directly on `Wave.exe`:
 

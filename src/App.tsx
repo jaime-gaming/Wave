@@ -53,6 +53,7 @@ import {
   Music2,
   Disc3,
   Users,
+  ArrowLeft,
   ArrowUpRight,
   Check,
   ChevronDown,
@@ -423,7 +424,7 @@ function WaveApp({
 
   // Banner-covering scroll + live borderless section heading handoff:
   // Only reveals the borderless dock once the top header is completely covered
-  // (<= 8px remaining), and only binds a section heading AFTER you have scrolled
+  // (no visible pixels remaining), and only binds a section heading AFTER you have scrolled
   // completely past that heading so no title is ever shown twice on screen.
   useEffect(() => {
     const workspace = workspaceRef.current;
@@ -440,7 +441,7 @@ function WaveApp({
           : Math.max(0, bannerHeight - window.scrollY);
       const progress = Math.max(0, Math.min(1, 1 - visibleBannerPx / bannerHeight));
       // Show the sticky title bar strictly when the top header is no longer visible.
-      const covered = visibleBannerPx <= 8;
+      const covered = visibleBannerPx <= 0;
       workspace.style.setProperty('--banner-cover', progress.toFixed(3));
       workspace.dataset.bannerCovered = covered ? 'true' : 'false';
       setBannerCovered((prev) => (prev === covered ? prev : covered));
@@ -1052,6 +1053,31 @@ function WaveApp({
         </header>
         <div className="section-scroll-dock">
           <div className="section-scroll-dock__bar">
+            {bannerCovered &&
+              (page === 'settings' ||
+                (page === 'home' && dailySelection) ||
+                (page === 'library' && (group || selectedPlaylist))) && (
+                <button
+                  type="button"
+                  className="icon-button section-scroll-dock__back"
+                  aria-label={t('Back')}
+                  onClick={() => {
+                    if (page === 'settings')
+                      workspaceRef.current
+                        ?.querySelector<HTMLButtonElement>('.settings-back')
+                        ?.click();
+                    else if (page === 'home') setDailySelection(null);
+                    else {
+                      setGroup(null);
+                      setPlaylistId(null);
+                      setQuery('');
+                      if (view === 'albums') setSort('recent');
+                    }
+                  }}
+                >
+                  <ArrowLeft size={20} aria-hidden="true" />
+                </button>
+              )}
             <button
               type="button"
               className="section-scroll-dock__heading"
