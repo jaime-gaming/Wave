@@ -1,6 +1,6 @@
 # Wave product film
 
-The current deliverable is [`wave-promo.mp4`](wave-promo.mp4): a 60-second, horizontal 1920×1080 film
+The introduction film is [`wave-promo.mp4`](wave-promo.mp4): a 60-second, horizontal 1920×1080 film
 at 30 fps for **Wave 0.2.0**, with English captions, a light and minimal presentation, real interface
 recordings and an instrumental acoustic-piano score.
 
@@ -9,6 +9,12 @@ disposable demo library, writes the score from the same recorded piano samples a
 from those recordings. Every frame is therefore of the code that produced it, and a reviewer can
 compare the film with the commit rather than take it on trust. The workflow is documentation, not a
 release gate.
+
+## Feature update film
+
+[`wave-whats-new.mp4`](wave-whats-new.mp4) is a separate 18-second silent feature overview. It uses checked-in screenshots of the web app, not footage of the native apps. It highlights Daily Mix, Remix, Fix volume and the player; it does not assert that every feature exists on every platform. It is a concise slide-based overview rather than a narrated demonstration. Recreate it with `pip install pillow imageio-ffmpeg` in a virtual environment, then `python scripts/render-update-film.py`. Screenshots should be refreshed and reviewed before rendering a new film.
+
+The introduction film is historical: its on-screen 0.2.0 label describes that version, not the latest release. The feature update complements it rather than retroactively changing that recording.
 
 ## Storyboard
 

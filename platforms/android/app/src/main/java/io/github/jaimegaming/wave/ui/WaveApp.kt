@@ -34,6 +34,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -52,6 +55,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import io.github.jaimegaming.wave.Song
+import io.github.jaimegaming.wave.Updates
 
 /**
  * The shell: one screen at a time, a bar that stays, and a nav that never covers
@@ -65,6 +69,18 @@ fun WaveApp(version: String, opening: Opening = Opening.Default) {
     val context = LocalContext.current
     val state = rememberWaveState(context)
     val player = state.player
+    val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
+    var availableUpdate by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(version) { availableUpdate = Updates.check(context, version) }
+    availableUpdate?.let { release ->
+        AlertDialog(
+            onDismissRequest = { availableUpdate = null },
+            title = { Text(Loc.t("Wave update available")) },
+            text = { Text(Loc.t("A newer version ({version}) is available. Download the matching signed APK and install it over Wave to keep your library.").replace("{version}", release)) },
+            confirmButton = { TextButton(onClick = { availableUpdate = null; uriHandler.openUri("https://github.com/jaime-gaming/Wave/releases/latest") }) { Text(Loc.t("View release")) } },
+            dismissButton = { TextButton(onClick = { availableUpdate = null }) { Text(Loc.t("Later")) } },
+        )
+    }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         state.importMusic(uris)
     }

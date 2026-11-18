@@ -919,3 +919,10 @@ record and the certificate remain dashboard settings that only the maintainer ca
   word-start distinction, the artist-only match and the name ranking; `LibraryContractsTest` covers the
   Kotlin ladder and `rankNames`; the Windows ladder is the same expressions compiled by the native job.
 - Web: 639 tests in 100 files, TypeScript, eslint, Prettier and both production builds pass.
+
+## Playback, update notices and media follow-up
+
+- YouTube's embedded-player transport now clears the playing clock when paused and applies each seek only once; unit tests cover a quick pause/resume after a seek. Playback remains subject to YouTube embedding permissions and browser autoplay rules; no live-provider or real-device verification is implied.
+- Native update notices query GitHub, use stable numeric release tags and limit repeat prompts. Android requires a matching signing identity for in-place installation; Windows distribution remains portable, not an automatic installer. Native build and upgrade testing must be completed on devices before release.
+- The feature-update film uses existing web screenshots and is silent; the introduction is a historical 0.2.0 recording.
+- The previous hosted Fix volume browser smoke test timed out. The browser suite must pass on the latest revision before release.

@@ -1,6 +1,6 @@
 <p align="center"><img src="public/wave-wordmark.svg" alt="Wave" width="270" /></p>
 <p align="center"><strong>Your music files, played properly.</strong></p>
-<p align="center"><a href="https://wave.jaime-gaming.com">wave.jaime-gaming.com</a> · Release <strong>0.2.2</strong> · <a href="#get-started">Get started</a> · <a href="docs/WHY_WAVE.md">Why Wave</a> · <a href="docs/media/wave-promo.mp4">Watch the demo</a> · <a href="docs/RELEASE_NOTES_0.2.2.md">What's new</a></p>
+<p align="center"><a href="https://wave.jaime-gaming.com">wave.jaime-gaming.com</a> · Release <strong>0.2.2</strong> · <a href="#get-started">Get started</a> · <a href="docs/WHY_WAVE.md">Why Wave</a> · <a href="docs/media/wave-promo.mp4">Introduction film</a> · <a href="docs/media/wave-whats-new.mp4">Feature update</a> · <a href="docs/RELEASE_NOTES_0.2.2.md">What's new</a></p>
 
 ![Wave Home on the web: a local collection, album artwork and daily mixes](docs/media/home-desktop.png)
 
@@ -240,3 +240,7 @@ Android adds an animated favorite/upcoming-queue shuffle and an in-player volume
 See the [release notes](docs/RELEASE_NOTES_0.2.2.md) and [validation record](docs/VALIDATION.md). `npm run test:smoke` is a required browser gate in Checks and Release assets. Publication requires approval, passing native checks and stable signing credentials; a tag does not deploy the website.
 
 Unselected Remix highlights now compact around the open detail. Search adds genre/year matching and category-aware keyboard actions; Mix preserves short or incompletely measured recordings, and AutoPlay filters missing sources, deduplicates batches and balances recent-artist variety. App-surface/runtime dependency checks guard against decorative magic icons, model branding and model-service dependencies.
+
+### Native update notices
+
+Android and Windows check GitHub's latest public release at most once a day after a successful check and show one notice per newer stable version. The check sends no library data. The notice opens the release page; it does not install software automatically. On Android, an APK updates the existing app only if its package ID and signing key match, and Android asks for confirmation. On Windows, the current portable package has no installer: replace the existing application files rather than keeping another copy. Back up your library before changing installations, and check the release's signing and test-build warnings.

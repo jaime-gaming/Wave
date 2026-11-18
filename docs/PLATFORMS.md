@@ -120,3 +120,7 @@ LRCLIB is the primary online lyric provider on all clients; the web also offers 
 - New Android player control tests and extended Windows UI smoke checks are committed for native CI. They are not a claim of a local native build: this workspace lacks both SDKs. Clip and Fix volume processing remain web capabilities, not newly advertised native controls.
 
 Candidate native CI (`6e57af4`) completed successfully for Android and Windows after correcting screenshot publication from detached checkouts. This verifies the automated native build/test/package steps, not manual headphone/device/signing checks. That run was for 0.2.1; check the latest 0.2.2 native CI and device results before launch.
+
+## Native updates
+
+Both apps make an advisory HTTPS request to GitHub's latest-release API on launch (no more than once a day after a successful check) and announce each newer stable version once. No download or install occurs without the user. The Android package must have the same application ID and signing key to update in place; otherwise Android refuses it. The Windows package is portable: replace the existing application files after closing Wave, rather than keeping duplicate copies. User data is stored separately. Published test/unsigned packages may not be suitable as upgrades; check release notes and keep a backup. Offline or failed checks do not block playback.

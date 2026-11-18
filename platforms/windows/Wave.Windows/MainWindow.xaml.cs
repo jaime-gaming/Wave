@@ -73,7 +73,7 @@ public partial class MainWindow : Window
             plays = Listening.Load(repository.Folder);
         } catch (Exception error) { Notify(Localization.T("Could not open local storage: {message}", new Dictionary<string, string> { ["message"] = error.Message })); }
         ApplyTheme(); Localization.Init(preferences.Language); ApplyLanguage(); volume = Math.Clamp(preferences.Volume, 0, 1); Volume.Value = NowVolume.Value = volume; UpdateSoundButtons();
-        initialized = true; Loaded += (_, _) => FitRail(); ShowPage("Home"); timer.Tick += Tick; timer.Start();
+        initialized = true; Loaded += (_, _) => FitRail(); Loaded += async (_, _) => await CheckForUpdate(); ShowPage("Home"); timer.Tick += Tick; timer.Start();
         // Look for local folder covers off the UI thread; older imports get the
         // same artwork support without making startup wait for disk traversal.
         var missingArtwork = tracks.Where(s => string.IsNullOrWhiteSpace(s.Artwork)).ToList();

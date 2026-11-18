@@ -100,6 +100,23 @@ describe('YouTube song stage', () => {
     await waitFor(() => expect(onTime).toHaveBeenLastCalledWith(42));
   });
 
+  it('resumes after a quick pause and does not repeat an old seek', async () => {
+    const { rerender } = render(
+      <YouTubeStage {...baseProps} playing seek={{ seconds: 42, nonce: 1 }} />,
+    );
+    const frame = screen.getByTitle(/youtube video for/i) as HTMLIFrameElement;
+    const post = vi.spyOn(frame.contentWindow!, 'postMessage');
+    deliver(frame, { playerState: 1, currentTime: 42, duration: 244 });
+    await waitFor(() =>
+      expect(post.mock.calls.some(([m]) => String(m).includes('seekTo'))).toBe(true),
+    );
+    rerender(<YouTubeStage {...baseProps} playing={false} seek={{ seconds: 42, nonce: 1 }} />);
+    post.mockClear();
+    rerender(<YouTubeStage {...baseProps} playing seek={{ seconds: 42, nonce: 1 }} />);
+    expect(post.mock.calls.some(([m]) => String(m).includes('playVideo'))).toBe(true);
+    expect(post.mock.calls.some(([m]) => String(m).includes('seekTo'))).toBe(false);
+  });
+
   it('resumes at the right moment when it is mounted again, and stays quiet when silent', async () => {
     const onTime = vi.fn();
     const { container } = render(

@@ -828,6 +828,11 @@ public static partial class Localization {
             ["The latest public release may be an older test build: Windows may be unsigned and Android debug-signed."] = "La última versión pública puede ser una versión de prueba antigua: Windows puede estar sin firmar y Android firmado para pruebas.",
             ["Balance this song"] = "Ajustar el volumen de esta canción",
             ["Reanalyze this song"] = "Volver a analizar esta canción",
+            ["Wave update available"] = "Hay una actualización de Wave",
+            ["A newer version ({version}) is available. Download the matching signed APK and install it over Wave to keep your library."] = "Hay una versión nueva ({version}). Descarga el APK firmado compatible e instálalo sobre Wave para conservar tu biblioteca.",
+            ["View release"] = "Ver versión",
+            ["Later"] = "Más tarde",
+            ["A newer version ({version}) is available. Download the Windows package and replace the existing Wave files; keep your local library."] = "Hay una versión nueva ({version}). Descarga el paquete de Windows y reemplaza los archivos existentes de Wave; tu biblioteca local se conservará.",
         };
 
     /// <summary>What the person chose: "system", "en" or "es".</summary>

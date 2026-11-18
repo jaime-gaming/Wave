@@ -9051,3 +9051,42 @@ button:hover .wave-glyph--volume .glyph-wave-outer {
   letter-spacing: -2px;
   white-space: nowrap;
 }
+
+/* Compact song tools without sacrificing readable text or touch targets. */
+.editor-form {
+  margin-top: 12px;
+}
+.editor-form .artwork-picker {
+  margin: 8px 0 16px;
+  gap: 14px;
+}
+.editor-form .editor-submenu-button {
+  padding: 12px 14px;
+  gap: 12px;
+  border-radius: 16px;
+  min-height: 56px;
+}
+.editor-form .editor-submenu-button > span:first-child {
+  gap: 2px;
+}
+.editor-form .editor-submenu-button small {
+  margin-top: 0;
+}
+.editor-form .editor-submenu-button strong,
+.editor-form .editor-submenu-button small {
+  line-height: 1.35;
+}
+.editor-form .metadata-matcher {
+  gap: 8px;
+}
+.editor-form .clip-section {
+  margin: 12px 0;
+}
+@media (max-width: 420px) {
+  .editor-form .metadata-matcher-bar {
+    flex-wrap: wrap;
+  }
+  .editor-form .metadata-matcher-bar input {
+    flex-basis: 180px;
+  }
+}

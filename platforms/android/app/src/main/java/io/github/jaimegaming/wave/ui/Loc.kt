@@ -832,6 +832,11 @@ object Loc {
             "The latest public release may be an older test build: Windows may be unsigned and Android debug-signed." to "La última versión pública puede ser una versión de prueba antigua: Windows puede estar sin firmar y Android firmado para pruebas.",
             "Balance this song" to "Ajustar el volumen de esta canción",
             "Reanalyze this song" to "Volver a analizar esta canción",
+            "Wave update available" to "Hay una actualización de Wave",
+            "A newer version ({version}) is available. Download the matching signed APK and install it over Wave to keep your library." to "Hay una versión nueva ({version}). Descarga el APK firmado compatible e instálalo sobre Wave para conservar tu biblioteca.",
+            "View release" to "Ver versión",
+            "Later" to "Más tarde",
+            "A newer version ({version}) is available. Download the Windows package and replace the existing Wave files; keep your local library." to "Hay una versión nueva ({version}). Descarga el paquete de Windows y reemplaza los archivos existentes de Wave; tu biblioteca local se conservará.",
         )
 
     /** What the person chose: "system", "en" or "es". */

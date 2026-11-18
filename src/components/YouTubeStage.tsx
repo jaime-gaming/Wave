@@ -249,6 +249,7 @@ export function YouTubeStage({
    */
   useEffect(() => {
     if (!playing || !online) {
+      clock.current.playing = false;
       post('pauseVideo');
       return;
     }
@@ -268,8 +269,10 @@ export function YouTubeStage({
     };
   }, [playing, online, post, target]);
 
+  const appliedSeek = useRef(0);
   useEffect(() => {
-    if (!ready || seek.nonce === 0) return;
+    if (!ready || seek.nonce === 0 || appliedSeek.current === seek.nonce) return;
+    appliedSeek.current = seek.nonce;
     jump.current = { at: performance.now(), target: Math.max(0, seek.seconds) };
     post('seekTo', [Math.max(0, seek.seconds), true]);
     clock.current = { ...clock.current, time: Math.max(0, seek.seconds), at: performance.now() };
