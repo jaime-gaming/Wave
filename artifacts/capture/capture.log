@@ -11,11 +11,11 @@ node:internal/modules/run_main:123
 
 locator.click: Timeout 30000ms exceeded.
 Call log:
-  - waiting for getByRole('button', { name: /Open Daily mix .*Electronic/ })
+  - waiting for getByRole('button', { name: /Open Daily mix 1/ })
 
-    at /home/runner/work/Wave/Wave/scripts/capture-docs.ts:218:73 {
+    at /home/runner/work/Wave/Wave/scripts/capture-docs.ts:218:62 {
   log: [
-    "  - waiting for getByRole('button', { name: /Open Daily mix .*Electronic/ })"
+    "  - waiting for getByRole('button', { name: /Open Daily mix 1/ })"
   ],
   name: 'TimeoutError'
 }
