@@ -30,7 +30,12 @@ function walk(suite, trail) {
       else {
         const error =
           test.results?.at(-1)?.error?.message ?? test.results?.at(-1)?.errors?.[0]?.message ?? '';
-        failures.push({ title: [path, spec.title].filter(Boolean).join(' › '), error });
+        const result = test.results?.at(-1);
+        const errors = (result?.errors ?? []).map((item) => item.message).filter(Boolean);
+        failures.push({
+          title: [path, spec.title].filter(Boolean).join(' › '),
+          error: [error, ...errors].filter(Boolean).join('\n'),
+        });
       }
     }
   }
@@ -41,8 +46,13 @@ function walk(suite, trail) {
 for (const suite of report.suites ?? []) walk(suite, []);
 
 for (const failure of failures) {
-  const first = failure.error.split('\n')[0].replaceAll('%', '%25').slice(0, 400);
-  console.log(`::error title=${failure.title.replaceAll('%', '%25')}::${first}`);
+  const detail = failure.error
+    .replace(/\x1b\[[0-9;]*m/g, '')
+    .replaceAll('%', '%25')
+    .replaceAll('\r', '%0D')
+    .replaceAll('\n', '%0A')
+    .slice(0, 4000);
+  console.log(`::error title=${failure.title.replaceAll('%', '%25')}::${detail}`);
 }
 
 const lines = [
