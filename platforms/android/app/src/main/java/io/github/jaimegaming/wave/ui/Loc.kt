@@ -826,6 +826,10 @@ object Loc {
             "Your daily mix is on its way" to "Tu mix diario está en camino",
             "Preparing your daily mix" to "Preparando tu mix diario",
             "Play your local music with lock-screen controls, a home-screen widget and quick settings. Download Wave for Android from Releases." to "Reproduce tu música local con controles en pantalla de bloqueo, widget de inicio y ajustes rápidos. Descarga Wave para Android desde Releases.",
+            "Try Wave for Windows" to "Prueba Wave para Windows",
+            "Enjoy Wave as a Windows app. Your web library stays in this browser." to "Disfruta de Wave como aplicación de Windows. Tu biblioteca web permanece en este navegador.",
+            "Download for Windows" to "Descargar para Windows",
+            "The latest public release may be an older test build: Windows may be unsigned and Android debug-signed." to "La última versión pública puede ser una versión de prueba antigua: Windows puede estar sin firmar y Android firmado para pruebas.",
         )
 
     /** What the person chose: "system", "en" or "es". */

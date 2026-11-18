@@ -60,7 +60,7 @@ The web edition registers a service worker that stores the interface — HTML, s
 
 ## Website host
 
-The production website, https://wave.jaime-gaming.com, is served by Cloudflare Workers and static assets. Cloudflare processes connection/request information (including IP address) under https://www.cloudflare.com/privacypolicy/. Worker observability is enabled for operational requests/errors; application code does not log playlist URLs, answers, music or library contents. GitHub hosts the source and native release downloads, not the production player. Fonts are bundled locally; no font CDN is used.
+The production website, https://wave.jaime-gaming.com, is served by Cloudflare Workers and static assets. Cloudflare processes connection/request information (including IP address) under https://www.cloudflare.com/privacypolicy/. Worker observability is enabled for operational requests/errors; application code does not log playlist URLs, answers, music or library contents. GitHub hosts the source and native release downloads, not the production player. Download links resolve the latest public release through the Wave Worker and redirect your browser to GitHub; GitHub receives the download request and connection information. Fonts are bundled locally; no font CDN is used.
 
 ## Mix never touches your files
 

@@ -2,6 +2,12 @@
 
 Development target: 0.2.2 · 16 November 2026. Historical run dates are retained below.
 
+## Download and listening follow-up — 16 November 2026
+
+- Web tests: 785 passed across 120 files, including download URL validation, Windows notice dismissal, pause/resume and repeated listens. Lint, formatting, release checks and build passed.
+- Hosted native run [44373903555](https://github.com/jaime-gaming/Wave/actions/runs/44373903555) passed Android and Windows for the previous revision. Subsequent Windows listening changes require a fresh native run. Hosted browser smoke for that revision failed; the workflow now preserves failure diagnostics. No real-device or production deployment claim is made.
+- Download links resolve the latest public release, which at this review is the older 0.2.1 test release; the 0.2.2 signed assets are not yet public. Worker deployment and release publishing are separate operations.
+
 ## 0.2.2 review — 16 November 2026
 
 - Web unit suite: 780 tests in 120 files passed; release metadata and 15 release checks passed. Lint, format and production build passed. These checks do not replace a browser/device review.

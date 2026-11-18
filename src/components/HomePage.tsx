@@ -4,9 +4,19 @@ import type { ListeningSummary } from '../domain/listening';
 import type { ListeningSignal } from '../domain/mood';
 import type { DailyMix } from '../domain/dailyMixes';
 import { DailyMixes } from './DailyMixes';
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
-import { ArrowUpRight, Disc3, Heart, ListMusic, Music2, Users, Plus, Smartphone } from './Glyphs';
+import {
+  ArrowUpRight,
+  Disc3,
+  Heart,
+  ListMusic,
+  Music2,
+  Users,
+  Plus,
+  Smartphone,
+  X,
+} from './Glyphs';
 import { albumKey, collectAlbums, collectArtists } from '../domain/collections';
 import type { LibraryView, Playlist, Track } from '../domain/types';
 import { useWaveMotion } from '../ui/motion';
@@ -61,6 +71,14 @@ export const HomePage = memo(function HomePage({
   onMore: (track: Track) => void;
 }) {
   const t = useT();
+  const [showWindowsNotice, setShowWindowsNotice] = useState(() => {
+    if (typeof navigator === 'undefined' || !/Windows NT/i.test(navigator.userAgent)) return false;
+    try {
+      return localStorage.getItem('wave-windows-notice-dismissed') !== 'true';
+    } catch {
+      return true;
+    }
+  });
   const animation = useWaveMotion();
   const recommendations = useMemo(
     () =>
@@ -98,6 +116,37 @@ export const HomePage = memo(function HomePage({
   ] as const;
   return (
     <div className="home-content">
+      {showWindowsNotice && (
+        <aside className="windows-app-notice" aria-label={t('Wave for Windows')}>
+          <div>
+            <strong>{t('Try Wave for Windows')}</strong>
+            <p>{t('Enjoy Wave as a Windows app. Your web library stays in this browser.')}</p>
+            <p>
+              {t(
+                'The latest public release may be an older test build: Windows may be unsigned and Android debug-signed.',
+              )}
+            </p>
+          </div>
+          <a className="tonal-button" href="/api/download/windows">
+            {t('Download for Windows')}
+          </a>
+          <button
+            className="icon-button"
+            type="button"
+            aria-label={t('Dismiss')}
+            onClick={() => {
+              try {
+                localStorage.setItem('wave-windows-notice-dismissed', 'true');
+              } catch {
+                /* Session only. */
+              }
+              setShowWindowsNotice(false);
+            }}
+          >
+            <X size={18} />
+          </button>
+        </aside>
+      )}
       <section aria-label={t('Your collection')} className="home-overview">
         <div className="section-heading">
           <h2>{t('Your collection')}</h2>

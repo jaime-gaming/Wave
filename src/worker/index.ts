@@ -805,9 +805,73 @@ async function handleWordLyrics(request: Request, url: URL): Promise<Response> {
   }
 }
 
+/** Resolve only known public release assets; never accept an arbitrary redirect target. */
+async function handleDownload(request: Request, platform: string): Promise<Response> {
+  if (request.method !== 'GET' && request.method !== 'HEAD')
+    return json({ error: 'Method not allowed.' }, 405);
+  const names =
+    platform === 'windows'
+      ? ['Wave.exe', 'Wave-Windows-x64-unsigned.zip']
+      : platform === 'android'
+        ? ['Wave.apk', 'Wave-Android-test-only.apk']
+        : [];
+  if (!names.length) return json({ error: 'Not found.' }, 404);
+  try {
+    const apiUrl = 'https://api.github.com/repos/jaime-gaming/Wave/releases/latest';
+    // Cache shared public metadata briefly on Cloudflare to avoid exhausting
+    // GitHub's unauthenticated rate limit; never cache failed lookups.
+    const edgeCache = (globalThis.caches as (CacheStorage & { default?: Cache }) | undefined)
+      ?.default;
+    const cacheKey = new Request(apiUrl);
+    let response = await edgeCache?.match(cacheKey);
+    if (!response) {
+      response = await fetch(apiUrl, {
+        headers: { accept: 'application/vnd.github+json', 'user-agent': 'Wave-downloads' },
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      });
+      if (!response.ok) throw new Error('Release unavailable');
+      if (edgeCache) {
+        const copy = response.clone();
+        const headers = new Headers(copy.headers);
+        headers.set('cache-control', 'public, max-age=300');
+        try {
+          await edgeCache.put(cacheKey, new Response(copy.body, { headers }));
+        } catch {
+          /* Downloads still work without cache. */
+        }
+      }
+    }
+    const release = (await response.json()) as {
+      assets?: Array<{ name?: string; browser_download_url?: string }>;
+    };
+    const assets = Array.isArray(release.assets) ? release.assets : [];
+    for (const name of names) {
+      const asset = assets.find((item) => item.name === name);
+      if (!asset?.browser_download_url) continue;
+      const target = new URL(asset.browser_download_url);
+      if (
+        target.protocol !== 'https:' ||
+        target.hostname !== 'github.com' ||
+        !target.pathname.startsWith('/jaime-gaming/Wave/releases/download/') ||
+        !target.pathname.endsWith('/' + name)
+      )
+        continue;
+      return new Response(null, {
+        status: 302,
+        headers: { location: target.href, 'cache-control': 'no-store' },
+      });
+    }
+  } catch {
+    /* Keep the failure explicit instead of sending people to an unrelated file. */
+  }
+  return json({ error: 'The download is temporarily unavailable. Please try again later.' }, 503);
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+    if (url.pathname.startsWith('/api/download/'))
+      return handleDownload(request, url.pathname.slice('/api/download/'.length));
     if (url.pathname === '/api/import-playlist') return handleImportPlaylist(request, url);
     if (url.pathname === '/api/youtube-meta') return handleYouTubeMeta(request, url);
     if (url.pathname === '/api/youtube-playlist') return handleYouTubePlaylist(request, url);

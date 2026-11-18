@@ -279,6 +279,7 @@ function WaveApp({
     duration: player.duration,
     readTime: player.readTime,
     tracks: library.tracks,
+    repeatSerial: player.repeatSerial,
   });
   const setPlayerMoodSignals = player.setMoodSignals;
   useEffect(() => {

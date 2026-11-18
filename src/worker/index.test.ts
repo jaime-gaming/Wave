@@ -186,3 +186,51 @@ it('extracts YouTube catalog search results cleanly and validates /api/youtube-s
   );
   expect(crossOrigin.status).toBe(403);
 });
+
+it('resolves only known release downloads from the official repository', async () => {
+  const fetch = vi.fn(
+    async () =>
+      new Response(
+        JSON.stringify({
+          assets: [
+            {
+              name: 'Wave.exe',
+              browser_download_url:
+                'https://evil.test/jaime-gaming/Wave/releases/download/v0.2.2/Wave.exe',
+            },
+            {
+              name: 'Wave-Windows-x64-unsigned.zip',
+              browser_download_url:
+                'https://github.com/jaime-gaming/Wave/releases/download/v0.2.1/Wave-Windows-x64-unsigned.zip',
+            },
+          ],
+        }),
+        { status: 200 },
+      ),
+  );
+  vi.stubGlobal('fetch', fetch);
+  const response = await worker.fetch(new Request('https://wave.test/api/download/windows'), env);
+  expect(response.status).toBe(302);
+  expect(response.headers.get('location')).toBe(
+    'https://github.com/jaime-gaming/Wave/releases/download/v0.2.1/Wave-Windows-x64-unsigned.zip',
+  );
+  expect(
+    (await worker.fetch(new Request('https://wave.test/api/download/other'), env)).status,
+  ).toBe(404);
+  expect(fetch).toHaveBeenCalledTimes(1);
+});
+it('reports unavailable downloads rather than redirecting to an untrusted file', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            assets: [{ name: 'Wave.apk', browser_download_url: 'https://example.com/Wave.apk' }],
+          }),
+        ),
+    ),
+  );
+  const response = await worker.fetch(new Request('https://wave.test/api/download/android'), env);
+  expect(response.status).toBe(503);
+});

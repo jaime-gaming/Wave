@@ -753,7 +753,6 @@
   "Rescan folders": "Volver a escanear carpetas",
   "No remembered folders are available right now.": "No hay carpetas recordadas disponibles ahora mismo.",
   "No music files found in remembered folders.": "No se encontraron archivos de música en las carpetas recordadas.",
-  "Remove from library": "Quitar de la biblioteca",
   "Removed from Wave library. Your original file was kept.": "Quitada de la biblioteca de Wave. Tu archivo original se conserva intacto.",
   "Gently raises quiet recordings to a balanced listening level while leaving loud tracks untouched.": "Eleva suavemente las grabaciones con volumen bajo hasta un nivel equilibrado sin tocar las canciones ya equilibradas.",
   "File not found at its original location: {file}": "No se encontró el archivo en su ubicación original: {file}",
@@ -800,6 +799,9 @@
   "Daily Mix": "Mix diario",
   "Your daily mix is on its way": "Tu mix diario está en camino",
   "Preparing your daily mix": "Preparando tu mix diario",
-  "Wave for Windows": "Wave para Windows",
-  "Play your local music with lock-screen controls, a home-screen widget and quick settings. Download Wave for Android from Releases.": "Reproduce tu música local con controles en pantalla de bloqueo, widget de inicio y ajustes rápidos. Descarga Wave para Android desde Releases."
+  "Play your local music with lock-screen controls, a home-screen widget and quick settings. Download Wave for Android from Releases.": "Reproduce tu música local con controles en pantalla de bloqueo, widget de inicio y ajustes rápidos. Descarga Wave para Android desde Releases.",
+  "Try Wave for Windows": "Prueba Wave para Windows",
+  "Enjoy Wave as a Windows app. Your web library stays in this browser.": "Disfruta de Wave como aplicación de Windows. Tu biblioteca web permanece en este navegador.",
+  "Download for Windows": "Descargar para Windows",
+  "The latest public release may be an older test build: Windows may be unsigned and Android debug-signed.": "La última versión pública puede ser una versión de prueba antigua: Windows puede estar sin firmar y Android firmado para pruebas."
 }

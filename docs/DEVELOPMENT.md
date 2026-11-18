@@ -298,6 +298,10 @@ The current development target is **0.2.2**; preparation does not authorize publ
 4. Only on explicit launch authorization, publish the notes or dispatch Release assets against that exact tag. The workflow validates main ancestry and attaches `Wave.apk` and `Wave.exe`, never a web ZIP or a promo film. Review the signing identity and the SHA-256 values in the CI summary before publication. Retry packaging with the same tag.
 5. Verify the website separately through Cloudflare Workers. `npm run deploy:check` is a dry run, not a deployment; release publication does not prove hosting updated. `dist` is ignored build output, `docs` holds documentation/images, and neither is a GitHub Pages mirror. Preserve existing repository visibility and signing/security settings.
 
+## Native download links
+
+The web app starts downloads through `/api/download/windows` and `/api/download/android`. The Worker reads the latest public GitHub Release, briefly caches public release metadata, validates the repository and known asset names, and redirects the browser to the asset. It supports the older 0.2.1 test filenames and the planned 0.2.2 filenames. No release is created by the link. Until the new release is actually published, the Windows ZIP is unsigned and the Android APK is debug-signed; do not represent them as trusted production builds. The production site must deploy the Worker as well as the web client for these paths to work.
+
 ## Documentation images
 
 The PNGs in `docs/media/` are photographs of the running app, not mockups. Recapture them after a change that alters a screen they show:

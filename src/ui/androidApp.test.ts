@@ -41,6 +41,6 @@ describe('offering the Android app', () => {
   });
 
   it('points at a real destination for the app file', () => {
-    expect(ANDROID_APP_URL).toMatch(/^https:\/\/github\.com\/jaime-gaming\/Wave\//u);
+    expect(ANDROID_APP_URL).toBe('/api/download/android');
   });
 });

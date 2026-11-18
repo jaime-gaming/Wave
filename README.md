@@ -24,7 +24,7 @@ Nothing else needs setting up. The same build is published at
 [wave.jaime-gaming.com](https://wave.jaime-gaming.com).
 
 Windows and Android builds are on the [Releases](https://github.com/jaime-gaming/Wave/releases)
-page when published. The Windows build is a self-contained `Wave.exe`; Android uses `Wave.apk`.
+page when published. In the web app, About links start the latest public download directly without navigating the release page. The current 0.2.1 release contains a Windows unsigned ZIP and an Android test APK; the prepared 0.2.2 release targets a self-contained `Wave.exe` and signed `Wave.apk`.
 Windows may show a SmartScreen warning and Android asks you to allow installation. Signing and
 update compatibility depend on the release credentials; CI-only builds may use temporary keys.
 

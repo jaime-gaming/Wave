@@ -52,12 +52,14 @@ export function useListeningHistory({
   duration,
   readTime,
   tracks,
+  repeatSerial = 0,
 }: {
   track?: Track;
   playing: boolean;
   duration: number;
   readTime: () => number;
   tracks: Track[];
+  repeatSerial?: number;
 }) {
   const [plays, setPlays] = useState<PlayEvent[]>([]);
   /** Short-term behavioral cues (active dwell milestones + quick skips) for live mood detection. */
@@ -66,6 +68,8 @@ export function useListeningHistory({
   /** The summary is dated when the rows change, not on every render. */
   const [today, setToday] = useState(() => new Date().setHours(0, 0, 0, 0));
   const session = useRef<Session | null>(null);
+  const sessionSerial = useRef(repeatSerial);
+  const writes = useRef<Promise<void>>(Promise.resolve());
   const readTimeRef = useRef(readTime);
   useEffect(() => {
     readTimeRef.current = readTime;
@@ -111,35 +115,44 @@ export function useListeningHistory({
     }
     if (!countsAsPlay(current.seconds, current.duration)) return;
     const play = makePlay(current.trackId, current.startedAt, heard, current.completed);
-    setPlays((existing) =>
-      existing.some((entry) => entry.id === play.id) ? existing : [...existing, play],
-    );
-    void savePlay(play).catch(() => undefined);
+    setPlays((existing) => [...existing.filter((entry) => entry.id !== play.id), play]);
+    writes.current = writes.current.then(() => savePlay(play)).catch(() => undefined);
   }, []);
 
-  // A new song, a pause or the end of the recording all close the session.
+  // A pause preserves this playback; resuming must not create another play.
   useEffect(() => {
     const previous = session.current;
-    if (previous && (!playing || previous.trackId !== track?.id)) settle(previous);
-    if (!playing || !track) {
+    const changed =
+      previous && (previous.trackId !== track?.id || sessionSerial.current !== repeatSerial);
+    if (changed) {
+      settle(previous);
       session.current = null;
+    }
+    sessionSerial.current = repeatSerial;
+    if (!track) return;
+    if (!playing) {
+      if (session.current) {
+        settle(session.current);
+        session.current.last = null;
+      }
       return;
     }
-    if (!previous || previous.trackId !== track.id) {
+    if (!session.current) {
       const initial = readTimeRef.current();
       session.current = {
         trackId: track.id,
-        startedAt: Date.now(),
+        startedAt: Math.max(Date.now(), (previous?.startedAt ?? 0) + 1),
         seconds: 0,
         duration: track.duration,
-        // Capture the starting position now, so the first second of real
-        // playback is counted. A seek is still rejected by the step bound.
         last: Number.isFinite(initial) && initial >= 0 ? initial : null,
         completed: false,
         moodStage: 0,
       };
+    } else if (session.current.last === null) {
+      const initial = readTimeRef.current();
+      session.current.last = Number.isFinite(initial) && initial >= 0 ? initial : null;
     }
-  }, [playing, track, settle]);
+  }, [playing, track, repeatSerial, settle]);
 
   // Sampling stops when nothing is playing, so a paused tab costs nothing.
   useEffect(() => {
@@ -186,6 +199,7 @@ export function useListeningHistory({
     session.current = null;
     setPlays([]);
     setLiveSignals([]);
+    await writes.current;
     await clearPlays().catch(() => undefined);
   }, []);
 

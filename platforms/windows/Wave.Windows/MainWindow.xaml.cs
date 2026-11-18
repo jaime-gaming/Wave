@@ -23,7 +23,7 @@ public partial class MainWindow : Window
     private readonly List<NativeMoodSignal> moodSignals = [];
     private string remixPeriod = "weekly";
     private double heard, heardMark;
-    private bool hearing;
+    private bool hearing, listeningRecorded;
     private DateTime heardFrom = DateTime.UtcNow;
     private int index = -1;
     private string page = "Home", previousPage = "Home", repeat = "off";
@@ -471,6 +471,7 @@ public partial class MainWindow : Window
                 new DateTimeOffset(heardFrom).ToUnixTimeMilliseconds()));
             if (moodSignals.Count > 32) moodSignals.RemoveRange(0, moodSignals.Count - 32);
         }
+        heard = 0; hearing = false; listeningRecorded = false;
         CancelFade(); active.Close(); spare?.Close(); spare = null; spareReady = ready = false;
         index = position; var song = queue[index];
         if (!File.Exists(song.Path)) {
@@ -521,6 +522,7 @@ public partial class MainWindow : Window
             double remaining = active.NaturalDuration.TimeSpan.TotalSeconds - time;
             if (remaining > 0 && remaining <= window) {
                 fadeLength = remaining; outgoing = active; active = spare; spare = null; spareReady = false; index++;
+                heard = 0; hearing = false; listeningRecorded = false;
                 active.Position = TimeSpan.Zero; active.Volume = 0; active.Play(); Seek.Maximum = active.NaturalDuration.TimeSpan.TotalSeconds;
                 UpdateCurrent(); time = 0;
                 if (preferences.OnlineLyrics && Current is { Lyrics.Length: 0 } song) _ = Lookup(song);
@@ -558,16 +560,15 @@ public partial class MainWindow : Window
     /// </summary>
     private void CountListening(double time)
     {
-        if (Current is not { } song || !playing) { heard = 0; hearing = false; return; }
-        if (!hearing) { hearing = true; heard = 0; heardFrom = DateTime.UtcNow; heardMark = time; return; }
+        if (Current is not { } song || !playing) { hearing = false; return; }
+        if (!hearing) { hearing = true; if (heard == 0) heardFrom = DateTime.UtcNow; heardMark = time; return; }
         double step = time - heardMark;
         if (step is > 0 and <= 2.5) heard += step;
         heardMark = time;
-        if (heard < Listening.Threshold(Seek.Maximum)) return;
+        if (listeningRecorded || heard < Listening.Threshold(Seek.Maximum)) return;
         int seconds = (int)heard;
         bool completed = ready && time >= Seek.Maximum - 1;
-        heard = 0;
-        heardFrom = DateTime.UtcNow;
+        listeningRecorded = true;
         RecordPlay(song, seconds, completed);
     }
     private void RecordPlay(Song song, int seconds, bool completed)
@@ -622,6 +623,7 @@ public partial class MainWindow : Window
     private void Advance(bool ended = false)
     {
         if (ended && (repeat == "one" || (repeat == "all" && queue.Count == 1))) {
+            heard = 0; hearing = false; listeningRecorded = false;
             CancelFade();
             var deck = active;
             deck.Position = TimeSpan.Zero;

@@ -7469,8 +7469,7 @@ h1 {
   min-width: 0;
 }
 .platform-links {
-  border-top: 1px solid var(--outline);
-  padding-top: 24px;
+  padding-top: 0;
   margin-block: 24px;
 }
 .platform-links header h3 {
@@ -9002,4 +9001,32 @@ button:hover .wave-glyph--volume .glyph-wave-outer {
 }
 .workspace:not([data-banner-covered='true']) .section-scroll-dock__bar {
   transition: none;
+}
+
+.windows-app-notice {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 18px;
+  margin-bottom: 20px;
+  border-radius: 18px;
+  background: var(--container);
+}
+.windows-app-notice > div {
+  flex: 1;
+  min-width: 0;
+}
+.windows-app-notice p {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 4px;
+  line-height: 1.5;
+}
+@media (max-width: 600px) {
+  .windows-app-notice {
+    flex-wrap: wrap;
+  }
+  .windows-app-notice > div {
+    flex-basis: calc(100% - 64px);
+  }
 }

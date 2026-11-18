@@ -8,7 +8,7 @@
  */
 
 /** Where the Android app is published. Point this at the release asset. */
-export const ANDROID_APP_URL = 'https://github.com/jaime-gaming/Wave/releases/latest';
+export const ANDROID_APP_URL = '/api/download/android';
 
 /** Set once the phone has answered the question, one way or the other. */
 export const ANDROID_PROMPT_KEY = 'wave-android-prompt';
