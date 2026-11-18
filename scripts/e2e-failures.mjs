@@ -47,6 +47,8 @@ for (const suite of report.suites ?? []) walk(suite, []);
 
 for (const failure of failures) {
   const detail = failure.error
+    // ANSI escape sequences in Playwright output are not useful in annotations.
+    // eslint-disable-next-line no-control-regex
     .replace(/\x1b\[[0-9;]*m/g, '')
     .replaceAll('%', '%25')
     .replaceAll('\r', '%0D')

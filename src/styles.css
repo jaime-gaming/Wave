@@ -9090,3 +9090,18 @@ button:hover .wave-glyph--volume .glyph-wave-outer {
     flex-basis: 180px;
   }
 }
+
+/* Compact song tools share the same rhythm without shrinking touch targets. */
+.editor-form .form-field {
+  margin-block: 0 12px;
+}
+.editor-form .metadata-matcher,
+.editor-form > .editor-submenu-button {
+  margin-block: 0 10px;
+}
+.editor-form .clip-section {
+  margin-block: 0 10px;
+}
+.editor-form .modal-actions {
+  margin-top: 16px;
+}

@@ -71,6 +71,7 @@ export function YouTubeStage({
   const frame = useRef<HTMLIFrameElement | null>(null);
   const [ready, setReady] = useState(false);
   const [started, setStarted] = useState(false);
+  const [autoplayBlocked, setAutoplayBlocked] = useState(false);
   const [embedHost, setEmbedHost] = useState<string>(YOUTUBE_EMBED_HOST);
   /** Set when the embed refuses the video; retrying play would be pointless. */
   const refused = useRef(false);
@@ -119,6 +120,7 @@ export function YouTubeStage({
     post('addEventListener', ['onReady']);
     post('addEventListener', ['onStateChange']);
     post('addEventListener', ['onError']);
+    post('addEventListener', ['onAutoplayBlocked']);
   }, [post]);
 
   useEffect(() => {
@@ -170,6 +172,11 @@ export function YouTubeStage({
       const data = typeof event.data === 'string' ? safeJson(event.data) : event.data;
       if (data && typeof data === 'object') {
         const rec = data as { event?: unknown; info?: unknown };
+        if (rec.event === 'onAutoplayBlocked') {
+          setAutoplayBlocked(true);
+          if (silent) onError(t('YouTube did not start. Open the player and try again.'));
+          return;
+        }
         if (rec.event === 'onReady') {
           setReady(true);
           if (playing && !refused.current) {
@@ -185,7 +192,10 @@ export function YouTubeStage({
             setReady(true);
             clock.current.playing = directState === 'playing';
             clock.current.at = performance.now();
-            if (directState === 'playing') setStarted(true);
+            if (directState === 'playing') {
+              setStarted(true);
+              setAutoplayBlocked(false);
+            }
             if (directState === 'ended') onEnded();
             return;
           }
@@ -222,14 +232,17 @@ export function YouTubeStage({
         at: performance.now(),
       };
       setReady(true);
-      if (nextPlaying) setStarted(true);
+      if (nextPlaying) {
+        setStarted(true);
+        setAutoplayBlocked(false);
+      }
       onTime(reportedTime);
       if (reportedDuration > 0) onDuration(reportedDuration);
       if (reportedState === 'ended') onEnded();
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [videoId, playing, post, target, onEnded, onTime, onDuration, onError]);
+  }, [videoId, playing, post, target, onEnded, onTime, onDuration, onError, silent, t]);
 
   // The embed is the master clock; interpolate between its updates.
   useEffect(() => {
@@ -255,7 +268,7 @@ export function YouTubeStage({
     }
     let retry: ReturnType<typeof setTimeout> | undefined;
     const send = () => {
-      if (clock.current.playing || refused.current) return;
+      if (clock.current.playing || refused.current || autoplayBlocked) return;
       // Explicitly unmute and apply volume on every start attempt so the embed
       // never starts muted or drops volume before initialization settles.
       post('unMute');
@@ -267,7 +280,7 @@ export function YouTubeStage({
     return () => {
       if (retry) clearTimeout(retry);
     };
-  }, [playing, online, post, target]);
+  }, [playing, online, post, target, autoplayBlocked]);
 
   const appliedSeek = useRef(0);
   useEffect(() => {
@@ -355,6 +368,19 @@ export function YouTubeStage({
         tabIndex={-1}
         aria-hidden="true"
       />
+      {autoplayBlocked && !silent && (
+        <button
+          className="youtube-start-button"
+          type="button"
+          onClick={() => {
+            post('unMute');
+            post('setVolume', [Math.round(target() * 100)]);
+            post('playVideo');
+          }}
+        >
+          {t('Play on YouTube')}
+        </button>
+      )}
       {/* No second bar: the player's own transport drives this embed. */}
       <div className="video-backdrop-veil" aria-hidden="true" />
     </div>

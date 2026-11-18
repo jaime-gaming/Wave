@@ -926,3 +926,10 @@ record and the certificate remain dashboard settings that only the maintainer ca
 - Native update notices query GitHub, use stable numeric release tags and limit repeat prompts. Android requires a matching signing identity for in-place installation; Windows distribution remains portable, not an automatic installer. Native build and upgrade testing must be completed on devices before release.
 - The feature-update film uses existing web screenshots and is silent; the introduction is a historical 0.2.0 recording.
 - The previous hosted Fix volume browser smoke test timed out. The browser suite must pass on the latest revision before release.
+
+## Playback, editor and distribution review
+
+- The web song editor groups the per-song Fix volume request with its other tools when global Fix volume is enabled. The request still depends on local audio and the analysis limits.
+- YouTube uses the official embed; an autoplay-blocked event offers a gesture-based retry in the expanded player, and error 153 gets an explanation. Browser restrictions, provider availability and embedding permissions remain outside Wave's control. This is covered by mocked message tests, not a live-provider test.
+- Native update checks remain advisory and rate-limited; Android package signature and Windows portable replacement constraints are documented. No automatic installer or device update was tested.
+- Introduction and feature-update films are separate; the latter uses current web screenshots and has no narration.

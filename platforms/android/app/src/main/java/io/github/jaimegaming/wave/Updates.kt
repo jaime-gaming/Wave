@@ -43,9 +43,7 @@ object Updates {
                 val latest = version(tag) ?: return@withContext null
                 prefs.edit().putLong("checked", now).apply()
                 val newer = latest.zip(installed).firstOrNull { (a, b) -> a != b }?.let { (a, b) -> a > b } ?: false
-                if (!newer || prefs.getString("announced", "") == tag) return@withContext null
-                prefs.edit().putString("announced", tag).apply()
-                tag
+                if (newer) tag else null
             } finally { connection.disconnect() }
         } catch (_: Exception) { null }
     }

@@ -321,6 +321,8 @@ export function embedErrorMessage(code: number): string {
   if (code === 101 || code === 150)
     return 'The owner does not allow this video to play outside YouTube. Open it on YouTube to listen.';
   if (code === 100) return 'This video is private or no longer available.';
+  if (code === 153)
+    return 'YouTube could not identify this player. Open the video on YouTube to listen.';
   if (code === 2)
     return 'YouTube rejected the player request. Open the video on YouTube to listen.';
   return 'YouTube could not play this video here. Open it on YouTube to listen.';

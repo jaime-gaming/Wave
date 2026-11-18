@@ -331,3 +331,17 @@ The film is ten scenes recorded in one take each: the collection, a daily mix, a
 See [promo production](media/PROMO_PRODUCTION.md) for the approved storyboard, reproducible capture/composition commands, sample provenance and validation procedure. Keep raw recordings, piano samples, tool binaries and temporary renders under ignored `.cache/`. The film is rendered by the `Promo film` workflow, which records the built app on a runner and commits the result; the same commands run on a machine with the tooling below. No script posts to social media.
 
 Windows release signing and security-scan limitations are in `WINDOWS_RELEASE.md`. Never store signing keys in the repository, create protection exclusions or mislabel an unsigned artifact.
+
+### Product films and release updates
+
+The introduction film and separate feature update are linked from the README; see
+[film production](media/PROMO_PRODUCTION.md) for sources, limitations and reproduction.
+The update film is generated from current checked-in web screenshots; it is not footage of native apps.
+
+Android and Windows check GitHub releases at most once per day and ask before opening the release page.
+They do not silently install executables. Android can replace the installed app only when the package ID,
+signing certificate and version code are compatible. On Windows, close Wave and replace the files in the
+existing installation folder; the library lives separately. The current Windows ZIP is portable rather
+than an installer, and test-only or unsigned packages are not production updates. A persistent Android
+release signing key is essential; reinstalling with a different signature can require uninstalling first
+and may lose local data. Back up the library before changing distribution channels.

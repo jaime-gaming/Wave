@@ -155,6 +155,26 @@ describe('YouTube song stage', () => {
     expect(onEnded).not.toHaveBeenCalled();
   });
 
+  it('offers a user-initiated retry when autoplay is blocked', () => {
+    render(<YouTubeStage {...baseProps} playing />);
+    const frame = screen.getByTitle(/youtube video for midnight city/i) as HTMLIFrameElement;
+    const post = vi.spyOn(frame.contentWindow!, 'postMessage');
+    act(() =>
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data: JSON.stringify({ event: 'onAutoplayBlocked' }),
+          source: frame.contentWindow,
+        }),
+      ),
+    );
+    const retry = screen.getByRole('button', { name: 'Play on YouTube' });
+    post.mockClear();
+    act(() => retry.click());
+    expect(post.mock.calls.some(([message]) => String(message).includes('playVideo'))).toBe(true);
+    deliver(frame, { playerState: 1, currentTime: 1, duration: 244 });
+    expect(screen.queryByRole('button', { name: 'Play on YouTube' })).not.toBeInTheDocument();
+  });
+
   it('announces listening handshake on load so YouTube streams progress events', () => {
     render(<YouTubeStage {...baseProps} playing={false} />);
     const frame = screen.getByTitle(/youtube video for midnight city/i) as HTMLIFrameElement;

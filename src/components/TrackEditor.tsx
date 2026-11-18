@@ -20,8 +20,12 @@ export function TrackEditor({
   onTrim,
   onPreview,
   previewVolume,
+  onBalance,
+  balanceSupported = true,
 }: {
   onPreview?: () => void;
+  onBalance?: () => void;
+  balanceSupported?: boolean;
   previewVolume?: number;
   onTrim?: (bounds: { start: number; end: number }) => Promise<void>;
   track: Track;
@@ -256,6 +260,22 @@ export function TrackEditor({
                   </div>
                 )}
               </div>
+            )}
+            {onBalance && (
+              <button
+                type="button"
+                className="editor-submenu-button"
+                disabled={busy || !balanceSupported}
+                onClick={onBalance}
+              >
+                <span>
+                  <strong>
+                    {track.volumeFix ? t('Reanalyze this song') : t('Balance this song')}
+                  </strong>
+                  <small>{t('Fix volume')}</small>
+                </span>
+                <span aria-hidden="true">↗</span>
+              </button>
             )}
             <ClipSection track={track} />
             {track.blob && (

@@ -29,13 +29,13 @@ public partial class MainWindow
             if (raw.Split('.').Length != 3 || !Version.TryParse(raw, out var latest)) return;
             var installed = Assembly.GetExecutingAssembly().GetName().Version ?? new Version(0, 0, 0);
             bool newer = latest > new Version(installed.Major, installed.Minor, installed.Build);
-            bool announce = newer && tag != previous?.Announced;
-            await File.WriteAllTextAsync(marker, JsonSerializer.Serialize(new UpdateCheck(DateTime.UtcNow, announce ? tag : previous?.Announced)));
+            bool announce = newer;
+            await File.WriteAllTextAsync(marker, JsonSerializer.Serialize(new UpdateCheck(DateTime.UtcNow)));
             if (!announce || !IsLoaded) return;
             var message = Localization.T("A newer version ({version}) is available. Download the Windows package and replace the existing Wave files; keep your local library.", new Dictionary<string, string> { ["version"] = tag });
             if (MessageBox.Show(this, message, Localization.T("Wave update available"), MessageBoxButton.YesNo, MessageBoxImage.Information) == MessageBoxResult.Yes)
                 Process.Start(new ProcessStartInfo("https://github.com/jaime-gaming/Wave/releases/latest") { UseShellExecute = true });
         } catch { /* Offline, rate-limited and invalid responses do not interrupt playback. */ }
     }
-    private record UpdateCheck(DateTime Checked, string? Announced);
+    private record UpdateCheck(DateTime Checked);
 }

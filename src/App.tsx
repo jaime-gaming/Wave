@@ -1981,6 +1981,12 @@ function WaveApp({
               onTrim={(bounds) => library.silence(editingTrack.id, 'trim', bounds)}
               onPreview={player.pauseForPreview}
               previewVolume={player.volume}
+              onBalance={
+                volumeFixEnabled && editingTrack.blob
+                  ? () => volumeStatus.requestTrack(editingTrack.id)
+                  : undefined
+              }
+              balanceSupported={volumeStatus.supported}
             />
           </Suspense>
         )}

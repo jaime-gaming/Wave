@@ -20,8 +20,8 @@ slides = [
     ("Wave", "New ways to enjoy your music", "home-desktop.png"),
     ("Daily Mix", "A fresh selection from your own library", "daily-mix-desktop.png"),
     ("Your listening, in Remix", "Explore your listening history", "remix-details-desktop.png"),
-    ("Fix volume", "Balance local recordings as you listen", "volume-fix-desktop.png"),
-    ("A player that makes room", "Lyrics and controls, together", "now-playing-desktop.png"),
+    ("Fix volume", "Balance local recordings or reanalyze a song", "volume-fix-desktop.png"),
+    ("A player that makes room", "Lyrics, keyboard controls and smoother Mix", "now-playing-desktop.png"),
     ("Your music. Your wavelength.", "wave.jaime-gaming.com", "home-mobile.png"),
 ]
 with tempfile.TemporaryDirectory() as tmp:
