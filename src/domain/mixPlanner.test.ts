@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  alignIncomingLyrics,
   automaticBars,
   bassSwapGains,
   handoverGains,
@@ -555,5 +556,28 @@ describe('The extra moves a mix makes', () => {
     expect(incomingAirHz(0, true)).toBeLessThan(OPEN_AIR_HZ);
     expect(incomingAirHz(0.5, true)).toBe(OPEN_AIR_HZ);
     expect(incomingAirHz(1, false)).toBe(OPEN_AIR_HZ);
+  });
+});
+
+describe('timed lyric handovers', () => {
+  it('moves an entry earlier toward the first vocal without skipping lyrics', () => {
+    const plan = planTransition(analysis(), analysis());
+    const first = plan.cue + 5;
+    const adjusted = alignIncomingLyrics(
+      plan,
+      { raw: '', lines: [{ text: 'First verse', time: first }], offsetMs: 0, source: 'local' },
+      1,
+    );
+    expect(adjusted.cue).toBeLessThan(plan.cue);
+    expect(adjusted.cue).toBeGreaterThanOrEqual(1);
+    expect(adjusted.seconds).toBe(plan.seconds);
+    expect(adjusted.phaseAligned).toBe(false);
+    expect(
+      alignIncomingLyrics(
+        plan,
+        { raw: 'plain', lines: [{ text: 'plain' }], offsetMs: 0, source: 'local' },
+        1,
+      ),
+    ).toEqual(plan);
   });
 });

@@ -1,5 +1,10 @@
 import { automaticMixSeconds, mixWindowReached } from '../domain/mix';
-import { isUsablePlan, planTransitionCached, realignPlan } from '../domain/mixPlanner';
+import {
+  alignIncomingLyrics,
+  isUsablePlan,
+  planTransitionCached,
+  realignPlan,
+} from '../domain/mixPlanner';
 import { analyzeTrack, cachedAnalysis } from '../audio/mixAnalysis';
 import { continuationQueue } from '../domain/continuation';
 import type { ListeningSignal } from '../domain/mood';
@@ -462,9 +467,13 @@ export function usePlayer(
         const incomingAnalysis = next?.blob ? cachedAnalysis(next.blob) : undefined;
         const plan =
           outgoingAnalysis && incomingAnalysis
-            ? planTransitionCached(outgoingAnalysis, incomingAnalysis, {
-                fallbackSeconds: window,
-              })
+            ? alignIncomingLyrics(
+                planTransitionCached(outgoingAnalysis, incomingAnalysis, {
+                  fallbackSeconds: window,
+                }),
+                next?.lyrics,
+                incomingAnalysis.trimmed.start,
+              )
             : undefined;
         // How long before the end of the file the handover begins.
         const blendWindow = Math.max(window, plan?.seconds ?? 0);

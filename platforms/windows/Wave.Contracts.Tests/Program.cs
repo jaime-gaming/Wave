@@ -31,6 +31,15 @@ Check(rockMix.Label == "Rock" && rockMix.Songs.Count == 8, "daily mix uses actua
 Check(rockMix.Covers != null && rockMix.Covers.Count == 3 && rockMix.Covers.Select(c => c.Artwork).Distinct().Count() == 3, "daily mix locks distinct covers for the calendar day");
 Check(NativeCollections.DailyMixes(tagged.Select(s => s with { Genre = null, Artist = "---" }), new DateOnly(2026, 10, 16)).Count == 0, "unknown styles are not fabricated");
 
+// A listener's folder cover is used without changing the original music.
+var artFolder = Path.Combine(Path.GetTempPath(), "wave-art-" + Guid.NewGuid());
+try {
+    Directory.CreateDirectory(artFolder);
+    var cover = Path.Combine(artFolder, "cover.jpg");
+    File.WriteAllBytes(cover, new byte[] { 0xff, 0xd8, 0xff, 0xd9 });
+    Check(Library.FindFolderArtwork(Path.Combine(artFolder, "song.mp3")) == cover, "folder cover lookup preserves the original file");
+} finally { if (Directory.Exists(artFolder)) Directory.Delete(artFolder, true); }
+
 // Safe file URI and corrupt-JSON recovery from rolling .bak backup.
 Check(Library.SafeFileUri(Path.Combine(Path.GetTempPath(), "Track #1 [100%].mp3")).AbsoluteUri.Contains("%231"), "file URIs preserve # and % safely");
 var recoveryFolder = Path.Combine(Path.GetTempPath(), "wave-recover-" + Guid.NewGuid());

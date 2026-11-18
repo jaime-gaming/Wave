@@ -2,6 +2,12 @@
 
 Development target: 0.2.2 · 16 November 2026. Historical run dates are retained below.
 
+## Playback and artwork follow-up — 16 November 2026
+
+- The web planner uses existing synchronized lyrics as an optional incoming-cue hint without sending text or skipping past the selected cue. Plain or missing lyrics retain the existing plan. It does not guarantee a musical peak or perfect mix for every recording.
+- Web and Windows expanded-player keyboard controls, per-song web volume-analysis priority, bounded web analysis caching, Windows MP3/folder cover support and Android MediaStore album-art fallback are source changes. Full native device/audio and real-media coverage remains a separate validation step.
+- The previous hosted smoke failure named the Fix Volume progress text; the progress count is now shown after analysis as well as during it. CI must be rerun before release.
+
 ## Download and listening follow-up — 16 November 2026
 
 - Web tests: 785 passed across 120 files, including download URL validation, Windows notice dismissal, pause/resume and repeated listens. Lint, formatting, release checks and build passed.

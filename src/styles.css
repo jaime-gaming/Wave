@@ -9030,3 +9030,24 @@ button:hover .wave-glyph--volume .glyph-wave-outer {
     flex-basis: calc(100% - 64px);
   }
 }
+
+.boot-wordmark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.boot-wordmark svg {
+  width: 88px;
+  height: 72px;
+  flex-shrink: 0;
+}
+.boot-wordmark span {
+  display: block;
+  overflow: hidden;
+  font-size: 56px;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: -2px;
+  white-space: nowrap;
+}

@@ -1792,6 +1792,19 @@ function WaveApp({
                 {t('Remove video clip')}
               </button>
             )}
+            {volumeFixEnabled && trackOptions.blob && (
+              <button
+                className="options-action"
+                disabled={!volumeStatus.supported}
+                onClick={() => {
+                  volumeStatus.requestTrack(trackOptions.id);
+                  setTrackOptions(null);
+                }}
+              >
+                <SlidersHorizontal size={22} />
+                {trackOptions.volumeFix ? t('Reanalyze this song') : t('Balance this song')}
+              </button>
+            )}
             {editorEnabled && (
               <button
                 className="options-action"

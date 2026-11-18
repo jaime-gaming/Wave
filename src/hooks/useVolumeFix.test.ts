@@ -81,3 +81,13 @@ it('skips oversized and unknown recordings and continues past an unreadable sour
   expect(result.current.working).toBe(false);
   expect(measureVolume).toHaveBeenCalledTimes(1);
 });
+
+it('allows an explicit reanalysis of a previously balanced song', async () => {
+  const saved = makeTrack({ id: 'saved', volumeFix: { ...fix, algorithmVersion: 2 } });
+  const onSave = vi.fn().mockResolvedValue(undefined);
+  const { result } = renderHook(() => useVolumeFix([saved], true, false, onSave));
+  expect(measureVolume).not.toHaveBeenCalled();
+  act(() => result.current.requestTrack(saved.id));
+  await waitFor(() => expect(onSave).toHaveBeenCalledWith(saved.id, fix));
+  expect(measureVolume).toHaveBeenCalledTimes(1);
+});

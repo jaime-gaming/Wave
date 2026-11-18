@@ -66,6 +66,7 @@ public partial class MainWindow : Window
     {
         repository = new Library(folder);
         InitializeComponent();
+        PreviewKeyDown += PlayerShortcut;
         try {
             tracks = repository.Load(); preferences = repository.LoadPreferences();
             playlists = NativeCollections.Load<List<NativePlaylist>>(repository.Folder, "playlists.json") ?? [];
@@ -73,6 +74,18 @@ public partial class MainWindow : Window
         } catch (Exception error) { Notify(Localization.T("Could not open local storage: {message}", new Dictionary<string, string> { ["message"] = error.Message })); }
         ApplyTheme(); Localization.Init(preferences.Language); ApplyLanguage(); volume = Math.Clamp(preferences.Volume, 0, 1); Volume.Value = NowVolume.Value = volume; UpdateSoundButtons();
         initialized = true; Loaded += (_, _) => FitRail(); ShowPage("Home"); timer.Tick += Tick; timer.Start();
+        // Look for local folder covers off the UI thread; older imports get the
+        // same artwork support without making startup wait for disk traversal.
+        var missingArtwork = tracks.Where(s => string.IsNullOrWhiteSpace(s.Artwork)).ToList();
+        _ = Task.Run(() => missingArtwork.Select(s => (s.Id, Art: Library.FindFolderArtwork(s.Path))).Where(x => x.Art != null).ToList())
+            .ContinueWith(task => {
+                if (task.Status != TaskStatus.RanToCompletion || task.Result.Count == 0) return;
+                Dispatcher.BeginInvoke(new Action(() => {
+                    var covers = task.Result.ToDictionary(x => x.Id, x => x.Art);
+                    tracks = tracks.Select(s => string.IsNullOrWhiteSpace(s.Artwork) && covers.TryGetValue(s.Id, out var art) ? s with { Artwork = art } : s).ToList();
+                    Refresh();
+                }));
+            });
         try {
             var session = NativeCollections.Load<ListeningSession>(repository.Folder, "session.json");
             if (session != null) {
@@ -619,6 +632,23 @@ public partial class MainWindow : Window
     }
     private ImageBrush? LoadImage(string? path) { try { if (path == null || !File.Exists(path)) return null; var image = new BitmapImage(); image.BeginInit(); image.CacheOption = BitmapCacheOption.OnLoad; image.DecodePixelWidth = 600; image.UriSource = Library.SafeFileUri(path); image.EndInit(); image.Freeze(); return new ImageBrush(image) { Stretch = Stretch.UniformToFill }; } catch { return null; } }
     private Brush ArtworkBrush(string? path) => LoadImage(path) ?? (Brush)Application.Current.Resources["TonalBrush"];
+    private void PlayerShortcut(object sender, KeyEventArgs e)
+    {
+        if (page != "Now playing" || !ready || Keyboard.Modifiers != ModifierKeys.None || e.IsRepeat) return;
+        if (e.OriginalSource is TextBox or System.Windows.Controls.Primitives.ButtonBase or System.Windows.Controls.Primitives.RangeBase) return;
+        switch (e.Key)
+        {
+            case Key.Space: ToggleClick(this, new RoutedEventArgs()); break;
+            case Key.Left: active.Position = TimeSpan.FromSeconds(Math.Max(0, active.Position.TotalSeconds - 5)); break;
+            case Key.Right: active.Position = TimeSpan.FromSeconds(Math.Min(Seek.Maximum, active.Position.TotalSeconds + 5)); break;
+            case Key.Up: Volume.Value = Math.Min(1, Volume.Value + .05); break;
+            case Key.Down: Volume.Value = Math.Max(0, Volume.Value - .05); break;
+            case Key.M: SoundClick(SoundButton, new RoutedEventArgs()); break;
+            default: return;
+        }
+        e.Handled = true;
+    }
+
     private void ToggleClick(object sender, RoutedEventArgs e) { if (!ready) return; CancelFade(); if (playing) active.Pause(); else { if (active.Position.TotalSeconds >= Seek.Maximum - .1) active.Position = TimeSpan.Zero; active.Play(); PrepareNext(); } playing = !playing; UpdatePlaybackLabels(); }
     private void Advance(bool ended = false)
     {

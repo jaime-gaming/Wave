@@ -4,6 +4,8 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
+import android.content.ContentUris
+import android.provider.MediaStore
 import android.net.Uri
 import android.util.LruCache
 import androidx.compose.animation.core.animateFloatAsState
@@ -50,7 +52,8 @@ private fun embedded(context: Context, path: String, maxSide: Int): Bitmap? {
     return try {
         if (path.startsWith("content://")) retriever.setDataSource(context, Uri.parse(path))
         else retriever.setDataSource(path)
-        val bytes = retriever.embeddedPicture ?: return null
+        val bytes = retriever.embeddedPicture ?: mediaStoreArtwork(context, path) ?: return null
+        if (bytes.size > 6 * 1024 * 1024) return null
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
         var sample = 1
@@ -72,6 +75,29 @@ private fun embedded(context: Context, path: String, maxSide: Int): Bitmap? {
             // Nothing to release.
         }
     }
+}
+
+/** MediaStore can expose album artwork separately from the audio file. */
+private fun mediaStoreArtwork(context: Context, path: String): ByteArray? {
+    val uri = Uri.parse(path)
+    if (uri.scheme != "content" || uri.authority != "media") return null
+    return try {
+        val albumId = context.contentResolver.query(uri, arrayOf(MediaStore.Audio.Media.ALBUM_ID), null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) cursor.getLong(0) else null
+        } ?: return null
+        val albumArt = ContentUris.withAppendedId(Uri.parse("content://media/external/audio/albumart"), albumId)
+        context.contentResolver.openInputStream(albumArt)?.use { stream ->
+            val output = java.io.ByteArrayOutputStream()
+            val buffer = ByteArray(8192)
+            while (true) {
+                val count = stream.read(buffer)
+                if (count < 0) break
+                if (output.size() + count > 6 * 1024 * 1024) return null
+                output.write(buffer, 0, count)
+            }
+            output.toByteArray()
+        }
+    } catch (_: Exception) { null }
 }
 
 @Composable

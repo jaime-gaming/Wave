@@ -462,6 +462,54 @@ export function PlayerBar(props: PlayerProps) {
     };
   }, [stageHasVideo]);
   useEffect(() => {
+    if (!expanded || props.queueOpen || !player.current) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.repeat ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey
+      )
+        return;
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable ||
+          target.closest('input, textarea, select, button, a, [role="slider"]'))
+      )
+        return;
+      if (document.querySelectorAll('dialog[open]').length > 1) return;
+      switch (event.key) {
+        case ' ':
+          player.dispatch({ type: 'toggle' });
+          break;
+        case 'ArrowLeft':
+          player.seek(Math.max(0, player.readTime() - 5));
+          break;
+        case 'ArrowRight':
+          player.seek(Math.min(player.duration || Infinity, player.readTime() + 5));
+          break;
+        case 'ArrowUp':
+          player.setVolume(player.volume + 0.05);
+          break;
+        case 'ArrowDown':
+          player.setVolume(player.volume - 0.05);
+          break;
+        case 'm':
+        case 'M':
+          player.toggleMute();
+          break;
+        default:
+          return;
+      }
+      event.preventDefault();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [expanded, props.queueOpen, player]);
+  useEffect(() => {
     if (!expanded) return;
     const timer = setTimeout(() => setLyricsOpen(true), 0);
     return () => clearTimeout(timer);

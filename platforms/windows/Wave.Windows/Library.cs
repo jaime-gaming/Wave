@@ -253,6 +253,7 @@ public sealed class Library
                 info.Name,
                 storedPath,
                 metadata.Duration,
+                Artwork: SaveEmbeddedArtwork(hash, metadata.Artwork) ?? FindFolderArtwork(fullPath),
                 Genre: metadata.Genre,
                 Linked: linked);
             addedSongs.Add(song);
@@ -307,6 +308,41 @@ public sealed class Library
     private static string StripTrackPrefix(string name) =>
         System.Text.RegularExpressions.Regex.Replace(name, @"^\s*\d{1,3}\s*[-._)]\s+", "").Trim();
 
+    private string? SaveEmbeddedArtwork(string id, byte[]? bytes)
+    {
+        if (bytes == null || bytes.Length is < 4 or > 6291456) return null;
+        var isJpeg = bytes[0] == 0xff && bytes[1] == 0xd8 && bytes[2] == 0xff;
+        var isPng = bytes.Length >= 8 && bytes.AsSpan(0, 8).SequenceEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 });
+        if (!isJpeg && !isPng) return null;
+        try
+        {
+            var folder = System.IO.Path.Combine(Folder, "artwork");
+            Directory.CreateDirectory(folder);
+            var target = System.IO.Path.Combine(folder, id + (isPng ? ".png" : ".jpg"));
+            if (!File.Exists(target)) File.WriteAllBytes(target, bytes);
+            return target;
+        }
+        catch { return null; }
+    }
+
+    /// <summary>Use a nearby album image without moving or editing the listener's files.</summary>
+    public static string? FindFolderArtwork(string audioPath)
+    {
+        try
+        {
+            var folder = System.IO.Path.GetDirectoryName(audioPath);
+            if (string.IsNullOrWhiteSpace(folder)) return null;
+            foreach (var name in new[] { "cover.jpg", "cover.png", "folder.jpg", "folder.png", "front.jpg", "front.png" })
+            {
+                var candidate = System.IO.Path.Combine(folder, name);
+                var file = new FileInfo(candidate);
+                if (file.Exists && file.Length is > 0 and <= 6291456) return candidate;
+            }
+        }
+        catch { /* Artwork is optional; missing permissions must not block playback. */ }
+        return null;
+    }
+
     private static (string? Artist, string? Album) InferFolderTags(string fullPath)
     {
         try
@@ -328,7 +364,7 @@ public sealed class Library
     }
 }
 
-public record Tags(string? Title = null, string? Artist = null, string? Album = null, double Duration = 0, string? Genre = null);
+public record Tags(string? Title = null, string? Artist = null, string? Album = null, double Duration = 0, string? Genre = null, byte[]? Artwork = null);
 
 public static class Metadata
 {
@@ -341,6 +377,7 @@ public static class Metadata
             var header = reader.ReadBytes(12);
             if (header.Length < 12) return new();
             string? title = null, artist = null, album = null, genre = null;
+            byte[]? artwork = null;
             double duration = 0;
             if (Encoding.ASCII.GetString(header, 0, 4) == "RIFF" && Encoding.ASCII.GetString(header, 8, 4) == "WAVE")
             {
@@ -377,7 +414,8 @@ public static class Metadata
             else if (Encoding.ASCII.GetString(header, 0, 3) == "ID3" && (header[3] == 3 || header[3] == 4))
             {
                 int total = (header[6] << 21) | (header[7] << 14) | (header[8] << 7) | header[9];
-                if (total <= 1048576)
+                // Skip unsynchronised tags rather than treating encoded bytes as a picture.
+                if (total <= 8388608 && (header[5] & 0x80) == 0)
                 {
                     stream.Position = 10;
                     var data = reader.ReadBytes(total);
@@ -399,11 +437,34 @@ public static class Metadata
                             if (key == "TALB") album = value;
                             if (key == "TCON") genre = value;
                         }
+                        if (key == "APIC" && artwork == null && n > 4 && (data[at + 9] == 0))
+                        {
+                            int begin = at + 10, end = begin + n;
+                            byte encoding = data[begin];
+                            int mimeEnd = Array.IndexOf(data, (byte)0, begin + 1, n - 1);
+                            if (mimeEnd >= 0 && mimeEnd + 2 < end)
+                            {
+                                int desc = mimeEnd + 2;
+                                int image = -1;
+                                if (encoding == 0 || encoding == 3)
+                                {
+                                    int terminator = Array.IndexOf(data, (byte)0, desc, end - desc);
+                                    if (terminator >= 0) image = terminator + 1;
+                                }
+                                else
+                                {
+                                    for (int i = desc; i + 1 < end; i += 2)
+                                        if (data[i] == 0 && data[i + 1] == 0) { image = i + 2; break; }
+                                }
+                                if (image >= 0 && end - image is > 0 and <= 6291456)
+                                    artwork = data.AsSpan(image, end - image).ToArray();
+                            }
+                        }
                         at += 10 + n;
                     }
                 }
             }
-            return new(title, artist, album, duration, genre);
+            return new(title, artist, album, duration, genre, artwork);
         }
         catch { return new(); }
     }

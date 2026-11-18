@@ -17,6 +17,8 @@ export const MAX_ANALYSIS_BYTES = 60 * 1024 * 1024;
 export const MAX_ANALYSIS_SECONDS = 15 * 60;
 
 const cache = new Map<Blob, TrackAnalysis>();
+/** Keep decoded analysis bounded in long listening sessions. */
+const MAX_CACHED_ANALYSES = 32;
 const pending = new Map<Blob, Promise<TrackAnalysis | undefined>>();
 
 export function cachedAnalysis(blob: Blob | undefined): TrackAnalysis | undefined {
@@ -24,7 +26,9 @@ export function cachedAnalysis(blob: Blob | undefined): TrackAnalysis | undefine
 }
 
 export function cacheAnalysis(blob: Blob, analysis: TrackAnalysis): void {
+  cache.delete(blob);
   cache.set(blob, analysis);
+  while (cache.size > MAX_CACHED_ANALYSES) cache.delete(cache.keys().next().value!);
 }
 
 export function clearAnalysisCache(): void {
@@ -120,13 +124,13 @@ export async function analyzeTrack(blob: Blob): Promise<TrackAnalysis | undefine
       const analysis = runner
         ? await runner.run(decoded.samples, decoded.sampleRate)
         : analyzePcm(decoded.samples, decoded.sampleRate);
-      cache.set(blob, analysis);
+      cacheAnalysis(blob, analysis);
       return analysis;
     } catch {
       // A worker failure must not break playback: analyse on the main thread once.
       try {
         const analysis = analyzePcm(decoded.samples, decoded.sampleRate);
-        cache.set(blob, analysis);
+        cacheAnalysis(blob, analysis);
         return analysis;
       } catch {
         return undefined;

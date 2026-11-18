@@ -803,5 +803,7 @@
   "Try Wave for Windows": "Prueba Wave para Windows",
   "Enjoy Wave as a Windows app. Your web library stays in this browser.": "Disfruta de Wave como aplicación de Windows. Tu biblioteca web permanece en este navegador.",
   "Download for Windows": "Descargar para Windows",
-  "The latest public release may be an older test build: Windows may be unsigned and Android debug-signed.": "La última versión pública puede ser una versión de prueba antigua: Windows puede estar sin firmar y Android firmado para pruebas."
+  "The latest public release may be an older test build: Windows may be unsigned and Android debug-signed.": "La última versión pública puede ser una versión de prueba antigua: Windows puede estar sin firmar y Android firmado para pruebas.",
+  "Balance this song": "Ajustar el volumen de esta canción",
+  "Reanalyze this song": "Volver a analizar esta canción"
 }

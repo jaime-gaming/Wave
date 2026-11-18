@@ -830,6 +830,8 @@ object Loc {
             "Enjoy Wave as a Windows app. Your web library stays in this browser." to "Disfruta de Wave como aplicación de Windows. Tu biblioteca web permanece en este navegador.",
             "Download for Windows" to "Descargar para Windows",
             "The latest public release may be an older test build: Windows may be unsigned and Android debug-signed." to "La última versión pública puede ser una versión de prueba antigua: Windows puede estar sin firmar y Android firmado para pruebas.",
+            "Balance this song" to "Ajustar el volumen de esta canción",
+            "Reanalyze this song" to "Volver a analizar esta canción",
         )
 
     /** What the person chose: "system", "en" or "es". */

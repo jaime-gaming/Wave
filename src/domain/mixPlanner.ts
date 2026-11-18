@@ -7,6 +7,7 @@ import {
   type TrackAnalysis,
 } from '../audio/dsp';
 import { isRubato, tempoRelation } from '../audio/tempo';
+import type { Lyrics } from './lyrics';
 
 /**
  * Mix planner: decides *how* two songs are joined, before any audio is touched.
@@ -737,6 +738,32 @@ export function planTransitionCached(
   const plan = planTransition(outgoing, incoming, options);
   plans.set(key, plan);
   return plan;
+}
+
+/** Move the entry earlier when synced lyrics let the incoming vocal arrive near
+ * the end of the fade. Never skip lyrics, extend the fade, or invent timings. */
+export function alignIncomingLyrics(
+  plan: TransitionPlan,
+  lyrics: Lyrics | undefined,
+  start = 0,
+): TransitionPlan {
+  if (!lyrics || plan.mode === 'cut' || plan.seconds <= 0) return plan;
+  const first = lyrics.lines
+    .filter(
+      (line) => line.text.trim() && typeof line.time === 'number' && Number.isFinite(line.time),
+    )
+    .map((line) => line.time! + lyrics.offsetMs / 1000)
+    .filter((time) => time >= Math.max(0, start))
+    .sort((a, b) => a - b)[0];
+  if (first === undefined) return plan;
+  const desired = Math.max(0, start, first - plan.seconds * 0.85);
+  if (desired >= plan.cue || plan.cue - desired < 0.1) return plan;
+  return {
+    ...plan,
+    cue: Math.round(desired * 1000) / 1000,
+    phaseAligned: false,
+    notes: [...plan.notes, 'Incoming vocal approaches full level near its first timed lyric.'],
+  };
 }
 
 /**

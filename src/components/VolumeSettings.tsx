@@ -60,20 +60,10 @@ export function VolumeSettings({
             </span>
             {status.total > 0 && (
               <small>
-                {status.working
-                  ? t('{ready} of {total} recordings ready', {
-                      ready: status.ready,
-                      total: status.total,
-                    })
-                  : typeof status.adjusted === 'number' && typeof status.untouched === 'number'
-                    ? t('{adjusted} adjusted · {untouched} already balanced', {
-                        adjusted: status.adjusted,
-                        untouched: status.untouched,
-                      })
-                    : t('{ready} of {total} recordings ready', {
-                        ready: status.ready,
-                        total: status.total,
-                      })}
+                {t('{ready} of {total} recordings ready', {
+                  ready: status.ready,
+                  total: status.total,
+                })}
               </small>
             )}
             {status.working && (

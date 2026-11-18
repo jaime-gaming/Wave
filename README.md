@@ -30,6 +30,13 @@ update compatibility depend on the release credentials; CI-only builds may use t
 
 ## What it does
 
+In the expanded web player, use **Space** to play/pause, **Left/Right** to seek five seconds,
+**Up/Down** for volume and **M** to mute, when focus is not in an interactive control. Windows
+supports the same shortcuts in its expanded player. With Fix volume enabled, Song options can
+prioritize or reanalyze an individual local recording. The web Mix uses synchronized lyric timestamps
+when available to bring an incoming vocal closer to the end of the fade; timing and sound depend on
+the files and analysis, and no lyrics are sent for this purpose.
+
 - **Plays your files.** MP3, WAV, M4A, OGG and FLAC, up to 200 MB each, at their original
   quality.
 - **Takes a whole folder.** Point Wave at a folder and it reads every song inside it, at any
