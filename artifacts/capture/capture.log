@@ -5,19 +5,11 @@
 docs/media/home-desktop.png
 docs/media/remix-desktop.png
 docs/media/remix-details-desktop.png
-node:internal/modules/run_main:123
-    triggerUncaughtException(
-    ^
-
-locator.click: Timeout 30000ms exceeded.
-Call log:
-  - waiting for getByRole('button', { name: /Open Daily mix 1/ })
-
-    at /home/runner/work/Wave/Wave/scripts/capture-docs.ts:218:62 {
-  log: [
-    "  - waiting for getByRole('button', { name: /Open Daily mix 1/ })"
-  ],
-  name: 'TimeoutError'
-}
-
-Node.js v22.23.4
+docs/media/daily-mix-desktop.png
+docs/media/now-playing-desktop.png
+docs/media/immersive-desktop.png
+docs/media/volume-fix-desktop.png
+docs/media/home-mobile.png
+docs/media/remix-mobile.png
+docs/media/feedback-desktop.png
+Documentation images written to docs/media/.
