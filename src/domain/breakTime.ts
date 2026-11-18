@@ -47,6 +47,6 @@ export function nextBreakThreshold(current: number): number {
 }
 
 /** The one line the listener reads, in the order they read it. */
-export const BREAK_HEADLINE = 'Hey, wanna take a break?';
+export const BREAK_HEADLINE = 'Time for a little pause?';
 export const BREAK_BODY =
-  'You have been listening for a while. Music is paused and will be ready when you return.';
+  'Your music is paused. Take a moment, or keep listening whenever you like.';

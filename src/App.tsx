@@ -425,8 +425,7 @@ function WaveApp({
 
   // Banner-covering scroll + live borderless section heading handoff:
   // Only reveals the borderless dock once the top header is completely covered
-  // (no visible pixels remaining), and only binds a section heading AFTER you have scrolled
-  // completely past that heading so no title is ever shown twice on screen.
+  // (no visible pixels remaining), and switches as the next heading reaches the dock.
   useEffect(() => {
     const workspace = workspaceRef.current;
     if (!workspace) return;
@@ -453,14 +452,13 @@ function WaveApp({
         ),
       ).filter((el) => el.offsetParent !== null && Boolean(el.textContent?.trim()));
 
-      // Only bind a heading once its bottom edge has passed behind the top bar
-      // (so the original heading is no longer visible below the dock — never duplicated).
+      // Hand over as soon as the incoming heading reaches the dock, not after it passes.
       const dockHeight = 54;
       const passThreshold = dockHeight - 6;
       let activeIndex = -1;
       for (let i = 0; i < headings.length; i++) {
         const rect = headings[i].getBoundingClientRect();
-        if (rect.bottom <= passThreshold) activeIndex = i;
+        if (rect.top <= passThreshold) activeIndex = i;
         else break;
       }
 
@@ -473,7 +471,7 @@ function WaveApp({
       if (covered && next) {
         const nextRect = next.getBoundingClientRect();
         const handoffStart = dockHeight + 28;
-        if (nextRect.top < handoffStart && nextRect.bottom > passThreshold) {
+        if (nextRect.top < handoffStart && nextRect.top > passThreshold) {
           push = Math.max(0, Math.min(34, handoffStart - nextRect.top));
         }
       }

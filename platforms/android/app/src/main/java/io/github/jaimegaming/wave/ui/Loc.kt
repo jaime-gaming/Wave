@@ -837,6 +837,14 @@ object Loc {
             "View release" to "Ver versión",
             "Later" to "Más tarde",
             "A newer version ({version}) is available. Download the Windows package and replace the existing Wave files; keep your local library." to "Hay una versión nueva ({version}). Descarga el paquete de Windows y reemplaza los archivos existentes de Wave; tu biblioteca local se conservará.",
+            "Time for a little pause?" to "¿Te apetece hacer una pausa?",
+            "Your music is paused. Take a moment, or keep listening whenever you like." to "Tu música está en pausa. Descansa un momento o sigue escuchando cuando quieras.",
+            "Keep listening" to "Seguir escuchando",
+            "Take a break" to "Descansar",
+            "Added to the queue" to "Añadida a la cola",
+            "Make this song sound more even" to "Para que esta canción suene más equilibrada",
+            "Wave will try when ready." to "Wave lo intentará cuando esté listo.",
+            "Not available for this song" to "No disponible para esta canción",
         )
 
     /** What the person chose: "system", "en" or "es". */

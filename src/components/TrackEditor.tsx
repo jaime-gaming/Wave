@@ -1,6 +1,6 @@
 import { AudioTrimEditor } from './AudioTrimEditor';
 import { useState } from 'react';
-import { RotateCcw, Save, Search } from './Glyphs';
+import { RotateCcw, Save, Search, SlidersHorizontal, AudioLines } from './Glyphs';
 import { formatTime, type Track, type TrackMetadata } from '../domain/types';
 import { catalogueQuery, scoreRelease, type CatalogueRelease } from '../domain/catalogue';
 import { downloadCover, preferredCountry, searchCatalogue } from '../services/catalogue';
@@ -44,6 +44,7 @@ export function TrackEditor({
     artwork: track.artwork,
   });
   const [trimming, setTrimming] = useState(false);
+  const [balanceRequested, setBalanceRequested] = useState(false);
   const [bounds, setBounds] = useState<{ start: number; end: number } | null>(null);
   const [saving, setSaving] = useState(false);
   const [imageBusy, setImageBusy] = useState(false);
@@ -55,6 +56,12 @@ export function TrackEditor({
   const [searchNote, setSearchNote] = useState('');
   const [applyingCover, setApplyingCover] = useState(false);
   const busy = saving || imageBusy || applyingCover;
+  const balanceEligible =
+    balanceSupported &&
+    track.duration > 0 &&
+    track.duration <= 600 &&
+    !!track.blob &&
+    track.blob.size <= 48 * 1024 * 1024;
 
   const runCatalogueSearch = async (termOverride?: string) => {
     const query = (termOverride ?? searchTerm).trim();
@@ -265,16 +272,25 @@ export function TrackEditor({
               <button
                 type="button"
                 className="editor-submenu-button"
-                disabled={busy || !balanceSupported}
-                onClick={onBalance}
+                disabled={busy || !balanceEligible || balanceRequested}
+                onClick={() => {
+                  onBalance();
+                  setBalanceRequested(true);
+                }}
               >
                 <span>
                   <strong>
-                    {track.volumeFix ? t('Reanalyze this song') : t('Balance this song')}
+                    {balanceRequested ? t('Added to the queue') : t('Balance this song')}
                   </strong>
-                  <small>{t('Fix volume')}</small>
+                  <small>
+                    {balanceRequested
+                      ? t('Wave will try when ready.')
+                      : balanceEligible
+                        ? t('Make this song sound more even')
+                        : t('Not available for this song')}
+                  </small>
                 </span>
-                <span aria-hidden="true">↗</span>
+                <SlidersHorizontal size={18} aria-hidden="true" />
               </button>
             )}
             <ClipSection track={track} />
@@ -288,7 +304,7 @@ export function TrackEditor({
                   <strong>Trim audio</strong>
                   <small>Shape the beginning and ending</small>
                 </span>
-                <span>↗</span>
+                <AudioLines size={18} aria-hidden="true" />
               </button>
             )}
             {/*

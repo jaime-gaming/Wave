@@ -932,4 +932,10 @@ record and the certificate remain dashboard settings that only the maintainer ca
 - The web song editor groups the per-song Fix volume request with its other tools when global Fix volume is enabled. The request still depends on local audio and the analysis limits.
 - YouTube uses the official embed; an autoplay-blocked event offers a gesture-based retry in the expanded player, and error 153 gets an explanation. Browser restrictions, provider availability and embedding permissions remain outside Wave's control. This is covered by mocked message tests, not a live-provider test.
 - Native update checks remain advisory and rate-limited; Android package signature and Windows portable replacement constraints are documented. No automatic installer or device update was tested.
-- Introduction and feature-update films are separate; the latter uses current web screenshots and has no narration.
+- Introduction and feature-update films are separate; the latter animates real screenshots with the introduction film’s CC0 piano soundtrack and has no narration.
+
+### Listening experience follow-up
+
+- The startup mark runs on every opening and remains over the library until loading is complete. Reduced-motion users see a still mark.
+- The break suggestion is available inside the expanded player as well as over the library. Section titles hand over when the incoming heading reaches the dock.
+- The collapse animation measures the compact player as its destination; resize, reduced motion, keyboard focus and different viewport sizes still require visual device review.

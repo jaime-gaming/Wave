@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'motion/react';
 import { useWaveMotion } from '../ui/motion';
 import { BREAK_BODY, BREAK_HEADLINE } from '../domain/breakTime';
+import { useT } from '../i18n';
 
 /**
  * The long-session question.
@@ -20,6 +21,7 @@ export function BreakPrompt({
   onStop: () => void;
 }) {
   const animation = useWaveMotion();
+  const t = useT();
   return (
     <AnimatePresence>
       {open && (
@@ -34,20 +36,20 @@ export function BreakPrompt({
             className="break-card"
             role="dialog"
             aria-modal="true"
-            aria-label={BREAK_HEADLINE}
+            aria-label={t(BREAK_HEADLINE)}
             initial={animation.enabled ? { opacity: 0, y: 16, scale: 0.98 } : false}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={animation.enabled ? { opacity: 0, y: 10 } : undefined}
             transition={animation.effects}
           >
-            <h2>{BREAK_HEADLINE}</h2>
-            <p>{BREAK_BODY}</p>
+            <h2>{t(BREAK_HEADLINE)}</h2>
+            <p>{t(BREAK_BODY)}</p>
             <div className="break-actions">
               <button type="button" className="tonal-button" onClick={onContinue}>
-                Keep listening
+                {t('Keep listening')}
               </button>
               <button type="button" className="filled-button" onClick={onStop} autoFocus>
-                Take a break
+                {t('Take a break')}
               </button>
             </div>
           </motion.div>

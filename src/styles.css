@@ -8449,7 +8449,7 @@ h1 {
   overflow: hidden;
   text-overflow: ellipsis;
   transform: translate3d(0, var(--section-push, 0px), 0);
-  animation: dock-title-enter 0.26s cubic-bezier(0.22, 1, 0.36, 1) both;
+  /* The new heading is visible immediately at the handoff. */
 }
 .section-scroll-dock__actions {
   display: flex;

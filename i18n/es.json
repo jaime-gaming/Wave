@@ -810,5 +810,13 @@
   "A newer version ({version}) is available. Download the matching signed APK and install it over Wave to keep your library.": "Hay una versión nueva ({version}). Descarga el APK firmado compatible e instálalo sobre Wave para conservar tu biblioteca.",
   "View release": "Ver versión",
   "Later": "Más tarde",
-  "A newer version ({version}) is available. Download the Windows package and replace the existing Wave files; keep your local library.": "Hay una versión nueva ({version}). Descarga el paquete de Windows y reemplaza los archivos existentes de Wave; tu biblioteca local se conservará."
+  "A newer version ({version}) is available. Download the Windows package and replace the existing Wave files; keep your local library.": "Hay una versión nueva ({version}). Descarga el paquete de Windows y reemplaza los archivos existentes de Wave; tu biblioteca local se conservará.",
+  "Time for a little pause?": "¿Te apetece hacer una pausa?",
+  "Your music is paused. Take a moment, or keep listening whenever you like.": "Tu música está en pausa. Descansa un momento o sigue escuchando cuando quieras.",
+  "Keep listening": "Seguir escuchando",
+  "Take a break": "Descansar",
+  "Added to the queue": "Añadida a la cola",
+  "Make this song sound more even": "Para que esta canción suene más equilibrada",
+  "Wave will try when ready.": "Wave lo intentará cuando esté listo.",
+  "Not available for this song": "No disponible para esta canción"
 }

@@ -10,7 +10,7 @@ import { BreakPrompt } from './BreakPrompt';
 import { cueForTrack, useMixCue, type MixCue } from '../ui/mixCue';
 import { WaveSeek } from './WaveSeek';
 import { LyricsPanel } from './LyricsPanel';
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useWaveMotion } from '../ui/motion';
 import type { RefObject } from 'react';
@@ -383,6 +383,8 @@ function PlayerDetails({
 export function PlayerBar(props: PlayerProps) {
   const t = useT();
   const [lyricsOpen, setLyricsOpen] = useState(true);
+  const barRef = useRef<HTMLElement>(null);
+  const [collapseTarget, setCollapseTarget] = useState({ x: 0, y: 0, scaleX: 0.92, scaleY: 0.14 });
   const {
     player,
     expanded,
@@ -430,6 +432,23 @@ export function PlayerBar(props: PlayerProps) {
   );
   const idle = idleListening.immersive;
   const showing = expanded || idle;
+  useLayoutEffect(() => {
+    if (!showing) return;
+    const measure = () => {
+      const bar = barRef.current?.getBoundingClientRect();
+      if (bar && window.innerWidth && window.innerHeight) {
+        setCollapseTarget({
+          x: bar.left + bar.width / 2 - window.innerWidth / 2,
+          y: bar.top + bar.height / 2 - window.innerHeight / 2,
+          scaleX: bar.width / window.innerWidth,
+          scaleY: bar.height / window.innerHeight,
+        });
+      }
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [showing]);
   // Only this bar follows the position; the rest of the interface stays still.
   const time = usePlaybackTime(player.clock);
   const colors = usePlayerColors(
@@ -517,7 +536,7 @@ export function PlayerBar(props: PlayerProps) {
   return (
     <>
       <BreakPrompt
-        open={player.breakOpen}
+        open={player.breakOpen && !showing}
         onContinue={player.keepListening}
         onStop={player.stopForNow}
       />
@@ -533,6 +552,7 @@ export function PlayerBar(props: PlayerProps) {
         />
       )}
       <footer
+        ref={barRef}
         className="player-bar"
         data-track-id={player.current?.id}
         aria-label={t('Music player')}
@@ -738,10 +758,8 @@ export function PlayerBar(props: PlayerProps) {
             exitMotion={
               animation.enabled
                 ? {
-                    opacity: 0,
-                    y: '38vh',
-                    scaleX: 0.91,
-                    scaleY: 0.14,
+                    opacity: 0.15,
+                    ...collapseTarget,
                     borderRadius: '28px',
                     transitionEnd: { display: 'none' },
                   }
@@ -771,13 +789,18 @@ export function PlayerBar(props: PlayerProps) {
             closeIcon={<ChevronDown size={24} />}
             returnFocusRef={expanded ? returnFocusRef : undefined}
             className={`player-modal${idle ? ' is-idle is-immersive' : ''}`}
-            style={{ ...colors, transformOrigin: '50% calc(100% - 36px)' }}
+            style={{ ...colors, transformOrigin: '50% 50%' }}
             onClose={() => {
               idleListening.wake();
               setStageGone(false);
               onExpanded(false);
             }}
           >
+            <BreakPrompt
+              open={player.breakOpen}
+              onContinue={player.keepListening}
+              onStop={player.stopForNow}
+            />
             {player.stageYouTube ? (
               // A YouTube song plays through the embed: the video is the source, not
               // a backdrop, so it stays visible whether or not the clip toggle is on.
