@@ -29,14 +29,14 @@ const albums = [
   {
     artist: 'Sunday Club',
     album: 'Soft light',
-    genre: 'Jazz',
+    genre: 'Electronic',
     color: '#d4a581',
     titles: ['First light', 'Blue room', 'Quiet streets'],
   },
   {
     artist: 'The Coastline',
     album: 'In the distance',
-    genre: 'Rock',
+    genre: 'Electronic',
     color: '#8eaa98',
     titles: ['Out of town', 'Paper maps', 'Home again'],
   },

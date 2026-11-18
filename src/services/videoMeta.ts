@@ -205,16 +205,16 @@ export async function fetchVideoMeta(
   if (options.signal?.aborted) return null;
   const fetcher = options.fetcher ?? fetch;
   const timeoutMs = options.timeoutMs ?? VIDEO_META_TIMEOUT_MS;
-  const deadline = Date.now() + (options.budgetMs ?? VIDEO_META_BUDGET_MS);
+  const deadline = performance.now() + (options.budgetMs ?? VIDEO_META_BUDGET_MS);
 
   // 1. Same-origin Wave Worker endpoint (100% CORS-free, official YouTube oEmbed + watch duration)
   if (canUseWorkerEndpoint(options)) {
-    const remaining = deadline - Date.now();
+    const remaining = deadline - performance.now();
     if (remaining > 0) {
       const body = await fetchJsonWithTimeout(
         fetcher,
         `/api/youtube-meta?id=${encodeURIComponent(videoId)}`,
-        Math.min(timeoutMs, remaining),
+        Math.ceil(Math.min(timeoutMs, remaining)),
         options.signal,
       );
       if (body && typeof body === 'object') {
@@ -236,12 +236,12 @@ export async function fetchVideoMeta(
   // 2. Direct public fallback providers
   for (const provider of VIDEO_META_PROVIDERS) {
     if (options.signal?.aborted) return null;
-    const remaining = deadline - Date.now();
+    const remaining = deadline - performance.now();
     if (remaining <= 0) return null;
     const body = await fetchJsonWithTimeout(
       fetcher,
       provider.url(videoId),
-      Math.min(timeoutMs, remaining),
+      Math.ceil(Math.min(timeoutMs, remaining)),
       options.signal,
     );
     const parsed = body ? provider.read(body) : null;
