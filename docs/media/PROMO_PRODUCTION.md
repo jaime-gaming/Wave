@@ -10,11 +10,7 @@ from those recordings. Every frame is therefore of the code that produced it, an
 compare the film with the commit rather than take it on trust. The workflow is documentation, not a
 release gate.
 
-## Feature update film
-
-[`wave-whats-new.mp4`](wave-whats-new.mp4) is a separate 30-second animated update with a piano soundtrack. It presents 0.2.2 improvements: lyric-aware Mix cues, per-song volume analysis, expanded-player shortcuts and native artwork. It uses the checked-in screenshots, gently animated rather than recreated controls; the Mix and Fix volume examples are web features, and the native artwork frame is Windows. The soundtrack is taken from the introduction film's original arrangement of the CC0 samples documented below. Recreate it with `pip install pillow imageio-ffmpeg`, then `python scripts/render-update-film.py`. Review the screenshots and the exported film before publication.
-
-The introduction film is historical: its on-screen 0.2.0 label describes that version, not the latest release. The feature update complements it rather than retroactively changing that recording.
+The introduction film is historical: its on-screen 0.2.0 label describes that version, not the latest release.
 
 ## Storyboard
 

@@ -841,6 +841,8 @@ public static partial class Localization {
             ["Make this song sound more even"] = "Para que esta canción suene más equilibrada",
             ["Wave will try when ready."] = "Wave lo intentará cuando esté listo.",
             ["Not available for this song"] = "No disponible para esta canción",
+            ["Music will pause in about {minutes} min."] = "La música se pausará en unos {minutes} min.",
+            ["Sleep timer is off."] = "El temporizador está desactivado.",
         };
 
     /// <summary>What the person chose: "system", "en" or "es".</summary>

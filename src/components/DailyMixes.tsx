@@ -296,7 +296,16 @@ export const DailyMixes = memo(function DailyMixes({
         </div>
         <div className="daily-mix-grid">
           <div className="daily-mix-card daily-mix-skeleton" role="status">
-            <span className="skeleton-box skeleton-sleeve" aria-hidden="true" />
+            <span className="daily-mix-loading-art" aria-hidden="true">
+              <span className="daily-mix-loading-sleeve" />
+              <span className="daily-mix-loading-sleeve" />
+              <span className="daily-mix-loading-sleeve">
+                <i />
+                <i />
+                <i />
+                <i />
+              </span>
+            </span>
             <span className="daily-mix-copy">
               <span className="daily-mix-status-note">{t('Your daily mix is on its way')}</span>
             </span>

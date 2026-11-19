@@ -8,6 +8,10 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -68,6 +72,32 @@ import io.github.jaimegaming.wave.weekRange
 import io.github.jaimegaming.wave.yearRange
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+// One calm card while the mix is built; motion follows system and app preferences.
+@Composable
+private fun DailyMixLoadingCard() {
+    val pulse = if (waveMotionEnabled()) {
+        val transition = rememberInfiniteTransition(label = "mix loading")
+        val value by transition.animateFloat(
+            initialValue = 0.20f, targetValue = 0.48f,
+            animationSpec = infiniteRepeatable(tween(1300), RepeatMode.Reverse), label = "sleeve glow",
+        )
+        value
+    } else 0.28f
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+            .clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .semantics { contentDescription = Loc.t("Your daily mix is on its way") }
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.width(54.dp).height(54.dp).clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = pulse)))
+        Spacer(Modifier.width(14.dp))
+        Text(Loc.t("Your daily mix is on its way"), style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary)
+    }
+}
 
 // --- Home ------------------------------------------------------------------
 
@@ -166,22 +196,7 @@ fun HomeScreen(state: WaveState, onAddMusic: () -> Unit, onOpenSong: (Song) -> U
             if (buildingMixes) {
                 item(key = "home-mix-loading") {
                     SectionTitle("Daily mixes")
-                    Text(
-                        text = Loc.t("Your daily mix is on its way"),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(bottom = 10.dp),
-                    )
-                    repeat(2) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp)
-                                .height(72.dp)
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.72f)),
-                        )
-                    }
+                    DailyMixLoadingCard()
                 }
             } else if (mixes.isNotEmpty()) {
                 item(key = "home-mix-header") { SectionTitle("Daily mixes") }
@@ -1488,7 +1503,7 @@ fun SettingsScreen(state: WaveState, version: String, onAddMusic: () -> Unit, on
                         SectionTitle("Sleep timer")
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             listOf(0, 15, 30, 60).forEach { minutes ->
-                                val active = state.sleepMinutes == minutes
+                                val active = state.sleepChoice == minutes
                                 Text(
                                     if (minutes == 0) Loc.t("Off") else "$minutes min",
                                     style = MaterialTheme.typography.labelLarge,
@@ -1498,6 +1513,11 @@ fun SettingsScreen(state: WaveState, version: String, onAddMusic: () -> Unit, on
                                         .clickable { state.setSleepTimer(minutes) }.padding(horizontal = 12.dp, vertical = 8.dp),
                                 )
                             }
+                        }
+                        if (state.sleepMinutes > 0) {
+                            Text(Loc.t("Music will pause in about {minutes} min.").replace("{minutes}", state.sleepMinutes.toString()),
+                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 8.dp))
                         }
                     }
                     "Lyrics" -> SettingSwitch(

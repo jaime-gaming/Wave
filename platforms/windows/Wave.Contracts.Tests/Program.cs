@@ -1,6 +1,13 @@
 using Wave.Windows;
 using System.Text.Json;
 void Check(bool condition, string name) { if (!condition) throw new Exception(name); Console.WriteLine("PASS " + name); }
+var sleep = new SleepTimer();
+var sleepStart = new DateTimeOffset(2026, 11, 16, 12, 0, 0, TimeSpan.Zero);
+sleep.Set(15, sleepStart);
+Check(sleep.RemainingMinutes(sleepStart.AddMinutes(14)) == 1 && !sleep.Expired(sleepStart.AddMinutes(14)), "sleep timer uses elapsed time");
+Check(sleep.Expired(sleepStart.AddMinutes(16)), "sleep timer expires after sleep or a delayed tick");
+sleep.Cancel();
+Check(!sleep.Expired(sleepStart.AddHours(2)), "cancelled sleep timer stays off");
 var a = new Song("a", "First", "Artist", "Album", "a.wav", "a.wav");
 var b = a with { Id = "b", Title = "Second" };
 Check(NativeCollections.Resolve(new[] { "b", "missing", "b", "a" }, new[] { a, b }).Select(s => s.Id).SequenceEqual(new[] { "b", "a" }), "ordered playlist snapshot excludes missing/duplicate IDs");

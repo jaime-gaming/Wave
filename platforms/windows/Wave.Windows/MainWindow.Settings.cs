@@ -25,6 +25,7 @@ public partial class MainWindow
     private void RenderSettings(string? section = null)
     {
         SettingsBody.Children.Clear();
+        sleepStatus = null;
         Motion.Slide(SettingsBody, Motion.Enabled(preferences.Animations), section == null ? -1 : 1);
         if (section == null) {
             var back = new Button { Style = (Style)FindResource("TextButton"), Foreground = (Brush)Application.Current.Resources["MutedBrush"], Margin = new Thickness(2, 4, 2, 14) };
@@ -156,7 +157,15 @@ public partial class MainWindow
                 Toggle(Localization.T("Mix"), MixEnabled, value => { preferences = preferences with { Mix = value }; CancelFade(); PrepareNext(); });
                 SettingsBody.Children.Add(Label(Localization.T("Automatically choose a short overlap for each pair. Original audio files and pitch stay unchanged.")));
                 Toggle(Localization.T("Autoplay"), preferences.Autoplay, value => preferences = preferences with { Autoplay = value });
-                SettingsBody.Children.Add(Label(Localization.T("Continue with another song from your local library when the queue ends."))); break;
+                SettingsBody.Children.Add(Label(Localization.T("Continue with another song from your local library when the queue ends.")));
+                SettingsBody.Children.Add(Label(Localization.T("Sleep timer"), 17));
+                sleepStatus = Label(""); UpdateSleepStatus(); SettingsBody.Children.Add(sleepStatus);
+                var sleepButtons = new WrapPanel();
+                foreach (int minutes in new[] { 0, 15, 30, 60 }) {
+                    int choice = minutes;
+                    sleepButtons.Children.Add(ActionButton(choice == 0 ? Localization.T("Off") : $"{choice} min", () => SetSleepTimer(choice)));
+                }
+                SettingsBody.Children.Add(sleepButtons); break;
             case "Lyrics":
                 Toggle(Localization.T("Automatic lyrics"), preferences.OnlineLyrics, value => preferences = preferences with { OnlineLyrics = value });
                 SettingsBody.Children.Add(Label(Localization.T("Optional LRCLIB lookup sends song metadata and connection IP, never audio. Saved lyrics work offline. Manual search remains available in song options without starting playback."))); break;

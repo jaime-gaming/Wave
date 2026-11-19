@@ -334,9 +334,8 @@ Windows release signing and security-scan limitations are in `WINDOWS_RELEASE.md
 
 ### Product films and release updates
 
-The introduction film and separate feature update are linked from the README; see
+The introduction film is linked from the README; see
 [film production](media/PROMO_PRODUCTION.md) for sources, limitations and reproduction.
-The update film is generated from current checked-in web screenshots; it is not footage of native apps.
 
 Android and Windows check GitHub releases at most once per day and ask before opening the release page.
 They do not silently install executables. Android can replace the installed app only when the package ID,

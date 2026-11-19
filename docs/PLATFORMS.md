@@ -124,3 +124,7 @@ Candidate native CI (`6e57af4`) completed successfully for Android and Windows a
 ## Native updates
 
 Both apps make an advisory HTTPS request to GitHub's latest-release API on launch (no more than once a day after a successful check) and announce each newer stable version once. No download or install occurs without the user. The Android package must have the same application ID and signing key to update in place; otherwise Android refuses it. The Windows package is portable: replace the existing application files after closing Wave, rather than keeping duplicate copies. User data is stored separately. Published test/unsigned packages may not be suitable as upgrades; check release notes and keep a backup. Offline or failed checks do not block playback.
+
+### Daily Mix loading and sleep timers
+
+While a mix is being prepared, web, Android and Windows show one quiet loading card. The visual motion follows the app and system animation preferences. Windows Playback settings offer a session-only sleep timer (15, 30 or 60 minutes), alongside Android's existing timer. Both pause playback rather than altering files. Android tracks elapsed time while its app state remains alive; neither platform promises an alarm after the app is closed or the process is killed.

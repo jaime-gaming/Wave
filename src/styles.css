@@ -8695,55 +8695,9 @@ button:hover .wave-glyph--volume .glyph-wave-outer {
   pointer-events: none;
   cursor: default;
 }
-.skeleton-box {
-  display: block;
-  border-radius: 10px;
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--container-high) 92%, transparent) 0%,
-    color-mix(in srgb, var(--outline) 26%, var(--container-high)) 50%,
-    color-mix(in srgb, var(--container-high) 92%, transparent) 100%
-  );
-  background-size: 220% 100%;
-  animation: wave-skeleton-shimmer 2.1s ease-in-out infinite;
-}
-.skeleton-sleeve {
-  width: 56px;
-  height: 56px;
-  border-radius: 12px;
-  flex-shrink: 0;
-}
-.skeleton-line {
-  height: 12px;
-  border-radius: 999px;
-}
-.skeleton-line--title {
-  width: 68%;
-  height: 15px;
-}
-.skeleton-line--sub {
-  width: 48%;
-  margin-top: 6px;
-}
-.skeleton-line--meta {
-  width: 58%;
-  height: 10px;
-  margin-top: 6px;
-  opacity: 0.7;
-}
-@keyframes wave-skeleton-shimmer {
-  0% {
-    background-position: 100% 0;
-  }
-  100% {
-    background-position: -100% 0;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .wave-glyph path,
-  .wave-glyph g,
-  .skeleton-box {
+  .wave-glyph g {
     transition: none;
     animation: none !important;
   }
@@ -8984,11 +8938,6 @@ button:hover .wave-glyph--volume .glyph-wave-outer {
   font-size: 13px;
   line-height: 1.6;
 }
-.daily-mix-skeleton .skeleton-sleeve {
-  width: 96px;
-  height: 96px;
-  border-radius: 16px;
-}
 .daily-mix-skeleton .daily-mix-copy {
   min-width: 0;
 }
@@ -9104,4 +9053,79 @@ button:hover .wave-glyph--volume .glyph-wave-outer {
 }
 .editor-form .modal-actions {
   margin-top: 16px;
+}
+
+/* A quiet stack of records comes together while the mix is prepared. */
+.daily-mix-loading-art {
+  position: relative;
+  flex: 0 0 96px;
+  width: 96px;
+  height: 96px;
+}
+.daily-mix-loading-sleeve {
+  position: absolute;
+  inset: 8px 16px 8px 4px;
+  border-radius: 16px;
+  background: var(--container-high);
+  transform: rotate(-9deg);
+}
+.daily-mix-loading-sleeve:nth-child(2) {
+  left: 14px;
+  right: 10px;
+  transform: rotate(0deg);
+  background: color-mix(in srgb, var(--primary) 12%, var(--container-high));
+}
+.daily-mix-loading-sleeve:nth-child(3) {
+  left: 24px;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  transform: rotate(9deg);
+  background: color-mix(in srgb, var(--primary) 22%, var(--container-high));
+  animation: daily-sleeve-breathe 2.6s ease-in-out infinite;
+}
+.daily-mix-loading-sleeve i {
+  width: 3px;
+  height: 18px;
+  border-radius: 4px;
+  background: var(--primary);
+  opacity: 0.7;
+  animation: daily-bars 1.2s ease-in-out infinite alternate;
+}
+.daily-mix-loading-sleeve i:nth-child(2) {
+  height: 30px;
+  animation-delay: -0.3s;
+}
+.daily-mix-loading-sleeve i:nth-child(3) {
+  height: 24px;
+  animation-delay: -0.6s;
+}
+.daily-mix-loading-sleeve i:nth-child(4) {
+  height: 14px;
+  animation-delay: -0.9s;
+}
+@keyframes daily-sleeve-breathe {
+  50% {
+    transform: rotate(5deg) translateY(-3px);
+  }
+}
+@keyframes daily-bars {
+  from {
+    transform: scaleY(0.5);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .daily-mix-loading-sleeve,
+  .daily-mix-loading-sleeve i {
+    animation: none;
+  }
+}
+:root[data-motion='reduced'] .daily-mix-loading-sleeve,
+:root[data-motion='reduced'] .daily-mix-loading-sleeve i {
+  animation: none;
 }

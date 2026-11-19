@@ -49,6 +49,35 @@ public partial class MainWindow : Window
     private DispatcherTimer? repeatAttack;
     private Preferences preferences = new(Mix: true);
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromMilliseconds(50) };
+    private readonly SleepTimer sleepTimer = new();
+    private readonly DispatcherTimer sleepTick = new() { Interval = TimeSpan.FromSeconds(1) };
+    private TextBlock? sleepStatus;
+    private void SetSleepTimer(int minutes)
+    {
+        sleepTimer.Set(minutes, DateTimeOffset.UtcNow);
+        sleepTick.Stop();
+        sleepTick.Tick -= SleepTimerTick;
+        if (minutes > 0) { sleepTick.Tick += SleepTimerTick; sleepTick.Start(); }
+        UpdateSleepStatus();
+    }
+    private void UpdateSleepStatus()
+    {
+        if (sleepStatus == null) return;
+        int remaining = sleepTimer.RemainingMinutes(DateTimeOffset.UtcNow);
+        sleepStatus.Text = remaining > 0
+            ? Localization.T("Music will pause in about {minutes} min.", new Dictionary<string, string> { ["minutes"] = remaining.ToString() })
+            : Localization.T("Sleep timer is off.");
+    }
+    private void SleepTimerTick(object? sender, EventArgs e)
+    {
+        if (sleepTimer.Expired(DateTimeOffset.UtcNow)) {
+            sleepTimer.Cancel(); sleepTick.Stop(); sleepTick.Tick -= SleepTimerTick;
+            if (playing) { CancelFade(); active.Pause(); playing = false; UpdatePlaybackLabels(); }
+            Notify(Localization.T("The sleep timer stopped the music."));
+        }
+        UpdateSleepStatus();
+    }
+
     private DateTime lastSave = DateTime.UtcNow;
     private List<(double Time, string Text)> lines = [];
     private int highlighted = -2;
@@ -782,5 +811,5 @@ public partial class MainWindow : Window
         if (preferencesDirty) { repository.SavePreferences(preferences); preferencesDirty = false; }
     });
     private void WindowKey(object sender, KeyEventArgs e) { if (e.OriginalSource is TextBox) return; if (e.Key == Key.Space && Keyboard.Modifiers == ModifierKeys.None) { ToggleClick(this, e); e.Handled = true; } else if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control) { ShowPage("Search"); searchBox?.Focus(); e.Handled = true; } }
-    private void ClosingWindow(object? sender, System.ComponentModel.CancelEventArgs e) { UpdateScreenWakeLock(false); SaveSession(); timer.Stop(); active.Close(); spare?.Close(); outgoing?.Close(); client.Dispose(); }
+    private void ClosingWindow(object? sender, System.ComponentModel.CancelEventArgs e) { UpdateScreenWakeLock(false); SaveSession(); timer.Stop(); sleepTick.Stop(); active.Close(); spare?.Close(); outgoing?.Close(); client.Dispose(); }
 }

@@ -16,7 +16,7 @@ Prepared 16 November 2026.
 
 ## UI/UX Polish and Micro-Interactions
 
-- **Strict header-cleared sticky section heading bar**: On Home and Library pages, the borderless sticky heading strip appears **only after** the top banner has completely scrolled out of view and binds a section heading **only after** you have scrolled past it, guaranteeing zero duplicate titles.
+- **Strict header-cleared sticky section heading bar**: On Home and Library pages, the borderless sticky heading strip appears **only after** the top banner has completely scrolled out of view and hands the title over when the next section reaches the strip.
 - **Draggable Settings switches**: All on/off toggles in Settings can be smoothly dragged horizontally as well as clicked, keeping a clean standard pointer cursor with no drag handle clutter.
 - **Click-only inner glyph animations & player motion**:
   - **Shuffle**: Uncrosses into parallel tracks and rejoins strictly on click (never on hover).

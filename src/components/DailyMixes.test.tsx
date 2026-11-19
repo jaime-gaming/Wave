@@ -32,7 +32,8 @@ describe('DailyMixes', () => {
     rerender(<DailyMixes tracks={tracks} loading={false} busy={true} onOpen={onOpen} />);
     const status = screen.getByRole('status');
     expect(status).toHaveTextContent('Your daily mix is on its way');
-    expect(status.querySelectorAll('.skeleton-sleeve')).toHaveLength(1);
+    expect(status.querySelectorAll('.daily-mix-loading-art')).toHaveLength(1);
+    expect(status.querySelectorAll('.daily-mix-loading-sleeve')).toHaveLength(3);
     expect(document.querySelectorAll('.daily-mix-skeleton')).toHaveLength(1);
     expect(screen.queryByRole('button', { name: /Open Daily mix/i })).not.toBeInTheDocument();
 

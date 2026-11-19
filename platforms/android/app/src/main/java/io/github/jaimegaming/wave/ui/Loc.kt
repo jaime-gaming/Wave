@@ -845,6 +845,8 @@ object Loc {
             "Make this song sound more even" to "Para que esta canción suene más equilibrada",
             "Wave will try when ready." to "Wave lo intentará cuando esté listo.",
             "Not available for this song" to "No disponible para esta canción",
+            "Music will pause in about {minutes} min." to "La música se pausará en unos {minutes} min.",
+            "Sleep timer is off." to "El temporizador está desactivado.",
         )
 
     /** What the person chose: "system", "en" or "es". */

@@ -159,22 +159,21 @@ public partial class MainWindow
         if (importingFiles && tracks.Count >= 7 && daily.Count == 0)
         {
             CollectionHeader.Children.Add(SectionHeading(Localization.T("Daily mixes")));
-            var note = Label(Localization.T("Your daily mix is on its way"), 13.5);
+            var note = Label(Localization.T("Your daily mix is on its way"), 14);
             note.Foreground = (Brush)Application.Current.Resources["AccentBrush"];
             note.FontWeight = FontWeights.SemiBold;
-            CollectionHeader.Children.Add(note);
-            for (int s = 0; s < 2; s++)
-            {
-                var skeleton = new Border
-                {
-                    Height = 76,
-                    CornerRadius = new CornerRadius(16),
-                    Margin = new Thickness(2, 4, 2, 4),
-                    Background = (Brush)Application.Current.Resources["TonalBrush"],
-                    Opacity = 0.62,
-                };
-                CollectionHeader.Children.Add(skeleton);
+            var sleeve = new Border { Width = 54, Height = 54, CornerRadius = new CornerRadius(12), Background = (Brush)Application.Current.Resources["AccentBrush"], Opacity = .28, Margin = new Thickness(0, 0, 14, 0) };
+            var content = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            content.Children.Add(sleeve); content.Children.Add(note);
+            var skeleton = new Border { MinHeight = 76, CornerRadius = new CornerRadius(16), Margin = new Thickness(2, 4, 2, 4), Padding = new Thickness(12), Background = (Brush)Application.Current.Resources["TonalBrush"], Child = content };
+            System.Windows.Automation.AutomationProperties.SetName(skeleton, Localization.T("Your daily mix is on its way"));
+            if (Motion.Enabled(preferences.Animations)) {
+                sleeve.Loaded += (_, _) => sleeve.BeginAnimation(UIElement.OpacityProperty,
+                    new System.Windows.Media.Animation.DoubleAnimation(.2, .52, TimeSpan.FromSeconds(1.3)) {
+                        AutoReverse = true, RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever });
+                sleeve.Unloaded += (_, _) => sleeve.BeginAnimation(UIElement.OpacityProperty, null);
             }
+            CollectionHeader.Children.Add(skeleton);
         }
         else if (daily.Count > 0)
         {

@@ -136,6 +136,7 @@ class WaveState(
     var notice by mutableStateOf("")
     /** Minutes left on the sleep timer; 0 when it is off. */
     var sleepMinutes by mutableStateOf(0)
+    var sleepChoice by mutableStateOf(0)
         private set
     var mixEnabled by mutableStateOf(context.wave.preferences().getBoolean(KEY_MIX, true))
         private set
@@ -259,13 +260,19 @@ class WaveState(
     /** Stops the music after a while, for falling asleep with something on. */
     fun setSleepTimer(minutes: Int) {
         sleepJob?.cancel()
-        sleepMinutes = minutes.coerceIn(0, 180)
-        if (sleepMinutes == 0) return
+        sleepChoice = minutes.coerceIn(0, 180)
+        sleepMinutes = sleepChoice
+        if (sleepChoice == 0) return
+        val deadline = android.os.SystemClock.elapsedRealtime() + sleepChoice * 60_000L
         sleepJob = scope.launch {
-            while (sleepMinutes > 0) {
-                delay(60_000)
-                sleepMinutes--
+            while (true) {
+                val remaining = deadline - android.os.SystemClock.elapsedRealtime()
+                if (remaining <= 0) break
+                sleepMinutes = ((remaining + 59_999L) / 60_000L).toInt()
+                delay(minOf(remaining, 1000L))
             }
+            sleepMinutes = 0
+            sleepChoice = 0
             player.pause()
             notice = Loc.t("The sleep timer stopped the music.")
         }
