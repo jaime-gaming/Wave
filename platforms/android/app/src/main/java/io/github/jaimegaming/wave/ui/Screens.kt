@@ -1500,6 +1500,8 @@ fun SettingsScreen(state: WaveState, version: String, onAddMusic: () -> Unit, on
                     "Playback" -> {
                         SettingSwitch("Mix", "One song blends into the next instead of stopping between them.", state.mixEnabled) { state.setMix(it) }
                         Divider()
+                        SettingSwitch("Autoplay", "Continue with another song from your local library when the queue ends.", state.autoplayEnabled) { state.setAutoplay(it) }
+                        Divider()
                         SectionTitle("Sleep timer")
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             listOf(0, 15, 30, 60).forEach { minutes ->

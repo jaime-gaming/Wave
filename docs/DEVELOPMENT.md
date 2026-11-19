@@ -340,7 +340,7 @@ The introduction film is linked from the README; see
 Android and Windows check GitHub releases at most once per day and ask before opening the release page.
 They do not silently install executables. Android can replace the installed app only when the package ID,
 signing certificate and version code are compatible. On Windows, close Wave and replace the files in the
-existing installation folder; the library lives separately. The current Windows ZIP is portable rather
+existing installation folder; the library lives separately. The Windows executable is portable rather
 than an installer, and test-only or unsigned packages are not production updates. A persistent Android
 release signing key is essential; reinstalling with a different signature can require uninstalling first
 and may lose local data. Back up the library before changing distribution channels.
