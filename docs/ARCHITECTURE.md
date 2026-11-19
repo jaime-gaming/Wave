@@ -1,12 +1,12 @@
 # Wave Architecture
 
-**Candidate: 0.2.1 · Prepared 6 November 2026. Released baseline: 0.2.0.**
+**Version: 0.2.2 · Prepared 16 November 2026.**
 
 ## Scope and platform decision
 
-Wave's first implementation is a browser application built with React and TypeScript. It is now accompanied by independent Kotlin/Compose Android and C#/WPF Windows projects; see PLATFORMS.md for native architecture and verified build status and remaining parity differences. PixelPlayer remains a reference for local-library organization and playback interactions, not an implementation dependency.
+Wave's first implementation is a browser application built with React and TypeScript. It is accompanied by independent Kotlin/Compose Android and C#/WPF Windows 11 projects; see `PLATFORMS.md` for native architecture, verified build status and parity details. PixelPlayer remains a reference for local-library organization and playback interactions, not an implementation dependency.
 
-The first milestone is a working vertical slice: import local music, persist it, browse and search it, then play it, organize playlists, and optionally edit local metadata. There is no cloud library or authentication. The optional public-playlist URL reader uses one bounded Cloudflare Worker endpoint; playback and matching stay local. Optional automatic lyrics uses LRCLIB directly from the browser; audio remains local.
+Wave is strictly local-first: import local music, persist it, browse and search it, play it with a studio-grade harmonic Mix engine (`dsp.ts`, `mixPlanner.ts`, `mixGraph.ts`, `MixAudio.ts`), organize playlists and daily mixes, analyze listening mood 100% on-device (`mood.ts`), and inspect Weekly/Monthly/Yearly Remix recaps. There is no cloud library, account or telemetry. Optional public-playlist and YouTube metadata lookups use bounded Cloudflare Worker endpoints (`/api/import-playlist`, `/api/youtube-meta`, `/api/youtube-playlist`, `/api/youtube-search`); audio files and playback decisions stay local. Optional automatic lyrics uses LRCLIB directly from the browser.
 
 ## Layers and responsibilities
 

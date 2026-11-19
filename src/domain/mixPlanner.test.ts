@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  alignIncomingLyrics,
   automaticBars,
   bassSwapGains,
   handoverGains,
@@ -15,8 +16,10 @@ import {
   planTransitionCached,
   realignPlan,
   TARGET_SECONDS,
+  transitionCompatibility,
 } from './mixPlanner';
-import type { TrackAnalysis } from '../audio/dsp';
+import { estimateKeyFromChroma, harmonicCompatibility, type TrackAnalysis } from '../audio/dsp';
+import { incomingAirHz, midCarveDb, OPEN_AIR_HZ } from '../audio/mixGraph';
 
 const analysis = (over: Partial<TrackAnalysis> = {}): TrackAnalysis => ({
   duration: 240,
@@ -469,5 +472,112 @@ describe('The extra moves a mix makes', () => {
     const join = levelTrim(outgoing, incoming, { outgoing: 190, incoming: 0 });
     expect(join.outgoing).toBe(1);
     expect(join.incoming).toBeLessThan(1);
+  });
+
+  it('never skips halfway into a rubato ballad with a quiet first verse', () => {
+    const ballad = analysis({
+      duration: 240,
+      trimmed: { start: 0, end: 238 },
+      beats: { bpm: 84, offset: 0, confidence: 0.7, stability: 0.2 },
+      segments: [
+        { start: 0, end: 95, level: 0.22, kind: 'intro' },
+        { start: 95, end: 210, level: 0.9, kind: 'body' },
+      ],
+    });
+    const plan = planTransition(analysis(), ballad);
+    expect(plan.mode).toBe('crossfade');
+    expect(plan.cue).toBeLessThanOrEqual(6);
+  });
+
+  it('bounds intro skipping proportionally on short songs so half the song is never skipped', () => {
+    const shortSong = analysis({
+      duration: 75,
+      trimmed: { start: 0, end: 74 },
+      segments: [
+        { start: 0, end: 30, level: 0.2, kind: 'intro' },
+        { start: 30, end: 70, level: 0.9, kind: 'body' },
+      ],
+    });
+    const plan = planTransition(analysis(), shortSong);
+    expect(plan.cue).toBeLessThanOrEqual(16);
+  });
+
+  it('scores Camelot harmonic compatibility and tightens clashing keys while letting matches breathe', () => {
+    // Pure C major triad chroma (C=0, E=4, G=7) should resolve to C major (8B).
+    const cMajorChroma = new Float32Array(12);
+    cMajorChroma[0] = 1.0;
+    cMajorChroma[4] = 0.72;
+    cMajorChroma[7] = 0.85;
+    cMajorChroma[2] = 0.25;
+    cMajorChroma[5] = 0.35;
+    cMajorChroma[9] = 0.3;
+    const detected = estimateKeyFromChroma(cMajorChroma);
+    expect(detected?.camelot).toBe('8B');
+
+    const key8A = {
+      tonic: 9,
+      mode: 'minor' as const,
+      name: 'A minor',
+      camelot: '8A',
+      confidence: 0.9,
+    };
+    const key9A = {
+      tonic: 4,
+      mode: 'minor' as const,
+      name: 'E minor',
+      camelot: '9A',
+      confidence: 0.9,
+    };
+    const key2A = {
+      tonic: 3,
+      mode: 'minor' as const,
+      name: 'Eb minor',
+      camelot: '2A',
+      confidence: 0.9,
+    };
+
+    expect(harmonicCompatibility(key8A, key9A)).toBeGreaterThan(0.85);
+    expect(harmonicCompatibility(key8A, key2A)).toBeLessThan(0.35);
+
+    const matchPlan = planTransition(analysis({ key: key8A }), analysis({ key: key9A }));
+    const clashPlan = planTransition(analysis({ key: key8A }), analysis({ key: key2A }));
+    expect(matchPlan.harmonicScore).toBeGreaterThan(0.85);
+    expect(clashPlan.harmonicScore).toBeLessThan(0.35);
+    expect(clashPlan.bars).toBeLessThan(matchPlan.bars);
+    expect(
+      transitionCompatibility(analysis({ key: key8A }), analysis({ key: key9A })),
+    ).toBeGreaterThan(transitionCompatibility(analysis({ key: key8A }), analysis({ key: key2A })));
+  });
+
+  it('shapes outgoing midrange vocal carve and incoming air bloom cleanly back to bypass', () => {
+    expect(midCarveDb(0, false)).toBe(0);
+    expect(midCarveDb(1, true)).toBe(0);
+    expect(midCarveDb(0.5, true)).toBeLessThan(midCarveDb(0.5, false));
+    expect(incomingAirHz(0, true)).toBeLessThan(OPEN_AIR_HZ);
+    expect(incomingAirHz(0.5, true)).toBe(OPEN_AIR_HZ);
+    expect(incomingAirHz(1, false)).toBe(OPEN_AIR_HZ);
+  });
+});
+
+describe('timed lyric handovers', () => {
+  it('moves an entry earlier toward the first vocal without skipping lyrics', () => {
+    const plan = planTransition(analysis(), analysis());
+    const first = plan.cue + 5;
+    const adjusted = alignIncomingLyrics(
+      plan,
+      { raw: '', lines: [{ text: 'First verse', time: first }], offsetMs: 0, source: 'local' },
+      1,
+    );
+    expect(adjusted.cue).toBeLessThan(plan.cue);
+    expect(adjusted.cue).toBeGreaterThanOrEqual(1);
+    expect(adjusted.seconds).toBe(plan.seconds);
+    expect(adjusted.phaseAligned).toBe(false);
+    expect(
+      alignIncomingLyrics(
+        plan,
+        { raw: 'plain', lines: [{ text: 'plain' }], offsetMs: 0, source: 'local' },
+        1,
+      ),
+    ).toEqual(plan);
   });
 });

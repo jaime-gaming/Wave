@@ -2,7 +2,13 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { RemixPage } from './RemixPage';
-import { listeningSummary, weeklyRecap, weeklyRecaps } from '../domain/listening';
+import {
+  listeningSummary,
+  monthlyRecaps,
+  weeklyRecap,
+  weeklyRecaps,
+  yearlyRecaps,
+} from '../domain/listening';
 import { makePlay } from '../domain/listening';
 import { makeTrack } from '../test/fixtures';
 
@@ -216,4 +222,19 @@ it('explores an earlier week with its full chart, artists and songs', async () =
   ).toBeInTheDocument();
   expect(screen.getAllByRole('option')).toHaveLength(2);
   expect(screen.getByRole('region', { name: 'Your Remix' })).not.toHaveTextContent('Signal');
+});
+
+it('switches between Weekly, Monthly and Yearly recaps', async () => {
+  const monthlyHistory = monthlyRecaps(plays, tracks, now, 6);
+  const yearlyHistory = yearlyRecaps(plays, tracks, now);
+  render(<RemixPage {...props} monthlyHistory={monthlyHistory} yearlyHistory={yearlyHistory} />);
+  await userEvent.click(screen.getByRole('tab', { name: 'Monthly' }));
+  expect(screen.getByRole('combobox', { name: 'Explore a month' })).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: /Listening time/ }));
+  expect(screen.getByRole('region', { name: 'Listening per week' })).toBeInTheDocument();
+
+  await userEvent.click(screen.getByRole('tab', { name: 'Yearly' }));
+  expect(screen.getByRole('combobox', { name: 'Explore a year' })).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: /Listening time/ }));
+  expect(screen.getByRole('region', { name: 'Listening per month' })).toBeInTheDocument();
 });

@@ -1522,11 +1522,14 @@ kbd {
   display: flex;
   justify-content: flex-start;
   align-items: center;
+  cursor: pointer;
+  touch-action: pan-y;
+  user-select: none;
 }
 .material-switch[aria-checked='true'] {
   background: var(--primary);
   outline: none;
-  justify-content: flex-end;
+  justify-content: flex-start;
 }
 .material-switch > span {
   width: 22px;
@@ -1535,10 +1538,34 @@ kbd {
   background: var(--outline);
   display: grid;
   place-items: center;
+  will-change: transform;
 }
 .material-switch[aria-checked='true'] > span {
   background: var(--on-primary);
   color: var(--primary);
+}
+.material-switch.is-dragging {
+  cursor: pointer;
+  justify-content: flex-start;
+  background: color-mix(
+    in srgb,
+    var(--primary) calc(var(--switch-drag, 0) * 100%),
+    var(--container-high)
+  );
+  outline-color: color-mix(
+    in srgb,
+    var(--primary) calc(var(--switch-drag, 0) * 100%),
+    var(--outline)
+  );
+}
+.material-switch.is-dragging > span {
+  background: color-mix(
+    in srgb,
+    var(--on-primary) calc(var(--switch-drag, 0) * 100%),
+    var(--outline)
+  );
+  color: var(--primary);
+  transition: none;
 }
 .form-field {
   display: flex;
@@ -3696,6 +3723,18 @@ section.settings-page {
 .compact-cover-open {
   padding: 0;
   flex-shrink: 0;
+  --cover-radius: 12px;
+  border-radius: var(--cover-radius);
+  overflow: hidden;
+  display: block;
+  transform: translateZ(0);
+}
+.compact-cover-open .mix-artwork,
+.compact-cover-open .mix-cue {
+  width: 40px;
+  height: 40px;
+  max-width: 40px;
+  border-radius: var(--cover-radius);
 }
 .compact-title-open {
   padding: 0;
@@ -7430,8 +7469,7 @@ h1 {
   min-width: 0;
 }
 .platform-links {
-  border-top: 1px solid var(--outline);
-  padding-top: 24px;
+  padding-top: 0;
   margin-block: 24px;
 }
 .platform-links header h3 {
@@ -8212,4 +8250,882 @@ h1 {
 /* A player action already animates its glyph; keep the hit target fixed. */
 .player-action-button:active:not(:disabled) {
   transform: none;
+}
+
+/* Metadata catalogue search & alignment inside Edit song. */
+.metadata-matcher {
+  display: grid;
+  gap: 10px;
+}
+.metadata-matcher-panel {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--container-high) 70%, transparent);
+  border: 1px solid var(--border);
+}
+.metadata-matcher-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.metadata-matcher-bar input {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+.metadata-matcher-note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.metadata-matcher-list {
+  display: grid;
+  gap: 6px;
+}
+.metadata-match-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 150ms ease,
+    border-color 150ms ease,
+    transform 150ms ease;
+}
+.metadata-match-row:hover {
+  background: var(--container-high);
+  border-color: var(--border);
+}
+.metadata-match-row img {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.metadata-match-info {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.metadata-match-info strong,
+.metadata-match-info small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.metadata-match-info small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.metadata-match-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  font-size: 12px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.metadata-match-badge {
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+}
+
+/* Rendering performance for long libraries without removing any animation. */
+.song-row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 64px;
+}
+.collection-card,
+.album-card,
+.artist-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 240px;
+}
+
+/* ==========================================================================
+   Wave 0.2.2 Polish: Banner-Covering Scroll, Expressive Icons, Remix Periods,
+   Unified YouTube Search, and All-Resolution Responsiveness
+   ========================================================================== */
+
+/* #14 Banner-covering scroll: the banner stays full-size and anchored underneath
+   while the foreground content sheet rises over it, filling out the top corners
+   and pinning each section's clean borderless title text until the next arrives. */
+.workspace {
+  --banner-cover: 0;
+  --section-push: 0px;
+}
+.workspace > .library-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  transform: none;
+  filter: none;
+  opacity: 1;
+}
+.workspace[data-banner-covered='true'] > .library-header {
+  pointer-events: none;
+}
+.workspace > .section-scroll-dock {
+  position: sticky;
+  top: 0;
+  z-index: 9;
+  height: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+.section-scroll-dock__bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  height: 54px;
+  padding: 0 24px;
+  background: linear-gradient(
+    180deg,
+    var(--surface) 74%,
+    color-mix(in srgb, var(--surface) 88%, transparent) 92%,
+    color-mix(in srgb, var(--surface) 0%, transparent) 100%
+  );
+  border: 0;
+  box-shadow: none;
+  transform: translate3d(0, -105%, 0);
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+  transition:
+    transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.2s ease;
+  will-change: transform, opacity;
+}
+.workspace[data-banner-covered='true'] .section-scroll-dock__bar {
+  transform: translate3d(0, 0, 0);
+  opacity: 1;
+  pointer-events: auto;
+}
+.section-scroll-dock__heading {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  text-align: left;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  overflow: hidden;
+}
+.section-scroll-dock__title {
+  display: block;
+  font-size: 20px;
+  font-weight: 760;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transform: translate3d(0, var(--section-push, 0px), 0);
+  /* The new heading is visible immediately at the handoff. */
+}
+.section-scroll-dock__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.section-scroll-dock__actions .icon-button {
+  width: 36px;
+  height: 36px;
+  background: color-mix(in srgb, var(--primary-container) 72%, transparent);
+  color: var(--primary);
+}
+.section-scroll-dock__actions .icon-button:hover:not(:disabled) {
+  background: var(--primary-container);
+}
+@media (max-width: 460px) {
+  .section-scroll-dock__actions {
+    display: none;
+  }
+}
+@keyframes dock-title-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, var(--section-push, 0px), 0);
+  }
+}
+.workspace > .library-surface {
+  position: relative;
+  z-index: 4;
+  background: var(--surface);
+  border-radius: calc(28px * (1 - var(--banner-cover, 0))) calc(28px * (1 - var(--banner-cover, 0)))
+    0 0;
+  box-shadow: 0 calc(-16px * var(--banner-cover, 0)) calc(30px * var(--banner-cover, 0))
+    rgba(0, 0, 0, calc(0.2 * var(--banner-cover, 0)));
+}
+@media (prefers-reduced-motion: reduce) {
+  .section-scroll-dock__bar,
+  .section-scroll-dock__title {
+    transition: none;
+    animation: none;
+  }
+}
+
+/* #13 Expressive shape-playing icon animations. */
+.wave-glyph {
+  overflow: visible;
+}
+.wave-glyph path,
+.wave-glyph g {
+  transition:
+    transform 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.24s ease;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* Morphing Play <-> Pause glyph */
+.wave-glyph--playpause .glyph-play-shape {
+  opacity: 1;
+  transform: scale(1) rotate(0deg);
+}
+.wave-glyph--playpause .glyph-pause-shape {
+  opacity: 0;
+  transform: scale(0.55) rotate(-28deg);
+}
+.wave-glyph--playpause .glyph-pause-left {
+  transform: translateX(2.4px) scaleY(0.65);
+}
+.wave-glyph--playpause .glyph-pause-right {
+  transform: translateX(-2.4px) scaleY(0.65);
+}
+.wave-glyph--playpause.is-playing .glyph-play-shape {
+  opacity: 0;
+  transform: scale(0.52) rotate(32deg);
+}
+.wave-glyph--playpause.is-playing .glyph-pause-shape {
+  opacity: 1;
+  transform: scale(1) rotate(0deg);
+}
+.wave-glyph--playpause.is-playing .glyph-pause-left,
+.wave-glyph--playpause.is-playing .glyph-pause-right {
+  transform: translateX(0) scaleY(1);
+}
+
+/* Navigation & interactive glyph shape-play */
+button:hover .wave-glyph--home .glyph-roof,
+button[aria-current='page'] .wave-glyph--home .glyph-roof {
+  transform: translateY(-1.2px) scale(1.04);
+}
+button:hover .wave-glyph--home .glyph-door,
+button[aria-current='page'] .wave-glyph--home .glyph-door {
+  transform: scaleY(1.08);
+}
+
+button:hover .wave-glyph--library .glyph-back-sleeve,
+button[aria-current='page'] .wave-glyph--library .glyph-back-sleeve {
+  transform: translate(1.2px, -1.2px);
+}
+button:hover .wave-glyph--library .glyph-disc,
+button[aria-current='page'] .wave-glyph--library .glyph-disc {
+  transform: scale(1.16) rotate(45deg);
+}
+
+button:hover .wave-glyph--search .glyph-lens,
+button[aria-current='page'] .wave-glyph--search .glyph-lens {
+  transform: rotate(-10deg) scale(1.06);
+}
+
+button:hover .wave-glyph--settings .glyph-gear,
+button[aria-current='page'] .wave-glyph--settings .glyph-gear {
+  transform: rotate(45deg);
+}
+
+@keyframes wave-glyph-bar-dance {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  45% {
+    transform: scaleY(0.56);
+  }
+  75% {
+    transform: scaleY(1.16);
+  }
+}
+button:hover .wave-glyph--remix .glyph-bar-1,
+button[aria-current='page'] .wave-glyph--remix .glyph-bar-1 {
+  animation: wave-glyph-bar-dance 0.65s ease-in-out 0s 1;
+}
+button:hover .wave-glyph--remix .glyph-bar-2,
+button[aria-current='page'] .wave-glyph--remix .glyph-bar-2 {
+  animation: wave-glyph-bar-dance 0.65s ease-in-out 0.06s 1;
+}
+button:hover .wave-glyph--remix .glyph-bar-3,
+button[aria-current='page'] .wave-glyph--remix .glyph-bar-3 {
+  animation: wave-glyph-bar-dance 0.65s ease-in-out 0.12s 1;
+}
+button:hover .wave-glyph--remix .glyph-bar-4,
+button[aria-current='page'] .wave-glyph--remix .glyph-bar-4 {
+  animation: wave-glyph-bar-dance 0.65s ease-in-out 0.18s 1;
+}
+button:hover .wave-glyph--remix .glyph-bar-5,
+button[aria-current='page'] .wave-glyph--remix .glyph-bar-5 {
+  animation: wave-glyph-bar-dance 0.65s ease-in-out 0.24s 1;
+}
+
+button:active .wave-glyph--skip-back .glyph-skip-arrow {
+  transform: translateX(-2.2px);
+}
+button:active .wave-glyph--skip-forward .glyph-skip-arrow {
+  transform: translateX(2.2px);
+}
+button:hover .wave-glyph--volume .glyph-wave-inner {
+  transform: translateX(0.9px) scale(1.06);
+}
+button:hover .wave-glyph--volume .glyph-wave-outer {
+  transform: translateX(1.8px) scale(1.09);
+  transition-delay: 0.04s;
+}
+@keyframes wave-shuffle-separate-a {
+  0%,
+  100% {
+    d: path('M4 6.9C9.8 6.9 10.4 17.1 16.4 17.1L20 17.1');
+  }
+  38%,
+  58% {
+    d: path('M4 6.9C9.8 6.9 10.4 6.9 16.4 6.9L20 6.9');
+  }
+}
+@keyframes wave-shuffle-separate-b {
+  0%,
+  100% {
+    d: path('M4 17.1C9.8 17.1 10.4 6.9 16.4 6.9L20 6.9');
+  }
+  38%,
+  58% {
+    d: path('M4 17.1C9.8 17.1 10.4 17.1 16.4 17.1L20 17.1');
+  }
+}
+@keyframes wave-shuffle-tips {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  45% {
+    transform: translateX(1.1px);
+  }
+}
+/* Shuffle separates into parallel paths and rejoins ONLY on click (never on hover). */
+.player-action-symbol.is-pulsing .wave-glyph--shuffle .glyph-shuffle-a {
+  animation: wave-shuffle-separate-a 0.68s cubic-bezier(0.22, 1, 0.36, 1) 1;
+}
+.player-action-symbol.is-pulsing .wave-glyph--shuffle .glyph-shuffle-b {
+  animation: wave-shuffle-separate-b 0.68s cubic-bezier(0.22, 1, 0.36, 1) 1;
+}
+.player-action-symbol.is-pulsing .wave-glyph--shuffle .glyph-shuffle-tip-a,
+.player-action-symbol.is-pulsing .wave-glyph--shuffle .glyph-shuffle-tip-b {
+  animation: wave-shuffle-tips 0.68s cubic-bezier(0.22, 1, 0.36, 1) 1;
+}
+
+/* Repeat spins ONLY the two loop arrows around the center, leaving any "1" badge upright. */
+.wave-glyph .glyph-repeat-arrows {
+  transform-box: view-box;
+  transform-origin: 12px 12px;
+}
+@keyframes wave-repeat-arrows-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+.player-action-symbol.is-pulsing .wave-glyph--repeat .glyph-repeat-arrows,
+.player-action-symbol.is-pulsing .wave-glyph--repeat1 .glyph-repeat-arrows {
+  animation: wave-repeat-arrows-spin 0.56s cubic-bezier(0.22, 1, 0.36, 1) 1;
+}
+
+/* Videoclip glides its inner filmstrip upward like a movie reel inside its steady frame. */
+@keyframes wave-film-roll-up {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-12.6px);
+  }
+}
+.player-action-symbol.is-pulsing .wave-glyph--film .glyph-film-strip {
+  animation: wave-film-roll-up 0.52s cubic-bezier(0.25, 0.85, 0.35, 1) 1;
+}
+
+/* Daily Mix skeleton loader while today's mix is being built. */
+.daily-mix-status-note {
+  color: var(--primary);
+  font-weight: 600;
+}
+.daily-mix-skeleton {
+  pointer-events: none;
+  cursor: default;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wave-glyph path,
+  .wave-glyph g {
+    transition: none;
+    animation: none !important;
+  }
+}
+
+/* #12 Monthly & Yearly Recap Period Switcher in Remix */
+.remix-head-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.remix-period-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--container);
+  border: 1px solid color-mix(in srgb, var(--line) 75%, transparent);
+  width: fit-content;
+  max-width: 100%;
+  flex-wrap: wrap;
+}
+.remix-period-tab {
+  position: relative;
+  isolation: isolate;
+  min-height: 34px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  background: transparent;
+  transition:
+    color 0.2s ease,
+    transform 0.16s ease;
+}
+.remix-period-tab__label {
+  position: relative;
+  z-index: 1;
+}
+.remix-period-pill {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: 999px;
+  background: var(--primary);
+}
+.remix-period-tab:hover {
+  color: var(--text);
+}
+.remix-period-tab.active {
+  color: var(--on-primary);
+}
+.remix-period-stage {
+  will-change: transform, opacity;
+}
+.remix-bars-year .remix-bars {
+  gap: clamp(3px, 0.8vw, 10px);
+}
+.remix-bars-year .remix-bar-day {
+  font-size: 11px;
+}
+
+/* #9 Unified YouTube Search + Paste Link Results */
+.yt-search-results {
+  margin-top: 12px;
+  max-height: min(320px, 44dvh);
+  overflow-y: auto;
+  border-radius: 16px;
+  background: var(--container);
+  border: 1px solid color-mix(in srgb, var(--line) 75%, transparent);
+}
+.yt-search-status {
+  margin: 0;
+  padding: 16px;
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
+}
+.yt-search-list {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.yt-search-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  text-align: left;
+  color: var(--text);
+  background: transparent;
+  transition: background 0.15s ease;
+}
+.yt-search-row:hover:not(:disabled),
+.yt-search-row:focus-visible {
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+}
+.yt-search-thumb {
+  width: 52px;
+  height: 36px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--surface);
+}
+.yt-search-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+  gap: 2px;
+}
+.yt-search-meta strong,
+.yt-search-meta small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.yt-search-meta strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+.yt-search-meta small {
+  font-size: 12px;
+  color: var(--muted);
+}
+.yt-search-add {
+  display: inline-grid;
+  place-items: center;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  flex-shrink: 0;
+}
+
+/* #15 All-Resolution Responsive Web Support (320px ultra-compact -> 4K ultrawide) */
+@media (min-width: 1680px) {
+  .workspace {
+    max-width: 1680px;
+    margin-left: max(
+      calc(var(--rail-width) + 20px),
+      calc((100vw - 1680px + var(--rail-width)) / 2)
+    );
+    margin-right: auto;
+  }
+  .album-shelf,
+  .collection-grid {
+    grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .workspace {
+    margin: 6px 6px 0;
+    border-radius: 24px;
+  }
+  .workspace > .library-header {
+    padding: 16px 14px 18px;
+  }
+  .workspace > .library-header h1 {
+    font-size: clamp(22px, 6.8vw, 30px);
+  }
+  .workspace > .library-surface {
+    padding: 16px 10px 24px;
+    border-radius: calc(22px * (1 - var(--banner-cover, 0)))
+      calc(22px * (1 - var(--banner-cover, 0))) 0 0;
+  }
+  .section-scroll-dock__bar {
+    height: 48px;
+    padding: 0 14px;
+    gap: 10px;
+  }
+  .section-scroll-dock__title {
+    font-size: 16px;
+  }
+  .remix-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .remix-mix-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .remix-mix-actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .yt-unified-input {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .yt-search-thumb {
+    width: 44px;
+    height: 32px;
+  }
+}
+
+@media (max-width: 360px) {
+  .library-tabs button {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+  .remix-period-tab {
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+  .header-actions {
+    gap: 4px;
+  }
+  .header-actions .icon-button {
+    width: 38px;
+    height: 38px;
+  }
+}
+
+/* Keep the option label and its explanation on separate lines. */
+.local-metadata .settings-switch-row > div {
+  display: grid;
+  gap: 5px;
+}
+.local-metadata .settings-switch-row > div > span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.daily-mix-skeleton .daily-mix-copy {
+  min-width: 0;
+}
+.daily-mix-skeleton .daily-mix-status-note {
+  margin: 0;
+  line-height: 1.45;
+}
+.section-scroll-dock__back {
+  flex-shrink: 0;
+}
+.workspace:not([data-banner-covered='true']) .section-scroll-dock__bar {
+  transition: none;
+}
+
+.windows-app-notice {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 18px;
+  margin-bottom: 20px;
+  border-radius: 18px;
+  background: var(--container);
+}
+.windows-app-notice > div {
+  flex: 1;
+  min-width: 0;
+}
+.windows-app-notice p {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 4px;
+  line-height: 1.5;
+}
+@media (max-width: 600px) {
+  .windows-app-notice {
+    flex-wrap: wrap;
+  }
+  .windows-app-notice > div {
+    flex-basis: calc(100% - 64px);
+  }
+}
+
+.boot-wordmark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.boot-wordmark svg {
+  width: 88px;
+  height: 72px;
+  flex-shrink: 0;
+}
+.boot-wordmark span {
+  display: block;
+  overflow: hidden;
+  font-size: 56px;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: -2px;
+  white-space: nowrap;
+}
+
+/* Compact song tools without sacrificing readable text or touch targets. */
+.editor-form {
+  margin-top: 12px;
+}
+.editor-form .artwork-picker {
+  margin: 8px 0 16px;
+  gap: 14px;
+}
+.editor-form .editor-submenu-button {
+  padding: 12px 14px;
+  gap: 12px;
+  border-radius: 16px;
+  min-height: 56px;
+}
+.editor-form .editor-submenu-button > span:first-child {
+  gap: 2px;
+}
+.editor-form .editor-submenu-button small {
+  margin-top: 0;
+}
+.editor-form .editor-submenu-button strong,
+.editor-form .editor-submenu-button small {
+  line-height: 1.35;
+}
+.editor-form .metadata-matcher {
+  gap: 8px;
+}
+.editor-form .clip-section {
+  margin: 12px 0;
+}
+@media (max-width: 420px) {
+  .editor-form .metadata-matcher-bar {
+    flex-wrap: wrap;
+  }
+  .editor-form .metadata-matcher-bar input {
+    flex-basis: 180px;
+  }
+}
+
+/* Compact song tools share the same rhythm without shrinking touch targets. */
+.editor-form .form-field {
+  margin-block: 0 12px;
+}
+.editor-form .metadata-matcher,
+.editor-form > .editor-submenu-button {
+  margin-block: 0 10px;
+}
+.editor-form .clip-section {
+  margin-block: 0 10px;
+}
+.editor-form .modal-actions {
+  margin-top: 16px;
+}
+
+/* A quiet stack of records comes together while the mix is prepared. */
+.daily-mix-loading-art {
+  position: relative;
+  flex: 0 0 96px;
+  width: 96px;
+  height: 96px;
+}
+.daily-mix-loading-sleeve {
+  position: absolute;
+  inset: 8px 16px 8px 4px;
+  border-radius: 16px;
+  background: var(--container-high);
+  transform: rotate(-9deg);
+}
+.daily-mix-loading-sleeve:nth-child(2) {
+  left: 14px;
+  right: 10px;
+  transform: rotate(0deg);
+  background: color-mix(in srgb, var(--primary) 12%, var(--container-high));
+}
+.daily-mix-loading-sleeve:nth-child(3) {
+  left: 24px;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  transform: rotate(9deg);
+  background: color-mix(in srgb, var(--primary) 22%, var(--container-high));
+  animation: daily-sleeve-breathe 2.6s ease-in-out infinite;
+}
+.daily-mix-loading-sleeve i {
+  width: 3px;
+  height: 18px;
+  border-radius: 4px;
+  background: var(--primary);
+  opacity: 0.7;
+  animation: daily-bars 1.2s ease-in-out infinite alternate;
+}
+.daily-mix-loading-sleeve i:nth-child(2) {
+  height: 30px;
+  animation-delay: -0.3s;
+}
+.daily-mix-loading-sleeve i:nth-child(3) {
+  height: 24px;
+  animation-delay: -0.6s;
+}
+.daily-mix-loading-sleeve i:nth-child(4) {
+  height: 14px;
+  animation-delay: -0.9s;
+}
+@keyframes daily-sleeve-breathe {
+  50% {
+    transform: rotate(5deg) translateY(-3px);
+  }
+}
+@keyframes daily-bars {
+  from {
+    transform: scaleY(0.5);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .daily-mix-loading-sleeve,
+  .daily-mix-loading-sleeve i {
+    animation: none;
+  }
+}
+:root[data-motion='reduced'] .daily-mix-loading-sleeve,
+:root[data-motion='reduced'] .daily-mix-loading-sleeve i {
+  animation: none;
 }

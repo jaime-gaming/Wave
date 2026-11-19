@@ -6,7 +6,15 @@ export function inferFileMetadata(fileName: string): { title: string; artist?: s
   const parts = stem.split(/\s+[–—-]\s+/u);
   if (parts.length !== 2 || !parts.every((p) => p.trim()))
     return { title: stem.replace(/_/g, ' ').replace(/\s+/g, ' ').trim() };
-  return { artist: parts[0].trim().replace(/_/g, ' '), title: parts[1].trim().replace(/_/g, ' ') };
+  const left = parts[0].trim().replace(/_/g, ' ');
+  const right = parts[1].trim().replace(/_/g, ' ');
+  // Standard filename order is "Artist - Title", but when the left half strongly
+  // reads as a song title and the right half reads as an artist (e.g.
+  // "Bohemian Rhapsody (Remastered) - Queen.mp3"), trust the textual verdict.
+  if (roleSwapVerdict(right, left) >= 2.8) {
+    return { artist: right, title: left };
+  }
+  return { artist: left, title: right };
 }
 /**
  * A title tag that actually holds both halves: "Artist - Title".
@@ -99,21 +107,164 @@ export function matchesSearch(value: string, query: string) {
     .every((part) => text.includes(part));
 }
 
+const TITLE_EDITION_TAG =
+  /[([](?:prod\.?|remix|live|acoustic|remaster(?:ed)?|official|audio|video|lyrics?|slowed|sped\s+up|nightcore|radio\s+edit|extended|instrumental|demo|bonus|deluxe|version|edit|pt\.?\s*\d|part\s*\d|unplugged|session|en\s+vivo|ac[uú]stic[oa]|versi[oó]n)[^)\]]*[)\]]/iu;
+
+const TITLE_PHRASE_WORDS =
+  /\b(?:i'm|i’m|don't|don’t|can't|can’t|won't|won’t|didn't|you're|we're|it's|that's|there's|gonna|wanna|gotta|never|always|without|because|someone|something|nothing|everything|tonight|forever|remember|goodbye|waiting|falling|running|dancing|crying|dreaming|thinking|feeling|quiero|eres|estoy|tengo|dime|dame|nunca|siempre|contigo|conmigo|cuando|donde|porque|nada|todo|coraz[oó]n|noche|vida|amor|dolor|volver|llorar|so[ñn]ar|bailar|olvidar)\b/iu;
+
+const TITLE_CONNECTOR_WORDS =
+  /\b(?:of|in|on|at|to|for|from|with|by|into|over|under|through|about|around|between|my|your|our|their|his|her|me|you|us|them|is|are|was|were|be|been|do|does|did|have|has|had|de|del|en|con|sin|por|para|mi|tu|su|me|te|se|nos|que|como|pero|si|no|un|una|al)\b/u;
+
+const BAND_PATTERN =
+  /^(?:the|los|las|el|la|les|der|die|das)\s+\S+|\b(?:and\s+the|y\s+los|y\s+las)\b|\s[&+]\s/iu;
+
+const ARTIST_PREFIX = /^(?:dj|mc|lil|young|yung|big|dr\.?|mr\.?|mrs\.?|ms\.?|st\.?)\s+\S+/iu;
+
+const ARTIST_COLLAB_PATTERN = /[([\s](?:feat\.?|ft\.?|featuring)\b|\s(?:&|x|×)\s|,\s*\p{Lu}/u;
+
+const stripCollabCredit = (value: string) =>
+  value
+    .replace(/\s*[([](?:feat\.?|ft\.?|featuring|with)\b[^)\]]*[)\]]/giu, '')
+    .replace(/\s+(?:feat\.?|ft\.?|featuring)\s+.+$/iu, '')
+    .trim();
+
 /**
- * The one place where the tags and the file name disagree about who made a song.
- *
- * A swapped artist and title is a real, annoying mistake, and it is also the
- * easiest thing in the world to claim wrongly — every self-titled record has the
- * same words in two fields. So the claim is only made when the file name itself
- * holds the two halves the other way round: the file says "Song - Artist" while
- * the tags say the opposite. That is evidence, not a guess.
+ * Scores how strongly a string looks like a song title rather than an artist name.
+ * Purely textual and structural: does not rely on file tags or container metadata.
  */
-export function rolesSwapped(track: { title: string; artist: string; fileName?: string }): boolean {
-  const name = track.fileName;
-  if (!name) return false;
-  const fromName = inferFileMetadata(name);
-  if (!fromName.artist) return false;
-  // Compare recording identities, not tag typography. Keep live/remix labels.
+function titleLikeness(value: string): number {
+  const text = value.trim();
+  if (!text) return 0;
+  let score = 0;
+  const words = text.split(/\s+/u).filter(Boolean);
+
+  if (TITLE_EDITION_TAG.test(text)) score += 3.6;
+  if (/[?!¡¿…]|\.{3}/u.test(text)) score += 2.2;
+  if (/\s[-–—:]\s/u.test(text) && text.length > 14) score += 1.4;
+
+  const phraseHits = text.match(new RegExp(TITLE_PHRASE_WORDS.source, 'giu'))?.length ?? 0;
+  score += Math.min(3.4, phraseHits * 1.7);
+
+  // Lowercase grammar/connector words mid-phrase are far more common in song titles
+  // than in proper-noun artist names (e.g. "A Sky Full of Stars", "Me Porto Bonito").
+  const innerWords = words.slice(1);
+  const lowercaseConnectors = innerWords.filter((w) => TITLE_CONNECTOR_WORDS.test(w)).length;
+  score += Math.min(2.2, lowercaseConnectors * 0.9);
+
+  // Leading personal pronouns or negation ("I ...", "You ...", "No ...", "Te ...").
+  if (/^(?:i|you|we|she|he|they|te|me|nos|no|si|mi|tu|cuando|donde|como|por)\s+/iu.test(text)) {
+    score += 1.3;
+  }
+
+  if (words.length >= 5) score += 1.8;
+  else if (words.length === 4) score += 1.0;
+
+  if (text.length >= 28) score += 1.2;
+  else if (text.length >= 20) score += 0.6;
+
+  // Classic artist/band patterns weigh against being a song title.
+  if (BAND_PATTERN.test(text) && !TITLE_EDITION_TAG.test(text) && phraseHits === 0) score -= 1.8;
+  if (ARTIST_PREFIX.test(text) && words.length <= 3) score -= 2.2;
+  // Compact 1–2 word proper-noun shape is typical of artists.
+  if (words.length <= 2 && text.length <= 16 && !/[?!¡¿()[\]]/u.test(text) && phraseHits === 0) {
+    score -= 0.7;
+  }
+
+  return score;
+}
+
+/**
+ * Computes a confidence score (> 0 = likely swapped, < 0 = likely in right order)
+ * purely from the title and artist text, plus optional known library artists.
+ */
+export function roleSwapVerdict(
+  title: string,
+  artist: string,
+  knownArtists?: ReadonlySet<string>,
+): number {
+  const cleanTitleText = title.trim();
+  const cleanArtistText = artist.trim();
+  if (!cleanTitleText || !cleanArtistText) return 0;
+
+  const idTitle = searchText(cleanTitleText);
+  const idArtist = searchText(cleanArtistText);
+  if (!idTitle || !idArtist || idTitle === idArtist) return 0;
+
+  // Known artist lookup from other tracks in the library is strong corroboration.
+  let score = 0;
+  if (knownArtists && knownArtists.size > 0) {
+    const titleIsKnownArtist = knownArtists.has(idTitle);
+    const artistIsKnownArtist = knownArtists.has(idArtist);
+    if (titleIsKnownArtist && !artistIsKnownArtist) score += 3.8;
+    else if (artistIsKnownArtist && !titleIsKnownArtist) score -= 3.8;
+  }
+
+  // Structural & linguistic comparison: how much more does `artist` look like a
+  // song title than `title` does?
+  score += titleLikeness(cleanArtistText) - titleLikeness(cleanTitleText);
+
+  // Length & word-count asymmetry: song titles are typically longer and carry
+  // more words than artist names. Strip featured/collaboration credits on the
+  // artist side so "Artist (feat. Guest)" or multi-artist credits aren't
+  // mistaken for long song titles.
+  const artistCore = stripCollabCredit(cleanArtistText) || cleanArtistText;
+  const titleWords = cleanTitleText.split(/\s+/u).filter(Boolean).length;
+  const artistWords = artistCore.split(/\s+/u).filter(Boolean).length;
+  const artistHasBandShape =
+    BAND_PATTERN.test(cleanArtistText) ||
+    ARTIST_PREFIX.test(cleanArtistText) ||
+    ARTIST_COLLAB_PATTERN.test(cleanArtistText);
+  const titleHasBandShape = BAND_PATTERN.test(cleanTitleText) || ARTIST_PREFIX.test(cleanTitleText);
+
+  if (artistWords >= titleWords + 2 && titleWords <= 2 && !artistHasBandShape) {
+    score += 1.9;
+  } else if (titleWords >= artistWords + 2 && artistWords <= 2 && !titleHasBandShape) {
+    score -= 1.9;
+  }
+
+  if (
+    artistCore.length >= cleanTitleText.length * 1.75 &&
+    artistCore.length >= 16 &&
+    cleanTitleText.length <= 18 &&
+    !artistHasBandShape
+  ) {
+    score += 1.6;
+  } else if (
+    cleanTitleText.length >= artistCore.length * 1.75 &&
+    cleanTitleText.length >= 16 &&
+    artistCore.length <= 18 &&
+    !titleHasBandShape
+  ) {
+    score -= 1.6;
+  }
+
+  return score;
+}
+
+/**
+ * Decides whether a song's artist and title appear to be reversed.
+ *
+ * Trusts its own textual and structural verdict (length, word count, title
+ * phrases, edition tags, artist patterns and library familiarity) rather than
+ * deferring blindly to file tags or filename order. Still honours a clear
+ * filename contradiction when the two names are otherwise ambiguous (e.g.
+ * short proper nouns like "Nils Frahm" vs "Says").
+ */
+export function rolesSwapped(
+  track: { title: string; artist: string; fileName?: string },
+  knownArtists?: ReadonlySet<string>,
+): boolean {
+  const title = track.title.trim();
+  const artist = track.artist.trim();
+  if (!title || !artist) return false;
+  if (
+    /^(?:unknown(?: (?:artist|album|title))?|untitled|n\/a|null|undefined)$/iu.test(title) ||
+    /^(?:unknown(?: (?:artist|album|title))?|untitled|n\/a|null|undefined)$/iu.test(artist)
+  ) {
+    return false;
+  }
+
   const identity = (value: string) =>
     searchText(
       value
@@ -122,9 +273,19 @@ export function rolesSwapped(track: { title: string; artist: string; fileName?: 
     );
   const same = (left: string, right: string) =>
     !!identity(left) && identity(left) === identity(right);
-  return (
-    !same(track.title, track.artist) &&
-    same(track.title, fromName.artist) &&
-    same(track.artist, fromName.title)
-  );
+
+  if (same(title, artist)) return false;
+
+  // 1. Primary verdict: independent of metadata or filename conventions.
+  const verdict = roleSwapVerdict(title, artist, knownArtists);
+  if (verdict >= 2.6) return true;
+  if (verdict <= -2.6) return false;
+
+  // 2. Ambiguous short names (e.g. "Nils Frahm" vs "Says"): fall back to an
+  // explicit filename contradiction if present.
+  const name = track.fileName;
+  if (!name) return false;
+  const fromName = inferFileMetadata(name);
+  if (!fromName.artist) return false;
+  return same(title, fromName.artist) && same(artist, fromName.title);
 }

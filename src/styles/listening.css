@@ -1,66 +1,115 @@
-/* Spectral illumination, diffused through radial falloff rather than silhouettes. */
+/* Layered music-reactive illumination: clearly alive behind the browsing shell
+   without painting over workspace text, and richer inside the expanded player stage. */
 .music-lighting {
   pointer-events: none;
   overflow: hidden;
   background: none;
-  opacity: calc(var(--music-energy, 0) * 0.6);
+  opacity: calc(0.14 + var(--music-energy, 0) * 0.44);
+  transition: opacity 0.45s ease;
 }
 .music-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 2;
+  z-index: var(--layer-base, 0);
+  opacity: calc(0.16 + var(--music-energy, 0) * 0.44);
+}
+:root[data-theme='light'] .music-backdrop {
+  opacity: calc(0.12 + var(--music-energy, 0) * 0.32);
 }
 .stage-aura {
   position: absolute;
   inset: 0;
   z-index: 0;
+  opacity: calc(0.2 + var(--music-energy, 0) * 0.62);
 }
 .music-lighting i {
   position: absolute;
-  width: 95vmax;
-  height: 80vmax;
+  width: 96vmax;
+  height: 82vmax;
   border-radius: 50%;
-  will-change: transform;
+  will-change: transform, opacity;
+  filter: blur(22px);
+  transition:
+    transform 0.9s linear,
+    opacity 0.9s ease;
+}
+.music-backdrop i {
+  filter: blur(26px);
 }
 .music-lighting__bass {
-  left: -45vmax;
-  bottom: -45vmax;
+  left: -42vmax;
+  bottom: -44vmax;
   background: radial-gradient(
     ellipse,
-    var(--primary) 0%,
-    color-mix(in srgb, var(--primary) 24%, transparent) 30%,
-    transparent 67%
-  );
-  opacity: 0.42;
-  transform: translate(var(--music-bass-x, 0%), var(--music-bass-y, 0%))
-    scale(calc(0.9 + var(--music-bass, 0) * 0.3));
-}
-.music-lighting__body {
-  right: -45vmax;
-  bottom: -30vmax;
-  background: radial-gradient(
-    ellipse,
-    var(--primary-container) 0%,
-    color-mix(in srgb, var(--primary) 20%, transparent) 35%,
+    color-mix(in srgb, var(--primary) 88%, #fff 12%) 0%,
+    color-mix(in srgb, var(--primary) 34%, transparent) 34%,
     transparent 68%
   );
-  opacity: 0.7;
-  transform: translate(var(--music-body-x, 0%), var(--music-body-y, 0%))
-    scale(calc(0.9 + var(--music-body, 0) * 0.4));
+  opacity: calc(0.28 + var(--music-bass, 0) * 0.36 + var(--music-pulse, 0) * 0.16);
+  transform: translate3d(var(--music-bass-x, 0%), var(--music-bass-y, 0%), 0)
+    scale(calc(0.88 + var(--music-bass, 0) * 0.36 + var(--music-pulse, 0) * 0.14));
 }
-.music-lighting__air {
-  top: -55vmax;
-  left: 5vw;
+.music-lighting__body {
+  right: -40vmax;
+  bottom: -28vmax;
   background: radial-gradient(
     ellipse,
-    color-mix(in srgb, var(--primary) 70%, var(--secondary-container)) 0%,
-    transparent 65%
+    color-mix(in srgb, var(--primary-container) 80%, var(--primary) 20%) 0%,
+    color-mix(in srgb, var(--primary) 28%, transparent) 36%,
+    transparent 68%
   );
-  opacity: 0.22;
-  transform: translate(var(--music-air-x, 0%), var(--music-air-y, 0%))
-    scale(calc(1 + var(--music-air, 0) * 0.2));
+  opacity: calc(0.36 + var(--music-body, 0) * 0.36);
+  transform: translate3d(var(--music-body-x, 0%), var(--music-body-y, 0%), 0)
+    rotate(var(--music-angle, 0deg)) scale(calc(0.9 + var(--music-body, 0) * 0.4));
 }
-:root[data-music-active='false'] .music-lighting {
+.music-lighting__air {
+  top: -50vmax;
+  left: 6vw;
+  background: radial-gradient(
+    ellipse,
+    color-mix(in srgb, var(--primary) 58%, var(--secondary-container)) 0%,
+    color-mix(in srgb, var(--secondary-container) 26%, transparent) 36%,
+    transparent 66%
+  );
+  opacity: calc(0.18 + var(--music-air, 0) * 0.32);
+  transform: translate3d(var(--music-air-x, 0%), var(--music-air-y, 0%), 0)
+    scale(calc(0.96 + var(--music-air, 0) * 0.3));
+}
+.music-backdrop .music-lighting__bass {
+  opacity: calc(0.28 + var(--music-bass, 0) * 0.32 + var(--music-pulse, 0) * 0.12);
+}
+.music-backdrop .music-lighting__body {
+  opacity: calc(0.34 + var(--music-body, 0) * 0.32);
+}
+.music-backdrop .music-lighting__air {
+  opacity: calc(0.2 + var(--music-air, 0) * 0.24);
+}
+.stage-aura::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -48vmax;
+  width: 80vmax;
+  height: 72vmax;
+  margin-left: -40vmax;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(24px);
+  background: radial-gradient(
+    ellipse at 50% 58%,
+    color-mix(in srgb, var(--primary) 68%, #fff 32%) 0%,
+    color-mix(in srgb, var(--primary) 24%, transparent) 36%,
+    transparent 66%
+  );
+  opacity: calc(var(--music-pulse, 0) * 0.42);
+  transform: translate3d(calc(var(--music-bass-x, 0%) * -0.3), calc(var(--music-pulse, 0) * -8%), 0)
+    scale(calc(0.78 + var(--music-pulse, 0) * 0.44));
+}
+.player-modal.is-immersive .stage-aura {
+  opacity: calc(0.22 + var(--music-energy, 0) * 0.64);
+}
+:root[data-music-active='false'] .music-lighting,
+:root[data-music-active='false'] .player-modal .stage-aura {
   opacity: 0;
 }
 /*

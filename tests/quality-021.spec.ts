@@ -285,8 +285,8 @@ test('Fix volume in Settings balances the library and future imports, with a glo
   });
   expect(state.gains.every((gain) => gain! > 2)).toBe(true);
   expect(state.enabled).toBe('false');
+  await expect(page).toHaveURL(/\/Settings\/Playback$/);
   await page.reload();
-  await page.getByRole('button', { name: 'Playback', exact: true }).click();
   await expect(page.getByRole('switch', { name: 'Fix volume' })).not.toBeChecked();
 });
 

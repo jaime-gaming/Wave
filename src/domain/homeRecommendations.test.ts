@@ -26,3 +26,31 @@ it('balances affinity with discovery and moves the just-heard song back', () => 
   expect(picks[0].id).toBe('discovery');
   expect(picks.at(-1)?.id).toBe('heard');
 });
+
+it('automatically promotes tracks matching the listener current mood', () => {
+  const current = makeTrack({
+    id: 'playing',
+    title: 'Midnight Rain',
+    artist: 'Nocturne',
+    genres: ['Ambient', 'Lo-fi'],
+  });
+  const chillCandidate = makeTrack({
+    id: 'chill-pick',
+    title: 'Quiet Ocean Waves',
+    artist: 'Soft Ensemble',
+    genres: ['Piano', 'Ambient'],
+  });
+  const metalCandidate = makeTrack({
+    id: 'metal-pick',
+    title: 'Thunder Fire Rage',
+    artist: 'Metal Crew',
+    genres: ['Heavy Metal'],
+  });
+  const picks = homeRecommendations(
+    [metalCandidate, chillCandidate],
+    undefined,
+    '2026-11-16',
+    current,
+  );
+  expect(picks[0].id).toBe('chill-pick');
+});

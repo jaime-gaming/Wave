@@ -156,11 +156,37 @@ public partial class MainWindow
         CollectionHeader.Children.Add(shortcuts);
 
         var daily = DailyGroups();
-        if (daily.Count > 0) {
+        if (importingFiles && tracks.Count >= 7 && daily.Count == 0)
+        {
+            CollectionHeader.Children.Add(SectionHeading(Localization.T("Daily mixes")));
+            var note = Label(Localization.T("Your daily mix is on its way"), 14);
+            note.Foreground = (Brush)Application.Current.Resources["AccentBrush"];
+            note.FontWeight = FontWeights.SemiBold;
+            var sleeve = new Border { Width = 54, Height = 54, CornerRadius = new CornerRadius(12), Background = (Brush)Application.Current.Resources["AccentBrush"], Opacity = .28, Margin = new Thickness(0, 0, 14, 0) };
+            var content = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            content.Children.Add(sleeve); content.Children.Add(note);
+            var skeleton = new Border { MinHeight = 76, CornerRadius = new CornerRadius(16), Margin = new Thickness(2, 4, 2, 4), Padding = new Thickness(12), Background = (Brush)Application.Current.Resources["TonalBrush"], Child = content };
+            System.Windows.Automation.AutomationProperties.SetName(skeleton, Localization.T("Your daily mix is on its way"));
+            if (Motion.Enabled(preferences.Animations)) {
+                sleeve.Loaded += (_, _) => sleeve.BeginAnimation(UIElement.OpacityProperty,
+                    new System.Windows.Media.Animation.DoubleAnimation(.2, .52, TimeSpan.FromSeconds(1.3)) {
+                        AutoReverse = true, RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever });
+                sleeve.Unloaded += (_, _) => sleeve.BeginAnimation(UIElement.OpacityProperty, null);
+            }
+            CollectionHeader.Children.Add(skeleton);
+        }
+        else if (daily.Count > 0)
+        {
             CollectionHeader.Children.Add(SectionHeading(Localization.T("Daily mixes")));
             for (int i = 0; i < daily.Count; i++) {
                 var mix = daily[i];
-                CollectionHeader.Children.Add(MixRow(Localization.T("Daily mix {number}", new Dictionary<string, string> { ["number"] = (i + 1).ToString() }), mix.Label, mix.Songs.FirstOrDefault()?.Artwork, () => ShowPage("Daily mix", mix.Id)));
+                var coverArt = (mix.Covers?.FirstOrDefault(s => !string.IsNullOrWhiteSpace(s.Artwork))
+                    ?? mix.Songs.FirstOrDefault(s => !string.IsNullOrWhiteSpace(s.Artwork)))?.Artwork;
+                CollectionHeader.Children.Add(MixRow(
+                    Localization.T("Daily mix {number}", new Dictionary<string, string> { ["number"] = (i + 1).ToString() }),
+                    $"{mix.Label} · {NativeCollections.Count(mix.Songs.Count, "song")}",
+                    coverArt,
+                    () => ShowPage("Daily mix", mix.Id)));
             }
         }
 
@@ -225,7 +251,7 @@ public partial class MainWindow
     /// <summary>A section heading with, optionally, the one action that belongs to it.</summary>
     private FrameworkElement SectionHeading(string text, UIElement? trailing = null)
     {
-        var row = new DockPanel { Margin = new Thickness(2, 18, 2, 10) };
+        var row = new DockPanel { Tag = "section-heading", Margin = new Thickness(2, 18, 2, 10) };
         if (trailing != null) { DockPanel.SetDock(trailing, Dock.Right); row.Children.Add(trailing); }
         row.Children.Add(new TextBlock { Text = text, FontSize = 19, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center });
         return row;
@@ -418,15 +444,35 @@ public partial class MainWindow
     /// </summary>
     private void RenderRemix()
     {
-        var recap = Listening.Recap(plays, tracks, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+        long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var periodStrip = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 10) };
+        foreach (var (id, label) in new[] { ("weekly", "Weekly"), ("monthly", "Monthly"), ("yearly", "Yearly") })
+        {
+            periodStrip.Children.Add(Pill(Localization.T(label), remixPeriod == id, () => { remixPeriod = id; Refresh(); }));
+        }
+        CollectionHeader.Children.Add(periodStrip);
+
+        var recap = remixPeriod switch
+        {
+            "monthly" => Listening.MonthlyRecap(plays, tracks, now),
+            "yearly" => Listening.YearlyRecap(plays, tracks, now),
+            _ => Listening.Recap(plays, tracks, now),
+        };
+        var rangeLabel = remixPeriod switch
+        {
+            "monthly" => Listening.MonthRange(recap.Start),
+            "yearly" => Listening.YearRange(recap.Start),
+            _ => Listening.WeekRange(recap.Start, recap.End),
+        };
         var head = new Grid { Margin = new Thickness(2, 4, 2, 10) };
         head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        head.Children.Add(Label(Listening.WeekRange(recap.Start, recap.End), 13));
+        head.Children.Add(Label(rangeLabel, 13));
         var clear = ActionButton(Localization.T("Clear history"), () => {
             if (MessageBox.Show(this, Localization.T("Clear the listening history? The songs stay in your library."), "Wave", MessageBoxButton.YesNo) != MessageBoxResult.Yes) return;
             Listening.Clear(repository.Folder);
             plays = [];
+            moodSignals.Clear();
             Refresh();
         });
         clear.Style = (Style)FindResource("TextButton");
@@ -625,7 +671,53 @@ public partial class MainWindow
         return new StackPanel { Margin = new Thickness(0, 6, 0, 0), Children = { bars, labels, caption } };
     }
 
-    private List<NativeMix> DailyGroups() => NativeCollections.DailyMixes(tracks, DateOnly.FromDateTime(DateTime.Today));
+    private sealed record SavedDailyMix(string Id, string Label, List<string> SongIds, List<string> CoverIds);
+    private sealed record DailyMixStore(string Day, string Signature, List<SavedDailyMix> Mixes);
+
+    private List<NativeMix> DailyGroups()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        string dayKey = today.ToString("yyyy-MM-dd");
+        string signature = $"{tracks.Count}:{string.Join(",", tracks.Select(s => s.Id).OrderBy(id => id, StringComparer.Ordinal).Take(48))}";
+        var byId = tracks.ToDictionary(s => s.Id, StringComparer.Ordinal);
+        try
+        {
+            var saved = NativeCollections.Load<DailyMixStore>(repository.Folder, "daily-mixes.json");
+            if (saved != null && saved.Day == dayKey && saved.Signature == signature && saved.Mixes.Count > 0)
+            {
+                var hydrated = saved.Mixes
+                    .Select(entry => new NativeMix(
+                        entry.Id,
+                        entry.Label,
+                        entry.SongIds.Where(byId.ContainsKey).Select(id => byId[id]).ToList(),
+                        entry.CoverIds.Where(byId.ContainsKey).Select(id => byId[id]).ToList()))
+                    .Where(mix => mix.Songs.Count >= 7)
+                    .Take(3)
+                    .ToList();
+                if (hydrated.Count > 0) return hydrated;
+            }
+        }
+        catch { /* Rebuild cleanly if cache file is unreadable. */ }
+        if (importingFiles) return [];
+        var built = NativeCollections.DailyMixes(tracks, today);
+        if (built.Count > 0)
+        {
+            try
+            {
+                var store = new DailyMixStore(
+                    dayKey,
+                    signature,
+                    built.Select(mix => new SavedDailyMix(
+                        mix.Id,
+                        mix.Label,
+                        mix.Songs.Select(s => s.Id).ToList(),
+                        (mix.Covers ?? mix.Songs.Take(3).ToList()).Select(s => s.Id).ToList())).ToList());
+                NativeCollections.Save(repository.Folder, "daily-mixes.json", store);
+            }
+            catch { /* Never block Home on cache write failure. */ }
+        }
+        return built;
+    }
     private void SavePlaylists(List<NativePlaylist> updated) { NativeCollections.Save(repository.Folder, "playlists.json", updated); playlists = updated; }
     private Window Dialog(string title, double height = 540) => new() { Owner = this, Title = title, Width = 520, Height = height, MinWidth = 400, MinHeight = 320, WindowStartupLocation = WindowStartupLocation.CenterOwner, Background = (Brush)Application.Current.Resources["SurfaceBrush"], Foreground = (Brush)Application.Current.Resources["InkBrush"], FontFamily = FontFamily, FontSize = FontSize };
     private void EditPlaylist(NativePlaylist? playlist)

@@ -152,7 +152,68 @@ fun WaveNavigation(destination: Destination, onDestination: (Destination) -> Uni
     }
 }
 
-/** A local icon response; playback and neighbouring controls never move. */
+/** Adaptive vertical rail used on tablets, foldables and landscape screens (>= 600dp). */
+@Composable
+fun WaveNavigationRail(destination: Destination, onDestination: (Destination) -> Unit) {
+    val destinations = listOf(
+        Destination.Home,
+        Destination.Search,
+        Destination.Library,
+        Destination.Remix,
+    )
+    Column(
+        modifier = Modifier
+            .padding(start = 12.dp, top = 12.dp, bottom = 12.dp)
+            .width(84.dp)
+            .clip(RoundedCornerShape(28.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .padding(vertical = 14.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        destinations.forEach { place ->
+            val selected = destination == place
+            val indicator by animateColorAsState(
+                if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
+                animationSpec = tween(if (waveMotionEnabled()) 180 else 0), label = "rail indicator",
+            )
+            val tint by animateColorAsState(
+                if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                animationSpec = tween(if (waveMotionEnabled()) 180 else 0), label = "rail tint",
+            )
+            Column(
+                modifier = Modifier
+                    .width(72.dp)
+                    .height(60.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .semantics { this.selected = selected }
+                    .clickable(role = Role.Tab) { onDestination(place) },
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(56.dp)
+                        .height(30.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(indicator),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    WaveIcon(place.icon, 22.dp, tint)
+                }
+                Text(
+                    text = Loc.t(place.label),
+                    color = tint,
+                    fontSize = 11.sp,
+                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                    maxLines = 1,
+                )
+            }
+        }
+    }
+}
+
+/** A local icon response; Shuffle smoothly separates into parallel ribbons and rejoins. */
 @Composable
 fun WaveActionButton(icon: String, label: String, onClick: () -> Unit, active: Boolean? = null, enabled: Boolean = true) {
     val motionEnabled = waveMotionEnabled()
@@ -162,7 +223,17 @@ fun WaveActionButton(icon: String, label: String, onClick: () -> Unit, active: B
     androidx.compose.runtime.LaunchedEffect(motionEnabled) { if (!motionEnabled) pulse.snapTo(0f) }
     IconButton(
         onClick = {
-            if (motionEnabled) scope.launch { pulse.snapTo(1f); pulse.animateTo(0f, tween(260)) }
+            if (motionEnabled) {
+                scope.launch {
+                    if (icon == "shuffle") {
+                        pulse.animateTo(1f, tween(240))
+                        pulse.animateTo(0f, tween(320))
+                    } else {
+                        pulse.snapTo(1f)
+                        pulse.animateTo(0f, tween(260))
+                    }
+                }
+            }
             onClick()
         },
         enabled = enabled,
@@ -172,11 +243,15 @@ fun WaveActionButton(icon: String, label: String, onClick: () -> Unit, active: B
             if (active != null) selected = active
         },
     ) {
-        Box(Modifier.graphicsLayer {
-            val response = if (motionEnabled) pulse.value else 0f
-            scaleX = 1f + response * 0.09f
-            scaleY = scaleX
-            rotationZ = if (icon == "shuffle") response * -10f else 0f
-        }) { WaveIcon(icon, 21.dp, if (active == true) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant) }
+        val tint = if (active == true) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+        val response = if (motionEnabled) pulse.value else 0f
+        if (icon == "shuffle") {
+            WaveShuffleIcon(separation = response, size = 21.dp, tint = tint)
+        } else {
+            Box(Modifier.graphicsLayer {
+                scaleX = 1f + response * 0.09f
+                scaleY = scaleX
+            }) { WaveIcon(icon, 21.dp, tint) }
+        }
     }
 }

@@ -7,6 +7,7 @@ import {
   listeningSummary,
   listeningTime,
   makePlay,
+  monthlyRecaps,
   playThreshold,
   playsByDay,
   prunePlays,
@@ -14,6 +15,7 @@ import {
   weekRange,
   weeklyRecap,
   weeklyRecaps,
+  yearlyRecaps,
   REMIX_LENGTH,
   type PlayEvent,
 } from './listening';
@@ -283,5 +285,27 @@ describe('four weeks of history', () => {
       makePlay('a', now - (60 + index) * day, 30, true),
     );
     expect(prunePlays(old, 12, now)).toHaveLength(12);
+  });
+
+  it('builds monthly and yearly recaps with period breakdowns', () => {
+    const thisMonthPlay = makePlay('a', now - 60_000, 180, true);
+    const prevMonthPlay = makePlay('b', now - 35 * day, 120, true);
+    const months = monthlyRecaps([thisMonthPlay, prevMonthPlay], [track('a'), track('b')], now, 6);
+    expect(months).toHaveLength(6);
+    expect(months[0].period).toBe('month');
+    expect(months[0].plays).toBe(1);
+    expect(months[0].buckets.length).toBeGreaterThanOrEqual(4);
+
+    const prevYearPlay = makePlay('a', now - 400 * day, 90, true);
+    const years = yearlyRecaps(
+      [thisMonthPlay, prevMonthPlay, prevYearPlay],
+      [track('a'), track('b')],
+      now,
+    );
+    expect(years).toHaveLength(2);
+    expect(years[0].period).toBe('year');
+    expect(years[0].buckets).toHaveLength(12);
+    expect(years[0].plays).toBe(2);
+    expect(years[1].plays).toBe(1);
   });
 });

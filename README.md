@@ -1,6 +1,6 @@
 <p align="center"><img src="public/wave-wordmark.svg" alt="Wave" width="270" /></p>
 <p align="center"><strong>Your music files, played properly.</strong></p>
-<p align="center"><a href="https://wave.jaime-gaming.com">wave.jaime-gaming.com</a> · Candidate <strong>0.2.1</strong> · <a href="#get-started">Get started</a> · <a href="docs/WHY_WAVE.md">Why Wave</a> · <a href="docs/media/wave-promo.mp4">Watch the demo</a> · <a href="docs/RELEASE_NOTES_0.2.1.md">What's new</a></p>
+<p align="center"><a href="https://wave.jaime-gaming.com">wave.jaime-gaming.com</a> · Release <strong>0.2.2</strong> · <a href="#get-started">Get started</a> · <a href="docs/WHY_WAVE.md">Why Wave</a> · <a href="docs/media/wave-promo.mp4">Introduction film</a> · <a href="docs/RELEASE_NOTES_0.2.2.md">What's new</a></p>
 
 ![Wave Home on the web: a local collection, album artwork and daily mixes](docs/media/home-desktop.png)
 
@@ -24,10 +24,18 @@ Nothing else needs setting up. The same build is published at
 [wave.jaime-gaming.com](https://wave.jaime-gaming.com).
 
 Windows and Android builds are on the [Releases](https://github.com/jaime-gaming/Wave/releases)
-page, and neither asks you to install anything else or type a command. The Windows zip carries its
-own runtime; the Android download is a normal APK you tap to install. They are test builds: Windows is unsigned and Android uses debug signing, not a production publisher key. Windows may show a SmartScreen warning and Android asks you to allow the install.
+page when published. In the web app, About links start the latest public download directly without navigating the release page. The current 0.2.1 release contains a Windows unsigned ZIP and an Android test APK; the prepared 0.2.2 release targets a self-contained `Wave.exe` and signed `Wave.apk`.
+Windows may show a SmartScreen warning and Android asks you to allow installation. Signing and
+update compatibility depend on the release credentials; CI-only builds may use temporary keys.
 
 ## What it does
+
+In the expanded web player, use **Space** to play/pause, **Left/Right** to seek five seconds,
+**Up/Down** for volume and **M** to mute, when focus is not in an interactive control. Windows
+supports the same shortcuts in its expanded player. With Fix volume enabled, Song options can
+prioritize or reanalyze an individual local recording. The web Mix uses synchronized lyric timestamps
+when available to bring an incoming vocal closer to the end of the fade; timing and sound depend on
+the files and analysis, and no lyrics are sent for this purpose.
 
 - **Plays your files.** MP3, WAV, M4A, OGG and FLAC, up to 200 MB each, at their original
   quality.
@@ -37,18 +45,23 @@ own runtime; the Android download is a normal APK you tap to install. They are t
   collection, ranked by how well they answer, and forgiving a letter in the wrong place.
 - **Fills in the gaps.** Songs that know nothing but their filename get their artist, album, year,
   genre and cover looked up while you listen — never over something you typed.
-- **Daily mixes** from the genre tags your files already carry: play one, shuffle it, or save it
-  as an ordinary playlist.
+- **Daily mixes** built from your genres or local mood groups (7–20 tracks, up to 3 mixes,
+  day-locked covers and wide artist spacing): play one, shuffle it, or save it as a playlist.
 - **Lyrics that follow the song**, word by word when the file carries timings. Saved lyrics work
   offline.
-- **Mix** joins two songs on a bar with a twelve to twenty-four second overlap, level-matched on the
-  fly, each record at the tempo it was recorded at. The files on disk are untouched.
-- **Remix**: the week you just had. One number, the songs you played most, and a list you can
-  play or save as a playlist.
+- **Studio-grade Mix** joins two songs on a bar with Camelot musical-key awareness, 3-band EQ
+  handovers (bass swap, vocal mid-pocket carve and air roll-off), stereo spread and live level
+  matching, each record at its original tempo. The files on disk are untouched.
+- **100% local Mood Engine** silently tracks audio cues, genres, bilingual themes and live
+  listening momentum on-device to guide Home recommendations and AutoPlay with zero cloud calls.
+- **Remix**: Weekly, Monthly and Yearly recaps backed by a full year of local history — one
+  headline number, the songs you played most, and a list you can play or save as a playlist.
+- **Fix volume**: K-weighted BS.1770 LUFS loudness leveling that boosts quiet tracks cleanly
+  without touching already-balanced masters or modifying source files.
 - **Real video clips** behind the player, muted, full screen, drawn under the player's own text and
   with no YouTube interface showing. A still picture is not a clip, so a song either has a moving
   one or none.
-- **YouTube songs** by link, for the ones you do not own yet.
+- **YouTube search & links**, with offline awareness, for the songs you do not own yet.
 - **Brings playlists over** from another app: try a public Spotify/YouTube URL, paste a list or choose its exported `.m3u` or
   `.csv`, see which songs you already have, and turn the confirmed ones into a playlist.
 - **Device linking** with a QR code and no server, so two of your devices can share a song by
@@ -92,7 +105,7 @@ match, each one a row that opens it:
 </p>
 
 Every image is a real capture, not a mock-up. The web ones come from `npm run capture:docs`
-against a generated demo library; the Windows ones are drawn by `Wave.Windows.exe --smoke-test`
+against a generated demo library; the Windows ones are drawn by `Wave.exe --smoke-test`
 on its own throwaway library; the Android ones are rendered by the app's `ScreenshotTest` on the
 real Compose stack. Each of those runs on CI and commits what it produced, so the pictures here
 are the current build. See [Platforms](docs/PLATFORMS.md) for the pages that are not shown.
@@ -114,9 +127,10 @@ service never will:
 - **It is open source**, so you can read what it does with your files, and run your own copy.
 
 What it does not do: it has no catalogue to stream, so a song you do not own is not there — you
-can add it from YouTube by link, or buy the file. There is no social feed, no cloud sync between
-devices, and no recommendation engine. [Why Wave](docs/WHY_WAVE.md) has the full comparison,
-including the parts where the big services are the better choice.
+can search or add it from YouTube by link, or buy the file. There is no social feed, no cloud sync
+between devices, and no server-side profiling (all mood matching and AutoPlay run 100% locally on
+your own collection). [Why Wave](docs/WHY_WAVE.md) has the full comparison, including the parts
+where the big services are the better choice.
 
 ## Where it runs
 
@@ -139,8 +153,8 @@ it opens without a connection once loaded. The published site is built and serve
 [Cloudflare](docs/PLATFORMS.md#browser-and-cloudflare); to host your own copy, see the
 same page.
 
-**Windows.** A native C#/WPF app. Unzip the download, run `Wave.Windows.exe`, and add your
-folders: there is no runtime to install first. Unsigned builds can trigger SmartScreen; see
+**Windows.** A native C#/WPF app. Run `Wave.exe` and add your
+folders: there is no runtime to install first. Builds without a trusted signature can trigger SmartScreen; see
 [Windows release preparation](docs/WINDOWS_RELEASE.md).
 
 **Android.** A native Kotlin/Compose app for API 26 and newer, installed from the APK in the
@@ -183,46 +197,3 @@ own rights.
 <p align="center"><img src="public/wave.svg" alt="" width="30" /></p>
 
 Maintained by [Jaime Gaming](https://github.com/jaime-gaming).
-
-### Worker hosting and private opinions
-
-Production uses Cloudflare Workers (`wrangler.jsonc`), not GitHub Pages. Run `npm run build && npm run deploy:check` to validate the Worker without publishing. `npm run dev:worker` serves the built app and metadata endpoint in the Worker runtime. The normal Vite dev server also includes the endpoint. Public URL import reads only visible metadata, may return an incomplete list, and never downloads audio; review matches before saving. Private/blocked lists still need an export.
-
-The expanded player simplifies after **30 seconds** without interaction, including videoclips. Lyrics remain readable while controls step back; pointer, touch or keyboard input brings them back. Repeats use a short audio fade-in, not a screen effect. Remix retains its three expandable highlights, now with coherent line icons.
-
-A feature-opinion prompt is optional and deliberately rare: only after sustained use, with a long cooldown. Answers stay in your browser, are never sent anywhere, and do not change playback. “Do not ask again” opts out.
-
-Android polish in this source includes less bouncy press feedback, animated navigation tint/indicators and a short artwork reveal decoded off the UI thread. Native compilation and real-device inspection remain necessary; web screenshots are not Android verification.
-
-### Release-candidate polish
-
-Remix on the web is a responsive three-card grid with a saved artist portrait (or local sleeve fallback), the top song's cover and listening time. Details open inside their own card. Explore up to 52 weeks of retained history with full charts and rankings; older playlists contain that week's songs, not tracks borrowed from later weeks. The history window does not restore records already removed by retention limits.
-
-Entering **Trim audio** pauses the main player. The editor alone owns the preview, follows the master volume and stops when closed; it never resumes the main song automatically or rewrites original audio. Daily Mix generation is bounded on web, Android and Windows: **at most three mixes, each at most twenty songs**. Explicitly saved playlists remain independent snapshots.
-
-The local-only opinion card now has clearer response choices, dismiss/opt-out actions and keyboard dismissal. The web gallery includes [Remix details](docs/media/remix-details-desktop.png) and [the opinion card](docs/media/feedback-desktop.png). Shared song rows have more deliberate title/subtitle spacing; native source changes still need device validation before release.
-
-### Listening refinements on the web
-
-- Expanded Remix details span the whole grid row; other highlights retain their order above/below. The week selector and history shelf offer only weeks with listening data.
-- Import has one count and one progress bar, not a stream of filenames and internal operations.
-- **Settings → Playback → Fix volume** balances the local library automatically, including future imports. Turning it off restores original playback levels while retaining measurements for next time. The original file is unchanged. A bounded scan and a safety ceiling avoid indiscriminate boosting; this is volume balancing, not denoising or restoration of lost detail. Current analysis limits: 10 minutes / 48 MB per local file, maximum +18 dB. It does not process YouTube embeds.
-- The dedicated 0.1.0-style album/lyric scene returns after 30 seconds of focused, visible, uninterrupted playback. Interaction restores controls, and editors are never covered. Videoclips keep their picture and a readable lyric column.
-- Local repeats use a brief two-deck overlap with the same song and animate only the repeat icon. Unsupported/unprepared audio keeps the short attack fallback; YouTube retains its seek-based repeat.
-- Filename evidence for reversed tags now tolerates typography/accents and upload labels. Confirmed manual decisions win. Lyrics and clip lookup use the corrected search identity without silently editing tags. Real YRC/KRC word clocks remain provider-supplied; estimates remain labelled.
-
-Page changes follow navigation direction; the queue slides from its edge, Settings and Remix reposition smoothly, and loading views show quiet skeletons. Keyboard/pointer feedback and all spatial movement respect system reduced motion and the in-app animation switch. The 30-second idle scene reuses the current video as a full background when enabled and available, with compact credits and transparent cinematic lyrics; without a video it keeps the artwork-led scene.
-
-New web captures: [immersive listening](docs/media/immersive-desktop.png), [Fix volume](docs/media/volume-fix-desktop.png).
-
-### Consistent controls and native polish
-
-Fix volume uses the same Settings switch row as Mix, Video clip and Autoplay; only active analysis or skipped sources add visible status. Repeat, shuffle, favorite, clip and sound icons have short, local interaction animations, including keyboard activation. Volume changes also animate the sound icon; no control moves its neighbours and reduced-motion/app-disabled preferences keep them still.
-
-Android adds an animated favorite/upcoming-queue shuffle and an in-player volume/mute row, a persistent Animations preference, directional pages and a scrollable record column on short wide displays. Shuffling preserves the current recording and clock. Audio-focus ducking now changes a separate output multiplier instead of overwriting the user's volume or unmuting them. Windows adds matching icon responses, synchronized dock/expanded volume with remembered mute, directional pages/Settings sections and clearer keyboard focus; same-page updates no longer fade the whole library. Native build/device verification runs separately in CI; this does not add native clip playback or native Fix volume analysis.
-
-### Preparing 0.2.1 for launch
-
-See the [release checklist](docs/RELEASE_READINESS_0.2.1.md) and [publishable notes](docs/RELEASE_NOTES_0.2.1.md). `npm run test:smoke` is a required browser gate in Checks and Release assets. The candidate remains unpublished until explicit approval; a tag does not deploy the website.
-
-Unselected Remix highlights now compact around the open detail. Search adds genre/year matching and category-aware keyboard actions; Mix preserves short or incompletely measured recordings, and AutoPlay filters missing sources, deduplicates batches and balances recent-artist variety. App-surface/runtime dependency checks guard against decorative magic icons, model branding and model-service dependencies.

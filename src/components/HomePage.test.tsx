@@ -31,4 +31,42 @@ describe('Home', () => {
     await user.click(within(collection).getByRole('button', { name: /songs/i }));
     expect(onView).toHaveBeenCalledWith('songs');
   });
+  it('offers Windows once and remembers dismissal', async () => {
+    const original = navigator.userAgent;
+    Object.defineProperty(navigator, 'userAgent', {
+      configurable: true,
+      value: 'Mozilla/5.0 Windows NT 10.0',
+    });
+    const props = {
+      tracks: [],
+      playlists: [],
+      playing: false,
+      loading: false,
+      busy: false,
+      onAdd: vi.fn(),
+      onMix: vi.fn(),
+      onView: vi.fn(),
+      onAlbum: vi.fn(),
+      onArtist: vi.fn(),
+      onPlaylist: vi.fn(),
+      onPlay: vi.fn(),
+      onFavorite: vi.fn(),
+      onMore: vi.fn(),
+    };
+    try {
+      const user = userEvent.setup();
+      const view = render(<HomePage {...props} />);
+      expect(screen.getByRole('link', { name: 'Download for Windows' })).toHaveAttribute(
+        'href',
+        '/api/download/windows',
+      );
+      await user.click(screen.getByRole('button', { name: 'Dismiss' }));
+      expect(screen.queryByRole('link', { name: 'Download for Windows' })).not.toBeInTheDocument();
+      view.unmount();
+      render(<HomePage {...props} />);
+      expect(screen.queryByRole('link', { name: 'Download for Windows' })).not.toBeInTheDocument();
+    } finally {
+      Object.defineProperty(navigator, 'userAgent', { configurable: true, value: original });
+    }
+  });
 });

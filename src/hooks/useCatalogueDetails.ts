@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   bestRelease,
   confirmedRoleRelease,
+  catalogueFallbackQueries,
   catalogueQuery,
   detailsPatch,
   needsDetails,
@@ -100,9 +101,16 @@ export function useCatalogueDetails({
           await markDetailsChecked(track.id);
           continue;
         }
-        const releases = await searchCatalogue(query, { country });
-        const release: CatalogueRelease | undefined =
+        let releases = await searchCatalogue(query, { country });
+        let release: CatalogueRelease | undefined =
           confirmedRoleRelease(track, releases) ?? bestRelease(track, releases);
+        if (!release) {
+          for (const fallback of catalogueFallbackQueries(track)) {
+            releases = await searchCatalogue(fallback, { country });
+            release = confirmedRoleRelease(track, releases) ?? bestRelease(track, releases);
+            if (release) break;
+          }
+        }
         if (!release) {
           await markDetailsChecked(track.id);
           await new Promise((resolve) => setTimeout(resolve, DETAILS_GAP_MS));

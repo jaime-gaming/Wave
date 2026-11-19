@@ -29,14 +29,14 @@ const albums = [
   {
     artist: 'Sunday Club',
     album: 'Soft light',
-    genre: 'Jazz',
+    genre: 'Electronic',
     color: '#d4a581',
     titles: ['First light', 'Blue room', 'Quiet streets'],
   },
   {
     artist: 'The Coastline',
     album: 'In the distance',
-    genre: 'Rock',
+    genre: 'Electronic',
     color: '#8eaa98',
     titles: ['Out of town', 'Paper maps', 'Home again'],
   },
@@ -215,7 +215,7 @@ await home.setViewportSize({ width: 1440, height: 900 });
 await home.getByRole('button', { name: 'Home', exact: true }).click();
 await home.waitForTimeout(600);
 
-await home.getByRole('button', { name: /Open Daily mix .*Electronic/ }).click();
+await home.getByRole('button', { name: /Open Daily mix 1/ }).click();
 await home.waitForTimeout(650);
 await shot(home, 'daily-mix-desktop.png');
 

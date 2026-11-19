@@ -1,6 +1,6 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
-import playlistWorker from './src/worker';
+import playlistWorker from './src/worker/index.ts';
 import { readFileSync } from 'node:fs';
 
 /** The version shown in the interface always comes from package.json. */
@@ -12,11 +12,11 @@ export default defineConfig({
     {
       name: 'wave-local-playlist-api',
       configureServer(server) {
-        server.middlewares.use('/api/import-playlist', async (req, res) => {
+        server.middlewares.use('/api', async (req, res) => {
           let body = '';
           for await (const chunk of req) {
             body += String(chunk);
-            if (body.length > 4096) {
+            if (body.length > 16_384) {
               res.statusCode = 413;
               res.end();
               return;
@@ -26,7 +26,8 @@ export default defineConfig({
           const origin = req.headers.origin ?? '';
           // Preview proxies terminate TLS; preserve the public origin, not localhost.
           const protocol = origin.startsWith('https:') ? 'https' : 'http';
-          const request = new Request(`${protocol}://${host}/api/import-playlist`, {
+          const apiPath = `/api${req.url ?? ''}`;
+          const request = new Request(`${protocol}://${host}${apiPath}`, {
             method: req.method,
             headers: { origin, 'content-type': String(req.headers['content-type'] ?? '') },
             ...(req.method === 'POST' ? { body } : {}),

@@ -10,7 +10,7 @@ import { BreakPrompt } from './BreakPrompt';
 import { cueForTrack, useMixCue, type MixCue } from '../ui/mixCue';
 import { WaveSeek } from './WaveSeek';
 import { LyricsPanel } from './LyricsPanel';
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useWaveMotion } from '../ui/motion';
 import type { RefObject } from 'react';
@@ -24,7 +24,7 @@ import {
   SkipForward,
   Film,
 } from './Glyphs';
-import { Heart, VolumeX, Pause, Play, ListMusic, Volume2 } from './Glyphs';
+import { Heart, VolumeX, PlayPauseGlyph, ListMusic, Volume2 } from './Glyphs';
 import { Artwork } from './Artwork';
 import { getClip, loadClips } from '../domain/videoClips';
 import { Modal } from './Modal';
@@ -61,25 +61,20 @@ type PlayerProps = {
 function PlaySymbol({ playing, size }: { playing: boolean; size: number }) {
   const animation = useWaveMotion();
   return (
-    <span className="play-symbol-slot" style={{ width: size, height: size }}>
-      <AnimatePresence initial={false} mode="sync">
-        <motion.span
-          key={playing ? 'pause' : 'play'}
-          className="play-symbol"
-          aria-hidden="true"
-          initial={{
-            opacity: animation.enabled ? 0 : 1,
-            rotate: animation.enabled ? -15 : 0,
-            y: animation.enabled ? 5 : 0,
-          }}
-          animate={{ opacity: 1, rotate: 0, y: 0 }}
-          exit={{ opacity: 0, rotate: animation.enabled ? 15 : 0, y: animation.enabled ? -5 : 0 }}
-          transition={animation.effects}
-        >
-          {playing ? <Pause size={size} /> : <Play size={size} />}
-        </motion.span>
-      </AnimatePresence>
-    </span>
+    <motion.span
+      className="play-symbol-slot"
+      style={{ width: size, height: size }}
+      aria-hidden="true"
+      animate={
+        animation.enabled
+          ? { scale: [0.88, 1.08, 1], rotate: playing ? [0, 6, 0] : [0, -6, 0] }
+          : { scale: 1, rotate: 0 }
+      }
+      transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
+      key={playing ? 'playing' : 'paused'}
+    >
+      <PlayPauseGlyph playing={playing} size={size} />
+    </motion.span>
   );
 }
 
@@ -263,10 +258,8 @@ function PlayerDetails({
                   key={player.repeatSerial}
                   className="repeat-symbol"
                   aria-hidden="true"
-                  initial={
-                    animation.enabled && player.repeatSerial ? { rotate: -180, scale: 0.8 } : false
-                  }
-                  animate={{ rotate: 0, scale: 1 }}
+                  initial={animation.enabled && player.repeatSerial ? { scale: 0.88 } : false}
+                  animate={{ scale: 1 }}
                   transition={animation.effects}
                 >
                   {state.repeat === 'one' ? <Repeat1 size={22} /> : <Repeat size={22} />}
@@ -390,6 +383,8 @@ function PlayerDetails({
 export function PlayerBar(props: PlayerProps) {
   const t = useT();
   const [lyricsOpen, setLyricsOpen] = useState(true);
+  const barRef = useRef<HTMLElement>(null);
+  const [collapseTarget, setCollapseTarget] = useState({ x: 0, y: 0, scaleX: 0.92, scaleY: 0.14 });
   const {
     player,
     expanded,
@@ -405,6 +400,16 @@ export function PlayerBar(props: PlayerProps) {
   // while the outgoing song is still on, and by the time the two meet the
   // interface has already moved on to the incoming one.
   const pending = cueForTrack(cue, player.current?.id);
+  const activeMixCue: MixCue | null =
+    pending ??
+    (player.blend?.from && player.blend?.to
+      ? {
+          from: player.blend.from,
+          to: player.blend.to,
+          seconds: Math.max(1, Math.ceil(player.blend.seconds * (1 - player.blend.progress))),
+          progress: 1,
+        }
+      : null);
   /**
    * The other half of a mix, when it has a picture of its own.
    *
@@ -422,11 +427,28 @@ export function PlayerBar(props: PlayerProps) {
   const blendProgress = Math.max(0, Math.min(1, player.blend?.progress ?? 0));
   const blendSeconds = (player.blend?.seconds ?? 0) * blendProgress;
   const idleListening = useIdleListening(
-    player.state.playing && !player.buffering && !!player.current && !props.queueOpen,
+    player.state.playing && !!player.current && !props.queueOpen,
     player.current?.id,
   );
   const idle = idleListening.immersive;
   const showing = expanded || idle;
+  useLayoutEffect(() => {
+    if (!showing) return;
+    const measure = () => {
+      const bar = barRef.current?.getBoundingClientRect();
+      if (bar && window.innerWidth && window.innerHeight) {
+        setCollapseTarget({
+          x: bar.left + bar.width / 2 - window.innerWidth / 2,
+          y: bar.top + bar.height / 2 - window.innerHeight / 2,
+          scaleX: bar.width / window.innerWidth,
+          scaleY: bar.height / window.innerHeight,
+        });
+      }
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [showing]);
   // Only this bar follows the position; the rest of the interface stays still.
   const time = usePlaybackTime(player.clock);
   const colors = usePlayerColors(
@@ -459,6 +481,54 @@ export function PlayerBar(props: PlayerProps) {
     };
   }, [stageHasVideo]);
   useEffect(() => {
+    if (!expanded || props.queueOpen || !player.current) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.repeat ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey
+      )
+        return;
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable ||
+          target.closest('input, textarea, select, button, a, [role="slider"]'))
+      )
+        return;
+      if (document.querySelectorAll('dialog[open]').length > 1) return;
+      switch (event.key) {
+        case ' ':
+          player.dispatch({ type: 'toggle' });
+          break;
+        case 'ArrowLeft':
+          player.seek(Math.max(0, player.readTime() - 5));
+          break;
+        case 'ArrowRight':
+          player.seek(Math.min(player.duration || Infinity, player.readTime() + 5));
+          break;
+        case 'ArrowUp':
+          player.setVolume(player.volume + 0.05);
+          break;
+        case 'ArrowDown':
+          player.setVolume(player.volume - 0.05);
+          break;
+        case 'm':
+        case 'M':
+          player.toggleMute();
+          break;
+        default:
+          return;
+      }
+      event.preventDefault();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [expanded, props.queueOpen, player]);
+  useEffect(() => {
     if (!expanded) return;
     const timer = setTimeout(() => setLyricsOpen(true), 0);
     return () => clearTimeout(timer);
@@ -466,7 +536,7 @@ export function PlayerBar(props: PlayerProps) {
   return (
     <>
       <BreakPrompt
-        open={player.breakOpen}
+        open={player.breakOpen && !showing}
         onContinue={player.keepListening}
         onStop={player.stopForNow}
       />
@@ -482,6 +552,7 @@ export function PlayerBar(props: PlayerProps) {
         />
       )}
       <footer
+        ref={barRef}
         className="player-bar"
         data-track-id={player.current?.id}
         aria-label={t('Music player')}
@@ -541,7 +612,7 @@ export function PlayerBar(props: PlayerProps) {
               */}
               <span className="compact-subline">
                 <AnimatePresence mode="wait" initial={false}>
-                  {pending ? (
+                  {activeMixCue ? (
                     <motion.span
                       className="compact-subline-item"
                       key="mixing"
@@ -550,7 +621,7 @@ export function PlayerBar(props: PlayerProps) {
                       exit={animation.enabled ? { opacity: 0, y: -6 } : undefined}
                       transition={animation.effects}
                     >
-                      <MixCueLabel cue={pending} />
+                      <MixCueLabel cue={activeMixCue} />
                     </motion.span>
                   ) : (
                     <motion.span
@@ -671,20 +742,35 @@ export function PlayerBar(props: PlayerProps) {
           <Modal
             title={t('Now playing')}
             fullScreen
-            // Closing folds the player back down into the bar it came from: it
-            // slides towards the bottom, tightens a little, and is gone before the
-            // movement ends, so there is no ghost hanging in the middle.
+            // Opening unfolds smoothly out of the mini-player bar; closing compresses
+            // the full-screen player straight back down into the compact player bar.
+            enterMotion={
+              animation.enabled
+                ? {
+                    opacity: 0.25,
+                    y: '34vh',
+                    scaleX: 0.92,
+                    scaleY: 0.18,
+                    borderRadius: '28px',
+                  }
+                : undefined
+            }
             exitMotion={
               animation.enabled
-                ? { opacity: 0, scale: 0.9, y: 64, transitionEnd: { display: 'none' } }
+                ? {
+                    opacity: 0.15,
+                    ...collapseTarget,
+                    borderRadius: '28px',
+                    transitionEnd: { display: 'none' },
+                  }
                 : undefined
             }
             exitTransition={
               animation.enabled
                 ? {
-                    duration: 0.3,
-                    ease: [0.32, 0, 0.24, 1],
-                    opacity: { duration: 0.18, ease: 'easeOut' },
+                    duration: 0.34,
+                    ease: [0.32, 0.72, 0, 1],
+                    opacity: { duration: 0.24, delay: 0.08, ease: 'easeIn' },
                   }
                 : { duration: 0 }
             }
@@ -703,13 +789,18 @@ export function PlayerBar(props: PlayerProps) {
             closeIcon={<ChevronDown size={24} />}
             returnFocusRef={expanded ? returnFocusRef : undefined}
             className={`player-modal${idle ? ' is-idle is-immersive' : ''}`}
-            style={{ ...colors, transformOrigin: 'bottom center' }}
+            style={{ ...colors, transformOrigin: '50% 50%' }}
             onClose={() => {
               idleListening.wake();
               setStageGone(false);
               onExpanded(false);
             }}
           >
+            <BreakPrompt
+              open={player.breakOpen}
+              onContinue={player.keepListening}
+              onStop={player.stopForNow}
+            />
             {player.stageYouTube ? (
               // A YouTube song plays through the embed: the video is the source, not
               // a backdrop, so it stays visible whether or not the clip toggle is on.
@@ -785,7 +876,7 @@ export function PlayerBar(props: PlayerProps) {
                 {...props}
                 time={time}
                 readerActive={!idle}
-                cue={pending}
+                cue={activeMixCue}
                 lyricsOpen={lyricsOpen}
                 onDisclosure={setLyricsOpen}
               />
@@ -794,7 +885,7 @@ export function PlayerBar(props: PlayerProps) {
               {idle && player.current && (
                 <motion.div
                   key="immersive"
-                  className={`immersive-stage${stageHasVideo ? ' with-video' : ''}${player.current.lyrics?.lines.length ? ' has-lyrics' : ' without-lyrics'}`}
+                  className={`immersive-stage${stageHasVideo ? ' with-video' : ''}${player.current.lyrics?.lines.length ? ' has-lyrics' : ' without-lyrics'}${player.blend || activeMixCue ? ' is-mixing' : ''}`}
                   aria-label={t('Immersive listening')}
                   initial={animation.enabled ? { opacity: 0, y: 8 } : false}
                   animate={{ opacity: 1, y: 0 }}
@@ -806,11 +897,33 @@ export function PlayerBar(props: PlayerProps) {
                   transition={animation.reveal}
                 >
                   <div className="immersive-art">
-                    <Artwork track={player.current} className="immersive-cover" />
+                    <div className="immersive-cover immersive-cover-frame">
+                      {player.blend ? (
+                        <MixVisual blend={player.blend} artworkClassName="immersive-cover-art" />
+                      ) : pending ? (
+                        <MixCueVisual cue={pending} artworkClassName="immersive-cover-art" />
+                      ) : (
+                        <Artwork track={player.current} className="immersive-cover-art" />
+                      )}
+                    </div>
                     <div className="immersive-credit">
                       <h2>{player.current.title}</h2>
                       <p>{player.current.artist}</p>
                       <p>{player.current.album}</p>
+                      <AnimatePresence initial={false}>
+                        {activeMixCue && (
+                          <motion.div
+                            className="immersive-mix-cue"
+                            key="immersive-mix-cue"
+                            initial={animation.enabled ? { opacity: 0, height: 0, y: 4 } : false}
+                            animate={{ opacity: 1, height: 'auto', y: 0 }}
+                            exit={animation.enabled ? { opacity: 0, height: 0, y: -2 } : undefined}
+                            transition={animation.effects}
+                          >
+                            <MixCueLabel cue={activeMixCue} />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                       <p className="immersive-time">
                         {formatTime(time)} <span aria-hidden="true">/</span>{' '}
                         {formatTime(player.duration)}

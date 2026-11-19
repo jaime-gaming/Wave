@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://wave.jaime-gaming.com/sitemap.xml

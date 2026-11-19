@@ -490,9 +490,10 @@ it('moves the low end and closes the outgoing top when a mix is possible', async
   Object.defineProperty(elements[1], 'duration', { value: 30 });
   elements[1].dispatchEvent(new Event('loadedmetadata'));
   await Promise.resolve();
-  expect(filters.length).toBeGreaterThanOrEqual(4);
-  const [outShelf, outAir, inShelf, inAir] = filters;
+  expect(filters.length).toBeGreaterThanOrEqual(6);
+  const [outShelf, outAir, outMid, inShelf, inAir, inMid] = filters;
   expect(outShelf.type).toBe('lowshelf');
+  expect(outMid.type).toBe('peaking');
   expect(inAir.type).toBe('lowpass');
 
   elements[0].currentTime = 26;
@@ -508,16 +509,19 @@ it('moves the low end and closes the outgoing top when a mix is possible', async
   // Halfway through the overlap the low end has changed hands...
   expect(outShelf.gain.value).toBeLessThan(-10);
   expect(inShelf.gain.value).toBeGreaterThan(-10);
-  // ...and the outgoing song has lost its top.
+  // ...the outgoing song carves a midrange vocal pocket and rolls down its top...
+  expect(outMid.gain.value).toBeLessThan(-1);
   expect(outAir.frequency.value).toBeLessThan(20_000);
-  // The incoming song is never filtered.
+  // ...and the incoming song is wide open by the midpoint.
   expect(inAir.frequency.value).toBe(20_000);
+  expect(inMid.gain.value).toBe(0);
 
   // When the handover ends nothing stays filtered or shifted.
   elements[1].currentTime = 6;
   vi.advanceTimersByTime(100);
   expect(inAir.frequency.value).toBe(20_000);
   expect(inShelf.gain.value).toBe(0);
+  expect(inMid.gain.value).toBe(0);
 });
 
 it('keeps the arriving song silent while the blend is still being set up', async () => {
@@ -678,4 +682,47 @@ it('overlaps a repeat with the same recording and respects the trimmed opening e
   }
   expect(elements[0].paused).toBe(true);
   expect(engine.transitioning).toBe(false);
+});
+
+it('starts a mix reliably even when the buffered spare deck is at HAVE_METADATA (readyState 1)', async () => {
+  const started = vi.fn();
+  engine = new MixAudio(callbacks());
+  const a = new Blob(['a']),
+    b = new Blob(['b']);
+  engine.load(a);
+  await engine.play();
+  engine.prepare(b);
+  Object.defineProperty(elements[1], 'readyState', { value: 1, writable: true });
+  elements[0].currentTime = 2;
+  engine.transition(b, 2, () => true, started);
+  await Promise.resolve();
+  expect(started).toHaveBeenCalledOnce();
+  expect(engine.transitioning).toBe(true);
+  expect(engine.element).toBe(elements[1]);
+});
+
+it('does not interrupt or re-seek an active transitioning incoming deck when play() is called on jump', async () => {
+  engine = new MixAudio(callbacks());
+  const a = new Blob(['a']),
+    b = new Blob(['b']);
+  engine.setBounds(b, { start: 1.5, end: 4 });
+  engine.load(a);
+  await engine.play();
+  engine.prepare(b);
+  elements[0].currentTime = 2;
+  engine.transition(
+    b,
+    2,
+    () => true,
+    () => {},
+  );
+  await Promise.resolve();
+  const playSpy = vi.spyOn(elements[1], 'play');
+  playSpy.mockClear();
+  elements[1].currentTime = 0.1;
+  Object.defineProperty(elements[1], 'paused', { value: false, configurable: true });
+  await engine.play();
+  expect(playSpy).not.toHaveBeenCalled();
+  expect(elements[1].currentTime).toBeCloseTo(0.1);
+  expect(engine.transitioning).toBe(true);
 });

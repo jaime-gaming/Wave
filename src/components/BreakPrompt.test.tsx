@@ -5,7 +5,7 @@ import { BreakPrompt } from './BreakPrompt';
 
 it('asks the question in the player’s own words', () => {
   render(<BreakPrompt open onContinue={vi.fn()} onStop={vi.fn()} />);
-  expect(screen.getByRole('dialog')).toHaveTextContent('Hey, wanna take a break?');
+  expect(screen.getByRole('dialog')).toHaveTextContent('Time for a little pause?');
 });
 
 it('offers both ways out', async () => {

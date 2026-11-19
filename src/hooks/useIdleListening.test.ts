@@ -40,3 +40,17 @@ it('never enters in an unfocused tab', () => {
   act(() => vi.advanceTimersByTime(60001));
   expect(result.current.immersive).toBe(false);
 });
+it('stays active across song changes and Mix transitions without dismissing', () => {
+  const { result, rerender } = renderHook(
+    ({ playing, trackId }) => useIdleListening(playing, trackId),
+    { initialProps: { playing: true, trackId: 'song-a' } },
+  );
+  act(() => vi.advanceTimersByTime(30001));
+  expect(result.current.immersive).toBe(true);
+  rerender({ playing: true, trackId: 'song-b' });
+  act(() => vi.advanceTimersByTime(50));
+  expect(result.current.immersive).toBe(true);
+  rerender({ playing: true, trackId: 'song-c' });
+  act(() => vi.advanceTimersByTime(50));
+  expect(result.current.immersive).toBe(true);
+});

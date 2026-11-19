@@ -60,7 +60,7 @@ export function AndroidAppSheet({
         <strong id="android-app-title">{t('Wave for Android')}</strong>
         <p id="android-app-copy">
           {t(
-            'Play your local music with lock-screen controls, a home-screen widget and quick settings. Download the Android APK from Releases.',
+            'Play your local music with lock-screen controls, a home-screen widget and quick settings. Download Wave for Android from Releases.',
           )}
         </p>
       </div>

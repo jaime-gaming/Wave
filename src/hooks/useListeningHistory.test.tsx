@@ -16,17 +16,23 @@ afterEach(() => {
 });
 
 /** Advances the hook and a pretend player position together, one second a tick. */
-function setup(initial: { track?: typeof track; playing: boolean; duration?: number }) {
+function setup(initial: {
+  track?: typeof track;
+  playing: boolean;
+  duration?: number;
+  repeatSerial?: number;
+}) {
   let position = 0;
   const readTime = () => position;
   const view = renderHook(
-    (props: { track?: typeof track; playing: boolean; duration: number }) =>
+    (props: { track?: typeof track; playing: boolean; duration: number; repeatSerial?: number }) =>
       useListeningHistory({
         track: props.track,
         playing: props.playing,
         duration: props.duration,
         readTime,
         tracks: [track, other],
+        repeatSerial: props.repeatSerial,
       }),
     { initialProps: { ...initial, duration: initial.duration ?? 200 } },
   );
@@ -63,7 +69,9 @@ describe('recording what was listened to', () => {
     const { listen, rerender } = setup({ track: short, playing: true, duration: 8 });
     await listen(5);
     rerender({ track: short, playing: false, duration: 8 });
-    expect(await getPlays()).toMatchObject([{ trackId: 'short', seconds: 5 }]);
+    await vi.waitFor(async () =>
+      expect(await getPlays()).toMatchObject([{ trackId: 'short', seconds: 5 }]),
+    );
   });
 
   it('does not round up to the listening threshold', async () => {
@@ -82,8 +90,8 @@ describe('recording what was listened to', () => {
     const { listen, rerender } = setup({ track, playing: true });
     await listen(35);
     rerender({ track, playing: false, duration: 200 });
+    await vi.waitFor(async () => expect(await getPlays()).toHaveLength(1));
     const plays = await getPlays();
-    expect(plays).toHaveLength(1);
     expect(plays[0]).toMatchObject({ trackId: 'signal', completed: false });
     expect(plays[0].seconds).toBeGreaterThanOrEqual(34);
   });
@@ -94,6 +102,35 @@ describe('recording what was listened to', () => {
     await listen(10);
     rerender({ track: short, playing: true, duration: 8 });
     expect(await getPlays()).toHaveLength(0);
+  });
+
+  it('accumulates across pauses and keeps a single play after resuming', async () => {
+    const { listen, rerender } = setup({ track, playing: true });
+    await listen(20);
+    rerender({ track, playing: false, duration: 200 });
+    expect(await getPlays()).toHaveLength(0);
+    rerender({ track, playing: true, duration: 200 });
+    await listen(15);
+    rerender({ track, playing: false, duration: 200 });
+    await vi.waitFor(async () =>
+      expect(await getPlays()).toMatchObject([{ trackId: 'signal', seconds: 35 }]),
+    );
+    rerender({ track, playing: true, duration: 200 });
+    await listen(10);
+    rerender({ track, playing: false, duration: 200 });
+    await vi.waitFor(async () =>
+      expect(await getPlays()).toMatchObject([{ trackId: 'signal', seconds: 45 }]),
+    );
+  });
+
+  it('starts a new listen when the same song repeats', async () => {
+    const { listen, rerender, setPosition } = setup({ track, playing: true, repeatSerial: 0 });
+    await listen(35);
+    setPosition(0);
+    rerender({ track, playing: true, duration: 200, repeatSerial: 1 });
+    await listen(35);
+    rerender({ track, playing: false, duration: 200, repeatSerial: 1 });
+    await vi.waitFor(async () => expect(await getPlays()).toHaveLength(2));
   });
 
   it('leaves no trace of a song that was skipped before the threshold', async () => {
@@ -108,8 +145,8 @@ describe('recording what was listened to', () => {
     await listen(60);
     // A different song starting is how a finished one ends in practice.
     rerender({ track: other, playing: true, duration: 200 });
+    await vi.waitFor(async () => expect(await getPlays()).toHaveLength(1));
     const plays = await getPlays();
-    expect(plays).toHaveLength(1);
     expect(plays[0].trackId).toBe('signal');
   });
 

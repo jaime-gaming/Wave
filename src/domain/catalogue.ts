@@ -89,12 +89,48 @@ export function needsDetails(track: Track): boolean {
   );
 }
 
-/** The words to send: real values only, never the word "unknown". */
+const FILE_NOISE =
+  /\((?:official|lyrics?|audio|video|hd|hq|4k|320\s*kbps|flac|wav|mp3|explicit|clean)[^)]*\)|\[[^\]]*(?:kbps|flac|wav|mp3|official|rip|web|cd|vinyl|audio|video)[^\]]*\]/giu;
+
+function cleanQueryPiece(value: string): string {
+  return value
+    .replace(FILE_NOISE, ' ')
+    .replace(/^\s*\d{1,3}\s*[-._)]\s+(?=\p{L})/u, '')
+    .replace(/[_]+/gu, ' ')
+    .replace(/\s+/gu, ' ')
+    .trim();
+}
+
+/** The words to send: real values only, never the word "unknown" or filename rip noise. */
 export function catalogueQuery(track: Track): string {
-  const title = track.title.replace(/[_]+/gu, ' ').replace(/\s+/gu, ' ').trim();
-  const artist = isPlaceholderArtist(track.artist) ? '' : track.artist.trim();
+  const title = cleanQueryPiece(track.title);
+  const artist = isPlaceholderArtist(track.artist) ? '' : cleanQueryPiece(track.artist);
   if (!title) return '';
   return artist ? `${artist} ${title}` : title;
+}
+
+/**
+ * Secondary queries tried only when the primary query finds no convincing match:
+ * stripped bare title, album-qualified title, or swapped artist/title when roles
+ * look inverted.
+ */
+export function catalogueFallbackQueries(track: Track): string[] {
+  const primary = catalogueQuery(track);
+  const queries: string[] = [];
+  const add = (q: string) => {
+    const trimmed = q.trim();
+    if (trimmed && trimmed.toLowerCase() !== primary.toLowerCase() && !queries.includes(trimmed)) {
+      queries.push(trimmed);
+    }
+  };
+  const bare = bareTitle(track.title);
+  const artist = isPlaceholderArtist(track.artist) ? '' : cleanQueryPiece(track.artist);
+  const album = isPlaceholderAlbum(track.album) ? '' : cleanQueryPiece(track.album);
+  if (bare && artist) add(`${artist} ${bare}`);
+  if (bare && album) add(`${bare} ${album}`);
+  if (artist && bare) add(`${bare} ${artist}`);
+  if (bare && !artist) add(bare);
+  return queries.slice(0, 2);
 }
 
 const letters = (value: string) =>
@@ -148,6 +184,10 @@ function titleOverlap(track: string, release: string): number {
   return longer.includes(shorter) ? 1 : 0;
 }
 
+const COVER_NOISE =
+  /\b(?:karaoke|tribute|ringtone|8-?bit|lullaby|made famous by|in the style of)\b/iu;
+const EDITION_MARKER = /\b(?:live|acoustic|remix|sped up|slowed|nightcore|instrumental)\b/iu;
+
 /**
  * How much a release answers this track, 0–1.
  *
@@ -156,21 +196,21 @@ function titleOverlap(track: string, release: string): number {
  * a cover band's album is not this song's album.
  */
 export function scoreRelease(track: Track, release: CatalogueRelease): number {
-  const wantedTitle = tokens(track.title.replace(/[_]+/gu, ' '));
+  const wantedTitle = tokens(cleanQueryPiece(track.title));
   const foundTitle = tokens(release.title);
   const titleScore = Math.max(
     shared(wantedTitle, foundTitle),
     titleOverlap(track.title, release.title),
   );
   if (titleScore < 0.5) return 0;
-  let score = titleScore * 0.6;
+  let score = titleScore * 0.58;
   const artist = isPlaceholderArtist(track.artist) ? '' : track.artist;
   if (artist) {
     const artistScore = shared(tokens(artist), tokens(release.artist));
     if (artistScore < 0.34) return 0;
     score += artistScore * 0.3;
   } else {
-    score += 0.2;
+    score += 0.18;
   }
   // Two editions of the same album share a title and a release year closely, so
   // the album the song already names is what separates them. It adds nothing when
@@ -183,11 +223,20 @@ export function scoreRelease(track: Track, release: CatalogueRelease): number {
     const difference = Math.abs(release.duration - track.duration);
     // Recordings of the same song differ by seconds, not by minutes.
     if (difference > 40) return 0;
-    score += 0.1 * (1 - difference / 40);
+    // Reward studio-master duration alignment (<= 3s) over rough matches.
+    const durationScore =
+      difference <= 3 ? 0.12 : difference <= 10 ? 0.09 : 0.08 * (1 - difference / 40);
+    score += durationScore;
   } else {
     score += 0.05;
   }
-  return Math.min(1, score);
+  // Guard against aligning a genuine song to a karaoke/tribute knockoff or a
+  // live/remix edition when the local track is a studio recording.
+  const trackText = `${track.title} ${track.artist} ${track.album}`;
+  const releaseText = `${release.title} ${release.artist} ${release.album}`;
+  if (COVER_NOISE.test(releaseText) && !COVER_NOISE.test(trackText)) score -= 0.38;
+  if (EDITION_MARKER.test(release.title) && !EDITION_MARKER.test(track.title)) score -= 0.1;
+  return Math.max(0, Math.min(1, score));
 }
 
 /** The best release for this track, or nothing when none is convincing enough. */

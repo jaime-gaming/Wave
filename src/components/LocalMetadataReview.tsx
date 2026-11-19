@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Check, ChevronLeft, ChevronRight, Music2, Search } from './Glyphs';
+import { ChevronLeft, ChevronRight, Music2, Search } from './Glyphs';
+import { MaterialSwitch } from './MaterialSwitch';
 import type { Track } from '../domain/types';
-import { describeIssues, metadataIssues } from '../domain/metadata';
+import { describeIssues, knownArtistSet, metadataIssues } from '../domain/metadata';
 import { needsDetails } from '../domain/catalogue';
 
 import { useT } from '../i18n';
@@ -31,14 +32,13 @@ export function LocalMetadataReview({
   completed?: number;
 }) {
   const t = useT();
-  const entries = useMemo(
-    () =>
-      tracks.flatMap((track) => {
-        const issues = metadataIssues(track);
-        return issues.length ? [{ track, issues }] : [];
-      }),
-    [tracks],
-  );
+  const entries = useMemo(() => {
+    const knownArtists = knownArtistSet(tracks);
+    return tracks.flatMap((track) => {
+      const issues = metadataIssues(track, knownArtists);
+      return issues.length ? [{ track, issues }] : [];
+    });
+  }, [tracks]);
   const gaps = useMemo(() => tracks.filter((track) => needsDetails(track)).length, [tracks]);
   const [saving, setSaving] = useState<string | null>(null);
   const [failure, setFailure] = useState('');
@@ -57,16 +57,11 @@ export function LocalMetadataReview({
           </span>
         </div>
         {onToggle && (
-          <button
-            type="button"
-            className="material-switch"
-            role="switch"
-            aria-label={t('Fill in missing details')}
-            aria-checked={enabled ?? false}
-            onClick={() => onToggle(!enabled)}
-          >
-            <span>{enabled && <Check size={15} />}</span>
-          </button>
+          <MaterialSwitch
+            label={t('Fill in missing details')}
+            checked={enabled ?? false}
+            onChange={onToggle}
+          />
         )}
       </div>
       <p>

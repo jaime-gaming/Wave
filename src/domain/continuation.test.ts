@@ -98,3 +98,33 @@ it('bounds extension batches and handles invalid entropy without duplicate IDs',
   expect(continuationQueue(tracks, tracks[0], [], () => Infinity, 1.8)).toHaveLength(1);
   expect(continuationQueue(tracks, tracks[0], [], () => 0, -1)).toEqual([]);
 });
+
+it('steers autoplay automatically toward tracks matching the current musical mood', () => {
+  const current = makeTrack({
+    id: 'cur',
+    title: 'Quiet Ocean Rain',
+    artist: 'Calm Artist',
+    genres: ['Ambient'],
+  });
+  const sameMood = makeTrack({
+    id: 'chill-next',
+    title: 'Soft Piano Breeze',
+    artist: 'Gentle Artist',
+    genres: ['Lo-fi'],
+  });
+  const clashingMood = makeTrack({
+    id: 'metal-clash',
+    title: 'Thunder Fire Storm',
+    artist: 'Heavy Band',
+    genres: ['Heavy Metal'],
+  });
+  let chillPicks = 0;
+  for (let i = 0; i < 100; i++) {
+    if (
+      continuationQueue([current, sameMood, clashingMood], current, [], () => i / 100, 1)[0] ===
+      'chill-next'
+    )
+      chillPicks++;
+  }
+  expect(chillPicks).toBeGreaterThan(75);
+});

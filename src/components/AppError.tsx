@@ -40,7 +40,7 @@ export class AppError extends Component<{ children: ReactNode }, { crashed: bool
         <h1>{translateNow('This screen stopped. Your music didn’t.')}</h1>
         <p>
           {translateNow(
-            'Nothing on this device was changed. Reload to carry on where you were — the player picks up from the same place.',
+            'Nothing on this device was changed. Reload to continue right where you left off.',
           )}
         </p>
         <div className="app-crash-actions">

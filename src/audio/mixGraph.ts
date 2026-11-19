@@ -25,16 +25,26 @@ export const MAX_PAN = 0.5;
 export const BASS_SHELF_HZ = 180;
 /** How far down the outgoing low end goes at the swap point. */
 export const BASS_CUT_DB = -22;
+/** Peaking midrange pocket carved gently on the outgoing deck so vocals stay clear. */
+export const MID_CARVE_HZ = 1_400;
+/** Gentle midrange dip during ordinary mixes so two leads never crowd the centre. */
+export const MID_CARVE_DB = -3.6;
+/** Deeper vocal-clearance dip when both records carry a voice in the overlap. */
+export const VOCAL_CARVE_DB = -6.0;
 /** A deck with its low-pass wide open: no audible change to the file. */
 export const OPEN_AIR_HZ = 20_000;
 /** Where the outgoing song's top ends up as it leaves the mix. */
 export const CLOSED_AIR_HZ = 1_600;
+/** Gentle incoming top-end opening corner so the new track blooms in smoothly. */
+export const INCOMING_OPEN_START_HZ = 4_800;
 
 type Chain = {
   limiter?: AudioParam;
+  limiterKnee?: AudioParam;
   normalization: AudioParam;
   gain: AudioParam;
   bass: AudioParam;
+  mid?: AudioParam;
   air: AudioParam;
   pan?: AudioParam;
 };
@@ -108,23 +118,29 @@ export class MixGraph {
         const air = this.context.createBiquadFilter();
         air.type = 'lowpass';
         air.frequency.value = OPEN_AIR_HZ;
+        const mid = this.context.createBiquadFilter();
+        mid.type = 'peaking';
+        mid.frequency.value = MID_CARVE_HZ;
+        if (mid.Q) mid.Q.value = 0.85;
+        mid.gain.value = 0;
         const normalization = this.context.createGain();
         normalization.gain.value = 1;
         source.connect(normalization);
-        // A safety ceiling catches inter-sample/decoder peaks a low-memory scan
-        // cannot measure exactly. At unity it stays bypass-equivalent (0 dB).
+        // A safety ceiling catches inter-sample/decoder peaks when boosting quiet tracks.
+        // At unity or below it stays bypass-equivalent (0 dB threshold, 0 dB knee).
         const limiter = this.context.createDynamicsCompressor?.();
         if (limiter) {
           limiter.threshold.value = 0;
           limiter.knee.value = 0;
-          limiter.ratio.value = 20;
-          limiter.attack.value = 0.003;
-          limiter.release.value = 0.1;
+          limiter.ratio.value = 12;
+          limiter.attack.value = 0.002;
+          limiter.release.value = 0.08;
           normalization.connect(limiter);
           limiter.connect(bass);
         } else normalization.connect(bass);
         bass.connect(gain);
-        gain.connect(air);
+        gain.connect(mid);
+        mid.connect(air);
         // A panner finishes the chain where the browser has one. It is the only
         // effect in the graph that changes no level: two songs separate in the
         // stereo field during a blend and come back to the centre.
@@ -137,10 +153,11 @@ export class MixGraph {
         }
         this.sources.add(source);
         chain = {
-          ...(limiter ? { limiter: limiter.threshold } : {}),
+          ...(limiter ? { limiter: limiter.threshold, limiterKnee: limiter.knee } : {}),
           normalization: normalization.gain,
           gain: gain.gain,
           bass: bass.gain,
+          mid: mid.gain,
           air: air.frequency,
           ...(pan ? { pan: pan.pan } : {}),
         };
@@ -161,16 +178,23 @@ export class MixGraph {
     const chain = this.chains.get(element);
     if (!chain) return;
     const safe = Number.isFinite(gain) ? Math.max(0.01, Math.min(8, gain)) : 1;
+    const threshold = safe > 1 ? -1.5 : 0;
+    const knee = safe > 1 ? 6 : 0;
     if (immediate) {
       // New/reused sources begin at their own level, never the previous song's.
       chain.normalization.cancelScheduledValues?.(this.context.currentTime);
       chain.normalization.value = safe;
       if (chain.limiter) {
         chain.limiter.cancelScheduledValues?.(this.context.currentTime);
-        chain.limiter.value = safe > 1 ? -1 : 0;
+        chain.limiter.value = threshold;
+      }
+      if (chain.limiterKnee) {
+        chain.limiterKnee.cancelScheduledValues?.(this.context.currentTime);
+        chain.limiterKnee.value = knee;
       }
     } else {
-      chain.limiter?.setTargetAtTime(safe > 1 ? -1 : 0, this.context.currentTime, 0.02);
+      chain.limiter?.setTargetAtTime(threshold, this.context.currentTime, 0.02);
+      chain.limiterKnee?.setTargetAtTime(knee, this.context.currentTime, 0.02);
       chain.normalization.setTargetAtTime(safe, this.context.currentTime, 0.12);
     }
   }
@@ -203,6 +227,18 @@ export class MixGraph {
     const safe = Number.isFinite(decibels) ? Math.max(BASS_CUT_DB, Math.min(9, decibels)) : 0;
     if (at > 0) chain.bass.setTargetAtTime(safe, this.context.currentTime + at, 0.05);
     else chain.bass.value = safe;
+  }
+
+  /**
+   * Gentle peaking carve around 1.4 kHz on the outgoing deck during a blend so
+   * incoming vocals and leads stay intelligible. Always reset to 0 dB when idle.
+   */
+  setMid(element: HTMLAudioElement, decibels: number, at = 0): void {
+    const chain = this.chains.get(element);
+    if (!chain?.mid) return;
+    const safe = Number.isFinite(decibels) ? Math.max(-12, Math.min(3, decibels)) : 0;
+    if (at > 0) chain.mid.setTargetAtTime(safe, this.context.currentTime + at, 0.05);
+    else chain.mid.value = safe;
   }
 
   /**
@@ -239,11 +275,15 @@ export class MixGraph {
 }
 
 /** Bass shelf value for a deck at a given point of the swap. */
-export function bassShelfDb(role: 'outgoing' | 'incoming', progress: number): number {
+export function bassShelfDb(
+  role: 'outgoing' | 'incoming',
+  progress: number,
+  swapAt = 0.55,
+): number {
   const p = Math.max(0, Math.min(1, progress));
-  // The low end changes hands early — on the incoming song's first bars — because
-  // that is where the listener expects the new record to take over.
-  const t = Math.max(0, Math.min(1, p / 0.55));
+  const pivot = Math.max(0.25, Math.min(0.85, Number.isFinite(swapAt) ? swapAt : 0.55));
+  // The low end changes hands smoothly across the swap window so the kick never vanishes.
+  const t = Math.max(0, Math.min(1, p / pivot));
   const smooth = t * t * (3 - 2 * t);
   const value = role === 'outgoing' ? BASS_CUT_DB * smooth : BASS_CUT_DB * (1 - smooth);
   // Normalise -0 so setBass and tests see a plain zero.
@@ -264,5 +304,41 @@ export function filterOutHz(progress: number): number {
   const smooth = t * t * (3 - 2 * t);
   // Exponential sweep: 20 kHz → 1.6 kHz reads as a filter, not as a fade.
   const value = OPEN_AIR_HZ * Math.pow(CLOSED_AIR_HZ / OPEN_AIR_HZ, smooth);
+  return Math.round(value);
+}
+
+/**
+ * Outgoing 1.4 kHz midrange pocket carve across the active overlap.
+ *
+ * Returns 0 dB at the start and end of the mix, dipping smoothly around the
+ * centre of the transition so the incoming vocal or melody sits cleanly in
+ * front without masking. Deeper when both songs have active vocals.
+ */
+export function midCarveDb(progress: number, vocalOverlap = false): number {
+  const p = Math.max(0, Math.min(1, progress));
+  if (p <= 0 || p >= 1) return 0;
+  // Smooth bell peaking near p = 0.52 where both decks share the stage most.
+  const bell = Math.sin(Math.PI * p);
+  const shaped = bell * bell;
+  const depth = vocalOverlap ? VOCAL_CARVE_DB : MID_CARVE_DB;
+  const value = depth * shaped;
+  return Math.abs(value) < 0.01 ? 0 : Math.round(value * 100) / 100;
+}
+
+/**
+ * Incoming top-end bloom sweep during the first ~35 % of a mix.
+ *
+ * Opens the new track's air band exponentially from ~4.8–5.6 kHz to wide-open
+ * 20 kHz so cymbals and transients arrive with studio cohesion rather than a
+ * sudden sharp entrance, finishing wide open long before the midpoint.
+ */
+export function incomingAirHz(progress: number, beatmatched = false): number {
+  const p = Math.max(0, Math.min(1, progress));
+  const span = beatmatched ? 0.32 : 0.38;
+  const t = Math.max(0, Math.min(1, p / span));
+  if (t >= 1) return OPEN_AIR_HZ;
+  const smooth = t * t * (3 - 2 * t);
+  const startHz = beatmatched ? INCOMING_OPEN_START_HZ + 800 : INCOMING_OPEN_START_HZ;
+  const value = startHz * Math.pow(OPEN_AIR_HZ / startHz, smooth);
   return Math.round(value);
 }

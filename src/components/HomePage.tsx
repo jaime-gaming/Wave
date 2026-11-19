@@ -1,10 +1,22 @@
 import { homeRecommendations } from '../domain/homeRecommendations';
+import { cachedAnalysis } from '../audio/mixAnalysis';
 import type { ListeningSummary } from '../domain/listening';
+import type { ListeningSignal } from '../domain/mood';
 import type { DailyMix } from '../domain/dailyMixes';
 import { DailyMixes } from './DailyMixes';
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
-import { ArrowUpRight, Disc3, Heart, ListMusic, Music2, Users, Plus, Smartphone } from './Glyphs';
+import {
+  ArrowUpRight,
+  Disc3,
+  Heart,
+  ListMusic,
+  Music2,
+  Users,
+  Plus,
+  Smartphone,
+  X,
+} from './Glyphs';
 import { albumKey, collectAlbums, collectArtists } from '../domain/collections';
 import type { LibraryView, Playlist, Track } from '../domain/types';
 import { useWaveMotion } from '../ui/motion';
@@ -19,6 +31,7 @@ import { useT } from '../i18n';
 export const HomePage = memo(function HomePage({
   tracks,
   listening,
+  moodSignals,
   playlists,
   current,
   playing,
@@ -38,6 +51,7 @@ export const HomePage = memo(function HomePage({
 }: {
   tracks: Track[];
   listening?: ListeningSummary;
+  moodSignals?: ListeningSignal[];
   artistPhotos?: Map<string, string | undefined>;
   /** Opens the device screen: the first thing a phone should offer. */
   onDevices?: () => void;
@@ -57,29 +71,42 @@ export const HomePage = memo(function HomePage({
   onMore: (track: Track) => void;
 }) {
   const t = useT();
+  const [showWindowsNotice, setShowWindowsNotice] = useState(() => {
+    if (typeof navigator === 'undefined' || !/Windows NT/i.test(navigator.userAgent)) return false;
+    try {
+      return localStorage.getItem('wave-windows-notice-dismissed') !== 'true';
+    } catch {
+      return true;
+    }
+  });
   const animation = useWaveMotion();
+  const recommendations = useMemo(
+    () =>
+      homeRecommendations(
+        tracks,
+        listening,
+        undefined,
+        current,
+        (track) => cachedAnalysis(track.blob),
+        moodSignals,
+      ),
+    [tracks, listening, current, moodSignals],
+  );
   const albums = useMemo(() => {
-    const picks = homeRecommendations(tracks, listening);
-    const weight = (ids: string[]) =>
-      ids.reduce(
-        (sum, id) =>
-          sum +
-          Math.max(0, 12 - picks.findIndex((track) => track.id === id)) *
-            Number(picks.some((track) => track.id === id)),
-        0,
-      );
+    const rankMap = new Map(recommendations.map((track, idx) => [track.id, 12 - idx]));
+    const weight = (ids: string[]) => ids.reduce((sum, id) => sum + (rankMap.get(id) ?? 0), 0);
     return collectAlbums(tracks).sort(
       (a, b) =>
         weight(b.tracks.map((track) => track.id)) - weight(a.tracks.map((track) => track.id)),
     );
-  }, [tracks, listening]);
+  }, [tracks, recommendations]);
   const artists = useMemo(() => collectArtists(tracks), [tracks]);
-  const recent = useMemo(
-    () => homeRecommendations(tracks, listening).slice(0, 8),
-    [tracks, listening],
+  const recent = useMemo(() => recommendations.slice(0, 8), [recommendations]);
+  const favoriteCount = useMemo(
+    () => tracks.reduce((sum, track) => sum + (track.favorite ? 1 : 0), 0),
+    [tracks],
   );
-  const favorites = tracks.filter((track) => track.favorite);
-  const counts = [tracks.length, albums.length, artists.length, playlists.length, favorites.length];
+  const counts = [tracks.length, albums.length, artists.length, playlists.length, favoriteCount];
   const destinations = [
     ['songs', t('Songs'), Music2],
     ['albums', t('Albums'), Disc3],
@@ -89,6 +116,37 @@ export const HomePage = memo(function HomePage({
   ] as const;
   return (
     <div className="home-content">
+      {showWindowsNotice && (
+        <aside className="windows-app-notice" aria-label={t('Wave for Windows')}>
+          <div>
+            <strong>{t('Try Wave for Windows')}</strong>
+            <p>{t('Enjoy Wave as a Windows app. Your web library stays in this browser.')}</p>
+            <p>
+              {t(
+                'The latest public release may be an older test build: Windows may be unsigned and Android debug-signed.',
+              )}
+            </p>
+          </div>
+          <a className="tonal-button" href="/api/download/windows">
+            {t('Download for Windows')}
+          </a>
+          <button
+            className="icon-button"
+            type="button"
+            aria-label={t('Dismiss')}
+            onClick={() => {
+              try {
+                localStorage.setItem('wave-windows-notice-dismissed', 'true');
+              } catch {
+                /* Session only. */
+              }
+              setShowWindowsNotice(false);
+            }}
+          >
+            <X size={18} />
+          </button>
+        </aside>
+      )}
       <section aria-label={t('Your collection')} className="home-overview">
         <div className="section-heading">
           <h2>{t('Your collection')}</h2>
@@ -141,7 +199,13 @@ export const HomePage = memo(function HomePage({
           <ArrowUpRight size={18} aria-hidden="true" />
         </motion.button>
       )}
-      <DailyMixes tracks={tracks} listening={listening} onOpen={onMix} />
+      <DailyMixes
+        tracks={tracks}
+        listening={listening}
+        loading={loading}
+        busy={busy}
+        onOpen={onMix}
+      />
       {albums.length > 0 && (
         <section aria-label={t('Albums to get lost in')} className="home-albums">
           <div className="section-heading">

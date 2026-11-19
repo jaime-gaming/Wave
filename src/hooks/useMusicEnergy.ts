@@ -11,11 +11,13 @@ export function useMusicEnergy(player: ReturnType<typeof usePlayer>) {
     latest.current = player;
   }, [player]);
   const blob = player.current?.blob,
+    hasTrack = !!player.current,
     duration = player.current?.duration ?? 0;
   useEffect(() => {
     const root = document.documentElement;
-    if (!blob || !player.state.playing || !animation.enabled) {
+    if (!hasTrack || !player.state.playing || !animation.enabled) {
       root.style.setProperty('--music-energy', '0');
+      root.style.setProperty('--music-pulse', '0');
       root.dataset.musicActive = 'false';
       return;
     }
@@ -23,6 +25,8 @@ export function useMusicEnergy(player: ReturnType<typeof usePlayer>) {
       frame = 0,
       envelope: EnergyEnvelope | undefined,
       smooth = 0,
+      bassAvg = 0,
+      pulse = 0,
       last = 0,
       triedAt = -Infinity,
       attempts = 0;
@@ -41,7 +45,7 @@ export function useMusicEnergy(player: ReturnType<typeof usePlayer>) {
     let live: MusicAnalyzer | undefined;
     let fallbackStarted = false;
     const fallback = () => {
-      if (fallbackStarted) return;
+      if (fallbackStarted || !blob) return;
       fallbackStarted = true;
       void sourceEnvelope(blob, duration).then((value) => {
         if (!stopped) envelope = value;
@@ -50,6 +54,7 @@ export function useMusicEnergy(player: ReturnType<typeof usePlayer>) {
     const visible = () => !document.hidden && document.hasFocus();
     const reset = () => {
       root.style.setProperty('--music-energy', '0');
+      root.style.setProperty('--music-pulse', '0');
       root.dataset.musicActive = 'false';
       for (const band of ['bass', 'body', 'air']) root.style.setProperty(`--music-${band}`, '0');
       delete root.dataset.musicAnalysis;
@@ -64,12 +69,12 @@ export function useMusicEnergy(player: ReturnType<typeof usePlayer>) {
       } else if (!frame) frame = requestAnimationFrame(tick);
     };
     const tick = (now: number) => {
-      if (now - last >= 40) {
+      if (now - last >= 30) {
         const delta = Math.min(0.12, (now - last) / 1000);
         last = now;
         const current = latest.current;
         const canRead = visible() && !current.buffering;
-        if (canRead && !live && attempts < 4 && now - triedAt > 500) {
+        if (blob && canRead && !live && attempts < 4 && now - triedAt > 500) {
           triedAt = now;
           const element = current.readElement();
           if (element && element.readyState >= 2) {
@@ -81,31 +86,74 @@ export function useMusicEnergy(player: ReturnType<typeof usePlayer>) {
             }
           }
         }
-        const liveAmplitude = canRead ? live?.read() : undefined;
-        if (canRead && live && liveAmplitude === undefined && now - triedAt > 1200) fallback();
+        const liveAmplitude = blob && canRead ? live?.read() : undefined;
+        if (blob && canRead && live && liveAmplitude === undefined && now - triedAt > 1200)
+          fallback();
+
+        const playhead = current.readTime();
+        // When audio comes from a cross-origin embed (no local blob), create a
+        // gentle, breathing ambient pulse driven by playback progress & volume.
+        const ambientLevel =
+          !blob && canRead && current.volume > 0.01
+            ? (0.26 + 0.14 * Math.sin(playhead * 1.35) + 0.08 * Math.cos(playhead * 2.4)) *
+              Math.sqrt(current.volume)
+            : 0;
+
         const amplitude = canRead
-          ? (liveAmplitude ?? energyAt(envelope, current.readTime())) * current.volume
+          ? blob
+            ? (liveAmplitude ?? energyAt(envelope, playhead)) * current.volume
+            : ambientLevel
           : 0;
-        // Compress dynamic range for visible quiet passages, without inventing beats.
-        const energy = amplitude > 0.001 ? Math.min(1, Math.sqrt(amplitude) * 1.4) : 0;
+        // Compress dynamic range for expressive quiet passages and punchy drops.
+        const energy = amplitude > 0.001 ? Math.min(1, Math.pow(amplitude, 0.48) * 1.48) : 0;
         const analysisState =
-          liveAmplitude !== undefined ? 'live' : envelope ? 'envelope' : 'unavailable';
+          liveAmplitude !== undefined
+            ? 'live'
+            : envelope
+              ? 'envelope'
+              : !blob
+                ? 'ambient'
+                : 'unavailable';
         if (root.dataset.musicAnalysis !== analysisState)
           root.dataset.musicAnalysis = analysisState;
-        const measured = canRead ? live?.readBands() : undefined;
+        const measured = blob && canRead ? live?.readBands() : undefined;
         for (const band of ['bass', 'body', 'air'] as const) {
           const target = measured
-            ? Math.min(1, Math.sqrt(measured[band] * current.volume) * 1.5)
-            : energy;
-          bands[band] += (target - bands[band]) * (target > bands[band] ? 0.4 : 0.12);
-          if (energy > 0.001 && bands[band] > 0.008)
+            ? Math.min(1, Math.pow(measured[band] * current.volume, 0.48) * 1.62)
+            : !blob
+              ? Math.max(
+                  0,
+                  Math.min(
+                    1,
+                    energy *
+                      (band === 'bass'
+                        ? 0.92 + 0.16 * Math.sin(playhead * 1.6)
+                        : band === 'body'
+                          ? 0.85 + 0.18 * Math.cos(playhead * 1.1 + 1.2)
+                          : 0.72 + 0.2 * Math.sin(playhead * 2.1 + 2.4)),
+                  ),
+                )
+              : energy;
+          // Calm, slow organic breathing instead of fast strobe movement.
+          const attack = band === 'bass' ? 0.18 : band === 'body' ? 0.15 : 0.13;
+          const release = band === 'bass' ? 0.055 : 0.045;
+          bands[band] += (target - bands[band]) * (target > bands[band] ? attack : release);
+          if (energy > 0.001 && bands[band] > 0.006)
             phases[band] +=
-              delta * (0.12 + bands[band] * (band === 'bass' ? 0.7 : band === 'body' ? 0.95 : 1.2));
+              delta *
+              (0.032 + bands[band] * (band === 'bass' ? 0.11 : band === 'body' ? 0.14 : 0.17));
           write(`--music-${band}`, bands[band].toFixed(3));
-          write(`--music-${band}-x`, (Math.sin(phases[band]) * 18).toFixed(2) + '%');
-          write(`--music-${band}-y`, (Math.cos(phases[band] * 0.71) * 14).toFixed(2) + '%');
+          write(`--music-${band}-x`, (Math.sin(phases[band]) * 14).toFixed(2) + '%');
+          write(`--music-${band}-y`, (Math.cos(phases[band] * 0.73) * 11).toFixed(2) + '%');
         }
-        smooth += (energy - smooth) * (energy > smooth ? 0.4 : 0.16);
+        // Subtle, serene rhythmic bloom so kicks feel warm rather than jittery.
+        bassAvg += (bands.bass - bassAvg) * 0.04;
+        const beatHit = Math.max(0, (bands.bass - bassAvg) * 1.45);
+        pulse += (Math.min(0.65, beatHit) - pulse) * (beatHit > pulse ? 0.2 : 0.06);
+        write('--music-pulse', pulse.toFixed(3));
+        write('--music-angle', ((phases.body * 5) % 360).toFixed(1) + 'deg');
+
+        smooth += (energy - smooth) * (energy > smooth ? 0.16 : 0.06);
         write('--music-energy', smooth.toFixed(3));
         const active = String(energy > 0.001);
         if (root.dataset.musicActive !== active) root.dataset.musicActive = active;
@@ -125,5 +173,5 @@ export function useMusicEnergy(player: ReturnType<typeof usePlayer>) {
       window.removeEventListener('blur', visibility);
       window.removeEventListener('focus', visibility);
     };
-  }, [blob, duration, player.state.playing, animation.enabled]);
+  }, [blob, hasTrack, duration, player.state.playing, animation.enabled]);
 }

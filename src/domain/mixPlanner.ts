@@ -1,5 +1,13 @@
-import { introEnd, kickStart, overlapsRegion, type TrackAnalysis } from '../audio/dsp';
+import {
+  harmonicCompatibility,
+  introEnd,
+  kickStart,
+  outroStart,
+  overlapsRegion,
+  type TrackAnalysis,
+} from '../audio/dsp';
 import { isRubato, tempoRelation } from '../audio/tempo';
+import type { Lyrics } from './lyrics';
 
 /**
  * Mix planner: decides *how* two songs are joined, before any audio is touched.
@@ -97,8 +105,44 @@ export interface TransitionPlan {
   bars: number;
   /** Both tempo and bar phase aligned. */
   phaseAligned: boolean;
+  /** Camelot-wheel harmonic compatibility between both tracks (0..1). */
+  harmonicScore?: number;
+  /** Combined studio transition compatibility across key, tempo, and spectrum (0..1). */
+  compatibility?: number;
+  /** True when active vocals overlap across the join and need a deeper 1.4 kHz carve. */
+  vocalOverlap?: boolean;
   /** Human-readable reasons for the decisions, for tests and logs. */
   notes: string[];
+}
+
+/**
+ * Evaluates how naturally two tracks mix together across musical key (Camelot wheel),
+ * folded tempo proximity, and spectral/energy profile continuity. Purely local DSP.
+ */
+export function transitionCompatibility(
+  outgoing: TrackAnalysis | undefined,
+  incoming: TrackAnalysis | undefined,
+): number {
+  if (!outgoing || !incoming) return 0.55;
+  const harmonic = harmonicCompatibility(outgoing.key, incoming.key);
+
+  let tempoFit = 0.6;
+  if (trusted(outgoing) && trusted(incoming)) {
+    const rel = tempoRelation(outgoing.beats.bpm, incoming.beats.bpm);
+    tempoFit = Math.max(0.1, Math.min(1, 1 - rel.difference * 3.4));
+    if (rel.kind === 'half' || rel.kind === 'double') tempoFit = Math.max(tempoFit, 0.88);
+  }
+
+  // Cosine similarity of the 4-band spectral balance so tonal worlds connect smoothly.
+  const a = outgoing.profile;
+  const b = incoming.profile;
+  const dot = a.bass * b.bass + a.low * b.low + a.mid * b.mid + a.high * b.high;
+  const magA = Math.hypot(a.bass, a.low, a.mid, a.high) || 1;
+  const magB = Math.hypot(b.bass, b.low, b.mid, b.high) || 1;
+  const spectralFit = Math.max(0, Math.min(1, dot / (magA * magB)));
+
+  const score = harmonic * 0.42 + tempoFit * 0.38 + spectralFit * 0.2;
+  return Math.round(score * 1000) / 1000;
 }
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
@@ -159,14 +203,40 @@ function alignOutgoing(analysis: TrackAnalysis, time: number): number {
  * in the part that would be skipped: a song that opens with a sung line starts
  * on its first beat like it always did.
  */
+/**
+ * Maximum safe intro skip for a given track.
+ *
+ * Club tracks can have 24–32s beatless intros on a 4–5 minute record, whereas a
+ * shorter pop or indie track must never lose a third or half of its runtime.
+ * Bounding by both MAX_ENTRY and 16% of the audible duration prevents skipping
+ * into the middle of short songs while keeping club-intro cueing intact.
+ */
+function maxEntryFor(analysis: TrackAnalysis): number {
+  const audible = Math.max(0, analysis.trimmed.end - analysis.trimmed.start);
+  return Math.min(MAX_ENTRY, Math.max(0, audible * 0.16));
+}
+
+/**
+ * Spectral-aware bass swap point: swap earlier when the incoming song brings
+ * a heavier kick/bass, hold the outgoing low end slightly longer when it carries
+ * the groove.
+ */
+function plannedBassSwapAt(outgoing: TrackAnalysis, incoming: TrackAnalysis): number {
+  const diff = (incoming.profile?.bass ?? 0) - (outgoing.profile?.bass ?? 0);
+  if (diff > 0.1) return 0.42;
+  if (diff < -0.1) return 0.62;
+  return 0.5;
+}
+
 function alignIncoming(analysis: TrackAnalysis): number {
   const { bpm, offset } = analysis.beats;
   const period = 60 / bpm;
   const start = analysis.trimmed.start;
+  const maxEntry = maxEntryFor(analysis);
   // The end of the intro, or the first place the kick is already playing if that
   // is later — a long intro often ends in a breakdown, not on a downbeat.
   const kick = kickStart(analysis, introEnd(analysis));
-  const body = clamp(kick ?? introEnd(analysis), start, start + MAX_ENTRY);
+  const body = clamp(kick ?? introEnd(analysis), start, start + maxEntry);
   const entry = body - start > period ? body : start;
   const skip = !overlapsRegion(analysis.vocals, start, entry, 0.05);
   const from = skip ? entry : start;
@@ -174,7 +244,14 @@ function alignIncoming(analysis: TrackAnalysis): number {
   const beats = (from - offset) / period;
   const bar = Math.ceil(beats / BEATS_PER_BAR) * BEATS_PER_BAR;
   const aligned = offset + bar * period;
-  return clamp(aligned, start, Math.max(start, analysis.trimmed.end - period));
+  return clamp(
+    aligned,
+    start,
+    Math.min(
+      start + maxEntry + period * BEATS_PER_BAR,
+      Math.max(start, analysis.trimmed.end - period),
+    ),
+  );
 }
 
 /**
@@ -198,7 +275,12 @@ function loudEntry(analysis: TrackAnalysis, from: number, length: number): numbe
     return segment ? segment.level : 0;
   };
   if (levelAt(from) >= loudest * 0.55) return from;
-  const cap = Math.min(from + Math.max(MAX_CUE_LEAD, period), analysis.trimmed.end - period);
+  const entryCeiling = analysis.trimmed.start + maxEntryFor(analysis) + period * BEATS_PER_BAR;
+  const cap = Math.min(
+    from + Math.max(MAX_CUE_LEAD, period),
+    entryCeiling,
+    analysis.trimmed.end - period,
+  );
   // Whole bars only: the entry has to stay on the downbeat it was placed on.
   const firstBar = Math.ceil((from - offset) / period / BEATS_PER_BAR);
   for (let step = 1; step <= 8; step++) {
@@ -245,6 +327,10 @@ export function planTransition(
 
   const fallback = (reason: string): TransitionPlan => {
     notes.push(reason);
+    const harmonicScore =
+      outgoing && incoming ? harmonicCompatibility(outgoing.key, incoming.key) : undefined;
+    const compatibility =
+      outgoing && incoming ? transitionCompatibility(outgoing, incoming) : undefined;
     if (!outgoing || !incoming) {
       return {
         mode: 'cut',
@@ -258,20 +344,31 @@ export function planTransition(
       };
     }
     const audibleTail = outgoing.trimmed.end - outgoing.trimmed.start;
-    const seconds = Math.min(fallbackSeconds, Math.max(minSeconds, audibleTail / 2));
+    const clashTighten = harmonicScore !== undefined && harmonicScore < 0.42 ? 0.72 : 1;
+    const seconds = Math.min(fallbackSeconds * clashTighten, Math.max(minSeconds, audibleTail / 2));
+    const startAt = Math.max(outgoing.trimmed.start, outgoing.trimmed.end - seconds);
+    const cue = Math.max(0, incoming.trimmed.start);
+    const vocalOverlap =
+      overlapsRegion(outgoing.vocals, startAt, startAt + seconds, vocalTolerance) &&
+      overlapsRegion(incoming.vocals, cue, cue + seconds, vocalTolerance);
     return {
       mode: 'crossfade',
       seconds: Math.round(seconds * 100) / 100,
-      startAt: Math.max(outgoing.trimmed.start, outgoing.trimmed.end - seconds),
-      cue: Math.max(0, incoming.trimmed.start),
-      bassSwapAt: 0.5,
+      startAt,
+      cue,
+      bassSwapAt: plannedBassSwapAt(outgoing, incoming),
       bars: 0,
       phaseAligned: false,
+      harmonicScore,
+      compatibility,
+      vocalOverlap,
       notes,
     };
   };
 
   if (!outgoing || !incoming) return fallback('No analysis available for one of the songs.');
+  const harmonicScore = harmonicCompatibility(outgoing.key, incoming.key);
+  const compatibility = transitionCompatibility(outgoing, incoming);
 
   /**
    * Two songs with unsteady pulses are joined, not beatmatched.
@@ -292,19 +389,40 @@ export function planTransition(
     const start = hasGrid(outgoing)
       ? alignOutgoing(outgoing, outgoing.trimmed.end - seconds)
       : Math.max(outgoing.trimmed.start, outgoing.trimmed.end - seconds);
-    const cue = clamp(
-      kickStart(incoming) ?? introEnd(incoming),
+    // Never jump past the gentle intro bound on rubato/acoustic/ballad material:
+    // an uncapped kickStart used to leap past quiet first verses straight to the chorus.
+    const maxGentleSkip = Math.min(6, head * 0.08);
+    const introTarget = kickStart(incoming) ?? introEnd(incoming);
+    const hasEarlyVocal = overlapsRegion(
+      incoming.vocals,
       incoming.trimmed.start,
-      Math.max(incoming.trimmed.start, incoming.trimmed.end - seconds),
+      incoming.trimmed.start + maxGentleSkip,
+      0.05,
     );
+    const cue = hasEarlyVocal
+      ? incoming.trimmed.start
+      : clamp(
+          introTarget,
+          incoming.trimmed.start,
+          Math.min(
+            incoming.trimmed.start + maxGentleSkip,
+            Math.max(incoming.trimmed.start, incoming.trimmed.end - seconds),
+          ),
+        );
+    const vocalOverlap =
+      overlapsRegion(outgoing.vocals, start, start + seconds, vocalTolerance) &&
+      overlapsRegion(incoming.vocals, cue, cue + seconds, vocalTolerance);
     return {
       mode: 'crossfade',
       seconds: Math.round(seconds * 100) / 100,
       startAt: Math.round(start * 1000) / 1000,
       cue: Math.round(cue * 1000) / 1000,
-      bassSwapAt: 0.5,
+      bassSwapAt: plannedBassSwapAt(outgoing, incoming),
       bars: 0,
       phaseAligned: false,
+      harmonicScore,
+      compatibility,
+      vocalOverlap,
       notes,
     };
   };
@@ -393,14 +511,39 @@ export function planTransition(
       );
     }
   }
+  // Harmonic intelligence: tight Camelot clashes shorten the overlap so
+  // incompatible chords never blur; harmonic matches breathe across the full phrase.
+  if (outgoing.key && incoming.key) {
+    if (harmonicScore >= 0.85) {
+      notes.push(
+        `Harmonic match (${outgoing.key.camelot} -> ${incoming.key.camelot}): letting both records breathe together.`,
+      );
+    } else if (harmonicScore < 0.42 && options.bars === undefined) {
+      const tightBars = Math.max(2, Math.min(bars, 4));
+      if (tightBars < bars) {
+        bars = tightBars;
+        notes.push(
+          `Key clash (${outgoing.key.camelot} -> ${incoming.key.camelot}): tightening the handover to ${bars} bars so harmonies stay clean.`,
+        );
+      }
+    }
+  }
   if (bars < 2)
     return fallback('The outgoing song has too little audible tail left for a bar-aligned mix.');
 
   let seconds = barsToSeconds(bars, bpmA);
   if (seconds < minSeconds) return fallback('The overlap would be too short to sound intentional.');
 
-  // Start the overlap on a beat, inside the audible tail.
-  const startAt = alignOutgoing(outgoing, outgoing.trimmed.end - seconds);
+  // Start the overlap on a beat, preferring the natural outro / breakdown phrase
+  // in the final tail when it fits cleanly inside the audible end.
+  const naturalOutro = outroStart(outgoing);
+  const idealEndStart = outgoing.trimmed.end - seconds;
+  const useOutroAnchor =
+    naturalOutro >= idealEndStart - barsToSeconds(2, bpmA) &&
+    naturalOutro <= idealEndStart + 1.5 &&
+    naturalOutro + seconds <= outgoing.trimmed.end + 0.05 &&
+    !overlapsRegion(outgoing.vocals, naturalOutro, naturalOutro + seconds, vocalTolerance);
+  const startAt = alignOutgoing(outgoing, useOutroAnchor ? naturalOutro : idealEndStart);
   if (startAt + seconds > outgoing.trimmed.end + 0.05)
     return fallback('The overlap would run past the end of the song.');
 
@@ -420,9 +563,17 @@ export function planTransition(
       notes.push('Both songs have vocals here: the overlap is halved.');
     }
   }
-  if (overlapsRegion(outgoing.vocals, startAt, startAt + seconds, vocalTolerance))
+  const outgoingHasVocal = overlapsRegion(
+    outgoing.vocals,
+    startAt,
+    startAt + seconds,
+    vocalTolerance,
+  );
+  const incomingHasVocal = overlapsRegion(incoming.vocals, cue, cue + seconds, vocalTolerance);
+  const vocalOverlap = outgoingHasVocal && incomingHasVocal;
+  if (outgoingHasVocal)
     notes.push(
-      'The outgoing song still has a vocal in the overlap; it is faded faster on the low band.',
+      'The outgoing song still has a vocal in the overlap; carving its midrange pocket and fading the low band cleanly.',
     );
 
   // Never fade more than half of the incoming song, even if the cue is late.
@@ -434,14 +585,20 @@ export function planTransition(
     phaseAligned = false;
   }
 
+  const baseSwap = plannedBassSwapAt(outgoing, incoming);
+  const bassSwapAt = harmonicScore < 0.42 ? Math.min(baseSwap, 0.42) : baseSwap;
+
   return {
     mode: 'beatmatched',
     seconds: Math.round(seconds * 100) / 100,
     startAt: Math.round(startAt * 1000) / 1000,
     cue: Math.round(cue * 1000) / 1000,
-    bassSwapAt: 0.5,
+    bassSwapAt,
     bars,
     phaseAligned,
+    harmonicScore,
+    compatibility,
+    vocalOverlap,
     notes,
   };
 }
@@ -581,6 +738,32 @@ export function planTransitionCached(
   const plan = planTransition(outgoing, incoming, options);
   plans.set(key, plan);
   return plan;
+}
+
+/** Move the entry earlier when synced lyrics let the incoming vocal arrive near
+ * the end of the fade. Never skip lyrics, extend the fade, or invent timings. */
+export function alignIncomingLyrics(
+  plan: TransitionPlan,
+  lyrics: Lyrics | undefined,
+  start = 0,
+): TransitionPlan {
+  if (!lyrics || plan.mode === 'cut' || plan.seconds <= 0) return plan;
+  const first = lyrics.lines
+    .filter(
+      (line) => line.text.trim() && typeof line.time === 'number' && Number.isFinite(line.time),
+    )
+    .map((line) => line.time! + lyrics.offsetMs / 1000)
+    .filter((time) => time >= Math.max(0, start))
+    .sort((a, b) => a - b)[0];
+  if (first === undefined) return plan;
+  const desired = Math.max(0, start, first - plan.seconds * 0.85);
+  if (desired >= plan.cue || plan.cue - desired < 0.1) return plan;
+  return {
+    ...plan,
+    cue: Math.round(desired * 1000) / 1000,
+    phaseAligned: false,
+    notes: [...plan.notes, 'Incoming vocal approaches full level near its first timed lyric.'],
+  };
 }
 
 /**

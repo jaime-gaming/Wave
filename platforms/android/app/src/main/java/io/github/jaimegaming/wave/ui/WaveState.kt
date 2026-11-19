@@ -14,15 +14,19 @@ import io.github.jaimegaming.wave.Library
 import io.github.jaimegaming.wave.ListeningSummary
 import io.github.jaimegaming.wave.ListeningCounter
 import io.github.jaimegaming.wave.LyricsClient
+import io.github.jaimegaming.wave.MoodSignal
 import io.github.jaimegaming.wave.Play
 import io.github.jaimegaming.wave.Player
 import io.github.jaimegaming.wave.Playlist
 import io.github.jaimegaming.wave.Song
 import io.github.jaimegaming.wave.dailyMixes
 import io.github.jaimegaming.wave.listeningSummary
+import io.github.jaimegaming.wave.monthlyRecap
+import io.github.jaimegaming.wave.pickAutoplayNext
 import io.github.jaimegaming.wave.rankSongs
 import io.github.jaimegaming.wave.weekRecap
 import io.github.jaimegaming.wave.weeklyRecaps
+import io.github.jaimegaming.wave.yearlyRecap
 import io.github.jaimegaming.wave.wave
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -102,6 +106,15 @@ class WaveState(
     /** The last four weeks, newest first, so the page keeps a record. */
     var recaps by mutableStateOf(weeklyRecaps(plays, songs, System.currentTimeMillis()))
         private set
+    var monthlyRecap by mutableStateOf(monthlyRecap(plays, songs, System.currentTimeMillis()))
+        private set
+    var yearlyRecap by mutableStateOf(yearlyRecap(plays, songs, System.currentTimeMillis()))
+        private set
+    var remixPeriod by mutableStateOf("weekly")
+    var autoplayEnabled by mutableStateOf(context.wave.preferences().getBoolean(KEY_AUTOPLAY, true))
+        private set
+    private val moodSignals = mutableListOf<MoodSignal>()
+    private val recentPlayedIds = mutableListOf<String>()
 
     var destination by mutableStateOf(Destination.Home)
     var shelf by mutableStateOf(Shelf.Songs)
@@ -123,6 +136,7 @@ class WaveState(
     var notice by mutableStateOf("")
     /** Minutes left on the sleep timer; 0 when it is off. */
     var sleepMinutes by mutableStateOf(0)
+    var sleepChoice by mutableStateOf(0)
         private set
     var mixEnabled by mutableStateOf(context.wave.preferences().getBoolean(KEY_MIX, true))
         private set
@@ -146,8 +160,18 @@ class WaveState(
         io.github.jaimegaming.wave.PlaybackService.refresh(context)
     }
 
+    private var lastObservedSongId: String? = null
+    private var lastObservedSerial: Long = -1L
+    private var lastObservedPos: Double = 0.0
+    private var lastObservedDuration: Double = 0.0
+
     init {
         player.crossfade = if (mixEnabled) BLEND_SECONDS else 0.0
+        player.onQueueEnded = {
+            val activeSong = player.current
+            if (!autoplayEnabled || activeSong == null || songs.size < 2) null
+            else pickAutoplayNext(songs, activeSong, recentPlayedIds, moodSignals)
+        }
         player.observe(listener)
         scope.launch {
             while (true) {
@@ -155,6 +179,21 @@ class WaveState(
                 sampleListening()
             }
         }
+    }
+
+    private fun recordSignal(songId: String, seconds: Int, duration: Double, completed: Boolean) {
+        if (seconds < 2) return
+        moodSignals.add(MoodSignal(songId, seconds, duration, completed, System.currentTimeMillis()))
+        if (moodSignals.size > 48) moodSignals.removeAt(0)
+    }
+
+    private fun refreshAnalytics() {
+        val now = System.currentTimeMillis()
+        summary = listeningSummary(plays, songs, now)
+        recap = weekRecap(plays, songs, now)
+        recaps = weeklyRecaps(plays, songs, now)
+        monthlyRecap = monthlyRecap(plays, songs, now)
+        yearlyRecap = yearlyRecap(plays, songs, now)
     }
 
     // --- listening ---------------------------------------------------------
@@ -169,18 +208,40 @@ class WaveState(
      */
     private fun sampleListening() {
         val song = player.current
+        val serial = player.playbackSerial
+        val duration = player.duration.takeIf { it > 0 } ?: song?.duration ?: 0.0
+        if (song?.id != lastObservedSongId || serial != lastObservedSerial) {
+            lastObservedSongId?.let { prevId ->
+                val secs = kotlin.math.round(lastObservedPos).toInt()
+                val completed = lastObservedDuration > 0 && lastObservedPos >= lastObservedDuration * 0.85
+                recordSignal(prevId, secs, lastObservedDuration, completed)
+            }
+            if (song != null) {
+                recentPlayedIds.add(song.id)
+                if (recentPlayedIds.size > 24) recentPlayedIds.removeAt(0)
+            }
+            lastObservedSongId = song?.id
+            lastObservedSerial = serial
+            lastObservedPos = 0.0
+            lastObservedDuration = duration
+        } else {
+            lastObservedPos = maxOf(lastObservedPos, player.time)
+            if (duration > 0) lastObservedDuration = duration
+        }
         val play = listeningCounter.sample(
-            serial = player.playbackSerial,
+            serial = serial,
             songId = song?.id,
             playing = player.playing,
             position = player.time,
-            duration = player.duration.takeIf { it > 0 } ?: song?.duration ?: 0.0,
+            duration = duration,
             now = System.currentTimeMillis(),
         )
         if (play != null) record(play.songId, play.at, play.seconds, play.completed)
     }
 
     private fun record(songId: String, at: Long, seconds: Int, completed: Boolean) {
+        val duration = songs.find { it.id == songId }?.duration ?: 0.0
+        recordSignal(songId, seconds, duration, completed)
         scope.launch {
             withContext(Dispatchers.IO) {
                 repository.addPlay(Play(songId, at, seconds, completed))
@@ -192,22 +253,26 @@ class WaveState(
             }
             plays = repository.loadPlays()
             songs = repository.load()
-            summary = listeningSummary(plays, songs, System.currentTimeMillis())
-            recap = weekRecap(plays, songs, System.currentTimeMillis())
-            recaps = weeklyRecaps(plays, songs, System.currentTimeMillis())
+            refreshAnalytics()
         }
     }
 
     /** Stops the music after a while, for falling asleep with something on. */
     fun setSleepTimer(minutes: Int) {
         sleepJob?.cancel()
-        sleepMinutes = minutes.coerceIn(0, 180)
-        if (sleepMinutes == 0) return
+        sleepChoice = minutes.coerceIn(0, 180)
+        sleepMinutes = sleepChoice
+        if (sleepChoice == 0) return
+        val deadline = android.os.SystemClock.elapsedRealtime() + sleepChoice * 60_000L
         sleepJob = scope.launch {
-            while (sleepMinutes > 0) {
-                delay(60_000)
-                sleepMinutes--
+            while (true) {
+                val remaining = deadline - android.os.SystemClock.elapsedRealtime()
+                if (remaining <= 0) break
+                sleepMinutes = ((remaining + 59_999L) / 60_000L).toInt()
+                delay(minOf(remaining, 1000L))
             }
+            sleepMinutes = 0
+            sleepChoice = 0
             player.pause()
             notice = Loc.t("The sleep timer stopped the music.")
         }
@@ -217,9 +282,8 @@ class WaveState(
         scope.launch {
             withContext(Dispatchers.IO) { repository.clearPlays() }
             plays = emptyList()
-            summary = listeningSummary(plays, songs, System.currentTimeMillis())
-            recap = weekRecap(plays, songs, System.currentTimeMillis())
-            recaps = weeklyRecaps(plays, songs, System.currentTimeMillis())
+            moodSignals.clear()
+            refreshAnalytics()
             notice = Loc.t("Listening history cleared.")
         }
     }
@@ -230,6 +294,11 @@ class WaveState(
         mixEnabled = enabled
         player.crossfade = if (enabled) BLEND_SECONDS else 0.0
         context.wave.preferences().edit().putBoolean(KEY_MIX, enabled).apply()
+    }
+
+    fun setAutoplay(enabled: Boolean) {
+        autoplayEnabled = enabled
+        context.wave.preferences().edit().putBoolean(KEY_AUTOPLAY, enabled).apply()
     }
 
     fun setLyricsOnline(enabled: Boolean) {
@@ -277,8 +346,44 @@ class WaveState(
         .groupBy { it.artist.ifBlank { "Unknown artist" } }
         .toSortedMap(String.CASE_INSENSITIVE_ORDER)
 
-    fun mixes(): List<DailyMix> =
-        dailyMixes(songs, SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()))
+    /**
+     * Persisted complete-only Daily Mixes: already-created mixes appear
+     * instantaneously from local preferences; while a bulk import is running
+     * with no saved mix yet, returns empty so Home shows the skeleton loader.
+     */
+    fun mixes(): List<DailyMix> {
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+        val signature = "${songs.size}:" + songs.map { it.id }.sorted().take(48).joinToString(",")
+        val byId = songs.associateBy { it.id }
+        val preferences = context.wave.preferences()
+        val savedDay = preferences.getString(KEY_MIX_DAY, null)
+        val savedSig = preferences.getString(KEY_MIX_SIG, null)
+        val savedRaw = preferences.getString(KEY_MIX_DATA, null)
+        if (savedDay == today && savedSig == signature && !savedRaw.isNullOrBlank()) {
+            val hydrated = savedRaw.split("\u001e").mapNotNull { record ->
+                val parts = record.split("\u001f")
+                if (parts.size < 2) return@mapNotNull null
+                val label = parts[0]
+                val trackList = parts[1].split(",").mapNotNull { byId[it] }
+                if (trackList.size < 7) return@mapNotNull null
+                DailyMix(label = label, songs = trackList)
+            }.take(3)
+            if (hydrated.isNotEmpty()) return hydrated
+        }
+        if (busy) return emptyList()
+        val built = dailyMixes(songs, today)
+        if (built.isNotEmpty()) {
+            val serialized = built.joinToString("\u001e") { mix ->
+                "${mix.label}\u001f${mix.songs.joinToString(",") { it.id }}"
+            }
+            preferences.edit()
+                .putString(KEY_MIX_DAY, today)
+                .putString(KEY_MIX_SIG, signature)
+                .putString(KEY_MIX_DATA, serialized)
+                .apply()
+        }
+        return built
+    }
 
     fun playlistSongs(playlist: Playlist): List<Song> {
         val byId = songs.associateBy { it.id }
@@ -337,9 +442,7 @@ class WaveState(
             withContext(Dispatchers.IO) { repository.delete(song.id) }
             songs = repository.load()
             playlists = repository.loadPlaylists()
-            summary = listeningSummary(plays, songs, System.currentTimeMillis())
-            recap = weekRecap(plays, songs, System.currentTimeMillis())
-            recaps = weeklyRecaps(plays, songs, System.currentTimeMillis())
+            refreshAnalytics()
         }
         notice = "${song.title} removed from this device."
     }
@@ -432,9 +535,7 @@ class WaveState(
                 val added = withContext(Dispatchers.IO) { work() }
                 songs = repository.load()
                 playlists = repository.loadPlaylists()
-                summary = listeningSummary(plays, songs, System.currentTimeMillis())
-            recap = weekRecap(plays, songs, System.currentTimeMillis())
-            recaps = weeklyRecaps(plays, songs, System.currentTimeMillis())
+                refreshAnalytics()
                 notice = when (added) {
                     0 -> Loc.t("Nothing new: those files are already here.")
                     1 -> Loc.t("One song added.")
@@ -493,8 +594,12 @@ class WaveState(
 
     private companion object {
         const val KEY_MIX = "mix"
+        const val KEY_AUTOPLAY = "autoplay"
         const val KEY_LYRICS = "lyrics"
         const val KEY_RECENT = "recent-searches"
+        const val KEY_MIX_DAY = "daily-mixes-day"
+        const val KEY_MIX_SIG = "daily-mixes-sig"
+        const val KEY_MIX_DATA = "daily-mixes-data"
         /** A character no phrase contains, so one string can hold the list. */
         const val RECENT_SEPARATOR = "\u001f"
         const val LYRIC_COOLDOWN = 15 * 60 * 1000L

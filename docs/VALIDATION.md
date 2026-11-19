@@ -1,6 +1,30 @@
 # Validation record
 
-Development target: 0.2.1. Released baseline: 0.2.0 · 3 November 2026. Historical run dates are retained below.
+Development target: 0.2.2 · 16 November 2026. Historical run dates are retained below.
+
+## Playback and artwork follow-up — 16 November 2026
+
+- The web planner uses existing synchronized lyrics as an optional incoming-cue hint without sending text or skipping past the selected cue. Plain or missing lyrics retain the existing plan. It does not guarantee a musical peak or perfect mix for every recording.
+- Web and Windows expanded-player keyboard controls, per-song web volume-analysis priority, bounded web analysis caching, Windows MP3/folder cover support and Android MediaStore album-art fallback are source changes. Full native device/audio and real-media coverage remains a separate validation step.
+- The previous hosted smoke failure named the Fix Volume progress text; the progress count is now shown after analysis as well as during it. CI must be rerun before release.
+
+## Download and listening follow-up — 16 November 2026
+
+- Web tests: 785 passed across 120 files, including download URL validation, Windows notice dismissal, pause/resume and repeated listens. Lint, formatting, release checks and build passed.
+- Hosted native run [44373903555](https://github.com/jaime-gaming/Wave/actions/runs/44373903555) passed Android and Windows for the previous revision. Subsequent Windows listening changes require a fresh native run. Hosted browser smoke for that revision failed; the workflow now preserves failure diagnostics. No real-device or production deployment claim is made.
+- Download links resolve the latest public release, which at this review is the older 0.2.1 test release; the 0.2.2 signed assets are not yet public. Worker deployment and release publishing are separate operations.
+
+## 0.2.2 review — 16 November 2026
+
+- Web unit suite: 780 tests in 120 files passed; release metadata and 15 release checks passed. Lint, format and production build passed. These checks do not replace a browser/device review.
+- The last hosted native run at `42de3a2` failed: Android compilation referenced an undeclared preferences variable, and Windows UI smoke retained an obsolete three-song Daily Mix expectation. Both sources have been corrected locally, but have not yet been validated by a new native run. The same hosted Checks run failed its required browser smoke and documentation capture; the capture had an obsolete genre-specific Daily Mix selector and has been updated. The remaining browser smoke failure is not yet diagnosed.
+- Native SDKs and browser binaries are not available in this workspace; no native build, device playback, full browser suite, live provider access, trusted signing or publication is claimed. Release packaging requires persistent Android signing and a Windows certificate; temporary keys are for branch CI only.
+
+## 0.2.2 full-stack release validation — 16 November 2026
+
+- **777 web tests across 119 files passed (`npm test`).** Coverage includes 12-bin chroma & Camelot musical key estimation (`dsp.ts`), harmonic 3-band EQ `MixGraph` + `MixAudio` handover (`bass` low-shelf + `1.4 kHz` peaking `mid` carve + `air` roll-off/rise), key-clash tightening and `outroStart` exit anchors (`mixPlanner.ts`), 100% local on-device Mood Engine (`mood.ts` bilingual EN/ES cues, behavioral dwell/replay/consecutive-skip momentum, personal local circadian prior and AutoPlay continuation), complete-only Daily Mixes (`7–20` tracks, max 3, day-locked `covers`), BS.1770 LUFS Fix Volume, Weekly/Monthly/Yearly Remix, YouTube search/import/offline handling and deep routes.
+- **Zero lint errors/warnings (`npm run lint`), clean formatting (`npm run format:check`), clean TypeScript + Vite production build (`npm run build`), `npm run release:check` (`v0.2.2` verified across Web, Android, Windows, i18n and release notes) and `npm run test:release` (15/15 passing).**
+- **Native Windows 11 & Android source parity and contract tests updated** (`Library.cs` atomic `.bak`/`.corrupt` recovery + `SafeFileUri` + Issue #14 in-place linking, `Collections.cs` `NativeMood` + `7–20`/day-locked Daily Mixes, `Listening.cs` 366-day Monthly/Yearly Remix, `Motion.cs`/`App.xaml`/`MainWindow` Bezier Shuffle + borderless `StickySectionDock`; `Library.kt` crash-proof JSON + batched `importFiles` + MediaStore `GENRE` + `SecurityException`-safe folders, `Contracts.kt` `7–20`/day-locked Daily Mixes + local Mood + Monthly/Yearly Remix, `Player.kt` `AssetFileDescriptor` check + AutoPlay hook, Compose Canvas `WaveShuffleIcon` + borderless sticky Home heading handoff). Native SDKs (`dotnet`, `gradle`/JDK) are absent from this sandbox; native CI builds and device passes run on the GitHub runners after push.
 
 ## 0.2.1 launch candidate — 6 November 2026
 
@@ -895,3 +919,28 @@ record and the certificate remain dashboard settings that only the maintainer ca
   word-start distinction, the artist-only match and the name ranking; `LibraryContractsTest` covers the
   Kotlin ladder and `rankNames`; the Windows ladder is the same expressions compiled by the native job.
 - Web: 639 tests in 100 files, TypeScript, eslint, Prettier and both production builds pass.
+
+## Playback, update notices and media follow-up
+
+- YouTube's embedded-player transport now clears the playing clock when paused and applies each seek only once; unit tests cover a quick pause/resume after a seek. Playback remains subject to YouTube embedding permissions and browser autoplay rules; no live-provider or real-device verification is implied.
+- Native update notices query GitHub, use stable numeric release tags and limit repeat prompts. Android requires a matching signing identity for in-place installation; Windows distribution remains portable, not an automatic installer. Native build and upgrade testing must be completed on devices before release.
+- The introduction film is a historical 0.2.0 recording.
+- The previous hosted Fix volume browser smoke test timed out. The browser suite must pass on the latest revision before release.
+
+## Playback, editor and distribution review
+
+- The web song editor groups the per-song Fix volume request with its other tools when global Fix volume is enabled. The request still depends on local audio and the analysis limits.
+- YouTube uses the official embed; an autoplay-blocked event offers a gesture-based retry in the expanded player, and error 153 gets an explanation. Browser restrictions, provider availability and embedding permissions remain outside Wave's control. This is covered by mocked message tests, not a live-provider test.
+- Native update checks remain advisory and rate-limited; Android package signature and Windows portable replacement constraints are documented. No automatic installer or device update was tested.
+- The introduction film remains available as historical product documentation.
+
+### Listening experience follow-up
+
+- The startup mark runs on every opening and remains over the library until loading is complete. Reduced-motion users see a still mark.
+- The break suggestion is available inside the expanded player as well as over the library. Section titles hand over when the incoming heading reaches the dock.
+- The collapse animation measures the compact player as its destination; resize, reduced motion, keyboard focus and different viewport sizes still require visual device review.
+
+### Native loading and sleep timer follow-up
+
+- Daily Mix preparation uses a single status card with reduced-motion support on web, Android and Windows.
+- Windows adds a session-only sleep timer with deadline/cancellation contract coverage. Android's timer now accounts for elapsed device sleep while the app state remains alive and displays the remaining time. Native builds and on-device background/suspend behavior must be checked separately.

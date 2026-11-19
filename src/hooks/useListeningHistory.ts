@@ -3,10 +3,13 @@ import {
   countsAsPlay,
   listeningSummary,
   makePlay,
+  monthlyRecaps,
   weeklyRecap,
   weeklyRecaps,
+  yearlyRecaps,
   type PlayEvent,
 } from '../domain/listening';
+import type { ListeningSignal } from '../domain/mood';
 import type { Track } from '../domain/types';
 import { clearPlays, getPlays, savePlay } from '../data/listening';
 
@@ -14,6 +17,8 @@ import { clearPlays, getPlays, savePlay } from '../data/listening';
 const SAMPLE_MS = 1_000;
 /** A jump bigger than this is a seek or a stall, not listening. */
 const MAX_STEP_SECONDS = 2.5;
+/** Dwell checkpoints that update the automatic listening mood without ticking every second. */
+const MOOD_DWELL_STAGES = [15, 30, 75];
 
 interface Session {
   trackId: string;
@@ -24,6 +29,8 @@ interface Session {
   /** Last position read from the player, so a seek does not count as listening. */
   last: number | null;
   completed: boolean;
+  /** Last dwell milestone already emitted to mood detection. */
+  moodStage: number;
 }
 
 /**
@@ -45,18 +52,24 @@ export function useListeningHistory({
   duration,
   readTime,
   tracks,
+  repeatSerial = 0,
 }: {
   track?: Track;
   playing: boolean;
   duration: number;
   readTime: () => number;
   tracks: Track[];
+  repeatSerial?: number;
 }) {
   const [plays, setPlays] = useState<PlayEvent[]>([]);
+  /** Short-term behavioral cues (active dwell milestones + quick skips) for live mood detection. */
+  const [liveSignals, setLiveSignals] = useState<ListeningSignal[]>([]);
   const [loaded, setLoaded] = useState(false);
   /** The summary is dated when the rows change, not on every render. */
   const [today, setToday] = useState(() => new Date().setHours(0, 0, 0, 0));
   const session = useRef<Session | null>(null);
+  const sessionSerial = useRef(repeatSerial);
+  const writes = useRef<Promise<void>>(Promise.resolve());
   const readTimeRef = useRef(readTime);
   useEffect(() => {
     readTimeRef.current = readTime;
@@ -83,44 +96,63 @@ export function useListeningHistory({
     };
   }, []);
 
-  /** Writes the session if it deserves a row, and forgets it either way. */
+  /** Writes the session if it deserves a row, and records behavioral dwell/skip mood cues. */
   const settle = useCallback((current: Session | null) => {
     if (!current) return;
+    const heard = Math.round(current.seconds);
+    if (heard >= 2) {
+      const cue: ListeningSignal = {
+        trackId: current.trackId,
+        seconds: heard,
+        duration: current.duration,
+        completed: current.completed,
+        at: current.startedAt,
+      };
+      setLiveSignals((existing) => [
+        ...existing.filter((item) => item.at !== cue.at || item.trackId !== cue.trackId).slice(-14),
+        cue,
+      ]);
+    }
     if (!countsAsPlay(current.seconds, current.duration)) return;
-    const play = makePlay(
-      current.trackId,
-      current.startedAt,
-      Math.round(current.seconds),
-      current.completed,
-    );
-    setPlays((existing) =>
-      existing.some((entry) => entry.id === play.id) ? existing : [...existing, play],
-    );
-    void savePlay(play).catch(() => undefined);
+    const play = makePlay(current.trackId, current.startedAt, heard, current.completed);
+    setPlays((existing) => [...existing.filter((entry) => entry.id !== play.id), play]);
+    writes.current = writes.current.then(() => savePlay(play)).catch(() => undefined);
   }, []);
 
-  // A new song, a pause or the end of the recording all close the session.
+  // A pause preserves this playback; resuming must not create another play.
   useEffect(() => {
     const previous = session.current;
-    if (previous && (!playing || previous.trackId !== track?.id)) settle(previous);
-    if (!playing || !track) {
+    const changed =
+      previous && (previous.trackId !== track?.id || sessionSerial.current !== repeatSerial);
+    if (changed) {
+      settle(previous);
       session.current = null;
+    }
+    sessionSerial.current = repeatSerial;
+    if (!track) return;
+    if (!playing) {
+      if (session.current) {
+        settle(session.current);
+        session.current.last = null;
+      }
       return;
     }
-    if (!previous || previous.trackId !== track.id) {
+    if (!session.current) {
       const initial = readTimeRef.current();
       session.current = {
         trackId: track.id,
-        startedAt: Date.now(),
+        startedAt: Math.max(Date.now(), (previous?.startedAt ?? 0) + 1),
         seconds: 0,
         duration: track.duration,
-        // Capture the starting position now, so the first second of real
-        // playback is counted. A seek is still rejected by the step bound.
         last: Number.isFinite(initial) && initial >= 0 ? initial : null,
         completed: false,
+        moodStage: 0,
       };
+    } else if (session.current.last === null) {
+      const initial = readTimeRef.current();
+      session.current.last = Number.isFinite(initial) && initial >= 0 ? initial : null;
     }
-  }, [playing, track, settle]);
+  }, [playing, track, repeatSerial, settle]);
 
   // Sampling stops when nothing is playing, so a paused tab costs nothing.
   useEffect(() => {
@@ -139,6 +171,26 @@ export function useListeningHistory({
       // that is what separates it from one that was skipped away.
       const length = current.duration || track.duration || 0;
       if (length > 0 && position >= length - 1) current.completed = true;
+
+      // Update live mood signal at deliberate dwell milestones (15s, 30s, 75s)
+      // so mood responds once the listener actually stays with a song.
+      const nextThreshold = MOOD_DWELL_STAGES[current.moodStage];
+      if (nextThreshold !== undefined && current.seconds >= nextThreshold) {
+        current.moodStage++;
+        const cue: ListeningSignal = {
+          trackId: current.trackId,
+          seconds: Math.round(current.seconds),
+          duration: length,
+          completed: current.completed,
+          at: current.startedAt,
+        };
+        setLiveSignals((existing) => [
+          ...existing
+            .filter((item) => item.at !== cue.at || item.trackId !== cue.trackId)
+            .slice(-14),
+          cue,
+        ]);
+      }
     }, SAMPLE_MS);
     return () => clearInterval(timer);
   }, [playing, track]);
@@ -146,6 +198,8 @@ export function useListeningHistory({
   const forget = useCallback(async () => {
     session.current = null;
     setPlays([]);
+    setLiveSignals([]);
+    await writes.current;
     await clearPlays().catch(() => undefined);
   }, []);
 
@@ -170,5 +224,42 @@ export function useListeningHistory({
     () => weeklyRecaps(plays, tracks, Math.max(today, 0), 52),
     [plays, tracks, today],
   );
-  return { plays, summary, recap, history, loaded, forget };
+  const monthlyHistory = useMemo(
+    () => monthlyRecaps(plays, tracks, Math.max(today, 0), 12),
+    [plays, tracks, today],
+  );
+  const yearlyHistory = useMemo(
+    () => yearlyRecaps(plays, tracks, Math.max(today, 0)),
+    [plays, tracks, today],
+  );
+  const moodSignals = useMemo<ListeningSignal[]>(() => {
+    const byId = new Map(tracks.map((item) => [item.id, item]));
+    // Keep up to 48 local persisted plays so the mood engine can learn personal
+    // circadian listening habits strictly on-device alongside live session dwell.
+    const recentPersisted = plays.slice(-48);
+    const persisted = recentPersisted.map((play, idx) => ({
+      trackId: play.trackId,
+      seconds: play.seconds,
+      duration: byId.get(play.trackId)?.duration,
+      completed: play.completed,
+      replayed: idx > 0 && recentPersisted[idx - 1].trackId === play.trackId,
+      at: play.at,
+    }));
+    const merged = new Map<string, ListeningSignal>();
+    for (const sig of [...persisted, ...liveSignals]) {
+      merged.set(`${sig.trackId}:${sig.at ?? 0}`, sig);
+    }
+    return [...merged.values()].sort((a, b) => (a.at ?? 0) - (b.at ?? 0)).slice(-48);
+  }, [plays, liveSignals, tracks]);
+  return {
+    plays,
+    summary,
+    recap,
+    history,
+    monthlyHistory,
+    yearlyHistory,
+    moodSignals,
+    loaded,
+    forget,
+  };
 }

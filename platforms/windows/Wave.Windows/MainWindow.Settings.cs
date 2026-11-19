@@ -25,6 +25,7 @@ public partial class MainWindow
     private void RenderSettings(string? section = null)
     {
         SettingsBody.Children.Clear();
+        sleepStatus = null;
         Motion.Slide(SettingsBody, Motion.Enabled(preferences.Animations), section == null ? -1 : 1);
         if (section == null) {
             var back = new Button { Style = (Style)FindResource("TextButton"), Foreground = (Brush)Application.Current.Resources["MutedBrush"], Margin = new Thickness(2, 4, 2, 14) };
@@ -57,10 +58,88 @@ public partial class MainWindow
         SettingsBody.Children.Add(backToAll);
         SettingsBody.Children.Add(Label(Localization.T(section), 26));
         void Toggle(string text, bool value, Action<bool> changed) {
-            var check = new CheckBox { Content = text, IsChecked = value };
-            check.Checked += (_, _) => { changed(true); preferencesDirty = true; SaveSession(); };
-            check.Unchecked += (_, _) => { changed(false); preferencesDirty = true; SaveSession(); };
-            SettingsBody.Children.Add(check);
+            bool state = value;
+            bool dragging = false;
+            bool moved = false;
+            double startX = 0;
+            double progress = state ? 1.0 : 0.0;
+            const double travel = 22.0;
+
+            var row = new Grid { Margin = new Thickness(2, 6, 2, 6), Cursor = System.Windows.Input.Cursors.Hand };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var caption = new TextBlock { Text = text, FontSize = 15, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap };
+            row.Children.Add(caption);
+
+            var thumbShift = new TranslateTransform(state ? travel : 0, 0);
+            var thumb = new Border {
+                Width = 22, Height = 22, CornerRadius = new CornerRadius(11),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Center,
+                RenderTransform = thumbShift,
+            };
+            var track = new Border {
+                Width = 54, Height = 32, CornerRadius = new CornerRadius(16),
+                Padding = new Thickness(5, 0, 5, 0),
+                BorderThickness = new Thickness(1.5),
+                Child = thumb,
+                Cursor = System.Windows.Input.Cursors.Hand,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(14, 0, 0, 0),
+                ToolTip = text,
+            };
+            System.Windows.Automation.AutomationProperties.SetName(track, text);
+
+            void Paint(double p) {
+                bool on = p >= 0.5;
+                track.Background = (Brush)Application.Current.Resources[on ? "AccentBrush" : "TonalBrush"];
+                track.BorderBrush = (Brush)Application.Current.Resources[on ? "AccentBrush" : "MutedBrush"];
+                thumb.Background = (Brush)Application.Current.Resources[on ? "OnAccentBrush" : "MutedBrush"];
+                thumbShift.X = Math.Clamp(p, 0, 1) * travel;
+            }
+            void Commit(bool next) {
+                if (next == state) { Paint(state ? 1.0 : 0.0); return; }
+                state = next;
+                progress = state ? 1.0 : 0.0;
+                Paint(progress);
+                changed(state);
+                preferencesDirty = true;
+                SaveSession();
+            }
+            Paint(progress);
+
+            track.MouseLeftButtonDown += (_, args) => {
+                dragging = true;
+                moved = false;
+                startX = args.GetPosition(track).X;
+                track.CaptureMouse();
+                args.Handled = true;
+            };
+            track.MouseMove += (_, args) => {
+                if (!dragging) return;
+                double delta = args.GetPosition(track).X - startX;
+                if (Math.Abs(delta) >= 3) moved = true;
+                if (!moved) return;
+                progress = Math.Clamp((state ? 1.0 : 0.0) + delta / travel, 0.0, 1.0);
+                Paint(progress);
+            };
+            track.MouseLeftButtonUp += (_, args) => {
+                if (!dragging) return;
+                dragging = false;
+                track.ReleaseMouseCapture();
+                Commit(moved ? progress >= 0.5 : !state);
+                moved = false;
+                args.Handled = true;
+            };
+            row.MouseLeftButtonUp += (_, args) => {
+                if (args.Handled) return;
+                Commit(!state);
+            };
+
+            Grid.SetColumn(track, 1);
+            row.Children.Add(track);
+            SettingsBody.Children.Add(row);
         }
         switch (section) {
             case "Appearance":
@@ -78,7 +157,15 @@ public partial class MainWindow
                 Toggle(Localization.T("Mix"), MixEnabled, value => { preferences = preferences with { Mix = value }; CancelFade(); PrepareNext(); });
                 SettingsBody.Children.Add(Label(Localization.T("Automatically choose a short overlap for each pair. Original audio files and pitch stay unchanged.")));
                 Toggle(Localization.T("Autoplay"), preferences.Autoplay, value => preferences = preferences with { Autoplay = value });
-                SettingsBody.Children.Add(Label(Localization.T("Continue with another song from your local library when the queue ends."))); break;
+                SettingsBody.Children.Add(Label(Localization.T("Continue with another song from your local library when the queue ends.")));
+                SettingsBody.Children.Add(Label(Localization.T("Sleep timer"), 17));
+                sleepStatus = Label(""); UpdateSleepStatus(); SettingsBody.Children.Add(sleepStatus);
+                var sleepButtons = new WrapPanel();
+                foreach (int minutes in new[] { 0, 15, 30, 60 }) {
+                    int choice = minutes;
+                    sleepButtons.Children.Add(ActionButton(choice == 0 ? Localization.T("Off") : $"{choice} min", () => SetSleepTimer(choice)));
+                }
+                SettingsBody.Children.Add(sleepButtons); break;
             case "Lyrics":
                 Toggle(Localization.T("Automatic lyrics"), preferences.OnlineLyrics, value => preferences = preferences with { OnlineLyrics = value });
                 SettingsBody.Children.Add(Label(Localization.T("Optional LRCLIB lookup sends song metadata and connection IP, never audio. Saved lyrics work offline. Manual search remains available in song options without starting playback."))); break;
@@ -86,14 +173,50 @@ public partial class MainWindow
                 Toggle(Localization.T("Enable library editing"), preferences.Editor, value => preferences = preferences with { Editor = value });
                 SettingsBody.Children.Add(Label(Localization.T("Edit titles, artists, albums and covers in song options. These changes never rewrite your original audio."))); break;
             case "Storage":
-                SettingsBody.Children.Add(Label(Localization.T("{count} original files in {folder}. Keep your originals; deleting this folder removes this library.", new Dictionary<string, string> { ["count"] = tracks.Count.ToString(), ["folder"] = repository.Folder })));
-                SettingsBody.Children.Add(ActionButton(Localization.T("Open local library folder"), () => Process.Start(new ProcessStartInfo(repository.Folder) { UseShellExecute = true }))); break;
+                int linkedCount = tracks.Count(s => s.Linked || !repository.IsManagedCopy(s, preferences));
+                int copiedCount = tracks.Count - linkedCount;
+                SettingsBody.Children.Add(Label(Localization.T("{linked} linked in place · {copied} copied in Wave storage.", new Dictionary<string, string> { ["linked"] = linkedCount.ToString(), ["copied"] = copiedCount.ToString() })));
+                Toggle(Localization.T("Copy imported files to storage folder"), preferences.CopyFilesToLibrary, value => { preferences = preferences with { CopyFilesToLibrary = value }; RenderSettings("Storage"); });
+                SettingsBody.Children.Add(Label(Localization.T("Off by default: Wave links files and folders where they live without duplicating them into AppData. Removing a linked song from Wave never deletes your original file.")));
+                string activeStorage = repository.ResolveAudioFolder(preferences);
+                SettingsBody.Children.Add(Label(Localization.T("Copy storage folder: {folder}", new Dictionary<string, string> { ["folder"] = activeStorage })));
+                var storageActions = new WrapPanel();
+                storageActions.Children.Add(ActionButton(Localization.T("Choose storage folder…"), () => {
+                    var picker = new OpenFolderDialog { Title = Localization.T("Choose a storage folder for copied audio"), Multiselect = false };
+                    if (picker.ShowDialog() == true) {
+                        preferences = preferences with { CustomAudioFolder = picker.FolderName };
+                        preferencesDirty = true; SaveSession(); RenderSettings("Storage");
+                    }
+                }));
+                if (!string.IsNullOrWhiteSpace(preferences.CustomAudioFolder))
+                    storageActions.Children.Add(ActionButton(Localization.T("Reset to default folder"), () => {
+                        preferences = preferences with { CustomAudioFolder = null };
+                        preferencesDirty = true; SaveSession(); RenderSettings("Storage");
+                    }));
+                storageActions.Children.Add(ActionButton(Localization.T("Open local library folder"), () => Process.Start(new ProcessStartInfo(repository.Folder) { UseShellExecute = true })));
+                SettingsBody.Children.Add(storageActions);
+                var watched = preferences.WatchedFolders ?? [];
+                if (watched.Count > 0) {
+                    SettingsBody.Children.Add(Label(Localization.T("Remembered music folders"), 17));
+                    foreach (var folderPath in watched.ToList()) {
+                        var folderRow = new WrapPanel { Margin = new Thickness(0, 2, 0, 2) };
+                        folderRow.Children.Add(Label(folderPath, 13));
+                        folderRow.Children.Add(ActionButton(Localization.T("Forget"), () => {
+                            var updated = (preferences.WatchedFolders ?? []).Where(f => !string.Equals(f, folderPath, StringComparison.OrdinalIgnoreCase)).ToList();
+                            preferences = preferences with { WatchedFolders = updated };
+                            preferencesDirty = true; SaveSession(); RenderSettings("Storage");
+                        }));
+                        SettingsBody.Children.Add(folderRow);
+                    }
+                    SettingsBody.Children.Add(ActionButton(Localization.T("Rescan folders"), () => _ = RescanWatchedFolders()));
+                }
+                break;
             case "About":
-                SettingsBody.Children.Add(Label("Wave 0.2.1", 23));
+                SettingsBody.Children.Add(Label("Wave 0.2.2", 23));
                 SettingsBody.Children.Add(Label(Localization.T("Your music. Your collection. No account required.")));
                 SettingsBody.Children.Add(ActionButton(Localization.T("Source code"), () => Process.Start(new ProcessStartInfo("https://github.com/jaime-gaming/Wave") { UseShellExecute = true })));
                 SettingsBody.Children.Add(ActionButton(Localization.T("Wave on the web · link devices"), () => Process.Start(new ProcessStartInfo("https://wave.jaime-gaming.com/Settings") { UseShellExecute = true })));
-                SettingsBody.Children.Add(ActionButton(Localization.T("Wave for Android · APK"), () => Process.Start(new ProcessStartInfo("https://github.com/jaime-gaming/Wave/releases/latest") { UseShellExecute = true })));
+                SettingsBody.Children.Add(ActionButton(Localization.T("Wave for Android"), () => Process.Start(new ProcessStartInfo("https://github.com/jaime-gaming/Wave/releases/latest") { UseShellExecute = true })));
                 SettingsBody.Children.Add(ActionButton(Localization.T("Privacy & rights"), () => Process.Start(new ProcessStartInfo("https://wave.jaime-gaming.com/privacy.html") { UseShellExecute = true })));
                 SettingsBody.Children.Add(Label(Localization.T("Use audio and lyrics you may lawfully access. See the repository privacy information."))); break;
         }
@@ -129,6 +252,10 @@ public partial class MainWindow
         fields.Children.Add(Label(Localization.T("Search sends title/artist to LRCLIB, not audio. Results are saved only when you choose Save.")));
         fields.Children.Add(search); fields.Children.Add(preview); fields.Children.Add(use);
         var actions = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Right };
+        actions.Children.Add(ActionButton(Localization.T("Remove from library"), () => {
+            RemoveFromLibrary(song);
+            window.Close();
+        }));
         actions.Children.Add(ActionButton(Localization.T("Cancel"), window.Close));
         actions.Children.Add(ActionButton(Localization.T("Save"), () => {
             try {

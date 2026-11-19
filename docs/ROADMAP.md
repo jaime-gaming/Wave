@@ -1,9 +1,8 @@
 # Wave Roadmap
 
-**Version: 0.2.0 · Release date: 3 November 2026.**
+**Version: 0.2.2 · Release date: 16 November 2026.**
 
-Wave 1.1 scope (device sync, YouTube links and playlist import) is specified in
-[SPEC_1.1](SPEC_1.1.md); its foundation is implemented but not user-facing yet.
+Wave 0.2.2 delivers studio-grade harmonic 3-band EQ Mix transitions, a 100% local on-device Mood Engine across Web/Windows/Android, complete-only Daily Mixes (7–20 tracks, max 3, day-locked covers), Weekly/Monthly/Yearly Remix recaps, BS.1770 LUFS Fix Volume, unified YouTube search & link import with offline awareness, Windows 11 in-place library linking (Issue #14) and crash-proof atomic storage, and full native Windows/Android UI & playback parity.
 
 ## Vision
 

@@ -195,6 +195,7 @@ class PlaybackService : Service() {
         // foreground updates its notification, so a paused song keeps the
         // controls it needs instead of a second, differently-posted copy.
         startForegroundNow()
+        WaveWidgetProvider.refresh(this)
     }
 
     private fun build(): Notification {

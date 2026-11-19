@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { Check } from './Glyphs';
+import { MaterialSwitch } from './MaterialSwitch';
 import { useWaveMotion } from '../ui/motion';
 import { useT } from '../i18n';
 export function VolumeSettings({
@@ -9,39 +9,45 @@ export function VolumeSettings({
 }: {
   enabled: boolean;
   onChange: (enabled: boolean) => void;
-  status: { supported: boolean; working: boolean; ready: number; total: number; skipped: number };
+  status: {
+    supported: boolean;
+    working: boolean;
+    ready: number;
+    adjusted?: number;
+    untouched?: number;
+    total: number;
+    skipped: number;
+  };
 }) {
-  const t = useT(),
-    animation = useWaveMotion();
+  const t = useT();
+  const animation = useWaveMotion();
   return (
     <section className="volume-settings" aria-label={t('Volume balancing')}>
       <div className="settings-switch-row">
         <div>
           <strong>{t('Fix volume')}</strong>
+          <p className="settings-switch-hint">
+            {t(
+              'Gently raises quiet recordings to a balanced listening level while leaving loud tracks untouched.',
+            )}
+          </p>
         </div>
-        <button
-          type="button"
-          className="material-switch"
-          role="switch"
-          aria-label={t('Fix volume')}
-          aria-checked={enabled}
+        <MaterialSwitch
+          label={t('Fix volume')}
+          checked={enabled}
           title={t(
             'Applies to local songs, including future imports. Turn it off to hear original levels.',
           )}
           disabled={!status.supported && !enabled}
-          onClick={() => onChange(!enabled)}
-        >
-          <motion.span layout transition={animation.fast}>
-            {enabled && <Check size={15} />}
-          </motion.span>
-        </button>
+          onChange={onChange}
+        />
       </div>
       {!status.supported ? (
         <p role="status">{t('Volume balancing is not available in this browser.')}</p>
       ) : (
         enabled && (
           <div
-            className={`volume-settings-status${!status.working && !status.skipped ? ' sr-only' : ''}`}
+            className={`volume-settings-status${!status.working && !status.skipped && !status.total ? ' sr-only' : ''}`}
             role="status"
             aria-live="polite"
           >

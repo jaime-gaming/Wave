@@ -5,6 +5,7 @@ import { useWaveMotion } from '../ui/motion';
 import { useDevices, readPairingLink } from '../hooks/useDevices';
 import { QrScanner } from './QrScanner';
 import { borrowedName } from '../sync/fileName';
+import { getLoanedAudio } from '../sync/store';
 import type { Track } from '../domain/types';
 
 import { useT } from '../i18n';
@@ -71,7 +72,6 @@ export function DevicesPage({
   // what happened, and goes away by itself. Before this, the button either
   // worked in silence or did nothing at all.
   const keepLoan = async (loanId: string, title: string | undefined) => {
-    const { getLoanedAudio } = await import('../sync/store');
     const blob = await getLoanedAudio(loanId);
     if (!blob) {
       setLoaned({ text: t('That copy is no longer on this device.'), failed: true });

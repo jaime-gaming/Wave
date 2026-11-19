@@ -59,31 +59,63 @@ class LibraryContractsTest {
     }
 
     @Test
-    fun dailyMixesGroupByTagAndSkipThinGroups() {
-        val songs = listOf(
-            song("1", genre = "Electronic"),
-            song("2", genre = "Electronic"),
-            song("3", genre = "Electronic"),
-            song("4", genre = "Jazz"),
-            song("5", genre = "Jazz"),
-            song("6", genre = "Jazz"),
-            song("7", genre = "Rock"),
-            song("8", genre = "Rock"),
-        )
+    fun dailyMixesRequireSevenTracksCapAtThreeAndLockCoversForTheDay() {
+        val songs = (1..8).map { song("e$it", genre = "Electronic", artist = "Artist ${it % 4}", album = "Alb $it") } +
+            (1..7).map { song("j$it", genre = "Jazz", artist = "Jazz ${it % 4}", album = "JAlb $it") } +
+            (1..6).map { song("r$it", genre = "Rock", artist = "Rock ${it % 3}", album = "RAlb $it") }
         val mixes = dailyMixes(songs, "2026-10-29")
         assertEquals(setOf("Electronic", "Jazz"), mixes.map { it.label }.toSet())
-        assertTrue(mixes.all { it.songs.size >= 3 })
+        assertTrue(mixes.size <= MAX_DAILY_MIXES)
+        assertTrue(mixes.all { it.songs.size in MIN_DAILY_MIX_TRACKS..MAX_DAILY_MIX_TRACKS })
+        assertTrue(mixes.all { it.covers.isNotEmpty() && it.covers.size <= 3 })
+        val again = dailyMixes(songs, "2026-10-29")
+        assertEquals(mixes[0].covers.map { it.id }, again[0].covers.map { it.id })
     }
 
     @Test
     fun aMixRotatesWithTheDayAndStaysPutWithinIt() {
-        val songs = (1..5).map { song("$it", genre = "Electronic") }
+        val songs = (1..10).map { song("$it", genre = "Electronic", artist = "Artist ${it % 5}") }
         val monday = dailyMixes(songs, "2026-10-27")[0].songs.map { it.id }
         val again = dailyMixes(songs, "2026-10-27")[0].songs.map { it.id }
         val tuesday = dailyMixes(songs, "2026-10-28")[0].songs.map { it.id }
         assertEquals(monday, again)
         assertEquals(monday.toSet(), tuesday.toSet())
         assertTrue("the first song changes overnight", monday != tuesday)
+    }
+
+    @Test
+    fun localMoodEngineDetectsMoodAndGuidesAutoplay() {
+        val chill = song("c1", title = "Lluvia Suave", genre = "Ambient", artist = "A1")
+        val chill2 = song("c2", title = "Calma de Noche", genre = "Lo-Fi", artist = "A2")
+        val intense = song("h1", title = "Tormenta de Fuego", genre = "Metal", artist = "A3")
+        val now = 1_800_000_000_000L
+        val session = inferListeningMood(
+            listOf(chill, chill2, intense),
+            listOf(
+                MoodSignal("c1", 210, 210.0, true, now - 10_000),
+                MoodSignal("h1", 5, 210.0, false, now - 2_000),
+            ),
+            chill,
+            now,
+        )
+        assertTrue(session.energy < 0.45)
+        val picked = pickAutoplayNext(listOf(chill, chill2, intense), chill, emptyList(), listOf(MoodSignal("c1", 210, 210.0, true, now - 5_000)), draw = 0.05)
+        assertEquals("c2", picked?.id)
+    }
+
+    @Test
+    fun monthlyAndYearlyRecapsAggregateFullHistory() {
+        val a = song("a", artist = "One", genre = "Indie")
+        val now = java.util.Calendar.getInstance().apply {
+            set(2026, java.util.Calendar.OCTOBER, 29, 20, 0, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }.timeInMillis
+        val plays = listOf(Play("a", now - 3_600_000L, 180, true))
+        val month = monthlyRecap(plays, listOf(a), now)
+        val year = yearlyRecap(plays, listOf(a), now)
+        assertEquals(180, month.seconds)
+        assertEquals(180, year.seconds)
+        assertEquals("2026", yearRange(year.start))
     }
 
     @Test

@@ -50,7 +50,7 @@ export function LyricsEditor({
     setSearching(true);
     setCandidate(undefined);
     setSearchMessage(
-      extendedLyricsEnabled() ? 'Looking for word-by-word lyrics…' : t('Searching LRCLIB…'),
+      extendedLyricsEnabled() ? t('Looking for word-by-word lyrics…') : t('Looking for lyrics…'),
     );
     try {
       const result = await lookupLyrics(track, controller.signal);
@@ -108,8 +108,8 @@ export function LyricsEditor({
         <p className="modal-description">
           {track.title} · {track.artist}
           <br />
-          Import LRC timestamps like [00:12.500], or paste plain text. Your audio file stays
-          unchanged. No automatic online lookup is performed.
+          Paste timed lyrics or plain text. Your audio file stays unchanged, and nothing is looked
+          up online unless you ask.
         </p>
         <section className="editor-lookup" aria-label={t('Find lyrics')}>
           <p>

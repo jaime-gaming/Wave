@@ -1,6 +1,6 @@
 # Wave Development Guide
 
-**Candidate: 0.2.1 · Prepared 6 November 2026. Released baseline: 0.2.0.**
+**Development target: 0.2.2 · Updated 16 November 2026.**
 
 ## Requirements
 
@@ -290,13 +290,17 @@ Run `release-010.spec.ts` for offline daily genre groups and native queue cohere
 
 ## Merge-time publication
 
-The current candidate is **0.2.1**; publication is not authorized by preparation alone. Follow [RELEASE_READINESS_0.2.1](RELEASE_READINESS_0.2.1.md) and use the reviewed [release notes](RELEASE_NOTES_0.2.1.md). Confirm the publication date before tagging.
+The current development target is **0.2.2**; preparation does not authorize publication. Review [release notes](RELEASE_NOTES_0.2.2.md), native CI, signing and real-device results before tagging. The 0.2.1 readiness document is historical.
 
 1. Run metadata/packaging checks, format, lint, unit tests, production build and **`npm run test:smoke`**. Checks and Release assets both require smoke success; the broader historical browser suite remains diagnostic, not an assertion that every old test is green.
 2. Require the latest native CI, review captures and complete explicit headphone/device/security sign-off. A successful native build does not establish live-provider availability or full web/native parity.
-3. Merge only after approval, retain the branch as a recovery reference and tag the actual reviewed `main` commit as `v0.2.1`. Never move an existing tag to retry a failed upload.
-4. Only on explicit launch authorization, publish the notes or dispatch Release assets against that exact tag. The workflow validates main ancestry and attaches native **test APK / unsigned Windows ZIP** assets and checksums, never a web ZIP or a promo film. Retry packaging with the same tag; do not silently relabel artifacts as signed production installers.
+3. Merge only after approval, retain the branch as a recovery reference and tag the actual reviewed `main` commit as `v0.2.2`. Never move an existing tag to retry a failed upload.
+4. Only on explicit launch authorization, publish the notes or dispatch Release assets against that exact tag. The workflow validates main ancestry and attaches `Wave.apk` and `Wave.exe`, never a web ZIP or a promo film. Review the signing identity and the SHA-256 values in the CI summary before publication. Retry packaging with the same tag.
 5. Verify the website separately through Cloudflare Workers. `npm run deploy:check` is a dry run, not a deployment; release publication does not prove hosting updated. `dist` is ignored build output, `docs` holds documentation/images, and neither is a GitHub Pages mirror. Preserve existing repository visibility and signing/security settings.
+
+## Native download links
+
+The web app starts downloads through `/api/download/windows` and `/api/download/android`. The Worker reads the latest public GitHub Release, briefly caches public release metadata, validates the repository and known asset names, and redirects the browser to the asset. It supports the older 0.2.1 test filenames and the planned 0.2.2 filenames. No release is created by the link. Until the new release is actually published, the Windows ZIP is unsigned and the Android APK is debug-signed; do not represent them as trusted production builds. The production site must deploy the Worker as well as the web client for these paths to work.
 
 ## Documentation images
 
@@ -313,7 +317,7 @@ The `Checks` job photographs the built site on every push and commits what it sa
 
 The native pictures are captured by the builds themselves, which is the only honest way to photograph a native app from a machine with no device:
 
-- `Wave.Windows.exe --smoke-test <folder>` renders the real window on a temporary library and writes a PNG per page. The `Native builds` job runs it and copies `artifacts/windows-ui/*.png` into `docs/media/windows-*.png`.
+- `Wave.exe --smoke-test <folder>` renders the real window on a temporary library and writes a PNG per page. The `Native builds` job runs it and copies `artifacts/windows-ui/*.png` into `docs/media/windows-*.png`.
 - `gradle -p platforms/android testDebugUnitTest -Dwave.screenshots=app/build/wave-screenshots` runs `ScreenshotTest`, which renders the real `WaveApp` on the Robolectric graphics stack from a seeded library. Without the flag the tests are skipped, so an ordinary run stays quick. The same job copies them into `docs/media/android-*.png`.
 
 On successful branch pushes, both jobs publish through `scripts/publish-native-screenshots.sh`: an exact-SHA checkout pushes an explicit branch ref, while stale native sources/conflicting newer captures are kept in run artifacts instead of overwriting current images. Neither is a mock-up and neither is retouched: what a reader sees is what the build drew. They are a layout record, not a substitute for a device pass.
@@ -327,3 +331,16 @@ The film is ten scenes recorded in one take each: the collection, a daily mix, a
 See [promo production](media/PROMO_PRODUCTION.md) for the approved storyboard, reproducible capture/composition commands, sample provenance and validation procedure. Keep raw recordings, piano samples, tool binaries and temporary renders under ignored `.cache/`. The film is rendered by the `Promo film` workflow, which records the built app on a runner and commits the result; the same commands run on a machine with the tooling below. No script posts to social media.
 
 Windows release signing and security-scan limitations are in `WINDOWS_RELEASE.md`. Never store signing keys in the repository, create protection exclusions or mislabel an unsigned artifact.
+
+### Product films and release updates
+
+The introduction film is linked from the README; see
+[film production](media/PROMO_PRODUCTION.md) for sources, limitations and reproduction.
+
+Android and Windows check GitHub releases at most once per day and ask before opening the release page.
+They do not silently install executables. Android can replace the installed app only when the package ID,
+signing certificate and version code are compatible. On Windows, close Wave and replace the files in the
+existing installation folder; the library lives separately. The Windows executable is portable rather
+than an installer, and test-only or unsigned packages are not production updates. A persistent Android
+release signing key is essential; reinstalling with a different signature can require uninstalling first
+and may lose local data. Back up the library before changing distribution channels.

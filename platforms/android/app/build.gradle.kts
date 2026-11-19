@@ -2,7 +2,27 @@ plugins { id("com.android.application"); id("org.jetbrains.kotlin.android"); id(
 android {
     namespace = "io.github.jaimegaming.wave"
     compileSdk = 36
-    defaultConfig { applicationId = "io.github.jaimegaming.wave"; minSdk = 26; targetSdk = 36; versionCode = 5; versionName = "0.2.1" }
+    defaultConfig { applicationId = "io.github.jaimegaming.wave"; minSdk = 26; targetSdk = 36; versionCode = 6; versionName = "0.2.2" }
+    signingConfigs {
+        create("release") {
+            val keystorePath = System.getenv("WAVE_ANDROID_KEYSTORE")
+            if (!keystorePath.isNullOrBlank()) {
+                storeFile = file(keystorePath)
+                storePassword = System.getenv("WAVE_ANDROID_KEYSTORE_PASSWORD") ?: ""
+                keyAlias = System.getenv("WAVE_ANDROID_KEY_ALIAS") ?: "wave"
+                keyPassword = System.getenv("WAVE_ANDROID_KEY_PASSWORD") ?: storePassword
+            }
+        }
+    }
+    buildTypes {
+        getByName("release") {
+            isMinifyEnabled = false
+            val releaseSigning = signingConfigs.getByName("release")
+            if (releaseSigning.storeFile != null) {
+                signingConfig = releaseSigning
+            }
+        }
+    }
     buildFeatures { compose = true }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     testOptions { unitTests.isIncludeAndroidResources = true }

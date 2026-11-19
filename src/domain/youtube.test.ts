@@ -21,6 +21,8 @@ describe('YouTube links', () => {
       `https://www.youtube.com/shorts/${ID}`,
       `https://www.youtube.com/embed/${ID}`,
       `https://www.youtube.com/live/${ID}`,
+      `https://www.youtube.com/attribution_link?a=abc&u=%2Fwatch%3Fv%3D${ID}%26feature%3Dshare`,
+      `Check out this song! https://youtu.be/${ID}?si=12345`,
       ID,
     ])
       expect(parseYouTubeLink(link)).toMatchObject({ kind: 'video', videoId: ID });

@@ -1,4 +1,5 @@
 import { lookupMetadata } from '../domain/lyricsMatch';
+import { searchableTitle } from '../domain/searchText';
 /**
  * Extra lyric providers, for word-by-word timings.
  *
@@ -49,9 +50,18 @@ interface Context {
   fetcher?: typeof fetch;
   signal?: AbortSignal;
   timeoutMs?: number;
+  /** Override whether same-origin `/api/word-lyrics` is attempted before direct endpoints. */
+  useWorker?: boolean;
 }
 
 const isOnline = () => typeof navigator === 'undefined' || navigator.onLine !== false;
+
+function canUseWordWorker(context: Context): boolean {
+  if (typeof context.useWorker === 'boolean') return context.useWorker;
+  if (context.fetcher) return false;
+  if (typeof window === 'undefined') return false;
+  return window.location.protocol === 'http:' || window.location.protocol === 'https:';
+}
 
 export function extendedLyricsEnabled(): boolean {
   try {
@@ -102,7 +112,94 @@ async function getJson(url: string, context: Context): Promise<unknown> {
   }
 }
 
-const query = (title: string, artist: string) => `${title} ${artist}`.trim();
+const query = (title: string, artist: string) =>
+  `${searchableTitle(title) || title} ${artist}`.trim();
+
+/** Same-origin Worker word-level lyric endpoint (avoids browser CORS blocks). */
+async function fromWorker(
+  track: { title: string; artist: string; duration: number; fileName?: string },
+  context: Context,
+): Promise<WordLyrics | undefined> {
+  if (!canUseWordWorker(context) || context.signal?.aborted) return undefined;
+  const fetcher = context.fetcher ?? (typeof fetch === 'function' ? fetch : undefined);
+  if (!fetcher) return undefined;
+  const meta = lookupMetadata(track);
+  const cleanTitle = searchableTitle(meta.title) || meta.title;
+  const controller = new AbortController();
+  const timer = setTimeout(
+    () => controller.abort(),
+    Math.max(3_800, context.timeoutMs ?? PROVIDER_TIMEOUT_MS),
+  );
+  const onAbort = () => controller.abort();
+  context.signal?.addEventListener('abort', onAbort, { once: true });
+  try {
+    const res = await fetcher('/api/word-lyrics', {
+      method: 'POST',
+      signal: controller.signal,
+      headers: { 'content-type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ title: cleanTitle, artist: meta.artist, duration: track.duration }),
+    });
+    if (!res.ok) return undefined;
+    const payload = (await res.json().catch(() => null)) as {
+      results?: {
+        provider?: WordProviderId;
+        id?: string;
+        title?: string;
+        artist?: string;
+        duration?: number;
+        yrc?: string;
+        krc?: string;
+      }[];
+    } | null;
+    const items = payload?.results ?? [];
+    if (!items.length) return undefined;
+    const ranked = rankProviderSongs(
+      items.map((item, idx) => ({
+        id: item.id || String(idx),
+        title: item.title || cleanTitle,
+        artist: item.artist || meta.artist,
+        duration: item.duration || 0,
+      })),
+      { ...track, ...meta },
+    );
+    const byId = new Map(items.map((item, idx) => [item.id || String(idx), item]));
+    for (const candidate of ranked) {
+      const item = byId.get(candidate.id);
+      if (!item) continue;
+      if (item.provider === 'netease' && item.yrc) {
+        const wordLines = parseYrc(item.yrc);
+        if (hasWordTimings(wordLines) && wordTimelinePlausible(wordLines, track.duration)) {
+          return {
+            provider: 'netease',
+            lines: wordLines,
+            offsetMs: headerOffsetMs(item.yrc),
+            providerId: item.id,
+            wordLevel: true,
+          };
+        }
+      }
+      if (item.provider === 'kugou' && item.krc) {
+        const decoded = (await decodeKrc(item.krc)) || item.krc;
+        const lines = parseKrc(decoded);
+        if (hasWordTimings(lines) && wordTimelinePlausible(lines, track.duration)) {
+          return {
+            provider: 'kugou',
+            lines,
+            offsetMs: headerOffsetMs(decoded),
+            providerId: item.id,
+            wordLevel: true,
+          };
+        }
+      }
+    }
+    return undefined;
+  } catch {
+    return undefined;
+  } finally {
+    clearTimeout(timer);
+    context.signal?.removeEventListener('abort', onAbort);
+  }
+}
 
 /** NetEase: search, then fetch the lyric with both formats requested. */
 async function fromNetEase(
@@ -192,12 +289,26 @@ export async function fetchWordLyrics(
   // the entire outer lookup deadline. Cancellation also settles uncooperative fetches.
   const timer = setTimeout(abort, 7000);
   try {
-    for (const provider of [fromNetEase, fromKugou]) {
-      if (controller.signal.aborted) return undefined;
-      const result = await provider(track, { ...context, signal: controller.signal });
-      if (result?.wordLevel && !controller.signal.aborted) return result;
+    // 1. Try same-origin server endpoint first (avoids browser CORS blocks).
+    const workerHit = await fromWorker(track, { ...context, signal: controller.signal });
+    if (workerHit?.wordLevel && !controller.signal.aborted) return workerHit;
+    if (controller.signal.aborted) return undefined;
+
+    // 2. Fallback to direct provider queries (sequential when injected fetcher tests order, parallel otherwise).
+    if (context.fetcher) {
+      for (const provider of [fromNetEase, fromKugou]) {
+        if (controller.signal.aborted) return undefined;
+        const result = await provider(track, { ...context, signal: controller.signal });
+        if (result?.wordLevel && !controller.signal.aborted) return result;
+      }
+      return undefined;
     }
-    return undefined;
+    const attempts = [fromNetEase, fromKugou].map(async (provider) => {
+      const result = await provider(track, { ...context, signal: controller.signal });
+      if (!result?.wordLevel) throw new Error('miss');
+      return result;
+    });
+    return await Promise.any(attempts).catch(() => undefined);
   } finally {
     clearTimeout(timer);
     context.signal?.removeEventListener('abort', abort);

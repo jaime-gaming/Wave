@@ -1,6 +1,6 @@
 # Wave product film
 
-The current deliverable is [`wave-promo.mp4`](wave-promo.mp4): a 60-second, horizontal 1920×1080 film
+The introduction film is [`wave-promo.mp4`](wave-promo.mp4): a 60-second, horizontal 1920×1080 film
 at 30 fps for **Wave 0.2.0**, with English captions, a light and minimal presentation, real interface
 recordings and an instrumental acoustic-piano score.
 
@@ -9,6 +9,8 @@ disposable demo library, writes the score from the same recorded piano samples a
 from those recordings. Every frame is therefore of the code that produced it, and a reviewer can
 compare the film with the commit rather than take it on trust. The workflow is documentation, not a
 release gate.
+
+The introduction film is historical: its on-screen 0.2.0 label describes that version, not the latest release.
 
 ## Storyboard
 

@@ -18,8 +18,9 @@ export interface YouTubePlaylist {
 export type YouTubeLink = YouTubeVideo | YouTubePlaylist;
 
 export const YOUTUBE_VIDEO_ID = /^[A-Za-z0-9_-]{11}$/u;
-export const YOUTUBE_PLAYLIST_ID = /^[A-Za-z0-9_-]{10,64}$/u;
+export const YOUTUBE_PLAYLIST_ID = /^(?:LL|WL|[A-Za-z0-9_-]{10,64})$/u;
 export const YOUTUBE_EMBED_HOST = 'https://www.youtube-nocookie.com';
+export const YOUTUBE_FALLBACK_EMBED_HOST = 'https://www.youtube.com';
 
 const HOSTS = new Set([
   'youtube.com',
@@ -48,6 +49,18 @@ function fromUrl(url: URL): YouTubeLink | null {
   const host = url.hostname.toLowerCase();
   if (!HOSTS.has(host)) return null;
   const segments = url.pathname.split('/').filter(Boolean);
+  // Google/Android share attribution links wrap the real path inside `?u=/watch%3Fv%3D...`
+  if (segments[0] === 'attribution_link') {
+    const nested = url.searchParams.get('u');
+    if (nested) {
+      try {
+        return fromUrl(new URL(nested, 'https://www.youtube.com'));
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
   if (host.endsWith('youtu.be')) {
     const candidate = segments[0] ?? '';
     if (!YOUTUBE_VIDEO_ID.test(candidate)) return null;
@@ -63,10 +76,16 @@ function fromUrl(url: URL): YouTubeLink | null {
     const list = url.searchParams.get('list') ?? '';
     return YOUTUBE_PLAYLIST_ID.test(list) ? { kind: 'playlist', playlistId: list } : null;
   }
-  if (['shorts', 'embed', 'live', 'v'].includes(segments[0] ?? '')) {
+  if (['shorts', 'embed', 'live', 'v', 'e'].includes(segments[0] ?? '')) {
     const candidate = segments[1] ?? '';
+    const list = url.searchParams.get('list');
     return YOUTUBE_VIDEO_ID.test(candidate)
-      ? { kind: 'video', videoId: candidate, ...startAt(url) }
+      ? {
+          kind: 'video',
+          videoId: candidate,
+          ...(list && YOUTUBE_PLAYLIST_ID.test(list) ? { playlistId: list } : {}),
+          ...startAt(url),
+        }
       : null;
   }
   const video = url.searchParams.get('v') ?? '';
@@ -79,6 +98,11 @@ function fromUrl(url: URL): YouTubeLink | null {
       ...startAt(url),
     };
   }
+  // music.youtube.com or watch URLs carrying only a playlist parameter
+  const listOnly = url.searchParams.get('list') ?? '';
+  if (listOnly && YOUTUBE_PLAYLIST_ID.test(listOnly)) {
+    return { kind: 'playlist', playlistId: listOnly };
+  }
   return null;
 }
 
@@ -88,20 +112,29 @@ function startAt(url: URL): { startAt?: number } {
 }
 
 /**
- * Accepts watch/youtu.be/shorts/embed/live/music URLs, `youtube.com/playlist`
- * links, and a bare 11-character video ID. Anything else returns null instead of
+ * Accepts watch/youtu.be/shorts/embed/live/music/attribution URLs,
+ * `youtube.com/playlist` links, share text containing a YouTube URL,
+ * and a bare 11-character video ID. Anything else returns null instead of
  * guessing, so the interface can explain the problem.
  */
 export function parseYouTubeLink(input: string): YouTubeLink | null {
   const text = input.trim();
   if (!text) return null;
   if (YOUTUBE_VIDEO_ID.test(text)) return { kind: 'video', videoId: text };
+  // Extract embedded URL when pasted from mobile share sheets (e.g. "Song https://youtu.be/...")
+  const embeddedUrl =
+    /\bhttps?:\/\/[^\s<>"]+|\b(?:www\.|m\.|music\.)?(?:youtube\.com|youtu\.be|youtube-nocookie\.com)\/[^\s<>"]+/iu.exec(
+      text,
+    )?.[0];
+  const candidate = embeddedUrl ?? text;
   let url: URL;
   try {
-    url = new URL(/^[a-z]+:\/\//iu.test(text) ? text : `https://${text}`);
+    url = new URL(/^[a-z]+:\/\//iu.test(candidate) ? candidate : `https://${candidate}`);
   } catch {
     return null;
   }
+  // Reject URLs containing userinfo (e.g. `https://www.youtube.com@evil.example/...`)
+  if (url.username || url.password) return null;
   return fromUrl(url);
 }
 
@@ -127,6 +160,8 @@ export interface EmbedOptions {
   mute?: boolean;
   /** Disables the player's own keyboard shortcuts so Wave keeps focus handling. */
   disableKeyboard?: boolean;
+  /** Embed host override; defaults to `YOUTUBE_EMBED_HOST`. */
+  host?: string;
 }
 
 /** Player URL for the privacy-enhanced `youtube-nocookie.com` embed. */
@@ -136,6 +171,7 @@ export function youtubeEmbedUrl(videoId: string, options: EmbedOptions = {}): st
     rel: '0',
     playsinline: '1',
     enablejsapi: '1',
+    widgetid: '1',
   });
   if (options.startAt && options.startAt > 0)
     params.set('start', String(Math.floor(options.startAt)));
@@ -153,7 +189,9 @@ export function youtubeEmbedUrl(videoId: string, options: EmbedOptions = {}): st
   params.set('fs', '0');
   params.set('cc_load_policy', '0');
   if (options.origin && isSafeOrigin(options.origin)) params.set('origin', options.origin);
-  return `${YOUTUBE_EMBED_HOST}/embed/${videoId}?${params.toString()}`;
+  const baseHost =
+    options.host === YOUTUBE_FALLBACK_EMBED_HOST ? YOUTUBE_FALLBACK_EMBED_HOST : YOUTUBE_EMBED_HOST;
+  return `${baseHost}/embed/${videoId}?${params.toString()}`;
 }
 
 /** Only http(s) page origins are forwarded to the player. */
@@ -283,6 +321,8 @@ export function embedErrorMessage(code: number): string {
   if (code === 101 || code === 150)
     return 'The owner does not allow this video to play outside YouTube. Open it on YouTube to listen.';
   if (code === 100) return 'This video is private or no longer available.';
+  if (code === 153)
+    return 'YouTube could not identify this player. Open the video on YouTube to listen.';
   if (code === 2)
     return 'YouTube rejected the player request. Open the video on YouTube to listen.';
   return 'YouTube could not play this video here. Open it on YouTube to listen.';

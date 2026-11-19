@@ -1,6 +1,13 @@
 using Wave.Windows;
 using System.Text.Json;
 void Check(bool condition, string name) { if (!condition) throw new Exception(name); Console.WriteLine("PASS " + name); }
+var sleep = new SleepTimer();
+var sleepStart = new DateTimeOffset(2026, 11, 16, 12, 0, 0, TimeSpan.Zero);
+sleep.Set(15, sleepStart);
+Check(sleep.RemainingMinutes(sleepStart.AddMinutes(14)) == 1 && !sleep.Expired(sleepStart.AddMinutes(14)), "sleep timer uses elapsed time");
+Check(sleep.Expired(sleepStart.AddMinutes(16)), "sleep timer expires after sleep or a delayed tick");
+sleep.Cancel();
+Check(!sleep.Expired(sleepStart.AddHours(2)), "cancelled sleep timer stays off");
 var a = new Song("a", "First", "Artist", "Album", "a.wav", "a.wav");
 var b = a with { Id = "b", Title = "Second" };
 Check(NativeCollections.Resolve(new[] { "b", "missing", "b", "a" }, new[] { a, b }).Select(s => s.Id).SequenceEqual(new[] { "b", "a" }), "ordered playlist snapshot excludes missing/duplicate IDs");
@@ -23,9 +30,48 @@ try {
     Check(NativeCollections.Load<List<NativePlaylist>>(folder, "playlists.json")![0].TrackIds.Count == 2, "playlist snapshot round trip");
 } finally { if (Directory.Exists(folder)) Directory.Delete(folder, true); }
 
-var tagged = Enumerable.Range(0, 4).Select(i => a with { Id = i.ToString(), Genre = "Rock" }).ToList();
-Check(NativeCollections.DailyMixes(tagged, new DateOnly(2026, 10, 16)).Single().Label == "Rock", "daily mix uses actual genre tags");
+var tooSmall = Enumerable.Range(0, 6).Select(i => a with { Id = $"small-{i}", Genre = "Rock" }).ToList();
+Check(NativeCollections.DailyMixes(tooSmall, new DateOnly(2026, 10, 16)).Count == 0, "daily mixes require at least seven songs");
+var tagged = Enumerable.Range(0, 8).Select(i => a with { Id = i.ToString(), Genre = "Rock", Artwork = $"art-{i % 4}.png" }).ToList();
+var rockMix = NativeCollections.DailyMixes(tagged, new DateOnly(2026, 10, 16)).Single();
+Check(rockMix.Label == "Rock" && rockMix.Songs.Count == 8, "daily mix uses actual genre tags");
+Check(rockMix.Covers != null && rockMix.Covers.Count == 3 && rockMix.Covers.Select(c => c.Artwork).Distinct().Count() == 3, "daily mix locks distinct covers for the calendar day");
 Check(NativeCollections.DailyMixes(tagged.Select(s => s with { Genre = null, Artist = "---" }), new DateOnly(2026, 10, 16)).Count == 0, "unknown styles are not fabricated");
+
+// A listener's folder cover is used without changing the original music.
+var artFolder = Path.Combine(Path.GetTempPath(), "wave-art-" + Guid.NewGuid());
+try {
+    Directory.CreateDirectory(artFolder);
+    var cover = Path.Combine(artFolder, "cover.jpg");
+    File.WriteAllBytes(cover, new byte[] { 0xff, 0xd8, 0xff, 0xd9 });
+    Check(Library.FindFolderArtwork(Path.Combine(artFolder, "song.mp3")) == cover, "folder cover lookup preserves the original file");
+} finally { if (Directory.Exists(artFolder)) Directory.Delete(artFolder, true); }
+
+// Safe file URI and corrupt-JSON recovery from rolling .bak backup.
+Check(Library.SafeFileUri(Path.Combine(Path.GetTempPath(), "Track #1 [100%].mp3")).AbsoluteUri.Contains("%231"), "file URIs preserve # and % safely");
+var recoveryFolder = Path.Combine(Path.GetTempPath(), "wave-recover-" + Guid.NewGuid());
+try {
+    NativeCollections.Save(recoveryFolder, "session.json", new ListeningSession(new() { "a" }, "a", 4.0));
+    NativeCollections.Save(recoveryFolder, "session.json", new ListeningSession(new() { "a", "b" }, "b", 9.5));
+    File.WriteAllText(Path.Combine(recoveryFolder, "session.json"), "{corrupt-truncated");
+    var recovered = NativeCollections.Load<ListeningSession>(recoveryFolder, "session.json");
+    Check(recovered != null && recovered.CurrentId == "a", "corrupted storage recovers cleanly from rolling backup");
+} finally { if (Directory.Exists(recoveryFolder)) Directory.Delete(recoveryFolder, true); }
+
+// 100% local NativeMood engine & Autoplay selection.
+var ambientSong = a with { Id = "amb", Title = "Midnight Ocean Rain", Genre = "Ambient", Artist = "Soft One" };
+var technoSong = a with { Id = "tec", Title = "Turbo Rave Fire", Genre = "Techno", Artist = "Loud Two" };
+var ambientVec = NativeMood.AnalyzeSong(ambientSong);
+var technoVec = NativeMood.AnalyzeSong(technoSong);
+Check(technoVec.Energy > ambientVec.Energy + 0.4, "local mood engine distinguishes calm and energetic music");
+var moodSession = NativeMood.InferSession(
+    new[] { ambientSong, technoSong },
+    new[] {
+        new NativeMoodSignal("amb", 190, 200, true, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - 30_000),
+        new NativeMoodSignal("tec", 4, 200, false, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - 5_000),
+    },
+    ambientSong);
+Check(moodSession.Energy < 0.45, "local mood engine anchors full listens and repels quick skips");
 
 var retryNow = new DateTime(2026, 10, 17, 12, 0, 0, DateTimeKind.Utc);
 Check(LyricsClient.RetryDeadline(retryNow, new System.Net.Http.Headers.RetryConditionHeaderValue(TimeSpan.FromSeconds(2))) == retryNow.AddSeconds(2), "short lyric Retry-After does not impose a minute");
@@ -86,3 +132,8 @@ Localization.Init("system");
 var crowdedMixes = Enumerable.Range(0, 5).SelectMany(g => Enumerable.Range(0, 35).Select(i => a with { Id = $"mix-{g}-{i}", Genre = $"Style {g}" }));
 var boundedMixes = NativeCollections.DailyMixes(crowdedMixes, new DateOnly(2026, 11, 6));
 Check(boundedMixes.Count == 3 && boundedMixes.All(mix => mix.Songs.Count == 20), "daily mixes are capped at three lists and twenty songs");
+
+// Monthly & Yearly Remix recaps.
+var monthly = Listening.MonthlyRecap(weekPlays, new List<Song> { a, b }, weekNow);
+var yearly = Listening.YearlyRecap(weekPlays, new List<Song> { a, b }, weekNow);
+Check(monthly.Plays >= week.Plays && yearly.Plays >= monthly.Plays && yearly.Seconds == 820, "monthly and yearly Remix recaps aggregate plays cleanly");

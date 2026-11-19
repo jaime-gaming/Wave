@@ -1,0 +1,15 @@
+
+> wave@0.2.2 capture:docs
+> node --experimental-strip-types scripts/capture-docs.ts
+
+docs/media/home-desktop.png
+docs/media/remix-desktop.png
+docs/media/remix-details-desktop.png
+docs/media/daily-mix-desktop.png
+docs/media/now-playing-desktop.png
+docs/media/immersive-desktop.png
+docs/media/volume-fix-desktop.png
+docs/media/home-mobile.png
+docs/media/remix-mobile.png
+docs/media/feedback-desktop.png
+Documentation images written to docs/media/.

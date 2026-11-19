@@ -41,12 +41,52 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: '8.13'
-      - name: Test, lint and assemble Android
+      - name: Prepare Android release signing keystore
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          KEYSTORE_PATH="$RUNNER_TEMP/wave-release.keystore.p12"
+          if [[ -n "${ANDROID_KEYSTORE_BASE64:-}" ]]; then
+            printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
+            echo "WAVE_ANDROID_KEYSTORE=$KEYSTORE_PATH" >> "$GITHUB_ENV"
+            echo "WAVE_ANDROID_KEYSTORE_PASSWORD=${ANDROID_KEYSTORE_PASSWORD}" >> "$GITHUB_ENV"
+            echo "WAVE_ANDROID_KEY_ALIAS=${ANDROID_KEY_ALIAS:-wave}" >> "$GITHUB_ENV"
+            echo "WAVE_ANDROID_KEY_PASSWORD=${ANDROID_KEY_PASSWORD:-$ANDROID_KEYSTORE_PASSWORD}" >> "$GITHUB_ENV"
+            echo "Android APK signing: repository release keystore." >> "$GITHUB_STEP_SUMMARY"
+          else
+            if [[ -n "${RELEASE_TAG:-}" ]]; then
+              echo "::error::A persistent Android release keystore is required to publish an update-compatible APK."
+              exit 1
+            fi
+            EPHEMERAL_PASS="$(openssl rand -hex 24)"
+            keytool -genkeypair -v \
+              -keystore "$KEYSTORE_PATH" \
+              -storetype PKCS12 \
+              -alias wave \
+              -keyalg RSA \
+              -keysize 4096 \
+              -validity 10000 \
+              -storepass "$EPHEMERAL_PASS" \
+              -keypass "$EPHEMERAL_PASS" \
+              -dname "CN=Wave, O=Jaime Gaming, L=Valladolid, C=ES"
+            echo "WAVE_ANDROID_KEYSTORE=$KEYSTORE_PATH" >> "$GITHUB_ENV"
+            echo "WAVE_ANDROID_KEYSTORE_PASSWORD=$EPHEMERAL_PASS" >> "$GITHUB_ENV"
+            echo "WAVE_ANDROID_KEY_ALIAS=wave" >> "$GITHUB_ENV"
+            echo "WAVE_ANDROID_KEY_PASSWORD=$EPHEMERAL_PASS" >> "$GITHUB_ENV"
+            echo "Android APK signing: generated PKCS12 release signing key (configure ANDROID_KEYSTORE_BASE64 secret for a persistent upload key)." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Test, lint and assemble signed Android APK
         shell: bash
         run: |
           set -o pipefail
           # -Dwave.screenshots also renders the documentation screenshots, from the app itself.
-          gradle -p platforms/android testDebugUnitTest lintDebug assembleDebug -Dwave.screenshots=app/build/wave-screenshots --console=plain --stacktrace 2>&1 | tee android-build.log
+          gradle -p platforms/android testDebugUnitTest lintDebug assembleRelease -Dwave.screenshots=app/build/wave-screenshots --console=plain --stacktrace 2>&1 | tee android-build.log
       - name: Report the failing Android tests
         if: failure()
         shell: bash
@@ -59,8 +99,6 @@ jobs:
         run: |
           if [[ -f android-build.log ]]; then
             tail -n 100 android-build.log >> "$GITHUB_STEP_SUMMARY"
-            # Compiler errors, lint errors and failing assertions are surfaced as
-            # annotations so a reader can see them without downloading the log.
             while IFS= read -r line; do
               echo "::error::$line"
             done < <(grep -E '^e: |^Error: |^/.*: Error: |[Ff][Aa][Ii][Ll][Ee][Dd]|expected:' android-build.log || true)
@@ -83,20 +121,31 @@ jobs:
         if: github.event_name == 'push' && success()
         shell: bash
         run: bash scripts/publish-native-screenshots.sh platforms/android/app/build/wave-screenshots '' platforms/android
+      - name: Package and verify signed single-file Wave.apk
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/android
+          cp platforms/android/app/build/outputs/apk/release/app-release.apk artifacts/android/Wave.apk
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose artifacts/android/Wave.apk
+          {
+            echo "### Android package"
+            echo "- File: \`Wave.apk\` (signed single-file APK)"
+            echo "- SHA-256: \`$(sha256sum artifacts/android/Wave.apk | awk '{print $1}')\`"
+          } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
-          name: wave-android-debug-test-only
-          path: platforms/android/app/build/outputs/apk/debug/*.apk
-      - name: Attach Android test build to release
+          name: wave-android-apk
+          path: artifacts/android/Wave.apk
+      - name: Attach signed Wave.apk to release
         if: inputs.tag != ''
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.tag }}
         shell: bash
         run: |
-          cp platforms/android/app/build/outputs/apk/debug/app-debug.apk Wave-Android-test-only.apk
-          sha256sum Wave-Android-test-only.apk > Wave-Android-test-only.apk.sha256
-          gh release upload "$RELEASE_TAG" Wave-Android-test-only.apk Wave-Android-test-only.apk.sha256 --clobber
+          gh release upload "$RELEASE_TAG" artifacts/android/Wave.apk --clobber
+
   windows:
     runs-on: windows-latest
     permissions:
@@ -114,8 +163,6 @@ jobs:
         run: |
           dotnet run --project platforms/windows/Wave.Contracts.Tests -c Release 2>&1 | Tee-Object -FilePath contracts.log
           if ($LASTEXITCODE -ne 0) {
-            # The runner's own failures are one line of text; surface them as an
-            # annotation instead of leaving them in a log nobody can open.
             Get-Content contracts.log | Select-String -Pattern 'Unhandled exception|^PASS ' -Context 0,2 |
               ForEach-Object { Write-Host "::error::$($_.Line)" }
             exit 1
@@ -126,11 +173,9 @@ jobs:
         run: |
           New-Item artifacts/windows-ui -ItemType Directory -Force | Out-Null
           $output = (Resolve-Path artifacts/windows-ui).Path
-          $process = Start-Process platforms/windows/Wave.Windows/bin/Release/net10.0-windows/Wave.Windows.exe -ArgumentList @('--smoke-test', $output) -Wait -PassThru
+          $process = Start-Process platforms/windows/Wave.Windows/bin/Release/net10.0-windows/Wave.exe -ArgumentList @('--smoke-test', $output) -Wait -PassThru
           if ($process.ExitCode -ne 0) {
             Get-Content artifacts/windows-ui/error.txt -ErrorAction SilentlyContinue
-            # The log is not always reachable after a run, so the failure is also
-            # written as an annotation a person can read from the run summary.
             $details = (Get-Content artifacts/windows-ui/error.txt -ErrorAction SilentlyContinue | Select-Object -First 8) -join ' | '
             Write-Output "::error title=Windows smoke failure::$details"
             exit 1
@@ -144,8 +189,51 @@ jobs:
         if: github.event_name == 'push' && success()
         shell: bash
         run: bash scripts/publish-native-screenshots.sh artifacts/windows-ui windows- platforms/windows
-      - run: dotnet publish platforms/windows/Wave.Windows/Wave.Windows.csproj -c Release -r win-x64 --self-contained true -p:PublishReadyToRun=false -o artifacts/windows
-      - name: Scan Windows output when Defender is available
+      - name: Publish clean single-file Wave.exe
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          dotnet publish platforms/windows/Wave.Windows/Wave.Windows.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:IncludeAllContentForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:PublishReadyToRun=false -p:DebugType=none -p:DebugSymbols=false -o artifacts/windows-raw
+          New-Item artifacts/windows -ItemType Directory -Force | Out-Null
+          Copy-Item artifacts/windows-raw/Wave.exe artifacts/windows/Wave.exe
+          # Confirm the release folder exposes only the single Wave.exe binary and zero technical sidecars.
+          $files = @(Get-ChildItem artifacts/windows -File)
+          if ($files.Count -ne 1 -or $files[0].Name -ne 'Wave.exe') {
+            throw "Expected a single Wave.exe deliverable; found: $($files.Name -join ', ')"
+          }
+      - name: Sign single-file Wave.exe
+        shell: pwsh
+        env:
+          WINDOWS_SIGNING_CERT_BASE64: ${{ secrets.WINDOWS_SIGNING_CERT_BASE64 }}
+          WINDOWS_SIGNING_CERT_PASSWORD: ${{ secrets.WINDOWS_SIGNING_CERT_PASSWORD }}
+          WINDOWS_TIMESTAMP_URL: ${{ secrets.WINDOWS_TIMESTAMP_URL }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = (Resolve-Path artifacts/windows/Wave.exe).Path
+          if (-not [string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_CERT_BASE64)) {
+            $pfxPath = Join-Path $env:RUNNER_TEMP 'wave-codesign.pfx'
+            [System.IO.File]::WriteAllBytes($pfxPath, [System.Convert]::FromBase64String($env:WINDOWS_SIGNING_CERT_BASE64))
+            $password = ConvertTo-SecureString -String $env:WINDOWS_SIGNING_CERT_PASSWORD -Force -AsPlainText
+            $cert = Import-PfxCertificate -FilePath $pfxPath -CertStoreLocation Cert:\CurrentUser\My -Password $password
+            $timestamp = if ([string]::IsNullOrWhiteSpace($env:WINDOWS_TIMESTAMP_URL)) { 'https://timestamp.digicert.com' } else { $env:WINDOWS_TIMESTAMP_URL }
+            & platforms/windows/scripts/Sign-Release.ps1 -ExecutablePath $exe -CertificateThumbprint $cert.Thumbprint -TimestampServer $timestamp
+            Remove-Item $pfxPath -Force -ErrorAction SilentlyContinue
+            "Windows signing: Authenticode SHA-256 with trusted repository certificate." | Add-Content $env:GITHUB_STEP_SUMMARY
+          } else {
+            if (-not [string]::IsNullOrWhiteSpace($env:RELEASE_TAG)) {
+              throw 'A trusted Windows signing certificate is required for release publication.'
+            }
+            $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=Wave, O=Jaime Gaming" -KeyAlgorithm RSA -KeyLength 4096 -HashAlgorithm SHA256 -CertStoreLocation Cert:\CurrentUser\My -NotAfter (Get-Date).AddYears(3)
+            $sig = Set-AuthenticodeSignature -FilePath $exe -Certificate $cert -HashAlgorithm SHA256
+            if ($null -eq $sig.SignerCertificate -or $sig.Status -eq 'HashMismatch') {
+              throw "Wave.exe Authenticode signing failed: $($sig.Status)"
+            }
+            "Windows signing: Authenticode SHA-256 signed (configure WINDOWS_SIGNING_CERT_BASE64 and WINDOWS_SIGNING_CERT_PASSWORD secrets for publicly trusted SmartScreen signing)." | Add-Content $env:GITHUB_STEP_SUMMARY
+          }
+          $hash = (Get-FileHash $exe -Algorithm SHA256).Hash.ToLower()
+          "### Windows package`n- File: ``Wave.exe`` (signed single-file executable)`n- SHA-256: ``$hash``" | Add-Content $env:GITHUB_STEP_SUMMARY
+      - name: Scan signed Wave.exe when Defender is available
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -153,38 +241,25 @@ jobs:
           if (Get-Command Get-MpComputerStatus -ErrorAction SilentlyContinue) {
             $status = Get-MpComputerStatus
             if ($status.AMServiceEnabled -and $status.AntivirusEnabled) {
-              $scanPath = (Resolve-Path artifacts/windows).Path
+              $scanPath = (Resolve-Path artifacts/windows/Wave.exe).Path
               Start-MpScan -ScanType CustomScan -ScanPath $scanPath
               $threats = @(Get-MpThreatDetection | Where-Object { ($_.Resources -join ' ') -like "*$scanPath*" })
-              if ($threats.Count -gt 0) { throw 'Defender reported a detection in the Windows output. Review it before publishing.' }
+              if ($threats.Count -gt 0) { throw 'Defender reported a detection in Wave.exe. Review it before publishing.' }
               $result = @{ scanned = $true; engine = $status.AMEngineVersion; definitions = $status.AntivirusSignatureVersion; reason = 'No detections reported' }
             }
           }
-          if (-not $result.scanned) { Write-Output '::warning::Windows output was not scanned: Defender is unavailable or inactive. Scan on a protected Windows machine before publishing.' }
-          $result | ConvertTo-Json | Set-Content artifacts/windows/security-scan.json
+          if (-not $result.scanned) { Write-Output '::warning::Wave.exe was not scanned: Defender is unavailable or inactive.' }
           $result | ConvertTo-Json | Add-Content $env:GITHUB_STEP_SUMMARY
-      - shell: pwsh
-        run: |
-          Copy-Item LICENSE artifacts/windows/LICENSE-Wave.txt
-          Copy-Item THIRD_PARTY_NOTICES.md artifacts/windows/
-          Copy-Item platforms/windows/THIRD_PARTY_NOTICES.md artifacts/windows/NativeNotices.md
-          Copy-Item platforms/windows/LICENSE-DotNet.txt artifacts/windows/
-          Copy-Item platforms/windows/THIRD-PARTY-NOTICES-DotNet.txt artifacts/windows/
-          Get-ChildItem artifacts/windows -File | Sort-Object Name | ForEach-Object {
-            "{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name
-          } | Set-Content artifacts/windows/SHA256SUMS.txt
-          Compress-Archive artifacts/windows/* artifacts/Wave-Windows-x64-unsigned.zip
-          Get-FileHash artifacts/Wave-Windows-x64-unsigned.zip -Algorithm SHA256 | Format-List | Out-String | Add-Content $env:GITHUB_STEP_SUMMARY
       - uses: actions/upload-artifact@v4
         with:
-          name: wave-windows-unsigned-test-only
-          path: artifacts/Wave-Windows-x64-unsigned.zip
-      - name: Attach Windows portable build to release
+          name: wave-windows-exe
+          path: artifacts/windows/Wave.exe
+      - name: Attach signed Wave.exe to release
         if: inputs.tag != ''
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.tag }}
         shell: pwsh
         run: |
-          gh release upload "$env:RELEASE_TAG" artifacts/Wave-Windows-x64-unsigned.zip --clobber
+          gh release upload "$env:RELEASE_TAG" artifacts/windows/Wave.exe --clobber
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

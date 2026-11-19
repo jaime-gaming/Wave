@@ -7,21 +7,36 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -32,10 +47,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import io.github.jaimegaming.wave.Song
+import io.github.jaimegaming.wave.Updates
 
 /**
  * The shell: one screen at a time, a bar that stays, and a nav that never covers
@@ -49,6 +69,18 @@ fun WaveApp(version: String, opening: Opening = Opening.Default) {
     val context = LocalContext.current
     val state = rememberWaveState(context)
     val player = state.player
+    val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
+    var availableUpdate by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(version) { availableUpdate = Updates.check(context, version) }
+    availableUpdate?.let { release ->
+        AlertDialog(
+            onDismissRequest = { availableUpdate = null },
+            title = { Text(Loc.t("Wave update available")) },
+            text = { Text(Loc.t("A newer version ({version}) is available. Download the matching signed APK and install it over Wave to keep your library.").replace("{version}", release)) },
+            confirmButton = { TextButton(onClick = { availableUpdate = null; uriHandler.openUri("https://github.com/jaime-gaming/Wave/releases/latest") }) { Text(Loc.t("View release")) } },
+            dismissButton = { TextButton(onClick = { availableUpdate = null }) { Text(Loc.t("Later")) } },
+        )
+    }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         state.importMusic(uris)
     }
@@ -96,6 +128,12 @@ fun WaveApp(version: String, opening: Opening = Opening.Default) {
         onDispose { state.dispose() }
     }
     val currentSong = player.current?.let { playing -> state.songs.find { it.id == playing.id } ?: playing }
+    // Keep the screen awake while Wave is open in the foreground and playing music.
+    val hostView = LocalView.current
+    DisposableEffect(hostView, player.playing, currentSong?.id) {
+        hostView.keepScreenOn = player.playing && currentSong != null
+        onDispose { hostView.keepScreenOn = false }
+    }
     LaunchedEffect(currentSong?.id, state.onlineLyrics) {
         currentSong?.let { state.maybeLookupLyrics(it) }
     }
@@ -110,18 +148,34 @@ fun WaveApp(version: String, opening: Opening = Opening.Default) {
         state.destination = settingsReturn
     }
 
+    val screenWidthDp = LocalConfiguration.current.screenWidthDp
+    val wideLayout = screenWidthDp >= 600
+
     Box(Modifier.fillMaxSize()) {
-        if (state.nowPlayingOpen && currentSong != null) {
-            Box(Modifier.windowInsetsPadding(WindowInsets.safeDrawing)) {
-                NowPlayingScreen(
-                    song = currentSong,
-                    state = state,
-                    onCollapse = { state.nowPlayingOpen = false },
-                    onEdit = { state.editing = currentSong },
-                )
+        Row(
+            Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
+        ) {
+            if (wideLayout) {
+                Box(
+                    Modifier
+                        .fillMaxHeight()
+                        .windowInsetsPadding(
+                            WindowInsets.safeDrawing.only(
+                                WindowInsetsSides.Start + WindowInsetsSides.Vertical,
+                            ),
+                        ),
+                    contentAlignment = Alignment.TopCenter,
+                ) {
+                    WaveNavigationRail(state.destination) { item ->
+                        state.destination = item
+                        state.open = null
+                    }
+                }
             }
-        } else {
             Scaffold(
+                modifier = Modifier.weight(1f),
                 containerColor = MaterialTheme.colorScheme.background,
                 contentWindowInsets = WindowInsets.safeDrawing,
                 bottomBar = {
@@ -140,39 +194,88 @@ fun WaveApp(version: String, opening: Opening = Opening.Default) {
                                 onQueue = { state.queueOpen = true },
                             )
                         }
-                        WaveNavigation(state.destination) { item ->
-                            state.destination = item
-                            state.open = null
+                        if (!wideLayout) {
+                            WaveNavigation(state.destination) { item ->
+                                state.destination = item
+                                state.open = null
+                            }
                         }
                     }
                 },
             ) { padding ->
-                Column(Modifier.padding(padding)) {
-                    Notice(state.notice) { state.clearMessage() }
-                    val playSong: (Song) -> Unit = { song -> state.play(song) }
-                    val motionEnabled = waveMotionEnabled()
-                    CompositionLocalProvider(LocalChromeActions provides ChromeActions(addMusic, openSettings)) {
-                        AnimatedContent(
-                            targetState = state.destination,
-                            transitionSpec = {
-                                val enabled = motionEnabled
-                                val direction = if (targetState.ordinal >= initialState.ordinal) 1 else -1
-                                (fadeIn(tween(if (enabled) 200 else 0)) +
-                                    slideInHorizontally(tween(if (enabled) 260 else 0)) { if (enabled) direction * 18 else 0 }) togetherWith
-                                    (fadeOut(tween(if (enabled) 140 else 0)) +
-                                        slideOutHorizontally(tween(if (enabled) 180 else 0)) { if (enabled) -direction * 12 else 0 })
-                            },
-                            label = "page",
-                        ) { destination ->
-                            when (destination) {
-                                Destination.Home -> HomeScreen(state, addMusic, playSong)
-                                Destination.Search -> SearchScreen(state, playSong)
-                                Destination.Library -> LibraryScreen(state, addMusic, playSong)
-                                Destination.Remix -> RemixScreen(state)
-                                Destination.Settings -> SettingsScreen(state, version, addMusic) { state.destination = settingsReturn }
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentAlignment = Alignment.TopCenter,
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .widthIn(max = 1160.dp),
+                    ) {
+                        Notice(state.notice) { state.clearMessage() }
+                        val playSong: (Song) -> Unit = { song -> state.play(song) }
+                        val motionEnabled = waveMotionEnabled()
+                        CompositionLocalProvider(LocalChromeActions provides ChromeActions(addMusic, openSettings)) {
+                            AnimatedContent(
+                                targetState = state.destination,
+                                transitionSpec = {
+                                    val enabled = motionEnabled
+                                    val direction = if (targetState.ordinal >= initialState.ordinal) 1 else -1
+                                    (fadeIn(tween(if (enabled) 200 else 0)) +
+                                        slideInHorizontally(tween(if (enabled) 260 else 0)) { if (enabled) direction * 18 else 0 }) togetherWith
+                                        (fadeOut(tween(if (enabled) 140 else 0)) +
+                                            slideOutHorizontally(tween(if (enabled) 180 else 0)) { if (enabled) -direction * 12 else 0 })
+                                },
+                                label = "page",
+                            ) { destination ->
+                                when (destination) {
+                                    Destination.Home -> HomeScreen(state, addMusic, playSong)
+                                    Destination.Search -> SearchScreen(state, playSong)
+                                    Destination.Library -> LibraryScreen(state, addMusic, playSong)
+                                    Destination.Remix -> RemixScreen(state)
+                                    Destination.Settings -> SettingsScreen(state, version, addMusic) { state.destination = settingsReturn }
+                                }
                             }
                         }
                     }
+                }
+            }
+        }
+        val motionOn = waveMotionEnabled()
+        AnimatedVisibility(
+            visible = state.nowPlayingOpen && currentSong != null,
+            enter = slideInVertically(
+                animationSpec = tween(if (motionOn) 300 else 0, easing = FastOutSlowInEasing),
+                initialOffsetY = { (it * 0.28f).toInt() },
+            ) + scaleIn(
+                animationSpec = tween(if (motionOn) 300 else 0, easing = FastOutSlowInEasing),
+                initialScale = 0.92f,
+                transformOrigin = TransformOrigin(0.5f, 0.96f),
+            ) + fadeIn(tween(if (motionOn) 220 else 0)),
+            exit = slideOutVertically(
+                animationSpec = tween(if (motionOn) 250 else 0, easing = FastOutSlowInEasing),
+                targetOffsetY = { (it * 0.34f).toInt() },
+            ) + scaleOut(
+                animationSpec = tween(if (motionOn) 250 else 0, easing = FastOutSlowInEasing),
+                targetScale = 0.88f,
+                transformOrigin = TransformOrigin(0.5f, 0.96f),
+            ) + fadeOut(tween(if (motionOn) 200 else 0)),
+        ) {
+            currentSong?.let { activeSong ->
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background)
+                        .windowInsetsPadding(WindowInsets.safeDrawing),
+                ) {
+                    NowPlayingScreen(
+                        song = activeSong,
+                        state = state,
+                        onCollapse = { state.nowPlayingOpen = false },
+                        onEdit = { state.editing = activeSong },
+                    )
                 }
             }
         }

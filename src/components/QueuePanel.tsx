@@ -13,6 +13,8 @@ import {
 import { Artwork } from './Artwork';
 import { EmptyState } from './EmptyState';
 import { formatTime, type Track } from '../domain/types';
+import { isYouTubeTrack } from '../domain/youtubeTrack';
+import { useOnline } from '../ui/network';
 import type { usePlayer } from '../hooks/usePlayer';
 import { useWaveMotion } from '../ui/motion';
 import { moveId } from '../domain/order';
@@ -35,6 +37,8 @@ function QueueRow({
   const controls = useDragControls(),
     animation = useWaveMotion(),
     t = useT(),
+    online = useOnline(),
+    offlineTrack = !online && isYouTubeTrack(track),
     current = track.id === player.current?.id;
   return (
     <Reorder.Item
@@ -43,8 +47,9 @@ function QueueRow({
       dragControls={controls}
       layout={animation.enabled ? 'position' : undefined}
       transition={animation.fast}
-      className={`queue-entry ${current ? 'current' : ''}`}
+      className={`queue-entry ${current ? 'current' : ''}${offlineTrack ? ' is-offline-track' : ''}`}
       aria-current={current ? 'true' : undefined}
+      aria-disabled={offlineTrack || undefined}
       data-past={index < player.state.index}
       data-track-id={track.id}
     >
@@ -65,8 +70,15 @@ function QueueRow({
       )}
       <button
         className="queue-entry__play"
-        onClick={() => player.dispatch({ type: 'jump', id: track.id })}
-        aria-label={t('Play {title} from queue', { title: track.title })}
+        disabled={offlineTrack}
+        onClick={() => {
+          if (!offlineTrack) player.dispatch({ type: 'jump', id: track.id });
+        }}
+        aria-label={
+          offlineTrack
+            ? t('{title} requires an internet connection', { title: track.title })
+            : t('Play {title} from queue', { title: track.title })
+        }
       >
         {!editing && (
           <span className="queue-entry__number" aria-hidden="true">
@@ -83,7 +95,10 @@ function QueueRow({
         )}
         <Artwork track={track} />
         <span className="queue-entry__info">
-          <strong>{track.title}</strong>
+          <strong>
+            {track.title}
+            {offlineTrack && <span className="offline-track-pill">{t('Offline')}</span>}
+          </strong>
           <span>{track.artist}</span>
         </span>
         {!editing && <span className="queue-entry__time">{formatTime(track.duration)}</span>}

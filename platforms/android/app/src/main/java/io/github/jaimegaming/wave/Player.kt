@@ -117,19 +117,25 @@ class Player(private val context: Context) {
         handler.post(pulse)
     }
 
+    /** Optional local mood-aware Autoplay supplier invoked when the queue ends. */
+    var onQueueEnded: (() -> Song?)? = null
+
     private fun step() {
         val player = active ?: return
         if (!prepared || !playing) return
-        val position = player.currentPosition / 1000.0
+        val currentMs = runCatching { player.currentPosition }.getOrNull() ?: return
+        val position = currentMs / 1000.0
         if (shouldPublishTime(time, position, outgoing != null)) time = position
         val tail = outgoing
         if (tail != null) {
             val progress = (time / fadeLength).coerceIn(0.0, 1.0)
             val gains = handoverGains(progress)
-            tail.setVolume(gains.first * outputGain, gains.first * outputGain)
-            player.setVolume(gains.second * outputGain, gains.second * outputGain)
+            runCatching {
+                tail.setVolume(gains.first * outputGain, gains.first * outputGain)
+                player.setVolume(gains.second * outputGain, gains.second * outputGain)
+            }
             if (progress >= 1) {
-                tail.release()
+                runCatching { tail.release() }
                 outgoing = null
                 prepareNext()
                 changed()
@@ -137,16 +143,18 @@ class Player(private val context: Context) {
             return
         }
         if (crossfade > 0 && spareReady && index + 1 < queue.size) {
-            val remaining = (player.duration - player.currentPosition) / 1000.0
+            val totalMs = runCatching { player.duration }.getOrNull() ?: return
+            val remaining = (totalMs - currentMs) / 1000.0
             val next = spare ?: return
+            val nextMs = runCatching { next.duration }.getOrNull() ?: return
             // The same window the web client chooses for this pair, never longer
             // than what is left of the song that is leaving.
             val window = minOf(
                 crossfade,
-                automaticBlendSeconds(player.duration / 1000.0, next.duration / 1000.0),
+                automaticBlendSeconds(totalMs / 1000.0, nextMs / 1000.0),
             )
             if (remaining <= 0 || remaining > window) return
-            fadeLength = minOf(window, remaining, next.duration / 2000.0)
+            fadeLength = minOf(window, remaining, nextMs / 2000.0)
             if (fadeLength <= .1) return
             outgoing = player
             active = next
@@ -155,7 +163,7 @@ class Player(private val context: Context) {
             index++
             current = queue.getOrNull(index)
             playbackSerial++
-            duration = next.duration / 1000.0
+            duration = nextMs / 1000.0
             next.setVolume(0f, 0f)
             next.start()
             changed()
@@ -297,10 +305,16 @@ class Player(private val context: Context) {
         if (following != null) {
             play(queue, following)
         } else {
-            cancelFade()
-            active?.pause()
-            playing = false
-            changed()
+            val auto = onQueueEnded?.invoke()
+            if (auto != null && isPlayable(auto)) {
+                val extended = queue.filterNot { it.id == auto.id } + auto
+                play(extended, auto)
+            } else {
+                cancelFade()
+                active?.pause()
+                playing = false
+                changed()
+            }
         }
     }
 
@@ -363,9 +377,15 @@ class Player(private val context: Context) {
         changed()
     }
 
-    /** True when the file behind a song can still be opened. */
+    /** True when the file or content URI behind a song can still be opened. */
     fun isPlayable(song: Song): Boolean =
-        if (song.path.startsWith("content://")) true else File(song.path).exists()
+        if (song.path.startsWith("content://")) {
+            runCatching {
+                context.contentResolver.openAssetFileDescriptor(Uri.parse(song.path), "r")?.use { true } ?: false
+            }.getOrDefault(false)
+        } else {
+            File(song.path).exists()
+        }
 
     fun dispose() {
         handler.removeCallbacks(pulse)

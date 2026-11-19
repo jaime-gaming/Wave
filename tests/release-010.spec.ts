@@ -93,14 +93,14 @@ test('Home shows three local genre mixes after collection, with coherent native 
   await page.goto('/');
   await page.getByLabel('Import audio files').setInputFiles(
     ['Rock', 'Jazz', 'Electronic'].flatMap((genre, g) =>
-      Array.from({ length: 3 }, (_, i) => ({
+      Array.from({ length: 7 }, (_, i) => ({
         name: `${genre}${i}.wav`,
         mimeType: 'audio/wav',
         buffer: wav(`${genre} ${i}`, 90, 8000, 16, `Artist ${g}`, `${genre} album`, genre),
       })),
     ),
   );
-  await expect(page.getByRole('status')).toContainText('9 tracks added');
+  await expect(page.getByRole('status')).toContainText('21 tracks added');
   await expect(page.locator('.daily-mix-card')).toHaveCount(3);
   await expect(page.locator('.home-content > section').nth(0)).toHaveAttribute(
     'aria-label',

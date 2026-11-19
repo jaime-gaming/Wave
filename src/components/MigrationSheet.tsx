@@ -199,7 +199,7 @@ export function MigrationSheet({
           </div>
           <p className="migration-hint">
             {t(
-              'Reading a URL sends that link to the Wave Worker and its provider for public metadata only. No audio or library is uploaded. Private lists need an export.',
+              'Reading a playlist link fetches only its public track list. Your audio and library stay private on this device. Private playlists need a file export.',
             )}
           </p>
         </div>
