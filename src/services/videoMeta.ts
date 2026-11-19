@@ -133,6 +133,7 @@ async function fetchJsonWithTimeout(
   timeoutMs: number,
   signal?: AbortSignal,
   init?: RequestInit,
+  onTimeout?: () => void,
 ): Promise<unknown> {
   if (signal?.aborted || timeoutMs <= 0) return null;
   const controller = new AbortController();
@@ -141,6 +142,7 @@ async function fetchJsonWithTimeout(
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<null>((resolve) => {
     timer = setTimeout(() => {
+      onTimeout?.();
       controller.abort();
       resolve(null);
     }, timeoutMs);
@@ -211,12 +213,18 @@ export async function fetchVideoMeta(
   if (canUseWorkerEndpoint(options)) {
     const remaining = deadline - performance.now();
     if (remaining > 0) {
+      let timedOut = false;
       const body = await fetchJsonWithTimeout(
         fetcher,
         `/api/youtube-meta?id=${encodeURIComponent(videoId)}`,
         Math.ceil(Math.min(timeoutMs, remaining)),
         options.signal,
+        undefined,
+        () => {
+          timedOut = true;
+        },
       );
+      if (timedOut && timeoutMs >= remaining) return null;
       if (body && typeof body === 'object') {
         const record = body as Record<string, unknown>;
         const rawTitle = text(record.title);
@@ -238,12 +246,18 @@ export async function fetchVideoMeta(
     if (options.signal?.aborted) return null;
     const remaining = deadline - performance.now();
     if (remaining <= 0) return null;
+    let timedOut = false;
     const body = await fetchJsonWithTimeout(
       fetcher,
       provider.url(videoId),
       Math.ceil(Math.min(timeoutMs, remaining)),
       options.signal,
+      undefined,
+      () => {
+        timedOut = true;
+      },
     );
+    if (timedOut && timeoutMs >= remaining) return null;
     const parsed = body ? provider.read(body) : null;
     if (parsed) {
       return toVideoMeta(parsed.rawTitle, parsed.author, parsed.duration);
