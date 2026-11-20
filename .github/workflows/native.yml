@@ -301,9 +301,9 @@ jobs:
           xcodebuild \
             -project platforms/ios/Wave.xcodeproj \
             -scheme Wave \
-            -destination "platform=iOS Simulator,id=$DEVICE" \
+            -destination "platform=iOS Simulator,id=$DEVICE,arch=arm64" \
             -derivedDataPath "$DERIVED" \
-            CODE_SIGNING_ALLOWED=NO build
+            ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO build
           APP=$(find "$DERIVED/Build/Products" -maxdepth 3 -type d -name Wave.app -print -quit)
           test -n "$APP" && test -f "$APP/Info.plist"
           BUNDLE=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")

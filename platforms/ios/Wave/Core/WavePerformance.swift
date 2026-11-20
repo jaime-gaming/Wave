@@ -39,8 +39,8 @@ public struct DeviceSignals: Sendable {
 
 public enum WavePerformance {
     public static func profile(_ signals: DeviceSignals) -> DeviceProfile {
-        if signals.reducedMotion { return .lite }
-        let informative = signals.memoryGB != nil || signals.cores != nil || signals.lowPowerMode
+        if signals.reducedMotion || signals.lowPowerMode { return .lite }
+        let informative = signals.memoryGB != nil || signals.cores != nil
         if !informative { return .full }
 
         var score = 0
@@ -50,7 +50,6 @@ public enum WavePerformance {
         if let cores = signals.cores {
             score += cores <= 2 ? -2 : cores <= 4 ? -1 : cores >= 8 ? 1 : 0
         }
-        if signals.lowPowerMode { score -= 3 }
         if let scale = signals.screenScale, scale >= 3 { score -= 1 }
         if signals.smallScreen { score -= 1 }
         return score <= -3 ? .lite : score <= 0 ? .balanced : .full
