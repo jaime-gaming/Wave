@@ -39,6 +39,7 @@ final class WaveState: ObservableObject {
     }
 
     private var pendingMix: PendingMix?
+    private var isCaptureSession = false
     private let persistence = LibraryPersistence()
     private let nowPlaying = NowPlayingCenter()
     private let system = WaveSystemCenter()
@@ -78,6 +79,11 @@ final class WaveState: ObservableObject {
             seek: { [weak self] seconds in Task { @MainActor in self?.seek(seconds) } }
         )
         system.connect(state: self)
+        #if targetEnvironment(simulator)
+        if let page = ProcessInfo.processInfo.environment["WAVE_CAPTURE_PAGE"] {
+            configureCapture(page: page)
+        }
+        #endif
     }
 
     private static func detectProfile() -> DeviceProfile {
@@ -121,7 +127,48 @@ final class WaveState: ObservableObject {
         armMix()
     }
 
+    /// Explicit, on-demand LRCLIB search. Only title and artist are sent; the
+    /// response is bounded, matched to the selected track and stored locally.
+    func findLyrics(for song: Song) async throws -> Bool {
+        struct Result: Decodable {
+            let trackName: String
+            let artistName: String
+            let duration: Double?
+            let syncedLyrics: String?
+            let plainLyrics: String?
+        }
+        var components = URLComponents(string: "https://lrclib.net/api/search")!
+        components.queryItems = [
+            URLQueryItem(name: "track_name", value: song.title),
+            URLQueryItem(name: "artist_name", value: song.artist),
+        ]
+        guard let url = components.url else { return false }
+        var request = URLRequest(url: url, timeoutInterval: 10)
+        request.setValue("Wave/0.3.0 (https://github.com/jaime-gaming/Wave)", forHTTPHeaderField: "User-Agent")
+        let (bytes, response) = try await URLSession.shared.bytes(for: request)
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return false }
+        var data = Data()
+        for try await byte in bytes {
+            guard data.count < 600_000 else { throw URLError(.dataLengthExceedsMaximum) }
+            data.append(byte)
+        }
+        let results = try JSONDecoder().decode([Result].self, from: data)
+        guard let match = results.prefix(20).first(where: { result in
+            WaveLibrary.normalized(result.trackName) == WaveLibrary.normalized(song.title) &&
+            WaveLibrary.normalized(result.artistName) == WaveLibrary.normalized(song.artist) &&
+            (song.duration <= 0 || result.duration == nil || abs((result.duration ?? 0) - song.duration) <= 3)
+        }) else { return false }
+        let lyric = (match.syncedLyrics?.isEmpty == false ? match.syncedLyrics : match.plainLyrics) ?? ""
+        guard !lyric.isEmpty, lyric.count <= 100_000,
+              let index = snapshot.songs.firstIndex(where: { $0.id == song.id }) else { return false }
+        snapshot.songs[index].lyrics = lyric
+        persist()
+        if currentID == song.id { armMix() }
+        return true
+    }
+
     func persist() {
+        guard !isCaptureSession else { return }
         persistence.save(snapshot)
         system.reloadWidgets()
     }
@@ -133,6 +180,17 @@ final class WaveState: ObservableObject {
     func artwork(for song: Song) -> UIImage? {
         guard let name = song.artworkName else { return nil }
         return UIImage(contentsOfFile: persistence.artworkURL(named: name).path)
+    }
+
+    /// Apply a catalogue result only after the listener selects it. Audio bytes,
+    /// duration, artwork and playback position are never rewritten.
+    func applyCatalogue(songID: String, title: String, artist: String, album: String) {
+        guard let index = snapshot.songs.firstIndex(where: { $0.id == songID }) else { return }
+        snapshot.songs[index].title = title
+        snapshot.songs[index].artist = artist
+        snapshot.songs[index].album = album
+        persist()
+        if currentID == songID { updateNowPlaying() }
     }
 
     func toggleFavorite(_ song: Song) {
@@ -178,6 +236,12 @@ final class WaveState: ObservableObject {
         record(song)
         armMix()
         updateNowPlaying()
+    }
+
+    func playSelection(_ songs: [Song]) {
+        guard let first = songs.first else { return }
+        queue = songs.map(\.id)
+        play(first)
     }
 
     func togglePlayPause() {
@@ -374,6 +438,10 @@ final class WaveState: ObservableObject {
     /// own SwiftUI views render it; no PNG is drawn, mocked up or retouched,
     /// and nothing is written to the listener's Documents folder.
     func configureCapture(page: String) {
+        #if !targetEnvironment(simulator)
+        return
+        #endif
+        isCaptureSession = true
         let now = Date()
         let names = [
             ("Signal", "Wave", "First light"),
@@ -443,10 +511,6 @@ final class WaveState: ObservableObject {
         for song in recap.songs {
             addToPlaylist(playlist.id, songID: song.id)
         }
-    }
-
-    func shareURL(for song: Song) -> URL {
-        persistence.url(for: song)
     }
 
     func openHomeFromSystem() { selectedTab = 0 }

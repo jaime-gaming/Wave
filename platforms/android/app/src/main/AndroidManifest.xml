@@ -34,6 +34,15 @@
       <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts"/>
     </activity>
 
+    <!-- Only generated listening-card images in the cache can be shared. -->
+    <provider
+      android:name="androidx.core.content.FileProvider"
+      android:authorities="${applicationId}.listening-cards"
+      android:exported="false"
+      android:grantUriPermissions="true">
+      <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/listening_share_paths"/>
+    </provider>
+
     <!-- The player outlives the screen: a media session, so the lock screen, the
          shade, a watch and a car all show the same song. -->
     <service

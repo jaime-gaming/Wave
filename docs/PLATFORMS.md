@@ -97,7 +97,7 @@ playback clock to the lock screen, Control Center, headphones and CarPlay, and a
 Previous, Next and seek there. Automatic `lite`, `balanced` and `full` profiles reduce decorative
 motion and list/analysis budgets on modest devices without adding a visible Settings control.
 `npm run build:i18n` generates `Wave/es.lproj/Localizable.strings` from the same `i18n/es.json` as
-the other clients. No `URLSession`, account, analytics or online lookup exists in this target.
+the other clients. iOS can make explicit, disclosed requests to LRCLIB and iTunes, and can search YouTube through the Wave Worker. No account, analytics or audio upload is involved.
 
 System presence follows Android's idea, with iOS frameworks: WidgetKit home/lock-screen widgets,
 ActivityKit Live Activities with Dynamic Island and a `.small` CarPlay/watch family, App Intents
@@ -130,8 +130,9 @@ xcodebuild -project platforms/ios/Wave.xcodeproj \
 
 The `ios` job in `.github/workflows/ci.yml` selects Xcode 26 on `macos-26`, then runs those
 commands plus `node --test scripts/ios-release.test.mjs`. It neither signs nor publishes an app.
-Daily Mixes, video clips, YouTube songs, device linking, online metadata and waveform/beat analysis
-are not in this client, and a real-device playback/accessibility/performance pass is still required
+iOS Daily Mix selections are local and simpler than the web mood engine. YouTube plays in the official
+embedded player but is not yet integrated with the native library or queue. Native device linking,
+video clips and waveform/beat analysis are not in this client. A real-device playback/accessibility/performance pass is still required
 before any signed distribution. See the [iOS README](../platforms/ios/README.md) for the complete
 build and scope notes.
 

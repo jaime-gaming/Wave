@@ -42,6 +42,7 @@ struct HomeView: View {
                             action: { importing = true }
                         )
                     } else {
+                        dailyMixes
                         section(WaveTheme.loc("Recently added"), songs: recent)
                         if !favorites.isEmpty {
                             section(WaveTheme.loc("Favorites"), songs: Array(favorites.prefix(12)))
@@ -51,6 +52,44 @@ struct HomeView: View {
                 .padding(.bottom, 140)
             }
             .background(WaveTheme.background.ignoresSafeArea())
+        }
+    }
+
+    @ViewBuilder
+    private var dailyMixes: some View {
+        let mixes = WaveLibrary.dailyMixes(state.songs)
+        if !mixes.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(WaveTheme.loc("Daily Mix"))
+                    .font(.title3.bold())
+                    .foregroundStyle(WaveTheme.text)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(Array(mixes.enumerated()), id: \.offset) { index, songs in
+                            Button {
+                                state.playSelection(songs)
+                            } label: {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    if let first = songs.first {
+                                        ArtworkView(image: state.artwork(for: first), size: 130, corner: 14)
+                                    }
+                                    Text("\(WaveTheme.loc("Daily Mix")) \(index + 1)")
+                                        .font(.headline)
+                                    Text(songs.prefix(3).map(\.artist).joined(separator: ", "))
+                                        .font(.caption)
+                                        .lineLimit(2)
+                                        .foregroundStyle(WaveTheme.muted)
+                                }
+                                .frame(width: 150, alignment: .leading)
+                                .padding(12)
+                                .background(WaveTheme.surfaceRaised, in: RoundedRectangle(cornerRadius: 18))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal)
         }
     }
 

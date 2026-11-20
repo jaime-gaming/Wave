@@ -36,6 +36,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -316,7 +319,20 @@ private fun LyricsBody(
 /** The two things you might want from this song while it plays, and nothing else. */
 @Composable
 private fun SongActions(song: Song, state: WaveState, onEdit: () -> Unit, modifier: Modifier) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val artwork = rememberArtwork(song)
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        IconButton(onClick = {
+            scope.launch {
+                try { shareListening(context, song, artwork) }
+                catch (_: Exception) {
+                    android.widget.Toast.makeText(context, Loc.t("Unable to share"), android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
+        }, modifier = Modifier.size(42.dp).semantics { contentDescription = Loc.t("Share song") }) {
+            WaveIcon("share", 20.dp, MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         IconButton(onClick = onEdit, modifier = Modifier.size(42.dp).semantics { contentDescription = Loc.t("Edit lyrics") }) {
             WaveIcon("edit", 20.dp, MaterialTheme.colorScheme.onSurfaceVariant)
         }

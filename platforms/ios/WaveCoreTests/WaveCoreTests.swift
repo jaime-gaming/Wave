@@ -58,6 +58,20 @@ final class WaveLibraryTests: XCTestCase {
         XCTAssertEqual(WaveLibrary.albums(in: songs), ["First light", "Luz"])
     }
 
+    func testDailyMixesAreCompleteBoundedAndStable() {
+        let library = (0..<45).map { index in
+            Song(id: "song-\(index)", title: "Song \(index)", artist: "Artist \(index % 7)", fileName: "\(index).mp3")
+        }
+        let date = Date(timeIntervalSince1970: 1_700_000_000)
+        let mixes = WaveLibrary.dailyMixes(library, day: date)
+        XCTAssertEqual(mixes.count, 2)
+        XCTAssertTrue(mixes.allSatisfy { (7...20).contains($0.count) })
+        XCTAssertEqual(mixes.map { $0.map(\.id) }, WaveLibrary.dailyMixes(Array(library.reversed()), day: date).map { $0.map(\.id) })
+        let ids = mixes.flatMap { $0.map(\.id) }
+        XCTAssertEqual(ids.count, Set(ids).count)
+        XCTAssertTrue(WaveLibrary.dailyMixes(Array(library.prefix(6)), day: date).isEmpty)
+    }
+
     func testAutoplayIsBoundedAndSkipsRecentSongs() {
         let next = WaveLibrary.autoplayCandidates(from: songs, excluding: [songs[0].id, songs[1].id], limit: 2)
         XCTAssertTrue(next.count <= 2)

@@ -8,7 +8,11 @@ struct NowPlayingView: View {
     @EnvironmentObject private var state: WaveState
     @State private var volume: Double = 1
     @State private var importingLyrics = false
+    @State private var editingMetadata = false
     @State private var sharing = false
+    @State private var confirmLyricsLookup = false
+    @State private var lyricsLookupRunning = false
+    @State private var lyricsLookupMessage: String?
     @State private var idle = false
     @State private var lastInteraction = Date()
     private let idleClock = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
@@ -168,14 +172,16 @@ struct NowPlayingView: View {
                                 }
                                 .accessibilityLabel(WaveTheme.loc("Share song"))
                                 .waveGlassButton()
-                                Button {
-                                    importingLyrics = true
+                                Menu {
+                                    Button(WaveTheme.loc("Find lyrics")) { confirmLyricsLookup = true }
+                                        .disabled(lyricsLookupRunning)
+                                    Button(WaveTheme.loc("Import lyrics")) { importingLyrics = true }
+                                    Button(WaveTheme.loc("Find song metadata")) { editingMetadata = true }
                                 } label: {
-                                    Image(systemName: "text.badge.plus")
+                                    Image(systemName: "ellipsis.circle")
                                         .font(.system(size: metrics.bodySize))
                                 }
-                                .accessibilityLabel(WaveTheme.loc("Import lyrics"))
-                                .waveGlassButton()
+                                .accessibilityLabel(WaveTheme.loc("More options"))
                             }
                         }
                     } else {
@@ -212,9 +218,40 @@ struct NowPlayingView: View {
                 idle = false
             }
             .animation(state.ambientMotion ? .easeInOut(duration: 0.35) : nil, value: idle)
+            .alert(WaveTheme.loc("Find lyrics"), isPresented: $confirmLyricsLookup) {
+                Button(WaveTheme.loc("Cancel"), role: .cancel) {}
+                Button(WaveTheme.loc("Find lyrics")) {
+                    guard let song = state.current else { return }
+                    lyricsLookupRunning = true
+                    Task {
+                        do {
+                            let found = try await state.findLyrics(for: song)
+                            lyricsLookupMessage = WaveTheme.loc(found ? "Lyrics found" : "No lyrics found for this song.")
+                        } catch {
+                            lyricsLookupMessage = WaveTheme.loc("The lyrics lookup failed.")
+                        }
+                        lyricsLookupRunning = false
+                    }
+                }
+            } message: {
+                Text(WaveTheme.loc("Optional LRCLIB lookup sends song metadata and connection IP, never audio. Saved lyrics work offline. Manual search remains available in song options without starting playback."))
+            }
+            .alert(WaveTheme.loc("Find lyrics"), isPresented: Binding(
+                get: { lyricsLookupMessage != nil },
+                set: { if !$0 { lyricsLookupMessage = nil } }
+            )) {
+                Button(WaveTheme.loc("Close"), role: .cancel) { lyricsLookupMessage = nil }
+            } message: {
+                Text(lyricsLookupMessage ?? "")
+            }
+            .sheet(isPresented: $editingMetadata) {
+                if let song = state.current {
+                    CatalogueView(song: song).environmentObject(state)
+                }
+            }
             .sheet(isPresented: $sharing) {
                 if let song = state.current {
-                    WaveShareSheet(song: song, url: state.shareURL(for: song))
+                    WaveShareSheet(song: song, artwork: state.artwork(for: song))
                 }
             }
             .fileImporter(

@@ -836,6 +836,16 @@
 "Continue listening" = "Seguir escuchando";
 "Share" = "Compartir";
 "Share song" = "Compartir canción";
+"Unable to share" = "No se puede compartir";
+"Lyrics found" = "Letra encontrada";
+"Find song metadata" = "Buscar datos de la canción";
+"More options" = "Más opciones";
+"Your search is sent to Wave and YouTube. Playing a video connects to YouTube." = "Tu búsqueda se envía a Wave y YouTube. Al reproducir un vídeo, te conectas a YouTube.";
+"Your search is sent to the iTunes catalogue. Your audio is never sent." = "Tu búsqueda se envía al catálogo de iTunes. El audio nunca se envía.";
+"Apply metadata?" = "¿Aplicar estos datos?";
+"Apply" = "Aplicar";
+"No results" = "Sin resultados";
+"Search is unreachable right now." = "La búsqueda no está disponible ahora mismo.";
 "Wave widget" = "Widget de Wave";
 "Wave widgets" = "Widgets de Wave";
 "Control Wave" = "Controlar Wave";

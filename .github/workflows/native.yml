@@ -309,13 +309,12 @@ jobs:
           BUNDLE=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")
           test -n "$BUNDLE"
           xcrun simctl install "$DEVICE" "$APP"
-          xcrun simctl launch "$DEVICE" "$BUNDLE"
-          # Let SwiftUI attach the state object before the first capture link.
-          sleep 3
           mkdir -p artifacts/ios-ui
           for page in home library search remix settings now-playing; do
-            xcrun simctl openurl "$DEVICE" "wave://capture?page=$page"
-            sleep 2
+            # Launch with an isolated in-memory fixture. Opening a URL can show
+            # an iOS confirmation dialog instead of navigating the app.
+            SIMCTL_CHILD_WAVE_CAPTURE_PAGE="$page" xcrun simctl launch --terminate-running "$DEVICE" "$BUNDLE"
+            sleep 5
             xcrun simctl io "$DEVICE" screenshot "artifacts/ios-ui/$page.png"
           done
           for shot in artifacts/ios-ui/*.png; do

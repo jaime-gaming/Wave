@@ -74,7 +74,7 @@ const required = [
   'platforms/ios/WaveCoreTests/WaveCoreTests.swift',
 ];
 
-test('the iOS app has a complete, local-only, source-only tree', () => {
+test('the iOS app has a complete source-only tree with bounded opt-in lookups', () => {
   for (const path of required) assert.ok(exists(path), `${path} is missing`);
   assert.ok(
     !allFiles('platforms/ios').some((path) => path.endsWith('.entitlements')),
@@ -96,8 +96,19 @@ test('the iOS app has a complete, local-only, source-only tree', () => {
   }
   for (const path of swiftFiles('platforms/ios/Wave')) {
     const source = read(path);
-    assert.doesNotMatch(source, /URLSession|URLRequest/, `${path} must stay local`);
-    assert.doesNotMatch(source, /https:\/\//, `${path} must not call a service`);
+    const networkFiles = [
+      'platforms/ios/Wave/App/WaveState.swift',
+      'platforms/ios/Wave/App/Views/SearchView.swift',
+    ];
+    if (!networkFiles.includes(path)) {
+      assert.doesNotMatch(
+        source,
+        /URLSession|URLRequest/,
+        `${path} must not make network requests`,
+      );
+      if (path !== 'platforms/ios/Wave/App/System/WaveShareSheet.swift')
+        assert.doesNotMatch(source, /https:\/\//, `${path} must not call a service`);
+    }
   }
 });
 
@@ -198,7 +209,11 @@ test('the SwiftUI surface covers library, import, queue, Mix, lyrics, artwork an
   has('platforms/ios/Wave/App/WaveState.swift', /system\.connect/);
   has('platforms/ios/Wave/App/WaveState.swift', /func configureCapture/);
   has('platforms/ios/Wave/App/WaveState.swift', /playRemix/);
-  has('platforms/ios/Wave/App/WaveState.swift', /shareURL/);
+  has('platforms/ios/Wave/App/System/WaveShareSheet.swift', /listeningCard/);
+  assert.doesNotMatch(
+    read('platforms/ios/Wave/App/System/WaveShareSheet.swift'),
+    /persistence|fileName/,
+  );
   has('platforms/ios/Wave/App/Views/RootView.swift', /\.fileImporter/);
   has('platforms/ios/Wave/App/Views/RootView.swift', /allowedContentTypes: \[\.audio\]/);
   has('platforms/ios/Wave/App/Views/RootView.swift', /RemixView\(\)/);
@@ -329,7 +344,7 @@ test('XCTest, generated Spanish, docs and macOS 26 CI travel with the app', () =
   assert.match(workflow, /node --test scripts\/ios-release\.test\.mjs/);
   assert.match(nativeWorkflow, /^ {2}ios-captures:\s*$/m);
   assert.match(nativeWorkflow, /runs-on: macos-26/);
-  assert.match(nativeWorkflow, /wave:\/\/capture\?page=/);
+  assert.match(nativeWorkflow, /SIMCTL_CHILD_WAVE_CAPTURE_PAGE/);
   assert.match(nativeWorkflow, /xcrun simctl io/);
   assert.match(nativeWorkflow, /ios- platforms\/ios/);
   for (const path of ['.github/workflows/release.yml', '.github/workflows/native.yml']) {
@@ -365,7 +380,7 @@ test('XCTest, generated Spanish, docs and macOS 26 CI travel with the app', () =
   assert.match(iosReadme, /swift test --package-path platforms\/ios/);
   assert.match(iosReadme, /Xcode 26/);
   assert.match(iosReadme, /macos-26/);
-  assert.match(iosReadme, /wave:\/\/capture\?page=home/);
+  assert.match(iosReadme, /WAVE_CAPTURE_PAGE/);
   assert.match(platforms, /real iOS screenshots/);
   assert.match(iosReadme, /Liquid Glass, iOS only/);
   assert.doesNotMatch(iosReadme, /macos-15/);

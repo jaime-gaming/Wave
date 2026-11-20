@@ -15,7 +15,9 @@ App Store upload.
 - Plays a queue with Play/Pause, Previous/Next, seeking, volume, shuffle, repeat,
   favorites and local AutoPlay when the queue ends.
 - Reads synced LRC or plain-text lyrics from a file the listener chooses, and
-  follows the playback clock.
+  follows the playback clock. Optional manual LRCLIB search sends the title and artist.
+- Shares a visual card with song details, artwork and the Wave website; no audio is shared.
+- Offers local Daily Mix selections and explicit iTunes catalogue and YouTube searches.
 - Mixes two songs with two `AVAudioPlayer` decks. When optional tempo tags and
   the listener's LRC timings are present, `WaveMix` puts both instrumental
   edges on a downbeat of their own pulse and bounds the overlap so they do not
@@ -45,8 +47,9 @@ background audio, Now Playing, audio interruptions/audio focus, headset route
 changes, CarPlay remote commands, Handoff with `NSUserActivity`, `wave://` deep
 links and the system Share sheet. `WaveSystemCenter` connects them to the same
 `WaveState`; the widget extension is source-only and unsigned, with no
-entitlements or capability file. Nothing is uploaded: there is no
-`URLSession`, no account, no analytics and no online metadata or lyric lookup.
+entitlements or capability file. On request, lyrics searches contact LRCLIB, catalogue searches
+contact iTunes, and YouTube searches contact Wave and YouTube. Each search displays a notice
+before sending a query; audio is never uploaded. There is no account or analytics.
 
 ## Liquid Glass, iOS only
 
@@ -84,14 +87,16 @@ runs these commands. It does not archive, sign, notarize or publish an app.
 ## Native screenshots
 
 The `ios-captures` job in `.github/workflows/native.yml` installs the unsigned app on an iPhone
-simulator and opens `wave://capture?page=home` (and the other page names) to seed an in-memory
-demo library. It then uses `xcrun simctl io` to photograph the real SwiftUI screens and publishes
+simulator with `WAVE_CAPTURE_PAGE` set to each page to seed an in-memory demo library.
+The capture fixture is simulator-only and is never persisted. It then uses `xcrun simctl io` to photograph the real SwiftUI screens and publishes
 `docs/media/ios-*.png` on branch pushes. These are layout captures, not a signed distribution.
 
 ## Scope
 
 This is a native iOS client, not a claim of pixel-identical parity with the web,
-Android or Windows builds. Daily Mixes, video clips, YouTube songs, device
-linking, online metadata and waveform/beat analysis are not in this target yet.
+Android or Windows builds. Daily Mixes are simple local daily selections, not the web mood engine.
+The online YouTube search opens the official embedded video player; it does not yet add YouTube
+tracks to the library or queue. Native device linking, video clips and waveform/beat analysis
+are not in this target yet. Catalogue and LRCLIB searches are explicit and opt-in.
 Real-device playback, accessibility and performance passes still need to happen
 before any signed distribution.

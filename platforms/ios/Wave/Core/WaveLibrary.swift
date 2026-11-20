@@ -82,6 +82,33 @@ public enum WaveLibrary {
         }
     }
 
+    /// A deterministic local daily selection. Complete mixes have 7–20 songs,
+    /// at most three mixes, and try to separate consecutive artists.
+    public static func dailyMixes(_ songs: [Song], day: Date = Date(), calendar: Calendar = .current) -> [[Song]] {
+        guard songs.count >= 7 else { return [] }
+        let date = calendar.dateComponents([.year, .month, .day], from: day)
+        let seed = "\(date.year ?? 0)-\(date.month ?? 0)-\(date.day ?? 0)"
+        func rank(_ id: String) -> UInt64 {
+            (seed + id).utf8.reduce(UInt64(14695981039346656037)) { ($0 ^ UInt64($1)) &* 1099511628211 }
+        }
+        var pool = songs.sorted { a, b in
+            let left = rank(a.id), right = rank(b.id)
+            return left == right ? a.id < b.id : left < right
+        }
+        var mixes: [[Song]] = []
+        while pool.count >= 7 && mixes.count < 3 {
+            var mix: [Song] = []
+            let target = min(20, pool.count)
+            while mix.count < target && !pool.isEmpty {
+                let recent = Set(mix.suffix(4).map { normalized($0.artist) })
+                let index = pool.firstIndex { !recent.contains(normalized($0.artist)) } ?? 0
+                mix.append(pool.remove(at: index))
+            }
+            mixes.append(mix)
+        }
+        return mixes
+    }
+
     /// A bounded local AutoPlay queue: no repeats of the songs just heard.
     public static func autoplayCandidates(
         from songs: [Song],

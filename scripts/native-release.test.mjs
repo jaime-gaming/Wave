@@ -138,8 +138,29 @@ test('Mix endings are detected on web, Android, Windows and iOS and the iOS app 
   assert.match(nativeRead('platforms/ios/Wave/App/AudioPlayer.swift'), /WaveEnding\.gains/);
   assert.match(native, /^ {2}ios-captures:\s*$/m);
   assert.match(native, /runs-on: macos-26/);
-  assert.match(native, /wave:\/\/capture\?page=/);
+  assert.match(native, /SIMCTL_CHILD_WAVE_CAPTURE_PAGE/);
   assert.match(native, /xcrun simctl io "\$DEVICE" screenshot/);
   assert.match(native, /publish-native-screenshots\.sh artifacts\/ios-ui ios- platforms\/ios/);
   assert.match(nativeRead('docs/DEVELOPMENT.md'), /iOS screenshots/);
+});
+
+test('listening cards share only generated artwork and a Wave link', () => {
+  const android = nativeRead(
+    'platforms/android/app/src/main/java/io/github/jaimegaming/wave/ui/ListeningShare.kt',
+  );
+  const paths = nativeRead('platforms/android/app/src/main/res/xml/listening_share_paths.xml');
+  const manifest = nativeRead('platforms/android/app/src/main/AndroidManifest.xml');
+  const ios = nativeRead('platforms/ios/Wave/App/System/WaveShareSheet.swift');
+  assert.match(android, /Intent\.ACTION_SEND/);
+  assert.match(android, /FLAG_GRANT_READ_URI_PERMISSION/);
+  assert.match(android, /FileProvider\.getUriForFile/);
+  assert.doesNotMatch(android, /song\.path|song\.lyrics|audio\//);
+  assert.match(paths, /cache-path name="listening_cards" path="listening-cards\/"/);
+  assert.doesNotMatch(paths, /files-path|external-path/);
+  assert.match(manifest, /android:authorities="\$\{applicationId\}\.listening-cards"/);
+  assert.match(
+    ios,
+    /activityItems: \[image, URL\(string: "https:\/\/wave\.jaime-gaming\.com"\)!\]/,
+  );
+  assert.doesNotMatch(ios, /fileName|persistence/);
 });

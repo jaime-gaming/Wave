@@ -212,7 +212,7 @@ public partial class MainWindow
                 }
                 break;
             case "About":
-                SettingsBody.Children.Add(Label("Wave 0.2.2", 23));
+                SettingsBody.Children.Add(Label("Wave 0.3.0", 23));
                 SettingsBody.Children.Add(Label(Localization.T("Your music. Your collection. No account required.")));
                 SettingsBody.Children.Add(ActionButton(Localization.T("Source code"), () => Process.Start(new ProcessStartInfo("https://github.com/jaime-gaming/Wave") { UseShellExecute = true })));
                 SettingsBody.Children.Add(ActionButton(Localization.T("Wave on the web · link devices"), () => Process.Start(new ProcessStartInfo("https://wave.jaime-gaming.com/Settings") { UseShellExecute = true })));

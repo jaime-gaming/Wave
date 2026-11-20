@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.0 — 19 November 2026
+
+- Add native listening cards for sharing song details and the Wave website without sharing the audio file.
+- Improve the iOS simulator capture workflow and build fixes.
+
 ## 0.2.2 — 16 November 2026
 
 - Overhaul **Mix** into a studio-grade harmonic DJ transition engine: 12-bin spectral chroma & Krumhansl-Schmuckler Camelot musical key estimation (`harmonicCompatibility` & `transitionCompatibility`), dynamic 3-band EQ handover (`bass` low-shelf + `1.4 kHz` peaking `mid` vocal pocket carve + `air` low-pass fade-out and rising incoming air filter), key-clash tightening (earlier bass swap, tighter <=4-bar window), bar-aligned `outroStart` exit anchoring, stereo pan spread, incoming cue safety for short/rubato tracks and earlier next-track preloading.

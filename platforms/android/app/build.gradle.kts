@@ -2,7 +2,7 @@ plugins { id("com.android.application"); id("org.jetbrains.kotlin.android"); id(
 android {
     namespace = "io.github.jaimegaming.wave"
     compileSdk = 36
-    defaultConfig { applicationId = "io.github.jaimegaming.wave"; minSdk = 26; targetSdk = 36; versionCode = 6; versionName = "0.2.2" }
+    defaultConfig { applicationId = "io.github.jaimegaming.wave"; minSdk = 26; targetSdk = 36; versionCode = 7; versionName = "0.3.0" }
     signingConfigs {
         create("release") {
             val keystorePath = System.getenv("WAVE_ANDROID_KEYSTORE")
