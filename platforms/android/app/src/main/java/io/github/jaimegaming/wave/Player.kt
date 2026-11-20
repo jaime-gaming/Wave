@@ -100,21 +100,36 @@ class Player(private val context: Context) {
     private var spareReady = false
     private var outgoing: MediaPlayer? = null
     private var fadeLength = 0.0
+    private var fadeEnding = EndingShape.FADE
+    /** The incoming song may start inside its instrumental intro, not at zero. */
+    private var fadeCue = 0.0
     private val handler = Handler(Looper.getMainLooper())
+
+    private var released = false
+    private var pulseScheduled = false
 
     private val pulse = object : Runnable {
         override fun run() {
+            pulseScheduled = false
             try {
                 step()
             } catch (error: Exception) {
                 message = error.message ?: "Playback error"
             }
-            handler.postDelayed(this, if (outgoing != null) 33 else 100)
+            // The clock does not keep a paused player awake. It is restarted by
+            // the prepared callback or by resume, never by an idle poll.
+            if (!released && (playing || outgoing != null)) schedulePulse()
         }
     }
 
+    private fun schedulePulse() {
+        if (released || pulseScheduled) return
+        pulseScheduled = true
+        handler.postDelayed(pulse, if (outgoing != null) 33L else 100L)
+    }
+
     init {
-        handler.post(pulse)
+        schedulePulse()
     }
 
     /** Optional local mood-aware Autoplay supplier invoked when the queue ends. */
@@ -128,15 +143,17 @@ class Player(private val context: Context) {
         if (shouldPublishTime(time, position, outgoing != null)) time = position
         val tail = outgoing
         if (tail != null) {
-            val progress = (time / fadeLength).coerceIn(0.0, 1.0)
-            val gains = handoverGains(progress)
+            val progress = ((time - fadeCue) / fadeLength).coerceIn(0.0, 1.0)
+            val gains = endingGains(progress, fadeEnding)
             runCatching {
                 tail.setVolume(gains.first * outputGain, gains.first * outputGain)
                 player.setVolume(gains.second * outputGain, gains.second * outputGain)
             }
-            if (progress >= 1) {
+            if (progress >= endingCut(fadeEnding)) {
                 runCatching { tail.release() }
+                player.setVolume(outputGain, outputGain)
                 outgoing = null
+                fadeCue = 0.0
                 prepareNext()
                 changed()
             }
@@ -147,14 +164,21 @@ class Player(private val context: Context) {
             val remaining = (totalMs - currentMs) / 1000.0
             val next = spare ?: return
             val nextMs = runCatching { next.duration }.getOrNull() ?: return
-            // The same window the web client chooses for this pair, never longer
-            // than what is left of the song that is leaving.
+            val outgoingSong = current ?: return
+            val incomingSong = queue.getOrNull(index + 1) ?: return
+            fadeEnding = detectEnding(outgoingSong)
+            // Wave 3.0: when both songs have a trustworthy pulse, start the
+            // instrumental handover on a downbeat of each grid. The fallback is
+            // the same bounded seconds fade the phone used before.
+            val pulse = NativePulse.plan(outgoingSong, incomingSong)
             val window = minOf(
                 crossfade,
                 automaticBlendSeconds(totalMs / 1000.0, nextMs / 1000.0),
             )
-            if (remaining <= 0 || remaining > window) return
-            fadeLength = minOf(window, remaining, nextMs / 2000.0)
+            if (pulse == null && (remaining <= 0 || remaining > window)) return
+            if (pulse != null && position < pulse.startAt - 0.02) return
+            fadeLength = pulse?.overlap ?: minOf(window, remaining, nextMs / 2000.0)
+            fadeCue = pulse?.cue ?: 0.0
             if (fadeLength <= .1) return
             outgoing = player
             active = next
@@ -165,6 +189,7 @@ class Player(private val context: Context) {
             playbackSerial++
             duration = nextMs / 1000.0
             next.setVolume(0f, 0f)
+            if (fadeCue > 0) runCatching { next.seekTo((fadeCue * 1000).toInt()) }
             next.start()
             changed()
         }
@@ -245,6 +270,7 @@ class Player(private val context: Context) {
                     player.setVolume(outputGain, outputGain)
                     player.start()
                     playing = true
+                    schedulePulse()
                     prepareNext()
                     changed()
                 }
@@ -259,6 +285,8 @@ class Player(private val context: Context) {
     private fun cancelFade() {
         outgoing?.release()
         outgoing = null
+        fadeCue = 0.0
+        fadeEnding = EndingShape.FADE
         if (prepared) active?.setVolume(outputGain, outputGain)
     }
 
@@ -277,6 +305,7 @@ class Player(private val context: Context) {
             cancelFade()
             if (playing) active?.pause() else active?.start()
             playing = !playing
+            if (playing) schedulePulse()
             changed()
         } catch (_: Exception) {
             message = "Choose a playable file."
@@ -388,6 +417,8 @@ class Player(private val context: Context) {
         }
 
     fun dispose() {
+        released = true
+        pulseScheduled = false
         handler.removeCallbacks(pulse)
         playing = false
         prepared = false

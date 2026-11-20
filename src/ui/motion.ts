@@ -54,6 +54,9 @@ const hoverSnapshot = () => window.matchMedia(hoverQuery).matches;
 export function useWaveMotion() {
   const preference = useContext(MotionPreference);
   const reduced = useSyncExternalStore(subscribe, snapshot, () => true);
+  // The user's own animation switch and the OS reduced-motion setting decide
+  // interface motion. Automatic performance profiles shed ambient/decorative
+  // work through data-perf, but never silently turn this switch off.
   const enabled = preference && !reduced;
   const canHover = useSyncExternalStore(subscribeHover, hoverSnapshot, () => false);
   return {

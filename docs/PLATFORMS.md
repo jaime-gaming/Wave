@@ -74,10 +74,66 @@ See [WINDOWS_RELEASE](WINDOWS_RELEASE.md) for single-file packaging, Authenticod
 
 ## iOS
 
-Not shipped yet, and deliberately not promised for a date: the iPhone and iPad app arrives shortly
-after the Android one. It will be the same interface as the mobile website, with the system pieces —
-media session, lock screen, share sheet — done natively, exactly as the Android build does. Until
-then, Safari's **Add to Home Screen** gives a full-screen Wave that behaves like an app.
+A SwiftUI app for iPhone and iPad now lives in [`platforms/ios`](../platforms/ios/README.md). It
+deploys to iOS 17, compiles against the iOS 26 SDK in Xcode 26, opens with `Wave.xcodeproj` and
+builds for the simulator without a signing team. It is **source-only for now**: no signing identity,
+no `.ipa` in the Release assets and no App Store
+upload. Safari's **Add to Home Screen** remains the installed web option.
+
+The native client imports local audio and LRC files, reads tags and embedded artwork with
+AVFoundation, and keeps the library, playlists and 366-day history in atomically written JSON.
+Home, Library, Search, a queue, Now Playing, favorites, shuffle, repeat and local AutoPlay are
+SwiftUI screens. Playback uses two `AVAudioPlayer` decks. `WaveMix` places instrumental endings
+and beginnings on a downbeat of each song's own grid when optional tempo tags and LRC timings are
+available, bounded so the pulses cannot drift; otherwise it uses a short constant-power crossfade.
+Nothing is time-stretched, and no audio file is rewritten. Mix detects whether the outgoing
+tail fades to zero or rings like an echo; the latter is cut at 75 % of the fade before it reaches
+zero. The `Native builds` workflow also publishes real iOS screenshots from the running SwiftUI
+app on a simulator, alongside the Android and Windows captures; it publishes no distribution build.
+
+An `AVAudioSession` with the `audio` background mode keeps music playing with the screen off.
+`MPNowPlayingInfoCenter` and `MPRemoteCommandCenter` publish artwork, title, artist, album and the
+playback clock to the lock screen, Control Center, headphones and CarPlay, and accept Play, Pause,
+Previous, Next and seek there. Automatic `lite`, `balanced` and `full` profiles reduce decorative
+motion and list/analysis budgets on modest devices without adding a visible Settings control.
+`npm run build:i18n` generates `Wave/es.lproj/Localizable.strings` from the same `i18n/es.json` as
+the other clients. No `URLSession`, account, analytics or online lookup exists in this target.
+
+System presence follows Android's idea, with iOS frameworks: WidgetKit home/lock-screen widgets,
+ActivityKit Live Activities with Dynamic Island and a `.small` CarPlay/watch family, App Intents
+and `AppShortcutsProvider` for Siri, Shortcuts, Spotlight and the Action button, an iOS 18
+`ControlWidget`, background audio, Now Playing, interruption and headset-route handling,
+CarPlay remote commands, Handoff with `NSUserActivity`, `wave://` deep links and the system Share
+sheet. `WaveSystemCenter` joins those surfaces to the same `WaveState`; the widget extension is
+source-only and unsigned, with no entitlements or capability file.
+
+**Liquid Glass is iOS-only.** `Wave/App/Views/LiquidGlass.swift` uses the real SwiftUI
+`GlassEffectContainer` and `.glassEffect(.regular, in:)` behind `#available(iOS 26, *)`, keeps a
+`.ultraThinMaterial` fallback for iOS 17–25, respects Reduce Transparency, groups controls so glass
+never samples glass, and applies `.buttonStyle(.glass)` to grouped buttons. Web CSS, Android and
+Windows are deliberately untouched. `WaveLayout` fills the whole safe width from 320 points to 4K,
+`WaveRecap` builds Weekly/Monthly/Yearly Remix from local history, and `ImmersiveIdleView` replaces
+the controls after thirty quiet seconds; all three live in the pure `WaveCore` package or the iOS
+app, never in another client.
+
+The logical core is also a dependency-free Swift package, so its LRC, search, library, Mix and
+performance contracts run as XCTest on a Mac without a simulator:
+
+```sh
+swift test --package-path platforms/ios
+xcodebuild -project platforms/ios/Wave.xcodeproj \
+  -scheme Wave \
+  -destination 'generic/platform=iOS Simulator' \
+  -derivedDataPath /tmp/WaveDerivedData \
+  CODE_SIGNING_ALLOWED=NO build
+```
+
+The `ios` job in `.github/workflows/ci.yml` selects Xcode 26 on `macos-26`, then runs those
+commands plus `node --test scripts/ios-release.test.mjs`. It neither signs nor publishes an app.
+Daily Mixes, video clips, YouTube songs, device linking, online metadata and waveform/beat analysis
+are not in this client, and a real-device playback/accessibility/performance pass is still required
+before any signed distribution. See the [iOS README](../platforms/ios/README.md) for the complete
+build and scope notes.
 
 ## Android
 

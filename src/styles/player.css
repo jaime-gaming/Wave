@@ -2482,7 +2482,11 @@
 .immersive-stage.with-video .immersive-credit p {
   font-size: 13px;
 }
-.immersive-stage.with-video .immersive-credit p:not(.immersive-time) + p:not(.immersive-time) {
+/* The idle scene adds an eyebrow and an artist line; only the album stays hidden. */
+.immersive-stage.with-video
+  .immersive-credit
+  p:not(.immersive-time):not(.idle-eyebrow)
+  + p:not(.immersive-time):not(.idle-artist) {
   display: none;
 }
 .immersive-stage.with-video .lyrics-cinematic {

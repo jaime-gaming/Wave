@@ -7,6 +7,8 @@ import {
   type TrackAnalysis,
 } from '../audio/dsp';
 import { isRubato, tempoRelation } from '../audio/tempo';
+import { alignInstrumentalPulse, instrumentalEdges, pulseGrid } from './instrumentalPulse';
+import { stagedGains, type EndingShape } from './mixEnding';
 import type { Lyrics } from './lyrics';
 
 /**
@@ -89,6 +91,8 @@ export interface TransitionOptions {
   vocalTolerance?: number;
   /** BPM difference above which stretching is refused (relative). */
   maxStretch?: number;
+  /** Detected shape of the outgoing song's ending. */
+  ending?: EndingShape;
 }
 
 export interface TransitionPlan {
@@ -111,6 +115,10 @@ export interface TransitionPlan {
   compatibility?: number;
   /** True when active vocals overlap across the join and need a deeper 1.4 kHz carve. */
   vocalOverlap?: boolean;
+  /** True when an instrumental outro/intro pair was lined up on both downbeats. */
+  instrumentalPulseAligned?: boolean;
+  /** Fade to zero, or an echo-like tail cut at 75 % of the fade. */
+  ending?: EndingShape;
   /** Human-readable reasons for the decisions, for tests and logs. */
   notes: string[];
 }
@@ -314,7 +322,7 @@ function findClearEntry(analysis: TrackAnalysis, from: number, length: number): 
  * Builds the transition plan for A → B. `outgoingPosition` is where A currently
  * is, so the planner never schedules a window in the past.
  */
-export function planTransition(
+function buildTransitionPlan(
   outgoing: TrackAnalysis | undefined,
   incoming: TrackAnalysis | undefined,
   options: TransitionOptions = {},
@@ -588,7 +596,7 @@ export function planTransition(
   const baseSwap = plannedBassSwapAt(outgoing, incoming);
   const bassSwapAt = harmonicScore < 0.42 ? Math.min(baseSwap, 0.42) : baseSwap;
 
-  return {
+  const plan: TransitionPlan = {
     mode: 'beatmatched',
     seconds: Math.round(seconds * 100) / 100,
     startAt: Math.round(startAt * 1000) / 1000,
@@ -600,6 +608,67 @@ export function planTransition(
     compatibility,
     vocalOverlap,
     notes,
+  };
+
+  /*
+   * Wave 3.0: an instrumental outro meeting an instrumental intro has two
+   * pulses to reconcile, not just two bars. Both cues are moved onto their own
+   * downbeat, so the stretches start together on the bar and stay together for
+   * as long as their tempos allow. Pairs without those two stretches, or without
+   * a trusted grid on each side, keep the plan above unchanged.
+   */
+  const edges = instrumentalEdges(outgoing, incoming);
+  const gridA = edges ? pulseGrid(outgoing) : undefined;
+  const gridB = edges ? pulseGrid(incoming) : undefined;
+  const aligned =
+    edges && gridA && gridB
+      ? alignInstrumentalPulse(edges, gridA, gridB, {
+          startAt: plan.startAt,
+          cue: plan.cue,
+          seconds: plan.seconds,
+          maxCue: incoming.trimmed.start + maxEntryFor(incoming) + (BEATS_PER_BAR * 60) / bpmB,
+          minSeconds,
+          driftPerSecond,
+          driftBeats: DRIFT_BEATS,
+        })
+      : undefined;
+  if (!aligned) return plan;
+  return {
+    ...plan,
+    seconds: aligned.seconds,
+    startAt: aligned.startAt,
+    cue: aligned.cue,
+    bars: aligned.bars,
+    instrumentalPulseAligned: true,
+    vocalOverlap:
+      overlapsRegion(
+        outgoing.vocals,
+        aligned.startAt,
+        aligned.startAt + aligned.seconds,
+        vocalTolerance,
+      ) &&
+      overlapsRegion(incoming.vocals, aligned.cue, aligned.cue + aligned.seconds, vocalTolerance),
+    notes: [...notes, ...aligned.notes],
+  };
+}
+
+/** Attach the detected outgoing ending once, after the musical plan is built. */
+export function planTransition(
+  outgoing: TrackAnalysis | undefined,
+  incoming: TrackAnalysis | undefined,
+  options: TransitionOptions = {},
+): TransitionPlan {
+  const plan = buildTransitionPlan(outgoing, incoming, options);
+  if (!options.ending || plan.mode === 'cut') return plan;
+  return {
+    ...plan,
+    ending: options.ending,
+    notes: [
+      ...plan.notes,
+      options.ending === 'echo-cut'
+        ? 'The outgoing tail rings out: cut the echo at 75 % of the fade.'
+        : 'The outgoing tail fades naturally to zero.',
+    ],
   };
 }
 
@@ -732,6 +801,7 @@ export function planTransitionCached(
     options.minSeconds ?? '',
     options.maxStretch ?? '',
     options.vocalTolerance ?? '',
+    options.ending ?? '',
   ].join('|');
   const hit = plans.get(key);
   if (hit) return hit;
@@ -748,6 +818,9 @@ export function alignIncomingLyrics(
   start = 0,
 ): TransitionPlan {
   if (!lyrics || plan.mode === 'cut' || plan.seconds <= 0) return plan;
+  // An instrumental outro/intro pair was placed on both downbeats on purpose:
+  // sliding the cue for a lyric would put one of the two pulses off the bar.
+  if (plan.instrumentalPulseAligned) return plan;
   const first = lyrics.lines
     .filter(
       (line) => line.text.trim() && typeof line.time === 'number' && Number.isFinite(line.time),
@@ -802,21 +875,6 @@ export function isUsablePlan(plan: TransitionPlan, remaining: number): boolean {
   return plan.mode !== 'cut' && plan.seconds >= 0.5 && remaining > 0.25;
 }
 
-/**
- * Bass-swap curve: the outgoing low band closes as the incoming one opens, with a
- * short cross point so the kick never disappears completely.
- */
-export function bassSwapGains(progress: number): { outgoing: number; incoming: number } {
-  const p = clamp(progress, 0, 1);
-  // Cosine ramp centred slightly before the middle, which is what keeps the
-  // low end continuous instead of leaving a gap.
-  const centre = 0.45;
-  const width = 0.35;
-  const t = clamp((p - (centre - width / 2)) / width, 0, 1);
-  const smooth = t * t * (3 - 2 * t);
-  return { outgoing: Math.cos((smooth * Math.PI) / 2), incoming: Math.sin((smooth * Math.PI) / 2) };
-}
-
 export const smoothstep = (value: number) => {
   const t = clamp(value, 0, 1);
   return t * t * (3 - 2 * t);
@@ -840,13 +898,5 @@ export function planGains(progress: number): { outgoing: number; incoming: numbe
  * rather than a slide.
  */
 export function handoverGains(progress: number): { outgoing: number; incoming: number } {
-  const p = clamp(progress, 0, 1);
-  // Fast arrival, a held middle, then the outgoing song leaves on the phrase.
-  const phase =
-    p < 0.28
-      ? 0.5 * smoothstep(p / 0.28)
-      : p < 0.62
-        ? 0.5 + 0.06 * smoothstep((p - 0.28) / 0.34)
-        : 0.56 + 0.44 * smoothstep((p - 0.62) / 0.38);
-  return { outgoing: Math.cos((phase * Math.PI) / 2), incoming: Math.sin((phase * Math.PI) / 2) };
+  return stagedGains(progress);
 }

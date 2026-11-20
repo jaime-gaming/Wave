@@ -9,6 +9,7 @@
  * Nothing here touches the stored file.
  */
 import { analyzePcm, type TrackAnalysis } from './dsp';
+import { budgetFor, currentProfile } from '../ui/performance';
 
 /** Analysis sample rate: enough for BPM, bands and vocals, cheap to compute. */
 export const ANALYSIS_SAMPLE_RATE = 11_025;
@@ -17,9 +18,12 @@ export const MAX_ANALYSIS_BYTES = 60 * 1024 * 1024;
 export const MAX_ANALYSIS_SECONDS = 15 * 60;
 
 const cache = new Map<Blob, TrackAnalysis>();
-/** Keep decoded analysis bounded in long listening sessions. */
-const MAX_CACHED_ANALYSES = 32;
 const pending = new Map<Blob, Promise<TrackAnalysis | undefined>>();
+
+/** Byte ceiling for an analysis on this device; `MAX_ANALYSIS_BYTES` is the full-profile cap. */
+export function analysisBytesFor(): number {
+  return Math.min(MAX_ANALYSIS_BYTES, budgetFor(currentProfile()).maxAnalysisBytes);
+}
 
 export function cachedAnalysis(blob: Blob | undefined): TrackAnalysis | undefined {
   return blob ? cache.get(blob) : undefined;
@@ -28,7 +32,9 @@ export function cachedAnalysis(blob: Blob | undefined): TrackAnalysis | undefine
 export function cacheAnalysis(blob: Blob, analysis: TrackAnalysis): void {
   cache.delete(blob);
   cache.set(blob, analysis);
-  while (cache.size > MAX_CACHED_ANALYSES) cache.delete(cache.keys().next().value!);
+  /** Keep decoded analysis bounded in long listening sessions, per device. */
+  const maxCached = budgetFor(currentProfile()).maxCachedAnalyses;
+  while (cache.size > maxCached) cache.delete(cache.keys().next().value!);
 }
 
 export function clearAnalysisCache(): void {
@@ -90,7 +96,7 @@ export async function decodeForAnalysis(
   blob: Blob,
 ): Promise<{ samples: Float32Array; sampleRate: number } | null> {
   if (typeof OfflineAudioContext === 'undefined') return null;
-  if (blob.size > MAX_ANALYSIS_BYTES) return null;
+  if (blob.size > analysisBytesFor()) return null;
   try {
     const probe = new OfflineAudioContext(1, 1, ANALYSIS_SAMPLE_RATE);
     const buffer = await probe.decodeAudioData(await blob.arrayBuffer());

@@ -43,7 +43,8 @@ public partial class MainWindow : Window
         try { SetThreadExecutionState(keepAwake ? (EsContinuous | EsDisplayRequired | EsSystemRequired) : EsContinuous); }
         catch { /* Wake lock is best-effort. */ }
     }
-    private double fadeLength, volume = .8, beforeMute = .8;
+    private double fadeLength, fadeCue, volume = .8, beforeMute = .8;
+    private NativeEndingShape fadeEnding = NativeEndingShape.FadeToZero;
     private long lastVolumeFeedback;
     private bool syncingVolume;
     private DispatcherTimer? repeatAttack;
@@ -89,6 +90,11 @@ public partial class MainWindow : Window
     private string renderedPage = "";
     private bool railNarrow;
     private int layoutTier = -1;
+    private NativeDeviceProfile profile = NativeDeviceProfile.Full;
+    private DateTime lastInteraction = DateTime.UtcNow;
+    private bool idleStageVisible;
+    private NativeRemixMetrics RemixLayout => NativeLayout.Remix(
+        Math.Max(460, ActualWidth), Math.Max(480, ActualHeight), FontSize / 15.0, profile);
 
     public MainWindow() : this(null) { }
     public MainWindow(string? folder)
@@ -166,6 +172,7 @@ public partial class MainWindow : Window
         ClosePlayerButton.ToolTip = Localization.T("Close the player");
         NowQueueButton.ToolTip = MiniQueueButton.ToolTip = Localization.T("Queue");
         NowPlayingText.Text = Localization.T("Now playing");
+        IdleEyebrow.Text = Localization.T("Now playing");
         NowHint.Text = Localization.T("Choose a song from your library.");
         ShuffleButton.ToolTip = Localization.T("Shuffle");
         FavoriteButton.ToolTip = Localization.T("Favorite");
@@ -308,6 +315,7 @@ public partial class MainWindow : Window
     private void WindowResized(object sender, SizeChangedEventArgs e) => FitRail();
     private void FitRail()
     {
+        UpdateProfile();
         double width = ActualWidth;
         if (width <= 0) return;
         int tier = width < 640 ? 0 : width < 1000 ? 1 : width < 1800 ? 2 : 3;
@@ -315,13 +323,16 @@ public partial class MainWindow : Window
         if (tier != layoutTier)
         {
             layoutTier = tier;
-            Heading.FontSize = tier switch { 0 => 28, 1 => 34, 2 => 40, _ => 44 };
+            var layout = RemixLayout;
+            double fontScale = Math.Clamp(FontSize / 15.0, .85, 1.3);
+            Heading.FontSize = Math.Clamp(layout.TitleSize * 1.2, 26, 48) * fontScale;
+            Summary.FontSize = Math.Clamp(12 + width * .0015, 12, 16) * fontScale;
             WorkspaceGrid.Margin = tier switch
             {
-                0 => new Thickness(4, 12, 10, 8),
-                1 => new Thickness(8, 16, 16, 10),
-                2 => new Thickness(10, 22, 22, 10),
-                _ => new Thickness(18, 26, 32, 14),
+                0 => new Thickness(4, 12, layout.Padding * .6, 8),
+                1 => new Thickness(8, 16, layout.Padding, 10),
+                2 => new Thickness(10, 22, layout.Padding, 10),
+                _ => new Thickness(18, 26, layout.Padding, 14),
             };
             PageHeader.Margin = tier == 0 ? new Thickness(4, 0, 0, 12) : new Thickness(8, 0, 0, 18);
         }
@@ -350,6 +361,63 @@ public partial class MainWindow : Window
         }
         ApplyRailWidth();
     }
+    private void UpdateProfile()
+    {
+        double memoryGB = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes / 1_073_741_824.0;
+        double scale = PresentationSource.FromVisual(this)?.CompositionTarget?.TransformToDevice.M11 ?? 1;
+        profile = NativePerformance.Profile(new DeviceSignals(
+            memoryGB,
+            Environment.ProcessorCount,
+            !preferences.Animations,
+            false,
+            scale,
+            ActualWidth < 700));
+        if (IdleGlow != null)
+            IdleGlow.Visibility = NativePerformance.AmbientMotion(profile) ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void NoteInteraction()
+    {
+        lastInteraction = DateTime.UtcNow;
+        HideIdleStage();
+    }
+    private void PointerInteracted(object sender, MouseEventArgs e) => NoteInteraction();
+    private void ButtonInteracted(object sender, MouseButtonEventArgs e) => NoteInteraction();
+
+    private void HideIdleStage()
+    {
+        if (!idleStageVisible) return;
+        IdleStage.Visibility = Visibility.Collapsed;
+        idleStageVisible = false;
+    }
+
+    /// <summary>Thirty quiet seconds turn the player into a decorative listening room.</summary>
+    private void UpdateIdleStage()
+    {
+        if (!initialized || !playing || page != "Now playing" || Current is not Song song ||
+            DateTime.UtcNow - lastInteraction < TimeSpan.FromSeconds(30))
+        {
+            HideIdleStage();
+            return;
+        }
+        if (!idleStageVisible)
+        {
+            IdleStage.Visibility = Visibility.Visible;
+            idleStageVisible = true;
+        }
+        double time = active.Position.TotalSeconds;
+        double duration = Math.Max(1, Seek.Maximum);
+        IdleTitle.Text = song.Title;
+        IdleArtist.Text = song.Artist;
+        IdleAlbum.Text = song.Album;
+        IdleAlbum.Visibility = string.IsNullOrWhiteSpace(song.Album) ? Visibility.Collapsed : Visibility.Visible;
+        IdleClock.Text = $"{Clock(time)} / {Clock(duration)}   −{Clock(Math.Max(0, duration - time))}";
+        IdleMix.Text = MixEnabled ? Localization.T("Mix") : string.Empty;
+        IdleArt.Background = ArtworkBrush(song.Artwork);
+        double trackWidth = IdleTrack.ActualWidth > 0 ? IdleTrack.ActualWidth : Math.Max(320, ActualWidth * .5);
+        IdleProgress.Width = trackWidth * Math.Clamp(time / duration, 0, 1);
+    }
+
     private void ApplyRailWidth()
     {
         double width = page == "Now playing"
@@ -546,27 +614,40 @@ public partial class MainWindow : Window
             next.Open(Library.SafeFileUri(nextSong.Path));
         } catch { spare?.Close(); spare = null; spareReady = false; }
     }
-    private void CancelFade() { repeatAttack?.Stop(); repeatAttack = null; outgoing?.Close(); outgoing = null; active.Volume = volume; }
+    private void CancelFade() { repeatAttack?.Stop(); repeatAttack = null; outgoing?.Close(); outgoing = null; fadeCue = 0; fadeEnding = NativeEndingShape.FadeToZero; active.Volume = volume; }
     private void Tick(object? sender, EventArgs e)
     {
-        if (!ready) return;
+        if (!ready) { HideIdleStage(); return; }
+        UpdateIdleStage();
         double time = active.Position.TotalSeconds;
         CountListening(time);
         if (!Seek.IsMouseCaptureWithin && !Seek.IsKeyboardFocusWithin) Seek.Value = time;
         Elapsed.Text = Clock(time); Duration.Text = Clock(Seek.Maximum);
         if (playing && outgoing != null) {
-            double fraction = Math.Clamp(time / fadeLength, 0, 1);
-            var (outgoingGain, incomingGain) = NativeCollections.HandoverGains(fraction);
+            double fraction = Math.Clamp((time - fadeCue) / Math.Max(.1, fadeLength), 0, 1);
+            var (outgoingGain, incomingGain) = NativeEnding.Gains(fraction, fadeEnding);
             outgoing.Volume = volume * outgoingGain; active.Volume = volume * incomingGain;
-            if (fraction >= 1) { outgoing.Close(); outgoing = null; PrepareNext(); }
+            if (fraction >= NativeEnding.Cut(fadeEnding)) {
+                outgoing.Close(); outgoing = null; fadeCue = 0; active.Volume = volume; PrepareNext();
+            }
         } else if (playing && spareReady && spare != null && active.NaturalDuration.HasTimeSpan && spare.NaturalDuration.HasTimeSpan) {
             double window = NativeCollections.MixWindow(active.NaturalDuration.TimeSpan.TotalSeconds, spare.NaturalDuration.TimeSpan.TotalSeconds);
             double remaining = active.NaturalDuration.TimeSpan.TotalSeconds - time;
-            if (remaining > 0 && remaining <= window) {
-                fadeLength = remaining; outgoing = active; active = spare; spare = null; spareReady = false; index++;
+            var outgoingSong = Current is Song song ? song : null;
+            var ending = outgoingSong == null ? NativeEndingShape.FadeToZero : NativeEnding.Detect(outgoingSong);
+            var pulse = outgoingSong != null && index + 1 < queue.Count
+                ? NativePulse.Plan(outgoingSong, queue[index + 1])
+                : null;
+            bool startPulse = pulse != null && time >= pulse.StartAt - .02;
+            bool startFade = pulse == null && remaining > 0 && remaining <= window;
+            if (startPulse || startFade) {
+                fadeEnding = ending;
+                fadeLength = pulse?.Overlap ?? remaining;
+                fadeCue = pulse?.Cue ?? 0;
+                outgoing = active; active = spare; spare = null; spareReady = false; index++;
                 heard = 0; hearing = false; listeningRecorded = false;
-                active.Position = TimeSpan.Zero; active.Volume = 0; active.Play(); Seek.Maximum = active.NaturalDuration.TimeSpan.TotalSeconds;
-                UpdateCurrent(); time = 0;
+                active.Position = TimeSpan.FromSeconds(fadeCue); active.Volume = 0; active.Play(); Seek.Maximum = active.NaturalDuration.TimeSpan.TotalSeconds;
+                UpdateCurrent(); time = fadeCue;
                 if (preferences.OnlineLyrics && Current is { Lyrics.Length: 0 } song) _ = Lookup(song);
             }
         }
@@ -663,6 +744,7 @@ public partial class MainWindow : Window
     private Brush ArtworkBrush(string? path) => LoadImage(path) ?? (Brush)Application.Current.Resources["TonalBrush"];
     private void PlayerShortcut(object sender, KeyEventArgs e)
     {
+        NoteInteraction();
         if (page != "Now playing" || !ready || Keyboard.Modifiers != ModifierKeys.None || e.IsRepeat) return;
         if (e.OriginalSource is TextBox or System.Windows.Controls.Primitives.ButtonBase or System.Windows.Controls.Primitives.RangeBase) return;
         switch (e.Key)
@@ -810,6 +892,6 @@ public partial class MainWindow : Window
         if (Current != null && ready) NativeCollections.Save(repository.Folder, "session.json", new ListeningSession(queue.Select(s => s.Id).ToList(), Current.Id, active.Position.TotalSeconds));
         if (preferencesDirty) { repository.SavePreferences(preferences); preferencesDirty = false; }
     });
-    private void WindowKey(object sender, KeyEventArgs e) { if (e.OriginalSource is TextBox) return; if (e.Key == Key.Space && Keyboard.Modifiers == ModifierKeys.None) { ToggleClick(this, e); e.Handled = true; } else if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control) { ShowPage("Search"); searchBox?.Focus(); e.Handled = true; } }
+    private void WindowKey(object sender, KeyEventArgs e) { NoteInteraction(); if (e.OriginalSource is TextBox) return; if (e.Key == Key.Space && Keyboard.Modifiers == ModifierKeys.None) { ToggleClick(this, e); e.Handled = true; } else if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control) { ShowPage("Search"); searchBox?.Focus(); e.Handled = true; } }
     private void ClosingWindow(object? sender, System.ComponentModel.CancelEventArgs e) { UpdateScreenWakeLock(false); SaveSession(); timer.Stop(); sleepTick.Stop(); active.Close(); spare?.Close(); outgoing?.Close(); client.Dispose(); }
 }

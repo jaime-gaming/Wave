@@ -1,5 +1,9 @@
 package io.github.jaimegaming.wave.ui
 
+import android.app.ActivityManager
+import android.content.Context
+import android.os.PowerManager
+import android.provider.Settings
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.Animatable
@@ -29,6 +33,9 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -41,23 +48,74 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.jaimegaming.wave.DeviceProfile
+import io.github.jaimegaming.wave.DeviceSignals
+import io.github.jaimegaming.wave.WavePerformance
+import io.github.jaimegaming.wave.remixMetrics
 
 /** Actions shared by every page header; their implementations stay native. */
 class ChromeActions(val addMusic: () -> Unit, val openSettings: () -> Unit)
 val LocalChromeActions = staticCompositionLocalOf<ChromeActions?> { null }
+
+/** Chosen once from device signals; no listener-facing performance setting. */
+val LocalWaveProfile = staticCompositionLocalOf { DeviceProfile.FULL }
+
+@Composable
+fun rememberDeviceProfile(): DeviceProfile {
+    val context = LocalContext.current.applicationContext
+    val configuration = LocalConfiguration.current
+    val density = LocalDensity.current.density.toDouble()
+    val manager = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
+    val memoryInfo = ActivityManager.MemoryInfo()
+    manager?.getMemoryInfo(memoryInfo)
+    val memoryGB = manager?.let { memoryInfo.totalMem / 1_073_741_824.0 }
+    val cores = Runtime.getRuntime().availableProcessors()
+    val reducedMotion = Settings.Global.getFloat(
+        context.contentResolver,
+        Settings.Global.ANIMATOR_DURATION_SCALE,
+        1f,
+    ) == 0f || Settings.Global.getFloat(
+        context.contentResolver,
+        Settings.Global.TRANSITION_ANIMATION_SCALE,
+        1f,
+    ) == 0f
+    val power = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+    val lowPower = power?.isPowerSaveMode == true
+    return remember(memoryGB, cores, reducedMotion, lowPower, density, configuration.screenWidthDp) {
+        WavePerformance.profile(
+            DeviceSignals(
+                memoryGB = memoryGB,
+                cores = cores,
+                reducedMotion = reducedMotion,
+                lowPowerMode = lowPower,
+                screenScale = density,
+                smallScreen = configuration.screenWidthDp < 700,
+            ),
+        )
+    }
+}
 
 /** The inset, rounded page and its softly tinted header, as on mobile web. */
 @Composable
 fun Modifier.wavePage(): Modifier {
     val surface = MaterialTheme.colorScheme.surface
     val header = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.38f)
+    val configuration = LocalConfiguration.current
+    val metrics = remixMetrics(
+        configuration.screenWidthDp,
+        configuration.screenHeightDp,
+        configuration.fontScale,
+        LocalWaveProfile.current,
+    )
+    val inset = minOf(metrics.paddingDp.dp, 24.dp)
+    val headerHeight = minOf(124.dp, maxOf(72.dp, (configuration.screenHeightDp * 0.16f).dp))
     return this
         .fillMaxSize()
-        .padding(horizontal = 10.dp)
+        .padding(horizontal = inset)
         .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
         .background(surface)
         .drawBehind {
-            val height = 124.dp.toPx()
+            val height = headerHeight.toPx()
             drawRect(
                 brush = Brush.verticalGradient(listOf(header, Color.Transparent), endY = height),
                 size = Size(size.width, height),

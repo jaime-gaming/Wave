@@ -22,6 +22,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -52,6 +53,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -63,11 +65,13 @@ import io.github.jaimegaming.wave.DaySlice
 import io.github.jaimegaming.wave.count
 import io.github.jaimegaming.wave.Playlist
 import io.github.jaimegaming.wave.Song
+import io.github.jaimegaming.wave.WavePerformance
 import io.github.jaimegaming.wave.WeekRecap
 import io.github.jaimegaming.wave.listeningTime
 import io.github.jaimegaming.wave.matchesSearch
 import io.github.jaimegaming.wave.monthRange
 import io.github.jaimegaming.wave.rankNames
+import io.github.jaimegaming.wave.remixMetrics
 import io.github.jaimegaming.wave.weekRange
 import io.github.jaimegaming.wave.yearRange
 import kotlinx.coroutines.delay
@@ -928,7 +932,15 @@ fun RemixScreen(state: WaveState) {
         "yearly" -> state.yearlyRecap
         else -> state.recap
     }
-    val songs = recap.songs
+    val configuration = LocalConfiguration.current
+    val profile = LocalWaveProfile.current
+    val metrics = remixMetrics(
+        configuration.screenWidthDp,
+        configuration.screenHeightDp,
+        configuration.fontScale,
+        profile,
+    )
+    val songs = recap.songs.take(WavePerformance.rowsPerPage(profile))
     val rangeLabel = when (period) {
         "monthly" -> monthRange(recap.start)
         "yearly" -> yearRange(recap.start)
@@ -942,14 +954,20 @@ fun RemixScreen(state: WaveState) {
     var confirming by remember { mutableStateOf(false) }
     LazyColumn(
         modifier = Modifier.wavePage(),
-        contentPadding = PaddingValues(start = 14.dp, end = 14.dp, bottom = 24.dp),
+        contentPadding = PaddingValues(
+            start = metrics.paddingDp.dp,
+            end = metrics.paddingDp.dp,
+            bottom = (metrics.gapDp * 2).dp,
+        ),
     ) {
         item {
             ScreenTitle(title = "Remix", subtitle = subtitle)
             val motionOn = waveMotionEnabled()
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.padding(bottom = 14.dp),
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy((metrics.gapDp * .6f).dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+                maxItemsInEachRow = maxOf(3, metrics.columns),
+                modifier = Modifier.fillMaxWidth().padding(bottom = metrics.gapDp.dp),
             ) {
                 listOf("weekly" to "Weekly", "monthly" to "Monthly", "yearly" to "Yearly").forEach { (id, label) ->
                     val selected = period == id
@@ -1051,16 +1069,17 @@ fun RemixScreen(state: WaveState) {
                     }
                     // The week in one figure, with the sleeve of the song that earned it.
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                        modifier = Modifier.fillMaxWidth().padding(top = metrics.gapDp.dp),
                         verticalAlignment = Alignment.Bottom,
                     ) {
                         Column(Modifier.weight(1f).padding(bottom = 4.dp)) {
                             Text(
                                 text = listeningTime(shownRecap.seconds),
-                                fontSize = 52.sp,
-                                lineHeight = 56.sp,
+                                fontSize = metrics.heroSp.sp,
+                                lineHeight = (metrics.heroSp * 1.08f).sp,
                                 fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                                letterSpacing = (-2).sp,
+                                letterSpacing = (-metrics.heroSp * 0.035f).sp,
+                                maxLines = 2,
                                 color = MaterialTheme.colorScheme.primary,
                             )
                             Text(
@@ -1084,7 +1103,7 @@ fun RemixScreen(state: WaveState) {
                                 horizontalAlignment = Alignment.End,
                                 modifier = Modifier.padding(start = 16.dp),
                             ) {
-                                Cover(hero, size = 92.dp, radius = 18.dp)
+                                Cover(hero, size = metrics.coverDp.dp, radius = (metrics.coverDp * .18f).dp)
                                 Text(
                                     Loc.t("Most played"),
                                     style = MaterialTheme.typography.labelSmall,
@@ -1114,7 +1133,7 @@ fun RemixScreen(state: WaveState) {
                     Text(
                         Loc.t("Your Remix"),
                         style = MaterialTheme.typography.titleLarge,
-                        fontSize = 20.sp,
+                        fontSize = metrics.titleSp.sp,
                         fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
                     )
                     Text(
@@ -1169,6 +1188,7 @@ fun RemixScreen(state: WaveState) {
                 androidx.compose.foundation.layout.FlowRow(
                     modifier = Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    maxItemsInEachRow = maxOf(4, metrics.columns * 3),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     recap.topArtists.forEach { (artist, plays) ->

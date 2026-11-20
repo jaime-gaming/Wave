@@ -1,5 +1,6 @@
 import { PlayerActionButton } from './PlayerActionButton';
 import { useIdleListening } from '../hooks/useIdleListening';
+import { IdleStage } from './IdleStage';
 import { MusicLighting } from './MusicLighting';
 import { VideoBackdrop } from './VideoBackdrop';
 import { YouTubeStage } from './YouTubeStage';
@@ -883,74 +884,22 @@ export function PlayerBar(props: PlayerProps) {
             </div>
             <AnimatePresence initial={false}>
               {idle && player.current && (
-                <motion.div
+                <IdleStage
                   key="immersive"
-                  className={`immersive-stage${stageHasVideo ? ' with-video' : ''}${player.current.lyrics?.lines.length ? ' has-lyrics' : ' without-lyrics'}${player.blend || activeMixCue ? ' is-mixing' : ''}`}
-                  aria-label={t('Immersive listening')}
-                  initial={animation.enabled ? { opacity: 0, y: 8 } : false}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{
-                    opacity: 0,
-                    y: animation.enabled ? -6 : 0,
-                    transition: animation.effects,
-                  }}
-                  transition={animation.reveal}
-                >
-                  <div className="immersive-art">
-                    <div className="immersive-cover immersive-cover-frame">
-                      {player.blend ? (
-                        <MixVisual blend={player.blend} artworkClassName="immersive-cover-art" />
-                      ) : pending ? (
-                        <MixCueVisual cue={pending} artworkClassName="immersive-cover-art" />
-                      ) : (
-                        <Artwork track={player.current} className="immersive-cover-art" />
-                      )}
-                    </div>
-                    <div className="immersive-credit">
-                      <h2>{player.current.title}</h2>
-                      <p>{player.current.artist}</p>
-                      <p>{player.current.album}</p>
-                      <AnimatePresence initial={false}>
-                        {activeMixCue && (
-                          <motion.div
-                            className="immersive-mix-cue"
-                            key="immersive-mix-cue"
-                            initial={animation.enabled ? { opacity: 0, height: 0, y: 4 } : false}
-                            animate={{ opacity: 1, height: 'auto', y: 0 }}
-                            exit={animation.enabled ? { opacity: 0, height: 0, y: -2 } : undefined}
-                            transition={animation.effects}
-                          >
-                            <MixCueLabel cue={activeMixCue} />
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                      <p className="immersive-time">
-                        {formatTime(time)} <span aria-hidden="true">/</span>{' '}
-                        {formatTime(player.duration)}
-                      </p>
-                    </div>
-                  </div>
-                  {!!player.current.lyrics?.lines.length && (
-                    <LyricsPanel
-                      stage
-                      cinematic
-                      track={player.current}
-                      time={time}
-                      readTime={player.readTime}
-                      playing={player.state.playing}
-                      duration={player.duration}
-                      onSeek={player.seek}
-                      onEdit={() => props.onLyrics(player.current!)}
-                    />
-                  )}
-                  <div className="immersive-progress" aria-hidden="true">
-                    <span
-                      style={{
-                        transform: `scaleX(${player.duration > 0 ? Math.max(0, Math.min(1, time / player.duration)) : 0})`,
-                      }}
-                    />
-                  </div>
-                </motion.div>
+                  track={player.current}
+                  time={time}
+                  duration={player.duration}
+                  hasVideo={stageHasVideo}
+                  mixing={!!player.blend || !!activeMixCue}
+                  blend={player.blend}
+                  pending={pending}
+                  mixCue={activeMixCue}
+                  animation={animation}
+                  readTime={player.readTime}
+                  playing={player.state.playing}
+                  onSeek={player.seek}
+                  onEditLyrics={() => props.onLyrics(player.current!)}
+                />
               )}
             </AnimatePresence>
           </Modal>

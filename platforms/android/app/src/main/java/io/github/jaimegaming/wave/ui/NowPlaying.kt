@@ -39,6 +39,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -53,6 +54,7 @@ import io.github.jaimegaming.wave.LyricLine
 import io.github.jaimegaming.wave.Player
 import io.github.jaimegaming.wave.Song
 import io.github.jaimegaming.wave.parseLrc
+import kotlinx.coroutines.delay
 
 /**
  * Mobile Now Playing: the record above the words, with the transport at the
@@ -102,38 +104,68 @@ fun NowPlayingScreen(
     }
     LaunchedEffect(song.id) { state.maybeLookupLyrics(song) }
 
-    Column(
+    var idle by remember(song.id) { mutableStateOf(false) }
+    var lastInteraction by remember(song.id) { mutableStateOf(android.os.SystemClock.elapsedRealtime()) }
+    val wake: () -> Unit = {
+        lastInteraction = android.os.SystemClock.elapsedRealtime()
+        idle = false
+    }
+    LaunchedEffect(song.id) {
+        while (true) {
+            delay(1000)
+            val quietFor = android.os.SystemClock.elapsedRealtime() - lastInteraction
+            if (player.playing && quietFor >= 30_000L) idle = true
+        }
+    }
+
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface)
-            .padding(horizontal = 16.dp),
+            .pointerInput(song.id) {
+                awaitPointerEventScope {
+                    while (true) {
+                        awaitPointerEvent()
+                        wake()
+                    }
+                }
+            },
     ) {
-        NowPlayingHeader(state, onCollapse)
-        if (wide) {
-            Row(
-                modifier = Modifier.fillMaxWidth().weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(28.dp),
-            ) {
-                Column(
-                    modifier = Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.surface)
+                .padding(horizontal = 16.dp),
+        ) {
+            NowPlayingHeader(state, onCollapse)
+            if (wide) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(28.dp),
                 ) {
-                    RecordBlock(song, coverSize)
-                    SongActions(song, state, onEdit, Modifier.fillMaxWidth().padding(top = 14.dp))
+                    Column(
+                        modifier = Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                    ) {
+                        RecordBlock(song, coverSize)
+                        SongActions(song, state, onEdit, Modifier.fillMaxWidth().padding(top = 14.dp))
+                    }
+                    Column(modifier = Modifier.weight(1.15f).fillMaxHeight()) {
+                        LyricsHeading(state)
+                        LyricsBody(song, state, lines, active, listState, player, Modifier.weight(1f).fillMaxWidth())
+                    }
                 }
-                Column(modifier = Modifier.weight(1.15f).fillMaxHeight()) {
-                    LyricsHeading(state)
-                    LyricsBody(song, state, lines, active, listState, player, Modifier.weight(1f).fillMaxWidth())
-                }
+            } else {
+                RecordBlock(song, coverSize)
+                LyricsHeading(state, Modifier.padding(top = 2.dp))
+                LyricsBody(song, state, lines, active, listState, player, Modifier.weight(1f).fillMaxWidth())
+                SongActions(song, state, onEdit, Modifier.fillMaxWidth())
             }
-        } else {
-            RecordBlock(song, coverSize)
-            LyricsHeading(state, Modifier.padding(top = 2.dp))
-            LyricsBody(song, state, lines, active, listState, player, Modifier.weight(1f).fillMaxWidth())
-            SongActions(song, state, onEdit, Modifier.fillMaxWidth())
+            TransportDeck(song, player)
         }
-        TransportDeck(song, player)
+        if (idle && player.playing) {
+            ImmersiveIdleStage(state = state, song = song, onWake = wake)
+        }
     }
 }
 

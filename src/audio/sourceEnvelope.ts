@@ -1,11 +1,12 @@
 import { amplitudeEnvelope, type EnergyEnvelope } from '../domain/musicEnergy';
+import { budgetFor, currentProfile } from '../ui/performance';
 const cache = new WeakMap<Blob, Promise<EnergyEnvelope | undefined>>();
 export function sourceEnvelope(blob: Blob, duration: number) {
   if (cache.has(blob)) return cache.get(blob)!;
   const work = (async () => {
     // Bound extra decode memory; unsupported/large sources keep a still background.
     if (
-      blob.size > 24 * 1024 * 1024 ||
+      blob.size > budgetFor(currentProfile()).maxEnvelopeBytes ||
       duration > 1200 ||
       typeof OfflineAudioContext === 'undefined'
     )

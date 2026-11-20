@@ -67,7 +67,9 @@ public partial class MainWindow
     }
     private void UpdateSongs()
     {
-        visible = SelectedSongs(); Songs.ItemsSource = visible;
+        var selected = SelectedSongs();
+        visible = selected.Take(Math.Max(32, NativePerformance.RowsPerPage(profile))).ToList();
+        Songs.ItemsSource = visible;
         SearchMatches();
         Songs.Visibility = !WholePage && visible.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         var old = CollectionHeader.Children.OfType<TextBlock>().FirstOrDefault(t => Equals(t.Tag, "empty"));
@@ -445,7 +447,8 @@ public partial class MainWindow
     private void RenderRemix()
     {
         long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        var periodStrip = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 10) };
+        var layout = RemixLayout;
+        var periodStrip = new WrapPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, layout.Gap * .6) };
         foreach (var (id, label) in new[] { ("weekly", "Weekly"), ("monthly", "Monthly"), ("yearly", "Yearly") })
         {
             periodStrip.Children.Add(Pill(Localization.T(label), remixPeriod == id, () => { remixPeriod = id; Refresh(); }));
@@ -464,7 +467,7 @@ public partial class MainWindow
             "yearly" => Listening.YearRange(recap.Start),
             _ => Listening.WeekRange(recap.Start, recap.End),
         };
-        var head = new Grid { Margin = new Thickness(2, 4, 2, 10) };
+        var head = new Grid { Margin = new Thickness(2, 4, 2, layout.Gap * .6), HorizontalAlignment = HorizontalAlignment.Stretch };
         head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         head.Children.Add(Label(rangeLabel, 13));
@@ -489,11 +492,11 @@ public partial class MainWindow
         }
 
         // The figure and the sleeve, side by side, as on the web page.
-        var lede = new Grid { Margin = new Thickness(2, 2, 2, 6) };
+        var lede = new Grid { Margin = new Thickness(2, 2, 2, layout.Gap * .4), HorizontalAlignment = HorizontalAlignment.Stretch };
         lede.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         lede.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var copy = new StackPanel { VerticalAlignment = VerticalAlignment.Bottom };
-        var figure = Label(Listening.Time(recap.Seconds), 44);
+        var figure = Label(Listening.Time(recap.Seconds), layout.HeroSize);
         figure.Foreground = (Brush)Application.Current.Resources["AccentBrush"];
         figure.Margin = new Thickness(2, 0, 2, 2);
         copy.Children.Add(figure);
@@ -507,7 +510,7 @@ public partial class MainWindow
         lede.Children.Add(copy);
         var top = recap.TopSongs.FirstOrDefault();
         var sleeve = new StackPanel { VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(20, 0, 2, 2) };
-        var cover = new Border { Width = 116, Height = 116, CornerRadius = new CornerRadius(18), Background = ArtworkBrush(top.Song?.Artwork) };
+        var cover = new Border { Width = layout.CoverSize, Height = layout.CoverSize, CornerRadius = new CornerRadius(Math.Max(12, layout.CoverSize * .16)), Background = ArtworkBrush(top.Song?.Artwork) };
         if (top.Song?.Artwork == null) cover.Child = Iconography.Draw("song", 40, brush: (Brush)Application.Current.Resources["AccentBrush"]);
         sleeve.Children.Add(cover);
         var caption = Label(Localization.T("Most played").ToUpperInvariant(), 11);
@@ -522,7 +525,7 @@ public partial class MainWindow
         if (recap.Days.Count > 0) CollectionHeader.Children.Add(WeekChart(recap.Days));
 
         // Genre, the hour and the artist that carried the week: one line.
-        var note = new WrapPanel { Margin = new Thickness(2, 2, 2, 12) };
+        var note = new WrapPanel { Margin = new Thickness(2, 2, 2, layout.Gap), HorizontalAlignment = HorizontalAlignment.Stretch };
         void Fact(string text) {
             var block = Label(text, 13);
             block.SetResourceReference(TextBlock.ForegroundProperty, "MutedBrush");
@@ -538,11 +541,11 @@ public partial class MainWindow
         CollectionHeader.Children.Add(note);
 
         if (recap.Songs.Count > 0) {
-            var mixHead = new Grid { Margin = new Thickness(2, 10, 2, 4) };
+            var mixHead = new Grid { Margin = new Thickness(2, layout.Gap * .6, 2, layout.Gap * .3), HorizontalAlignment = HorizontalAlignment.Stretch };
             mixHead.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             mixHead.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             var words = new StackPanel();
-            words.Children.Add(Label(Localization.T("Your Remix"), 21));
+            words.Children.Add(Label(Localization.T("Your Remix"), layout.TitleSize));
             var sub = Label($"{NativeCollections.Count(recap.Songs.Count, "song")} {Localization.T("you played this week.")}", 13);
             sub.SetResourceReference(TextBlock.ForegroundProperty, "MutedBrush");
             words.Children.Add(sub);

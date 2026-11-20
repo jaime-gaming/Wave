@@ -104,10 +104,20 @@ match, each one a row that opens it:
   <img src="docs/media/android-search.png" alt="Wave for Android: a search that names the album it found" width="260" />
 </p>
 
+**iOS**, rendered by the SwiftUI app itself:
+
+<p align="center">
+  <img src="docs/media/ios-home.png" alt="Wave for iOS: home" width="210" />
+  <img src="docs/media/ios-remix.png" alt="Wave for iOS: Remix" width="210" />
+  <img src="docs/media/ios-library.png" alt="Wave for iOS: the library" width="210" />
+  <img src="docs/media/ios-now-playing.png" alt="Wave for iOS: Now Playing" width="210" />
+</p>
+
 Every image is a real capture, not a mock-up. The web ones come from `npm run capture:docs`
 against a generated demo library; the Windows ones are drawn by `Wave.exe --smoke-test`
 on its own throwaway library; the Android ones are rendered by the app's `ScreenshotTest` on the
-real Compose stack. Each of those runs on CI and commits what it produced, so the pictures here
+real Compose stack; the iOS ones are simulator screenshots of the running SwiftUI app on a seeded
+in-memory library. Each of those runs on CI and commits what it produced, so the pictures here
 are the current build. See [Platforms](docs/PLATFORMS.md) for the pages that are not shown.
 
 ## Why Wave, next to Spotify, Apple Music or YouTube Music
@@ -145,8 +155,15 @@ where the big services are the better choice.
 | Lock screen, headset and car controls | —   | —       | Yes     |
 | Works offline as an installed app     | Yes | Yes     | Yes     |
 
-**iOS.** The iPhone and iPad app is in progress and arrives shortly after the Android one. Until
-then, Wave installs to the Home Screen from Safari and behaves like an app there.
+**iOS.** A SwiftUI app for iPhone and iPad (iOS 17+) is in
+[`platforms/ios`](platforms/ios/README.md). It imports local audio and LRC files, plays in the
+background and answers the lock screen, Control Center, headphones and CarPlay. It also has
+WidgetKit home/lock-screen widgets, a Live Activity with Dynamic Island and CarPlay, App Intents
+for Siri/Shortcuts/Spotlight, an iOS 18 Control Center control, Handoff and the system Share
+sheet. **Liquid Glass is used only in this iOS app**, with the real iOS 26 APIs and an iOS 17
+material fallback. Open `Wave.xcodeproj` in Xcode 26 or follow the simulator commands in
+[Platforms](docs/PLATFORMS.md#ios). It is source-only for now: no signing, no `.ipa` in Release
+assets and no App Store upload. Wave still installs to the Home Screen from Safari as an app.
 
 **Browser.** The instructions above are all you need. You can install Wave to a home screen and
 it opens without a connection once loaded. The published site is built and served by

@@ -4,7 +4,9 @@ import {
   isUsablePlan,
   planTransitionCached,
   realignPlan,
+  type TransitionPlan,
 } from '../domain/mixPlanner';
+import type { EndingShape } from '../domain/mixEnding';
 import { analyzeTrack, cachedAnalysis } from '../audio/mixAnalysis';
 import { continuationQueue } from '../domain/continuation';
 import type { ListeningSignal } from '../domain/mood';
@@ -26,6 +28,7 @@ import { planEdgeHandover } from '../domain/edgeMix';
 import { PlaybackClock } from './playbackClock';
 import { cueTiming, MixCueStore } from '../ui/mixCue';
 import type { Track } from '../domain/types';
+import type { TrackAnalysis } from '../audio/dsp';
 
 function savedVolume(key = 'wave-volume') {
   try {
@@ -121,6 +124,25 @@ export function usePlayer(
     progress: number;
     seconds: number;
   } | null>(null);
+  /**
+   * The 20 Hz clock used to rebuild the same musical plan on every tick. A
+   * handover is a decision about this pair and this ending, not a polling job:
+   * build it once and keep it until one of those facts changes.
+   */
+  const mixDecision = useRef<{
+    outgoing?: Blob;
+    incoming?: Blob;
+    outgoingAnalysis?: TrackAnalysis;
+    incomingAnalysis?: TrackAnalysis;
+    duration: number;
+    preparedDuration: number;
+    fallback: number;
+    lyrics?: unknown;
+    ending: EndingShape;
+    plan?: TransitionPlan;
+    window: number;
+    blendWindow: number;
+  } | null>(null);
   const [duration, setDuration] = useState(0);
   const [durationTrackId, setDurationTrackId] = useState<string>();
   const [volume, updateVolume] = useState(() => savedVolume());
@@ -145,9 +167,7 @@ export function usePlayer(
     outgoingGain: number;
     outgoingFade: number;
   }>({ outgoingGain: 1, outgoingFade: 0.25 });
-  const edgeRef = useRef<{ toId?: string; direction: 'into' | 'outOf'; seconds: number } | null>(
-    null,
-  );
+  const edgeRef = useRef<{ direction: 'into' | 'outOf'; seconds: number } | null>(null);
   const lastAudible = useRef(volume || savedVolume('wave-last-audible-volume') || 1);
   const online = useOnline();
   const [buffering, setBuffering] = useState(false);
@@ -465,18 +485,53 @@ export function usePlayer(
           : 0;
         const outgoingAnalysis = cachedAnalysis(player.active.blob);
         const incomingAnalysis = next?.blob ? cachedAnalysis(next.blob) : undefined;
-        const plan =
-          outgoingAnalysis && incomingAnalysis
-            ? alignIncomingLyrics(
-                planTransitionCached(outgoingAnalysis, incomingAnalysis, {
-                  fallbackSeconds: window,
-                }),
-                next?.lyrics,
-                incomingAnalysis.trimmed.start,
-              )
-            : undefined;
+        const ending = player.endingFor(player.active.blob);
+        const preparedDuration = player.preparedDuration || next?.duration || 0;
+        const cached = mixDecision.current;
+        const decision =
+          cached &&
+          cached.outgoing === player.active.blob &&
+          cached.incoming === next?.blob &&
+          cached.outgoingAnalysis === outgoingAnalysis &&
+          cached.incomingAnalysis === incomingAnalysis &&
+          cached.duration === duration &&
+          cached.preparedDuration === preparedDuration &&
+          cached.fallback === window &&
+          cached.lyrics === next?.lyrics &&
+          cached.ending === ending
+            ? cached
+            : (() => {
+                const outgoingPlan =
+                  outgoingAnalysis && incomingAnalysis
+                    ? alignIncomingLyrics(
+                        planTransitionCached(outgoingAnalysis, incomingAnalysis, {
+                          fallbackSeconds: window,
+                          ending,
+                        }),
+                        next?.lyrics,
+                        incomingAnalysis.trimmed.start,
+                      )
+                    : undefined;
+                const built = {
+                  outgoing: player.active.blob,
+                  incoming: next?.blob,
+                  outgoingAnalysis,
+                  incomingAnalysis,
+                  duration,
+                  preparedDuration,
+                  fallback: window,
+                  lyrics: next?.lyrics,
+                  ending,
+                  plan: outgoingPlan,
+                  window,
+                  blendWindow: Math.max(window, outgoingPlan?.seconds ?? 0),
+                };
+                mixDecision.current = built;
+                return built;
+              })();
+        const plan = decision.plan;
         // How long before the end of the file the handover begins.
-        const blendWindow = Math.max(window, plan?.seconds ?? 0);
+        const blendWindow = decision.blendWindow;
         const cueTrack = stateRef.current.queue.length
           ? context.current.trackById.get(stateRef.current.queue[stateRef.current.index])
           : undefined;

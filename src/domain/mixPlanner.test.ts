@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   alignIncomingLyrics,
   automaticBars,
-  bassSwapGains,
   handoverGains,
   isUsablePlan,
   levelTrim,
@@ -249,23 +248,6 @@ describe('gain curves', () => {
     }
   });
 
-  it('swaps bass around the midpoint without a hole', () => {
-    const start = bassSwapGains(0);
-    const middle = bassSwapGains(0.45);
-    const end = bassSwapGains(1);
-    expect(start.outgoing).toBeCloseTo(1, 6);
-    expect(start.incoming).toBeCloseTo(0, 6);
-    expect(middle.outgoing).toBeCloseTo(middle.incoming, 2);
-    expect(end.incoming).toBeCloseTo(1, 6);
-    // Never both at zero: the low end is continuous.
-    for (let step = 0; step <= 20; step++) {
-      const gains = bassSwapGains(step / 20);
-      expect(Math.hypot(gains.outgoing, gains.incoming)).toBeGreaterThan(0.9);
-    }
-    expect(bassSwapGains(-1)).toEqual({ outgoing: 1, incoming: 0 });
-    expect(bassSwapGains(9).incoming).toBeCloseTo(1, 6);
-  });
-
   it('chooses its own bar count so a blend lasts about the target length', () => {
     expect(automaticBars(120)).toBe(12);
     expect(automaticBars(174)).toBe(16);
@@ -303,6 +285,8 @@ describe('gain curves', () => {
     expect(second).toBe(first);
     // Different options are a different plan.
     expect(planTransitionCached(a, b, { fallbackSeconds: 4 })).not.toBe(first);
+    expect(planTransitionCached(a, b, { ending: 'echo-cut' }).ending).toBe('echo-cut');
+    expect(planTransitionCached(a, b, { ending: 'fade-to-zero' }).ending).toBe('fade-to-zero');
   });
 });
 

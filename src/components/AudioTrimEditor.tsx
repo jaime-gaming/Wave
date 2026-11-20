@@ -4,7 +4,7 @@ import { formatTime } from '../domain/types';
 import { motion } from 'motion/react';
 import { useWaveMotion } from '../ui/motion';
 import { Play, Pause } from './Glyphs';
-import { MAX_ANALYSIS_BYTES, MAX_ANALYSIS_SECONDS } from '../audio/mixAnalysis';
+import { analysisBytesFor, MAX_ANALYSIS_SECONDS } from '../audio/mixAnalysis';
 
 /** Playback bounds only: the source file is never rewritten. */
 export function AudioTrimEditor({
@@ -67,7 +67,7 @@ export function AudioTrimEditor({
     const element = audio.current;
     if (element) element.src = objectUrl;
     let cancelled = false;
-    const tooLarge = track.blob.size > MAX_ANALYSIS_BYTES || track.duration > MAX_ANALYSIS_SECONDS;
+    const tooLarge = track.blob.size > analysisBytesFor() || track.duration > MAX_ANALYSIS_SECONDS;
     const context = !tooLarge && typeof AudioContext !== 'undefined' ? new AudioContext() : null;
     if (context)
       void track.blob

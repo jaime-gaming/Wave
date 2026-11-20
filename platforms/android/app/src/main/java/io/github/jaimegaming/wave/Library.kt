@@ -37,6 +37,9 @@ data class Song(
     val addedAt: Long = 0,
     val playCount: Int = 0,
     val lastPlayed: Long = 0,
+    /** Optional local tempo tag. LRC timings can infer a pulse when it is absent. */
+    val bpm: Double? = null,
+    val barOffset: Double? = null,
 )
 
 /** A list of songs in an order of the listener's choosing. */
@@ -85,6 +88,8 @@ class Library(private val context: Context) {
                 addedAt = o.optLong("addedAt"),
                 playCount = o.optInt("playCount"),
                 lastPlayed = o.optLong("lastPlayed"),
+                bpm = o.optDouble("bpm", Double.NaN).takeIf { it.isFinite() && it in 60.0..200.0 },
+                barOffset = o.optDouble("barOffset", Double.NaN).takeIf { it.isFinite() },
             )
         }
     }
@@ -100,7 +105,8 @@ class Library(private val context: Context) {
                     .put("duration", s.duration).put("favorite", s.favorite)
                     .put("lyrics", s.lyrics).put("checkedAt", s.checkedAt)
                     .put("genre", s.genre).put("addedAt", s.addedAt)
-                    .put("playCount", s.playCount).put("lastPlayed", s.lastPlayed),
+                    .put("playCount", s.playCount).put("lastPlayed", s.lastPlayed)
+                    .put("bpm", s.bpm ?: JSONObject.NULL).put("barOffset", s.barOffset ?: JSONObject.NULL),
             )
         }
         write(index, array)

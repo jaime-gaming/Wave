@@ -1,6 +1,5 @@
 import { mixCues, type MixCues } from '../domain/mix';
 import {
-  handoverGains,
   levelTrim,
   panSpread,
   planGains,
@@ -17,6 +16,12 @@ import {
 } from './mixGraph';
 import type { TrackAnalysis } from './dsp';
 import { sourceEnvelope } from './sourceEnvelope';
+import {
+  detectEndingShape,
+  endingCutProgress,
+  endingGains,
+  type EndingShape,
+} from '../domain/mixEnding';
 interface Deck {
   element: HTMLAudioElement;
   blob?: Blob;
@@ -58,6 +63,8 @@ export class MixAudio {
     vocalOverlap: boolean;
     /** Level match between the two records, applied only for the overlap. */
     trim: { outgoing: number; incoming: number };
+    /** Detected outgoing-tail shape; the echo ending is released at 75 %. */
+    ending: EndingShape;
     /** Playback rate the outgoing deck is bent towards, and by when. */
   };
   /**
@@ -76,6 +83,7 @@ export class MixAudio {
   private graph: MixGraph | null = null;
   private analyses = new WeakMap<Blob, TrackAnalysis>();
   private profiles = new WeakMap<Blob, MixCues>();
+  private endings = new WeakMap<Blob, EndingShape>();
   private requested = new WeakSet<Blob>();
   /** Elements that really have a Web Audio chain; anything else uses volume. */
   private attached = new WeakSet<HTMLAudioElement>();
@@ -241,9 +249,17 @@ export class MixAudio {
       return;
     this.requested.add(blob);
     void sourceEnvelope(blob, duration).then((envelope) => {
-      if (envelope) this.profiles.set(blob, mixCues(envelope, duration));
+      if (!envelope) return;
+      const cues = mixCues(envelope, duration);
+      this.profiles.set(blob, cues);
+      this.endings.set(blob, detectEndingShape(envelope, duration, cues.end));
     });
   }
+  /** The detected ending is cached with the envelope; no second decode or timer. */
+  endingFor(blob: Blob | undefined): EndingShape {
+    return blob ? (this.endings.get(blob) ?? 'fade-to-zero') : 'fade-to-zero';
+  }
+
   private cues(deck: Deck) {
     const duration = deck.element.duration;
     if (!this.mixEnabled || !deck.blob) return { start: 0, end: duration };
@@ -403,7 +419,10 @@ export class MixAudio {
       return;
     }
     if (this.fading && this.fading.outgoing.blob && this.fading.incoming.blob) {
-      const p = this.blendProgress(this.fading);
+      const p = Math.min(
+        1,
+        this.blendProgress(this.fading) / endingCutProgress(this.fading.ending),
+      );
       this.callbacks.blend?.({
         outgoing: this.fading.outgoing.blob,
         incoming: this.fading.incoming.blob,
@@ -519,6 +538,7 @@ export class MixAudio {
       cue: plan.cue,
       bassSwapAt: plan.bassSwapAt,
       vocalOverlap: plan.vocalOverlap,
+      ending: plan.ending ?? this.endingFor(this.active.blob),
     });
   }
   transition(blob: Blob, seconds: number, guard: () => boolean, onStarted: () => void) {
@@ -540,6 +560,7 @@ export class MixAudio {
       filterOut?: boolean;
       vocalOverlap?: boolean;
       miniRepeat?: boolean;
+      ending?: EndingShape;
     },
   ) {
     const incoming = this.spare,
@@ -595,6 +616,7 @@ export class MixAudio {
           }
         }
         const outgoingTime = outgoing.element.currentTime;
+        const ending = options.ending ?? this.endingFor(outgoing.blob);
         this.pending = false;
         this.active = incoming;
         this.spare = outgoing;
@@ -622,6 +644,7 @@ export class MixAudio {
           bassSwapAt: options.bassSwapAt ?? 0.5,
           filterOut: options.filterOut ?? this.eqAvailable,
           vocalOverlap: !!options.vocalOverlap,
+          ending,
         };
         this.applyGains();
         this.callbacks.buffering(false);
@@ -740,7 +763,9 @@ export class MixAudio {
     // A mix is staged, not symmetric: the new song arrives early and stays, the
     // old one leaves afterwards. That difference is the whole point of the
     // feature — a symmetric equal-power slide is just a crossfade.
-    const gains = this.fading.mixed ? handoverGains(progress) : planGains(progress);
+    const gains = this.fading.mixed
+      ? endingGains(progress, this.fading.ending)
+      : planGains(progress);
     // The level match rides on top of the curve, so a quieter record is not
     // heard as the mix going quiet.
     // Equal-power alone can add +3 dB on correlated recordings. Bound the sum
@@ -774,7 +799,7 @@ export class MixAudio {
       );
       this.graph.setAir(this.fading.incoming.element, incomingAirHz(progress, this.fading.mixed));
     }
-    if (progress >= 1) {
+    if (progress >= endingCutProgress(this.fading.ending)) {
       const finished = this.fading;
       this.release(finished.outgoing);
       if (this.graph) {

@@ -134,3 +134,28 @@ jobs:
           done
           echo "Could not publish the images; the next run will photograph them again."
           exit 0
+
+  ios:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: iOS source contracts
+        run: node --test scripts/ios-release.test.mjs
+      - name: Select Xcode 26
+        run: |
+          set -euo pipefail
+          XCODE=$(python3 -c 'from pathlib import Path; import re; apps=[p for p in Path("/Applications").glob("Xcode_26*.app") if (p/"Contents/Developer").is_dir()]; key=lambda p: tuple(map(int, re.search(r"Xcode_([\d.]+)\.app", p.name).group(1).split("."))) if re.search(r"Xcode_([\d.]+)\.app", p.name) else (0,); print(max(apps, key=key)/"Contents/Developer" if apps else "", end="")')
+          test -n "$XCODE"
+          sudo xcode-select -s "$XCODE"
+          xcodebuild -version
+      - name: Show the Apple toolchain
+        run: swift --version && xcodebuild -version
+      - name: Test the shared WaveCore
+        run: swift test --package-path platforms/ios
+      - name: Build the unsigned iOS app
+        # No signing identity, team or App Store upload is configured: the
+        # simulator build is the honest proof that the SwiftUI app compiles.
+        run: xcodebuild -project platforms/ios/Wave.xcodeproj -scheme Wave -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/WaveDerivedData CODE_SIGNING_ALLOWED=NO build

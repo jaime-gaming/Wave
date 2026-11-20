@@ -319,8 +319,9 @@ The native pictures are captured by the builds themselves, which is the only hon
 
 - `Wave.exe --smoke-test <folder>` renders the real window on a temporary library and writes a PNG per page. The `Native builds` job runs it and copies `artifacts/windows-ui/*.png` into `docs/media/windows-*.png`.
 - `gradle -p platforms/android testDebugUnitTest -Dwave.screenshots=app/build/wave-screenshots` runs `ScreenshotTest`, which renders the real `WaveApp` on the Robolectric graphics stack from a seeded library. Without the flag the tests are skipped, so an ordinary run stays quick. The same job copies them into `docs/media/android-*.png`.
+- The `ios-captures` job builds the unsigned SwiftUI app on `macos-26`/Xcode 26, installs it on an iPhone simulator, opens `wave://capture?page=…` to seed an in-memory demo library, and takes `xcrun simctl io` screenshots of Home, Library, Search, Remix, Settings and Now Playing. It copies them into `docs/media/ios-*.png`. No web frame, invented image or distribution package is involved; iOS screenshots are real native captures.
 
-On successful branch pushes, both jobs publish through `scripts/publish-native-screenshots.sh`: an exact-SHA checkout pushes an explicit branch ref, while stale native sources/conflicting newer captures are kept in run artifacts instead of overwriting current images. Neither is a mock-up and neither is retouched: what a reader sees is what the build drew. They are a layout record, not a substitute for a device pass.
+On successful branch pushes, all three jobs publish through `scripts/publish-native-screenshots.sh`: an exact-SHA checkout pushes an explicit branch ref, while stale native sources/conflicting newer captures are kept in run artifacts instead of overwriting current images. None is a mock-up and none is retouched: what a reader sees is what the build drew. They are a layout record, not a substitute for a device pass.
 
 ## Release media
 

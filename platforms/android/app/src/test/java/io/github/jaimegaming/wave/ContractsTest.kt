@@ -40,7 +40,18 @@ class ContractsTest {
   assertFalse(matchesSearch("Northbound", "south"))
   assertFalse(matchesSearch("Northbound", "northbound extra"))
  }
- @Test fun equalPowerAndMetadata() { val gains=powerGains(.5);assertEquals(1.0,(gains.first*gains.first+gains.second*gains.second).toDouble(),.00001);assertEquals("beyonce",canonical("Beyoncé")) }
+ @Test fun equalPowerAndMetadata() { val gains=endingGains(.5,EndingShape.FADE);assertEquals(1.0,(gains.first*gains.first+gains.second*gains.second).toDouble(),.00001);assertEquals("beyonce",canonical("Beyoncé")) }
+ @Test fun mixEndingsFollowTheDetectedOutgoingTail() {
+  val fade=Song("fade","Fade","Artist","Album","fade.wav","/tmp/fade.wav",200.0,lyrics="[02:50.00]Last line",bpm=120.0)
+  val echo=Song("echo","Echo","Artist","Album","echo.wav","/tmp/echo.wav",200.0,lyrics="[03:16.00]Last line",bpm=120.0)
+  assertEquals(EndingShape.FADE,detectEnding(fade))
+  assertEquals(EndingShape.ECHO_CUT,detectEnding(echo))
+  assertEquals(1.0,endingCut(EndingShape.FADE),.00001)
+  assertEquals(.75,endingCut(EndingShape.ECHO_CUT),.00001)
+  assertTrue(endingGains(.74,EndingShape.ECHO_CUT).first>0f)
+  assertEquals(0f,endingGains(.75,EndingShape.ECHO_CUT).first)
+  assertEquals(1f,endingGains(.75,EndingShape.ECHO_CUT).second)
+ }
  @Test fun handoverArrivesEarlyAndHolds() {
   val early=handoverGains(.25);val late=handoverGains(.75)
   assertEquals(1.0,(early.first*early.first+early.second*early.second).toDouble(),.0001)

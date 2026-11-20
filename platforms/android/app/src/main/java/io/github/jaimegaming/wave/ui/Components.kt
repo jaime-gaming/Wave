@@ -31,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -43,6 +44,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.jaimegaming.wave.Song
+import io.github.jaimegaming.wave.remixMetrics
 
 /**
  * The web's press: a card or a pill gives a little when it is pushed, and eases
@@ -159,20 +161,28 @@ fun WaveMark(size: Int = 28) {
 @Composable
 fun ScreenTitle(title: String, subtitle: String? = null, trailing: (@Composable () -> Unit)? = null) {
     val actions = LocalChromeActions.current
+    val configuration = LocalConfiguration.current
+    val metrics = remixMetrics(
+        configuration.screenWidthDp,
+        configuration.screenHeightDp,
+        configuration.fontScale,
+        LocalWaveProfile.current,
+    )
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 20.dp, bottom = 24.dp),
+            .padding(top = metrics.paddingDp.dp, bottom = metrics.gapDp.dp),
         verticalAlignment = Alignment.Top,
     ) {
         Column(Modifier.weight(1f)) {
             Text(
                 text = Loc.t(title),
                 style = MaterialTheme.typography.displaySmall,
-                fontSize = 40.sp,
-                lineHeight = 44.sp,
+                fontSize = metrics.titleSp.sp,
+                lineHeight = (metrics.titleSp * 1.08f).sp,
                 fontWeight = FontWeight.Bold,
-                letterSpacing = (-1).sp,
+                letterSpacing = (-0.6).sp,
+                maxLines = 2,
                 color = MaterialTheme.colorScheme.primary,
             )
             if (subtitle != null) {

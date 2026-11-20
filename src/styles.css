@@ -9129,3 +9129,247 @@ button:hover .wave-glyph--volume .glyph-wave-outer {
 :root[data-motion='reduced'] .daily-mix-loading-sleeve i {
   animation: none;
 }
+
+/* ---------------------------------------------------------------------------
+ * Wave 3.0 — automatic device performance profiles.
+ *
+ * `data-perf` is set before the first paint by src/ui/performance.ts. A capable
+ * device keeps every effect; a modest one sheds the expensive decorative work
+ * (blurs, backdrop filters, glows and looping animations) without losing a
+ * single control, row or feature. There is no setting to find.
+ * ------------------------------------------------------------------------- */
+:root[data-perf='balanced'] .music-lighting,
+:root[data-perf='balanced'] .stage-aura {
+  opacity: 0.55;
+}
+:root[data-perf='lite'] .music-lighting,
+:root[data-perf='lite'] .stage-aura {
+  display: none;
+}
+:root[data-perf='lite'] * {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+:root[data-perf='lite'] .lyrics-stage .lyric-line:not(.active),
+:root[data-perf='lite'] .lyrics-cinematic .lyric-line:not(.active) {
+  filter: none;
+}
+:root[data-perf='lite'] .daily-mix-loading-sleeve,
+:root[data-perf='lite'] .daily-mix-loading-sleeve i,
+:root[data-perf='lite'] .app-crash-bars,
+:root[data-perf='lite'] .immersive-stage::before,
+:root[data-perf='lite'] .immersive-stage::after {
+  animation: none !important;
+}
+:root[data-perf='lite'] .immersive-stage {
+  --idle-breathe: 0s;
+}
+
+/* ==========================================================================
+   Wave 3.0 — all-screen right-edge and Remix layout.
+   The obsolete right-hand player column used to reserve hundreds of empty
+   pixels, and an 880px cap pinned Remix to the left of a wide surface. Here the
+   shell always reaches the right inset and Remix owns the whole content width;
+   only the cards, padding and type change with the screen. Nothing is centred
+   with a dead strip of background on one side.
+   ========================================================================== */
+:root {
+  --shell-inset-inline: clamp(6px, 1.3vw, 24px);
+  --shell-inset-block: clamp(8px, 1.2vh, 18px);
+  --remix-gap: clamp(12px, 1.4vw, 28px);
+  --remix-card-gap: clamp(10px, 1.25vw, 26px);
+}
+.workspace {
+  width: auto;
+  max-width: none;
+  margin-top: var(--shell-inset-block);
+  margin-right: var(--shell-inset-inline);
+  margin-bottom: var(--shell-inset-block);
+  margin-left: calc(var(--rail-width) + var(--shell-inset-inline));
+}
+.workspace > .library-header {
+  padding-inline: clamp(14px, 2vw, 34px);
+  padding-block: clamp(14px, 1.5vh, 24px);
+}
+.workspace > .library-surface {
+  padding-inline: clamp(10px, 2vw, 34px);
+  padding-block: clamp(14px, 1.6vh, 28px) clamp(22px, 3vh, 44px);
+}
+.workspace > .library-header h1,
+.workspace > .library-header .library-summary {
+  overflow-wrap: anywhere;
+}
+.remix-page {
+  width: 100%;
+  max-width: none;
+  gap: var(--remix-gap);
+  container-type: inline-size;
+}
+/* Remix is also a class on <main class="workspace remix-page">. Its 100% width
+   must not override the shell's auto width: the rail already occupies the left
+   inset, so 100% of the viewport would push the whole content past the right
+   edge. This is the actual right-hand overflow/empty-strip regression. */
+.workspace.remix-page {
+  width: auto;
+}
+.remix-head {
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: clamp(10px, 1.4vw, 22px);
+  margin-bottom: 0;
+}
+.remix-head-copy {
+  flex: 1 1 260px;
+  min-width: min(100%, 260px);
+}
+.remix-subtitle {
+  font-size: clamp(12px, 1vw, 16px);
+  line-height: 1.5;
+}
+.remix-period-tabs {
+  max-width: 100%;
+}
+.remix-period-tab {
+  min-height: clamp(34px, 4vh, 44px);
+  padding-inline: clamp(9px, 1vw, 18px);
+  font-size: clamp(12px, 0.9vw, 15px);
+}
+.remix-week-select {
+  width: min(100%, 620px);
+  max-width: none;
+  margin-block: 0;
+}
+.remix-highlights {
+  width: 100%;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, clamp(220px, 24vw, 420px)), 1fr));
+  gap: var(--remix-card-gap);
+  margin-block: 0;
+}
+.remix-highlight {
+  padding: clamp(14px, 1.3vw, 26px);
+  gap: clamp(10px, 1vw, 18px);
+}
+.remix-feature-image {
+  width: min(100%, clamp(180px, 32vw, 480px));
+  max-height: min(48dvh, 480px);
+  margin-inline: auto;
+}
+.remix-highlight > strong {
+  font-size: clamp(19px, 1.65vw, 34px);
+}
+.remix-highlight-label,
+.remix-highlight > small,
+.remix-highlight-more {
+  font-size: clamp(12px, 0.9vw, 15px);
+}
+.remix-mini-panel {
+  padding-inline: clamp(10px, 1vw, 20px);
+}
+.remix-history li {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 120px), 1fr));
+  gap: clamp(8px, 1vw, 18px);
+}
+@media (max-width: 700px) {
+  .workspace {
+    margin: 0;
+    border-radius: 0;
+  }
+  .workspace > .library-header,
+  .workspace > .library-surface {
+    padding-inline: clamp(10px, 3.8vw, 18px);
+  }
+  .remix-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .remix-head-copy {
+    flex-basis: 100%;
+  }
+  .remix-highlights {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .remix-feature-image {
+    width: min(100%, 340px);
+    max-height: min(42dvh, 340px);
+  }
+}
+@media (min-width: 701px) and (max-width: 1000px) {
+  .remix-highlights {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .remix-feature-image {
+    width: min(100%, 360px);
+  }
+}
+@media (max-width: 360px) {
+  .remix-period-tabs {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .remix-period-tab {
+    flex: 1 1 auto;
+    padding-inline: 7px;
+  }
+  .remix-highlight {
+    padding: 12px;
+  }
+  .remix-highlight > strong {
+    font-size: 20px;
+  }
+}
+@media (max-height: 500px) {
+  .workspace {
+    margin-top: 6px;
+    margin-bottom: 6px;
+  }
+  .workspace > .library-header {
+    padding-block: 9px 10px;
+  }
+  .workspace > .library-surface {
+    padding-block: 10px 20px;
+  }
+  .remix-page {
+    gap: 10px;
+  }
+  .remix-feature-image {
+    max-height: min(32dvh, 260px);
+  }
+}
+@media (orientation: landscape) and (max-height: 500px) and (min-width: 701px) {
+  .remix-highlights {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .remix-feature-image {
+    width: min(100%, 240px);
+  }
+}
+@media (min-width: 1680px) {
+  .workspace > .library-surface {
+    padding-inline: clamp(24px, 2vw, 52px);
+  }
+  .remix-feature-image {
+    width: min(100%, clamp(320px, 22vw, 560px));
+  }
+}
+@media (min-width: 2200px) {
+  .remix-highlight > strong {
+    font-size: clamp(28px, 1.4vw, 42px);
+  }
+  .remix-subtitle,
+  .remix-highlight-label,
+  .remix-highlight > small {
+    font-size: clamp(14px, 0.75vw, 19px);
+  }
+}
+@media (min-width: 3200px) {
+  .workspace > .library-header h1 {
+    font-size: clamp(38px, 1.3vw, 54px);
+  }
+  .remix-highlight {
+    padding: clamp(24px, 1.4vw, 40px);
+  }
+  .remix-feature-image {
+    width: min(100%, clamp(420px, 18vw, 680px));
+  }
+}

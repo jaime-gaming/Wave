@@ -5,19 +5,21 @@ import console from 'node:console';
 import { fileURLToPath, URL } from 'node:url';
 
 /**
- * One dictionary, three platforms.
+ * One dictionary, four platforms.
  *
  * `i18n/es.json` is the single place where Wave's Spanish lives: its keys are
  * the English sentences themselves, so anything not in the table still reads
  * correctly in English instead of showing a key or a blank. The web app reads
- * the JSON directly; Android and Windows cannot, so this script renders the
- * same table into `Loc.kt` and `Localization.cs`. Those two files are generated
- * — edit the JSON and run `npm run build:i18n`, never the other way round, and
- * `npm run release:check` refuses a release whose tables drifted from it.
+ * the JSON directly; Android, Windows and iOS cannot, so this script renders
+ * the same table into `Loc.kt`, `Localization.cs` and `Localizable.strings`.
+ * Those three files are generated — edit the JSON and run
+ * `npm run build:i18n`, never the other way round, and `npm run release:check`
+ * refuses a release whose tables drifted from it.
  */
 
 const KOTLIN_TARGET = 'platforms/android/app/src/main/java/io/github/jaimegaming/wave/ui/Loc.kt';
 const CSHARP_TARGET = 'platforms/windows/Wave.Windows/Localization.cs';
+const STRINGS_TARGET = 'platforms/ios/Wave/es.lproj/Localizable.strings';
 
 const header = (extra) =>
   [
@@ -190,6 +192,24 @@ ${rows}
 `;
 }
 
+/** The iOS table: an `es.lproj/Localizable.strings` read by `NSLocalizedString`. */
+export function renderLocalizableStrings(entries) {
+  const rows = [...entries]
+    .map(
+      ([english, spanish]) =>
+        `${quote(english, { dollar: false })} = ${quote(spanish, { dollar: false })};`,
+    )
+    .join('\n');
+  return `${[
+    '/* Generated from i18n/es.json by scripts/build-i18n.mjs — do not edit by hand. */',
+    '/*',
+    ' * The keys are the English sentences themselves, so a screen whose phrase has',
+    ' * no entry yet still reads correctly in English instead of showing a key.',
+    ' */',
+    '',
+  ].join('\n')}${rows}\n`;
+}
+
 function readEntries(root) {
   const entries = JSON.parse(
     readFileSync(path.join(root, 'i18n', 'es.json'), 'utf8').replace(/^\uFEFF/, ''),
@@ -203,6 +223,7 @@ export function buildI18n(root, { check = false } = {}) {
   const targets = [
     [KOTLIN_TARGET, renderLocKt(entries)],
     [CSHARP_TARGET, renderLocalizationCs(entries)],
+    [STRINGS_TARGET, renderLocalizableStrings(entries)],
   ];
   const stale = [];
   for (const [target, rendered] of targets) {
@@ -237,7 +258,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     } else console.log(`Language tables match i18n/es.json (${result.count} phrases).`);
   } else {
     console.log(
-      `Wrote ${KOTLIN_TARGET} and ${CSHARP_TARGET} from i18n/es.json (${result.count} phrases).`,
+      `Wrote ${KOTLIN_TARGET}, ${CSHARP_TARGET} and ${STRINGS_TARGET} from i18n/es.json (${result.count} phrases).`,
     );
   }
 }

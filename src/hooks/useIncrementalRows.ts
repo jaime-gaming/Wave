@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { budgetFor, usePerformanceProfile } from '../ui/performance';
 
 /**
  * Long libraries: rows arrive as the list is scrolled instead of all at once.
@@ -9,8 +10,11 @@ import { useEffect, useState } from 'react';
  * and the whole list stays reachable; only the amount that exists at once is
  * bounded.
  */
-export function useIncrementalRows(total: number, page = 80) {
-  const [limit, setLimit] = useState(page);
+export function useIncrementalRows(total: number, page?: number) {
+  const profile = usePerformanceProfile();
+  // A phone renders fewer rows per page; every row is still reachable.
+  const size = page ?? budgetFor(profile).incrementalRows;
+  const [limit, setLimit] = useState(size);
   // The sentinel is a DOM node, so a state setter doubles as its ref callback.
   const [sentinel, setSentinel] = useState<HTMLLIElement | null>(null);
 
@@ -18,14 +22,14 @@ export function useIncrementalRows(total: number, page = 80) {
     if (limit >= total || !sentinel || typeof IntersectionObserver === 'undefined') return;
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) setLimit((value) => value + page);
+        if (entries.some((entry) => entry.isIntersecting)) setLimit((value) => value + size);
       },
       // A wide margin, so the next page is ready before it is on screen.
       { rootMargin: '800px 0px' },
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [limit, total, page, sentinel]);
+  }, [limit, total, size, sentinel]);
 
   return { limit: Math.min(limit, total), sentinelRef: setSentinel };
 }

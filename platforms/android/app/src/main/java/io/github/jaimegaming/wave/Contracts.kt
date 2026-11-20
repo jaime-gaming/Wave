@@ -59,7 +59,6 @@ fun parseLrc(raw: String): List<LyricLine> {
 // binary floating point, and the bar still has to move at ten past ten.
 fun shouldPublishTime(last: Double, next: Double, fading: Boolean) =
     fading || kotlin.math.abs(next - last) >= .1 - 1e-9
-fun powerGains(progress: Double): Pair<Float,Float> { val angle=progress.coerceIn(0.0,1.0)*Math.PI/2; return cos(angle).toFloat() to sin(angle).toFloat() }
 /** A blend long enough to be a mix: an arrival, a passage together and a departure. */
 const val BLEND_SECONDS = 24.0
 /** The shortest a blend gets on material that is long enough to have one. */
@@ -90,6 +89,39 @@ fun handoverGains(progress: Double): Pair<Float,Float> {
     val phase=when { p<.28 -> .5*smoothstep(p/.28); p<.62 -> .5+.06*smoothstep((p-.28)/.34); else -> .56+.44*smoothstep((p-.62)/.38) }
     val angle=phase*Math.PI/2
     return cos(angle).toFloat() to sin(angle).toFloat()
+}
+
+/**
+ * The two ways an outgoing song can end on the phone. The shape is detected
+ * from local duration and LRC timings: a voice still near the end has no long
+ * recorded fade, while a long instrumental outro does. No extra audio decode,
+ * polling loop or cloud lookup is added.
+ */
+enum class EndingShape { FADE, ECHO_CUT }
+const val ECHO_CUT_FRACTION = 0.75
+
+fun detectEnding(song: Song): EndingShape {
+    if (!song.duration.isFinite() || song.duration < 8) return EndingShape.FADE
+    val lastLyric = parseLrc(song.lyrics).lastOrNull()?.time ?: return EndingShape.FADE
+    val bar = song.bpm?.takeIf { it.isFinite() && it in 60.0..200.0 }?.let { 240.0 / it } ?: 2.0
+    val shortTail = maxOf(4.0, minOf(8.0, 2.0 * bar))
+    return if (song.duration - lastLyric <= shortTail) EndingShape.ECHO_CUT else EndingShape.FADE
+}
+
+fun endingCut(shape: EndingShape): Double =
+    if (shape == EndingShape.ECHO_CUT) ECHO_CUT_FRACTION else 1.0
+
+/** Fade to zero, or three decaying echo repeats cut at 75 % before zero. */
+fun endingGains(progress: Double, shape: EndingShape): Pair<Float,Float> {
+    val p = progress.coerceIn(0.0, 1.0)
+    val base = handoverGains(p)
+    if (shape == EndingShape.FADE) return base
+    if (p >= ECHO_CUT_FRACTION) return 0f to 1f
+    val atCut = handoverGains(ECHO_CUT_FRACTION)
+    val ripple = 1.0 + 0.1 * exp(-3.0 * p) * cos(6.0 * Math.PI * p)
+    val outgoing = (base.first.toDouble() * ripple).toFloat().coerceIn(0f, 1f)
+    val incoming = (base.second / maxOf(.001f, atCut.second)).coerceIn(0f, 1f)
+    return outgoing to incoming
 }
 fun canonical(value:String) = Normalizer.normalize(value,Normalizer.Form.NFKD).replace(Regex("\\p{M}"),"").lowercase().replace(Regex("[^\\p{L}\\p{N}]+")," ").trim()
 

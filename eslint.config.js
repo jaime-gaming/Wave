@@ -15,6 +15,10 @@ export default tseslint.config(
     languageOptions: { globals: { ...globals.serviceworker } },
   },
   {
+    files: ['public/boot.js'],
+    languageOptions: { globals: { ...globals.browser } },
+  },
+  {
     files: ['scripts/**/*.mjs'],
     languageOptions: { globals: { ...globals.node } },
   },

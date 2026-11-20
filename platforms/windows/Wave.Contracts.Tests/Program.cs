@@ -137,3 +137,39 @@ Check(boundedMixes.Count == 3 && boundedMixes.All(mix => mix.Songs.Count == 20),
 var monthly = Listening.MonthlyRecap(weekPlays, new List<Song> { a, b }, weekNow);
 var yearly = Listening.YearlyRecap(weekPlays, new List<Song> { a, b }, weekNow);
 Check(monthly.Plays >= week.Plays && yearly.Plays >= monthly.Plays && yearly.Seconds == 820, "monthly and yearly Remix recaps aggregate plays cleanly");
+
+// Wave 3.0 native parity: automatic profiles, all-window Remix measurements
+// and instrumental Mix planning on bars/pulse/tempo.
+Check(NativePerformance.Profile(new DeviceSignals(ReducedMotion: true)) == NativeDeviceProfile.Lite, "reduced motion selects the automatic lite profile");
+Check(NativePerformance.Profile(new DeviceSignals(MemoryGB: 8, Cores: 8)) == NativeDeviceProfile.Full, "capable hardware keeps the full profile");
+Check(NativePerformance.Profile(new DeviceSignals(MemoryGB: 2, Cores: 2, LowPowerMode: true)) == NativeDeviceProfile.Lite, "low-power modest hardware selects lite");
+var phoneRemix = NativeLayout.Remix(360, 740, 1, NativeDeviceProfile.Full);
+var tabletRemix = NativeLayout.Remix(820, 1180, 1, NativeDeviceProfile.Balanced);
+var fourKRemix = NativeLayout.Remix(3840, 2160, 1, NativeDeviceProfile.Full);
+Check(phoneRemix.Columns == 1 && tabletRemix.Columns == 2 && fourKRemix.Columns == 4, "Remix columns adapt from phones to tablets to 4K");
+Check(phoneRemix.MaxContentWidth == 360 && fourKRemix.MaxContentWidth == 3840, "Remix never reserves an empty right-hand strip");
+Check(fourKRemix.HeroSize > phoneRemix.HeroSize && fourKRemix.Padding >= phoneRemix.Padding, "Remix type and spacing scale with the window");
+
+string PulseLyrics(int start) => string.Join("\n", Enumerable.Range(0, 80).Select(i => {
+    int seconds = start + i * 2;
+    return $"[{seconds / 60:00}:{seconds % 60:00}.00]Line {i}";
+}));
+var pulseA = a with { Id = "pulse-a", Duration = 240, Bpm = 120, BarOffset = .05, Lyrics = PulseLyrics(30) };
+var pulseB = a with { Id = "pulse-b", Duration = 240, Bpm = 120, BarOffset = .05, Lyrics = PulseLyrics(30) };
+var equalPulse = NativePulse.Plan(pulseA, pulseB);
+Check(equalPulse != null && equalPulse.PulseAligned && equalPulse.Bars == 9 && Math.Abs(equalPulse.Overlap - 18) < .001, "equal-tempo instrumentals meet on both downbeats for nine bars");
+var driftingPulse = NativePulse.Plan(pulseA, pulseB with { Id = "pulse-c", Bpm = 126 });
+Check(driftingPulse != null && driftingPulse.Bars < equalPulse!.Bars, "different tempos keep the bar-aligned overlap short enough to avoid drift");
+var taggedBpm = NativePulse.Grid(pulseA);
+var inferredBpm = NativePulse.EstimatedBpm(NativePulse.LrcStamps(pulseA with { Bpm = null, BarOffset = null }.Lyrics));
+Check(taggedBpm != null && Math.Abs(taggedBpm.Bpm - 120) < .001, "optional local tempo tags describe the Mix grid");
+Check(inferredBpm != null && Math.Abs(inferredBpm.Value - 120) < .001, "steady local LRC timings infer the same pulse without a tag");
+Check(NativePulse.Plan(pulseA with { Bpm = null, BarOffset = null }, pulseB with { Bpm = null, BarOffset = null }) != null, "LRC-inferred pulses still align both instrumental edges");
+
+// Detected outgoing endings: a natural fade to zero and an echo tail cut at 75 %.
+var endingFade = a with { Id = "ending-fade", Duration = 200, Bpm = 120, Lyrics = "[02:50.00]Last line" };
+var endingEcho = a with { Id = "ending-echo", Duration = 200, Bpm = 120, Lyrics = "[03:16.00]Last line" };
+Check(NativeEnding.Detect(endingFade) == NativeEndingShape.FadeToZero && NativeEnding.Detect(endingEcho) == NativeEndingShape.EchoCut, "Mix endings vary with the detected outgoing tail");
+Check(Math.Abs(NativeEnding.Cut(NativeEndingShape.EchoCut) - .75) < 1e-9 && NativeEnding.Cut(NativeEndingShape.FadeToZero) == 1, "echo tail cuts at 75 % of the fade");
+var echoAtCut = NativeEnding.Gains(.75, NativeEndingShape.EchoCut);
+Check(NativeEnding.Gains(.74, NativeEndingShape.EchoCut).Outgoing > 0 && echoAtCut.Outgoing == 0 && echoAtCut.Incoming == 1, "echo tail is released before reaching zero");

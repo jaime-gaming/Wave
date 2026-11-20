@@ -19,7 +19,9 @@ public record Song(
     string? Genre = null,
     int PlayCount = 0,
     long LastPlayed = 0,
-    bool Linked = false)
+    bool Linked = false,
+    double? Bpm = null,
+    double? BarOffset = null)
 {
     public string Caption => $"{Artist} · {Album} · {FileName}";
 }

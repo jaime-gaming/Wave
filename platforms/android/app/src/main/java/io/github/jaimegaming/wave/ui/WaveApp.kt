@@ -32,7 +32,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
@@ -150,6 +149,7 @@ fun WaveApp(version: String, opening: Opening = Opening.Default) {
 
     val screenWidthDp = LocalConfiguration.current.screenWidthDp
     val wideLayout = screenWidthDp >= 600
+    val deviceProfile = rememberDeviceProfile()
 
     Box(Modifier.fillMaxSize()) {
         Row(
@@ -207,17 +207,15 @@ fun WaveApp(version: String, opening: Opening = Opening.Default) {
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(padding),
-                    contentAlignment = Alignment.TopCenter,
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .widthIn(max = 1160.dp),
-                    ) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
                         Notice(state.notice) { state.clearMessage() }
                         val playSong: (Song) -> Unit = { song -> state.play(song) }
                         val motionEnabled = waveMotionEnabled()
-                        CompositionLocalProvider(LocalChromeActions provides ChromeActions(addMusic, openSettings)) {
+                        CompositionLocalProvider(
+                            LocalWaveProfile provides deviceProfile,
+                            LocalChromeActions provides ChromeActions(addMusic, openSettings),
+                        ) {
                             AnimatedContent(
                                 targetState = state.destination,
                                 transitionSpec = {
@@ -270,12 +268,14 @@ fun WaveApp(version: String, opening: Opening = Opening.Default) {
                         .background(MaterialTheme.colorScheme.background)
                         .windowInsetsPadding(WindowInsets.safeDrawing),
                 ) {
-                    NowPlayingScreen(
-                        song = activeSong,
-                        state = state,
-                        onCollapse = { state.nowPlayingOpen = false },
-                        onEdit = { state.editing = activeSong },
-                    )
+                    CompositionLocalProvider(LocalWaveProfile provides deviceProfile) {
+                        NowPlayingScreen(
+                            song = activeSong,
+                            state = state,
+                            onCollapse = { state.nowPlayingOpen = false },
+                            onEdit = { state.editing = activeSong },
+                        )
+                    }
                 }
             }
         }
