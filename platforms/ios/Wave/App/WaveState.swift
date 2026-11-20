@@ -160,7 +160,10 @@ final class WaveState: ObservableObject {
         }) else { return false }
         let lyric = (match.syncedLyrics?.isEmpty == false ? match.syncedLyrics : match.plainLyrics) ?? ""
         guard !lyric.isEmpty, lyric.count <= 100_000,
-              let index = snapshot.songs.firstIndex(where: { $0.id == song.id }) else { return false }
+              let index = snapshot.songs.firstIndex(where: { $0.id == song.id }),
+              snapshot.songs[index].title == song.title,
+              snapshot.songs[index].artist == song.artist,
+              snapshot.songs[index].lyrics == song.lyrics else { return false }
         snapshot.songs[index].lyrics = lyric
         persist()
         if currentID == song.id { armMix() }

@@ -182,6 +182,7 @@ struct CatalogueView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { Button(WaveTheme.loc("Close")) { dismiss() } }
             .onAppear { query = "\(song.artist) \(song.title)" }
+            .onChange(of: query) { _, _ in results = []; message = nil }
             .alert(WaveTheme.loc("Search online"), isPresented: $confirmSearch) {
                 Button(WaveTheme.loc("Cancel"), role: .cancel) {}
                 Button(WaveTheme.loc("Search online")) { Task { await searchCatalogue(query) } }
