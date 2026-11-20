@@ -41,7 +41,7 @@
 		AA000000000000000000005B /* WaveControlWidget.swift in Sources */ = { isa = PBXBuildFile; fileRef = AA0000000000000000000069 /* WaveControlWidget.swift */; };
 		AA000000000000000000005C /* WaveLiveActivityView.swift in Sources */ = { isa = PBXBuildFile; fileRef = AA000000000000000000006A /* WaveLiveActivityView.swift */; };
 		AA000000000000000000005D /* Localizable.strings in Resources */ = { isa = PBXBuildFile; fileRef = AA000000000000000000000C /* Localizable.strings */; };
-		AA000000000000000000005E /* WaveWidgetsExtension.appex in Embed Foundation Extensions */ = { isa = PBXBuildFile; productRef = AA000000000000000000006C /* WaveWidgetsExtension.appex */; };
+		AA000000000000000000005E /* WaveWidgetsExtension.appex in Embed Foundation Extensions */ = { isa = PBXBuildFile; fileRef = AA000000000000000000006C /* WaveWidgetsExtension.appex */; };
 		AA000000000000000000005F /* WaveCore in Frameworks */ = { isa = PBXBuildFile; productRef = AA000000000000000000006D /* WaveCore */; };
 /* End PBXBuildFile section */
 /* Begin PBXContainerItemProxy section */

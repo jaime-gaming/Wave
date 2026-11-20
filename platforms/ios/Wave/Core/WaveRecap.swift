@@ -131,18 +131,22 @@ public enum WaveRecap {
             playsByArtist[artist, default: 0] += 1
         }
 
-        let rankedSongs = secondsBySong.compactMap { id, seconds -> RemixSongRank? in
-            guard let song = byID[id] else { return nil }
-            return RemixSongRank(song: song, seconds: seconds, plays: playsBySong[id] ?? 0)
+        var rankedSongs: [RemixSongRank] = []
+        for (id, seconds) in secondsBySong {
+            guard let song = byID[id] else { continue }
+            rankedSongs.append(RemixSongRank(song: song, seconds: seconds, plays: playsBySong[id] ?? 0))
         }
-        .sorted { lhs, rhs in
-            lhs.seconds == rhs.seconds ? lhs.plays > rhs.plays : lhs.seconds > rhs.seconds
+        rankedSongs.sort { lhs, rhs in
+            if lhs.seconds == rhs.seconds { return lhs.plays > rhs.plays }
+            return lhs.seconds > rhs.seconds
         }
-        let rankedArtists = secondsByArtist.map { name, seconds in
-            RemixArtistRank(name: name, seconds: seconds, plays: playsByArtist[name] ?? 0)
+        var rankedArtists: [RemixArtistRank] = []
+        for (name, seconds) in secondsByArtist {
+            rankedArtists.append(RemixArtistRank(name: name, seconds: seconds, plays: playsByArtist[name] ?? 0))
         }
-        .sorted { lhs, rhs in
-            lhs.seconds == rhs.seconds ? lhs.name < rhs.name : lhs.seconds > rhs.seconds
+        rankedArtists.sort { lhs, rhs in
+            if lhs.seconds == rhs.seconds { return lhs.name < rhs.name }
+            return lhs.seconds > rhs.seconds
         }
 
         return RemixRecap(

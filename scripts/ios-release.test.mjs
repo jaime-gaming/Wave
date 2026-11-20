@@ -112,6 +112,11 @@ test('the Xcode project builds an unsigned app, XCTest target and widget extensi
   assert.match(project, /productType = "com\.apple\.product-type\.app-extension"/);
   assert.match(project, /Embed Foundation Extensions/);
   assert.match(project, /WaveWidgetsExtension\.appex/);
+  // Embedded built products use a file reference, not a Swift package product reference.
+  assert.match(
+    project,
+    /\/\* WaveWidgetsExtension\.appex in Embed Foundation Extensions \*\/ = \{ isa = PBXBuildFile; fileRef = [A-F0-9]+ \/\* WaveWidgetsExtension\.appex \*\/; \};/,
+  );
   assert.match(project, /INFOPLIST_FILE = Wave\/Widgets\/Info\.plist;/);
   assert.match(project, /XCLocalSwiftPackageReference/);
   assert.match(project, /productName = WaveCore;/);

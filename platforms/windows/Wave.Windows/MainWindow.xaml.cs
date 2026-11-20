@@ -648,7 +648,7 @@ public partial class MainWindow : Window
                 heard = 0; hearing = false; listeningRecorded = false;
                 active.Position = TimeSpan.FromSeconds(fadeCue); active.Volume = 0; active.Play(); Seek.Maximum = active.NaturalDuration.TimeSpan.TotalSeconds;
                 UpdateCurrent(); time = fadeCue;
-                if (preferences.OnlineLyrics && Current is { Lyrics.Length: 0 } song) _ = Lookup(song);
+                if (preferences.OnlineLyrics && Current is { Lyrics.Length: 0 } nextSong) _ = Lookup(nextSong);
             }
         }
         int at = lines.FindLastIndex(line => line.Time <= time);
