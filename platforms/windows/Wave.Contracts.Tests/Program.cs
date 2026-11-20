@@ -161,7 +161,7 @@ Check(equalPulse != null && equalPulse.PulseAligned && equalPulse.Bars == 9 && M
 var driftingPulse = NativePulse.Plan(pulseA, pulseB with { Id = "pulse-c", Bpm = 126 });
 Check(driftingPulse != null && driftingPulse.Bars < equalPulse!.Bars, "different tempos keep the bar-aligned overlap short enough to avoid drift");
 var taggedBpm = NativePulse.Grid(pulseA);
-var inferredBpm = NativePulse.EstimatedBpm(NativePulse.LrcStamps(pulseA with { Bpm = null, BarOffset = null }.Lyrics));
+var inferredBpm = NativePulse.EstimatedBpm(NativePulse.LrcStamps((pulseA with { Bpm = null, BarOffset = null }).Lyrics));
 Check(taggedBpm != null && Math.Abs(taggedBpm.Bpm - 120) < .001, "optional local tempo tags describe the Mix grid");
 Check(inferredBpm != null && Math.Abs(inferredBpm.Value - 120) < .001, "steady local LRC timings infer the same pulse without a tag");
 Check(NativePulse.Plan(pulseA with { Bpm = null, BarOffset = null }, pulseB with { Bpm = null, BarOffset = null }) != null, "LRC-inferred pulses still align both instrumental edges");

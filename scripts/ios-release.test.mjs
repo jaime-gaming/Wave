@@ -208,6 +208,10 @@ test('the SwiftUI surface covers library, import, queue, Mix, lyrics, artwork an
   has('platforms/ios/Wave/Core/WaveMix.swift', /enum EndingShape/);
   has('platforms/ios/Wave/Core/WaveMix.swift', /echoCutFraction: Double = 0\.75/);
   has('platforms/ios/WaveCoreTests/WaveCoreTests.swift', /WaveEndingTests/);
+  has(
+    'platforms/ios/Package.swift',
+    /\.testTarget\(name: "WaveCoreTests", dependencies: \["WaveCore"\], path: "WaveCoreTests"\)/,
+  );
   has('platforms/ios/Wave/Core/WaveMix.swift', /downbeat/);
   has('platforms/ios/Wave/Core/WaveMix.swift', /pulseAligned/);
   has('platforms/ios/Wave/Core/WavePerformance.swift', /reducedMotion/);

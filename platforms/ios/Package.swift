@@ -18,6 +18,6 @@ let package = Package(
     ],
     targets: [
         .target(name: "WaveCore", path: "Wave/Core"),
-        .testTarget(name: "WaveCoreTests", path: "WaveCoreTests", dependencies: ["WaveCore"])
+        .testTarget(name: "WaveCoreTests", dependencies: ["WaveCore"], path: "WaveCoreTests")
     ]
 )
