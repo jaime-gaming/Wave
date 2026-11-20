@@ -74,7 +74,7 @@ final class WaveSystemCenter: NSObject, ObservableObject {
             ) { [weak self] notification in
                 guard
                     let raw = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
-                    let type = AVAudioSessionInterruptionType(rawValue: raw)
+                    let type = AVAudioSession.InterruptionType(rawValue: raw)
                 else { return }
                 Task { @MainActor in
                     guard let self else { return }
@@ -82,7 +82,7 @@ final class WaveSystemCenter: NSObject, ObservableObject {
                         self.state?.pauseFromSystem()
                     } else if type == .ended {
                         let optionsRaw = notification.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
-                        if AVAudioSessionInterruptionOptions(rawValue: optionsRaw).contains(.shouldResume) {
+                        if AVAudioSession.InterruptionOptions(rawValue: optionsRaw).contains(.shouldResume) {
                             self.state?.resumeFromSystem()
                         }
                     }
