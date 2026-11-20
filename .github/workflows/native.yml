@@ -313,7 +313,8 @@ jobs:
           for page in home library search remix settings now-playing; do
             # Launch with an isolated in-memory fixture. Opening a URL can show
             # an iOS confirmation dialog instead of navigating the app.
-            SIMCTL_CHILD_WAVE_CAPTURE_PAGE="$page" xcrun simctl launch "$DEVICE" --terminate-running "$BUNDLE"
+            xcrun simctl terminate "$DEVICE" "$BUNDLE" 2>/dev/null || true
+            SIMCTL_CHILD_WAVE_CAPTURE_PAGE="$page" xcrun simctl launch "$DEVICE" "$BUNDLE"
             sleep 5
             xcrun simctl io "$DEVICE" screenshot "artifacts/ios-ui/$page.png"
           done
