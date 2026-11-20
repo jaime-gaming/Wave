@@ -18,6 +18,12 @@ App Store upload.
   follows the playback clock. Optional manual LRCLIB search sends the title and artist.
 - Shares a visual card with song details, artwork and the Wave website; no audio is shared.
 - Offers local Daily Mix selections and explicit iTunes catalogue and YouTube searches.
+- Lets listeners name playlists, add songs from a song's context menu, reorder or
+  remove entries, and delete a playlist without deleting its audio. Album, artist
+  and playlist playback keeps the selected collection in the queue.
+- Keeps the mini-player in the tab's safe area so scrollable content remains reachable.
+  Full library, local search and Remix lists are no longer capped by the performance profile.
+- Plays or saves the weekly, monthly or yearly Remix currently selected on screen.
 - Mixes two songs with two `AVAudioPlayer` decks. When optional tempo tags and
   the listener's LRC timings are present, `WaveMix` puts both instrumental
   edges on a downbeat of their own pulse and bounds the overlap so they do not

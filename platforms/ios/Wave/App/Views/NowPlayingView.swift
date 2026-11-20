@@ -136,7 +136,8 @@ struct NowPlayingView: View {
                         }
 
                         waveGlassContainer(spacing: metrics.gap) {
-                            HStack(spacing: metrics.gap) {
+                            VStack(spacing: metrics.gap) {
+                              HStack(spacing: metrics.gap) {
                                 Toggle(
                                     WaveTheme.loc("Mix"),
                                     isOn: Binding(
@@ -147,6 +148,7 @@ struct NowPlayingView: View {
                                 .toggleStyle(.switch)
                                 .tint(WaveTheme.accent)
                                 .font(.system(size: metrics.bodySize * 0.75))
+                                .fixedSize()
                                 Image(systemName: "speaker.fill")
                                     .font(.system(size: metrics.bodySize * 0.75))
                                     .foregroundStyle(WaveTheme.muted)
@@ -156,6 +158,9 @@ struct NowPlayingView: View {
                                     .onChange(of: volume) { _, value in
                                         state.setVolume(Float(value))
                                     }
+                              }
+                              HStack(spacing: metrics.gap * 1.5) {
+                                Spacer(minLength: 0)
                                 Button {
                                     state.toggleFavorite(song)
                                 } label: {
@@ -182,6 +187,8 @@ struct NowPlayingView: View {
                                         .font(.system(size: metrics.bodySize))
                                 }
                                 .accessibilityLabel(WaveTheme.loc("More options"))
+                                Spacer(minLength: 0)
+                              }
                             }
                         }
                     } else {

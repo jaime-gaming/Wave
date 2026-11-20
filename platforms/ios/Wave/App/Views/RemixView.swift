@@ -45,7 +45,7 @@ struct RemixView: View {
                 history: state.snapshot.history,
                 period: period
             )
-            let songs = Array(recap.songs.prefix(state.rowsPerPage))
+            let songs = recap.songs
             let cards = [
                 RemixCard(
                     id: "time",
@@ -183,7 +183,7 @@ struct RemixView: View {
                             waveGlassContainer(spacing: metrics.gap) {
                                 HStack(spacing: metrics.gap) {
                                     Button {
-                                        state.playRemix()
+                                        state.playRemix(period: period)
                                     } label: {
                                         Label(WaveTheme.loc("Play Remix"), systemImage: "play.fill")
                                             .font(.system(size: metrics.bodySize, weight: .semibold))
@@ -191,7 +191,7 @@ struct RemixView: View {
                                     }
                                     .waveGlassButton()
                                     Button {
-                                        state.saveRemix()
+                                        state.saveRemix(period: period)
                                     } label: {
                                         Label(WaveTheme.loc("Save as playlist"), systemImage: "square.and.arrow.down")
                                             .font(.system(size: metrics.bodySize, weight: .semibold))

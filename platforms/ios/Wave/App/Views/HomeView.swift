@@ -49,7 +49,6 @@ struct HomeView: View {
                         }
                     }
                 }
-                .padding(.bottom, 140)
             }
             .background(WaveTheme.background.ignoresSafeArea())
         }

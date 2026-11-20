@@ -245,6 +245,25 @@ test('the SwiftUI surface covers library, import, queue, Mix, lyrics, artwork an
   has('platforms/ios/Wave/Core/WaveRecap.swift', /func summarize/);
 });
 
+test('iOS navigation keeps the player clear of content and exposes full lists and the selected Remix', () => {
+  const root = read('platforms/ios/Wave/App/Views/RootView.swift');
+  const library = read('platforms/ios/Wave/App/Views/LibraryView.swift');
+  const search = read('platforms/ios/Wave/App/Views/SearchView.swift');
+  const remix = read('platforms/ios/Wave/App/Views/RemixView.swift');
+  const state = read('platforms/ios/Wave/App/WaveState.swift');
+  assert.match(root, /safeAreaInset\(edge: \.bottom/);
+  assert.doesNotMatch(root, /padding\(\.bottom, 52\)/);
+  assert.match(library, /ForEach\(songs\)/);
+  assert.match(search, /ForEach\(results\)/);
+  assert.doesNotMatch(library + search + remix, /prefix\(state\.rowsPerPage\)/);
+  assert.match(remix, /playRemix\(period: period\)/);
+  assert.match(remix, /saveRemix\(period: period\)/);
+  assert.match(state, /func playRemix\(period: RemixPeriod = \.weekly\)/);
+  assert.match(library, /PlaylistDetailView/);
+  assert.match(library, /\.onMove/);
+  assert.match(read('platforms/ios/Wave/App/Views/Components.swift'), /state\.addToPlaylist/);
+});
+
 test('iOS system integrations stay local and Liquid Glass stays iOS-only', () => {
   has('platforms/ios/Wave/App/System/WaveIntents.swift', /AppShortcutsProvider/);
   has('platforms/ios/Wave/App/System/WaveIntents.swift', /AppIntent/);

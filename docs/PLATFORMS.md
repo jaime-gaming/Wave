@@ -1,4 +1,26 @@
-# Wave platforms · 0.2.2
+# Wave platforms
+
+Wave 0.3 is in development. The web, Windows, Android and iOS clients have independent
+implementations and local libraries; they are **not yet functionally equivalent**, and installing
+an app does not automatically synchronize its library with the others. The web remains the
+reference for capabilities not yet implemented natively.
+
+| Capability                     | Web               | Windows               | Android               | iOS                                                          |
+| ------------------------------ | ----------------- | --------------------- | --------------------- | ------------------------------------------------------------ |
+| Local library and playlists    | Yes               | Yes                   | Yes                   | Yes, basic editing and ordered playback                      |
+| Daily Mix                      | Full local engine | Native engine         | Native engine         | Simpler local daily selection                                |
+| YouTube search and playback    | Integrated        | Not yet               | Not yet               | Explicit search and embedded player; not in library or queue |
+| Online lyrics                  | Optional lookup   | Optional lookup       | Optional lookup       | Explicit LRCLIB lookup                                       |
+| Online catalogue metadata      | Yes               | Not yet               | Not yet               | Explicit iTunes search and apply                             |
+| Web-compatible device linking  | Yes               | Not yet in native app | Not yet in native app | Not yet                                                      |
+| Fix Volume                     | Yes               | Not yet               | Not yet               | Not yet                                                      |
+| Listening card share, no audio | Not yet           | Not yet               | Implemented           | Implemented                                                  |
+
+Native builds and features still require real-device testing. The iOS source remains unsigned.
+See the iOS README for its exact current scope. The table below describes the earlier 0.2.2
+web/Windows/Android baseline and is retained for its detailed historical comparisons.
+
+## 0.2.2 baseline
 
 **Release 0.2.2, prepared 16 November 2026.** Wave has three independent implementations, not WebView/Electron wrappers. The web client is the most complete; Windows 11 follows its structure with native C#/WPF controls, while Android uses Kotlin/Compose. Libraries are separate and never synchronized or silently migrated.
 

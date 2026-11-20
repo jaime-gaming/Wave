@@ -109,6 +109,13 @@ public enum WaveLibrary {
         return mixes
     }
 
+    /// A collection stays the playback context. Shuffle changes only that
+    /// collection, starting with the selected song, rather than the library.
+    public static func selectionQueue(_ ids: [String], startingAt selectedID: String, shuffle: Bool) -> [String] {
+        guard ids.contains(selectedID) else { return [] }
+        return shuffle ? [selectedID] + ids.filter { $0 != selectedID }.shuffled() : ids
+    }
+
     /// A bounded local AutoPlay queue: no repeats of the songs just heard.
     public static func autoplayCandidates(
         from songs: [Song],

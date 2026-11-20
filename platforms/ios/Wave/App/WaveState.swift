@@ -210,11 +210,32 @@ final class WaveState: ObservableObject {
     }
 
     func addToPlaylist(_ playlistID: String, songID: String) {
-        guard let index = snapshot.playlists.firstIndex(where: { $0.id == playlistID }) else { return }
+        guard song(with: songID) != nil,
+              let index = snapshot.playlists.firstIndex(where: { $0.id == playlistID }) else { return }
         if !snapshot.playlists[index].songIDs.contains(songID) {
             snapshot.playlists[index].songIDs.append(songID)
             persist()
         }
+    }
+
+    func removeFromPlaylist(_ playlistID: String, at offsets: IndexSet) {
+        guard let index = snapshot.playlists.firstIndex(where: { $0.id == playlistID }),
+              offsets.allSatisfy({ snapshot.playlists[index].songIDs.indices.contains($0) }) else { return }
+        snapshot.playlists[index].songIDs.remove(atOffsets: offsets)
+        persist()
+    }
+
+    func moveInPlaylist(_ playlistID: String, from offsets: IndexSet, to destination: Int) {
+        guard let index = snapshot.playlists.firstIndex(where: { $0.id == playlistID }),
+              offsets.allSatisfy({ snapshot.playlists[index].songIDs.indices.contains($0) }),
+              (0...snapshot.playlists[index].songIDs.count).contains(destination) else { return }
+        snapshot.playlists[index].songIDs.move(fromOffsets: offsets, toOffset: destination)
+        persist()
+    }
+
+    func deletePlaylist(_ playlistID: String) {
+        snapshot.playlists.removeAll { $0.id == playlistID }
+        persist()
     }
 
     func enqueue(_ song: Song) {
@@ -241,9 +262,9 @@ final class WaveState: ObservableObject {
         updateNowPlaying()
     }
 
-    func playSelection(_ songs: [Song]) {
-        guard let first = songs.first else { return }
-        queue = songs.map(\.id)
+    func playSelection(_ songs: [Song], startingAt selected: Song? = nil) {
+        guard let first = selected ?? songs.first, songs.contains(where: { $0.id == first.id }) else { return }
+        queue = WaveLibrary.selectionQueue(songs.map(\.id), startingAt: first.id, shuffle: shuffle)
         play(first)
     }
 
@@ -498,22 +519,19 @@ final class WaveState: ObservableObject {
 
     // MARK: - Remix and system actions
 
-    func playRemix() {
-        let recap = WaveRecap.summarize(songs: songs, history: snapshot.history, period: .weekly)
+    func playRemix(period: RemixPeriod = .weekly) {
+        let recap = WaveRecap.summarize(songs: songs, history: snapshot.history, period: period)
         guard let first = recap.songs.first else { return }
         selectedTab = 3
         queue = recap.songs.map(\.id)
         play(first)
     }
 
-    func saveRemix() {
-        let recap = WaveRecap.summarize(songs: songs, history: snapshot.history, period: .weekly)
+    func saveRemix(period: RemixPeriod = .weekly) {
+        let recap = WaveRecap.summarize(songs: songs, history: snapshot.history, period: period)
         guard !recap.songs.isEmpty else { return }
-        createPlaylist(name: WaveTheme.loc("Your Remix"))
-        guard let playlist = snapshot.playlists.last else { return }
-        for song in recap.songs {
-            addToPlaylist(playlist.id, songID: song.id)
-        }
+        snapshot.playlists.append(Playlist(name: WaveTheme.loc("Your Remix"), songIDs: recap.songs.map(\.id)))
+        persist()
     }
 
     func openHomeFromSystem() { selectedTab = 0 }

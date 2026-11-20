@@ -37,7 +37,7 @@ struct SearchView: View {
                     }
                 } else {
                     Section(WaveTheme.loc("Songs")) {
-                        ForEach(results.prefix(state.rowsPerPage)) { song in
+                        ForEach(results) { song in
                             SongRow(song: song) { state.play(song) }
                         }
                         if results.isEmpty {

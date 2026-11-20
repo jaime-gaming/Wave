@@ -72,6 +72,17 @@ final class WaveLibraryTests: XCTestCase {
         XCTAssertTrue(WaveLibrary.dailyMixes(Array(library.prefix(6)), day: date).isEmpty)
     }
 
+    func testSelectionQueueKeepsCollectionAndSelectedSong() {
+        let ids = ["one", "two", "three"]
+        XCTAssertEqual(WaveLibrary.selectionQueue(ids, startingAt: "two", shuffle: false), ids)
+        let shuffled = WaveLibrary.selectionQueue(ids, startingAt: "two", shuffle: true)
+        XCTAssertEqual(shuffled.first, "two")
+        XCTAssertEqual(shuffled.count, ids.count)
+        XCTAssertEqual(Set(shuffled), Set(ids))
+        XCTAssertTrue(WaveLibrary.selectionQueue(ids, startingAt: "other", shuffle: true).isEmpty)
+        XCTAssertTrue(WaveLibrary.selectionQueue([], startingAt: "other", shuffle: false).isEmpty)
+    }
+
     func testAutoplayIsBoundedAndSkipsRecentSongs() {
         let next = WaveLibrary.autoplayCandidates(from: songs, excluding: [songs[0].id, songs[1].id], limit: 2)
         XCTAssertTrue(next.count <= 2)

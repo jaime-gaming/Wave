@@ -76,6 +76,22 @@ struct SongRow: View {
         .padding(.vertical, metrics.gap * 0.35)
         .contentShape(Rectangle())
         .onTapGesture(perform: onPlay)
+        .contextMenu {
+            Button { state.enqueue(song) } label: {
+                Label(WaveTheme.loc("Add to queue"), systemImage: "text.badge.plus")
+            }
+            Button { state.toggleFavorite(song) } label: {
+                Label(WaveTheme.loc("Favorites"), systemImage: song.isFavorite ? "heart.slash" : "heart")
+            }
+            if !state.snapshot.playlists.isEmpty {
+                Menu(WaveTheme.loc("Add to playlist")) {
+                    ForEach(state.snapshot.playlists) { playlist in
+                        Button(playlist.name) { state.addToPlaylist(playlist.id, songID: song.id) }
+                            .disabled(playlist.songIDs.contains(song.id))
+                    }
+                }
+            }
+        }
     }
 }
 
