@@ -1,5 +1,5 @@
 
-> wave@0.2.2 capture:docs
+> wave@0.3.0 capture:docs
 > node --experimental-strip-types scripts/capture-docs.ts
 
 docs/media/home-desktop.png
