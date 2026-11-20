@@ -142,6 +142,9 @@ test('the Xcode project builds an unsigned app, XCTest target and widget extensi
   const extensionPlist = read('platforms/ios/Wave/Widgets/Info.plist');
   assert.match(extensionPlist, /NSExtensionPointIdentifier/);
   assert.match(extensionPlist, /com\.apple\.widgetkit-extension/);
+  const control = read('platforms/ios/Wave/Widgets/WaveControlWidget.swift');
+  assert.match(control, /\.displayName\("Control Wave"\)/);
+  assert.match(control, /\.description\("Play or pause"\)/);
 });
 
 test('Info.plist declares background audio, Live Activities, Handoff, links and both languages', () => {

@@ -16,7 +16,7 @@ struct WaveControlWidget: ControlWidget {
                 Label(waveLoc("Control Wave"), systemImage: "playpause.fill")
             }
         }
-        .displayName(waveLoc("Control Wave"))
-        .description(waveLoc("Play or pause"))
+        .displayName("Control Wave")
+        .description("Play or pause")
     }
 }
