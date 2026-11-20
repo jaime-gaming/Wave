@@ -227,7 +227,7 @@ final class WaveState: ObservableObject {
             record(nextSong)
             updateNowPlaying()
         } else {
-            currentID = nextSong.id
+            self.currentID = nextSong.id
             currentTime = 0
             player.play(url: persistence.url(for: nextSong))
             isPlaying = true
@@ -441,7 +441,7 @@ final class WaveState: ObservableObject {
         createPlaylist(name: WaveTheme.loc("Your Remix"))
         guard let playlist = snapshot.playlists.last else { return }
         for song in recap.songs {
-            addToPlaylist(playlistID: playlist.id, songID: song.id)
+            addToPlaylist(playlist.id, songID: song.id)
         }
     }
 

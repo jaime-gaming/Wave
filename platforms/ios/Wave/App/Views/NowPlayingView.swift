@@ -222,7 +222,7 @@ struct NowPlayingView: View {
                 allowedContentTypes: [UTType(filenameExtension: "lrc") ?? .plainText],
                 allowsMultipleSelection: false
             ) { result in
-                if let url = try? result.get() { state.importLyrics(from: url) }
+                if let url = try? result.get().first { state.importLyrics(from: url) }
             }
         }
     }
