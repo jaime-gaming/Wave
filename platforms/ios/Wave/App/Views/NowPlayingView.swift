@@ -173,7 +173,7 @@ struct NowPlayingView: View {
             if let song = state.current {
                 ArtworkView(
                     image: state.artwork(for: song),
-                    size: max(96, min(width * 0.56, height * 0.30, 300)),
+                    size: max(96, min(width * 0.53, height * 0.27, 300)),
                     corner: 26
                 )
                 .padding(.top, 2)
@@ -201,7 +201,7 @@ struct NowPlayingView: View {
                 .accessibilityValue(WaveTheme.loc(lyricsOpen ? "Lyrics" : "Show lyrics"))
                 if lyricsOpen {
                     lyricsView(metrics: metrics)
-                        .frame(height: max(90, min(height * 0.19, 180)))
+                        .frame(height: max(60, min(height * 0.12, 100)))
                 }
                 Spacer(minLength: 0)
                 songActions(song)
@@ -229,6 +229,7 @@ struct NowPlayingView: View {
                     .disabled(lyricsLookupRunning)
                 Button(WaveTheme.loc("Import lyrics")) { importingLyrics = true }
                 Button(WaveTheme.loc("Find song metadata")) { editingMetadata = true }
+                Toggle(WaveTheme.loc("Mix"), isOn: Binding(get: { state.mixEnabled }, set: { state.mixEnabled = $0 }))
             } label: {
                 Image(systemName: "pencil").frame(width: 44, height: 44)
             }
@@ -292,9 +293,6 @@ struct NowPlayingView: View {
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(WaveTheme.muted)
             }
-            Toggle(WaveTheme.loc("Mix"), isOn: Binding(get: { state.mixEnabled }, set: { state.mixEnabled = $0 }))
-                .font(.caption)
-                .tint(WaveTheme.accent)
         }
         .padding(14)
         .background(WaveTheme.surface, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
