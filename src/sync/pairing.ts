@@ -41,7 +41,7 @@ export async function createIdentity(deviceId?: string, name?: string): Promise<
   const id = deviceId ?? randomDeviceId();
   assertDeviceId(id);
   void name;
-  const keys = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, [
+  const keys = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, false, [
     'deriveBits',
   ]);
   return { deviceId: id, keys, publicKey: await exportPublicKey(keys.publicKey) };

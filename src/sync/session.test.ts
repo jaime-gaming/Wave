@@ -109,6 +109,21 @@ describe('pairing session', () => {
     expect(received.guest).toEqual([{ type: 'ping', at: 1 }]);
   });
 
+  it('treats repeated confirmation as one action', async () => {
+    const { host, guest } = await connect({ confirm: false });
+    host.start();
+    await settleUntil(
+      () => host.state === 'awaiting-confirmation' && guest.state === 'awaiting-confirmation',
+    );
+    host.confirm();
+    host.confirm();
+    guest.confirm();
+    guest.confirm();
+    await settleUntil(() => host.state === 'paired' && guest.state === 'paired');
+    expect(host.state).toBe('paired');
+    expect(guest.state).toBe('paired');
+  });
+
   it('never pairs when the displayed codes differ', async () => {
     const { host, guest, events } = await connect({ confirm: false });
     host.start();

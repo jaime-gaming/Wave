@@ -218,6 +218,7 @@ export class DeviceLink {
         // No readable device list: fall back to the digits.
       }
     }
+    if (this.session !== session || session.state !== 'awaiting-confirmation') return;
     this.status({
       kind: 'confirm',
       code,

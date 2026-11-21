@@ -16,6 +16,7 @@ describe('pairing keys and links', () => {
     const identity = await createIdentity(undefined, 'Living room PC');
     expect(identity.publicKey).toHaveLength(65);
     expect(identity.publicKey[0]).toBe(4);
+    expect(identity.keys.privateKey.extractable).toBe(false);
     const link = encodePairingLink({
       deviceId: identity.deviceId,
       name: 'Living room PC',

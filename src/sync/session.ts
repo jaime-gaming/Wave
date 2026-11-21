@@ -166,7 +166,7 @@ export class PairingSession {
       this.wantsConfirm = true;
       return;
     }
-    if (this.state !== 'awaiting-confirmation' || !this.sas) return;
+    if (this.state !== 'awaiting-confirmation' || !this.sas || this.localConfirmed) return;
     const sas = this.sas;
     this.localConfirmed = true;
     void this.sendSecure({ type: 'pair-confirm', sas }).then(
@@ -214,6 +214,8 @@ export class PairingSession {
 
   close(): void {
     if (this.state === 'closed') return;
+    this.clearExpiry();
+    this.sessionKey = undefined;
     this.setState('closed');
   }
 

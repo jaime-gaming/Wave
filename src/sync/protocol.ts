@@ -4,10 +4,10 @@ import type { LoanRequest } from './loan';
  * Wave sync protocol, version 2.
  *
  * Frames are plain JSON text so the same contract can be implemented by the web
- * client, the Android client and a future relay. Everything except the initial
- * `hello` exchange is sealed with AES-GCM (see pairing.ts). Audio never leaves a
- * device unless the user explicitly grants a loan, and a loan is always a
- * complete, verified file.
+ * client and future native clients. The initial `hello` and rejection are plain;
+ * confirmations and application frames are sealed with AES-GCM (see pairing.ts).
+ * Audio never leaves a device unless the user explicitly requests it from a
+ * linked peer, and a loan is always a complete, verified file.
  */
 export const SYNC_PROTOCOL_VERSION = 2;
 /** Upper bound for any single transport message, including base64 overhead. */
