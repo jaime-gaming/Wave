@@ -95,7 +95,7 @@ runs these commands. It does not archive, sign, notarize or publish an app.
 The `ios-captures` job in `.github/workflows/native.yml` installs the unsigned app on an iPhone
 simulator with `WAVE_CAPTURE_PAGE` set to each page to seed an in-memory demo library.
 The capture fixture is simulator-only and is never persisted. It then uses `xcrun simctl io` to photograph the real SwiftUI screens and publishes
-`docs/media/ios-*.png` on branch pushes. These are layout captures, not a signed distribution.
+`docs/media/ios-*.png` on branch pushes. It retries obviously blank white launch screens and fails rather than publishing them; a nonblank screenshot still needs visual review. These are layout captures, not a signed distribution.
 
 ## Scope
 

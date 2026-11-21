@@ -310,13 +310,23 @@ jobs:
           test -n "$BUNDLE"
           xcrun simctl install "$DEVICE" "$APP"
           mkdir -p artifacts/ios-ui
+          swiftc scripts/validate-ios-capture.swift -o "$RUNNER_TEMP/validate-ios-capture"
           for page in home library search remix settings now-playing; do
             # Launch with an isolated in-memory fixture. Opening a URL can show
             # an iOS confirmation dialog instead of navigating the app.
             xcrun simctl terminate "$DEVICE" "$BUNDLE" 2>/dev/null || true
             SIMCTL_CHILD_WAVE_CAPTURE_PAGE="$page" xcrun simctl launch "$DEVICE" "$BUNDLE"
-            sleep 5
-            xcrun simctl io "$DEVICE" screenshot "artifacts/ios-ui/$page.png"
+            # A successful simctl screenshot can still be the white launch screen.
+            # Retry briefly and fail rather than publishing an obviously blank page.
+            shot="artifacts/ios-ui/$page.png"
+            for attempt in {1..8}; do
+              sleep 5
+              rm -f "$shot"
+              xcrun simctl io "$DEVICE" screenshot "$shot"
+              if "$RUNNER_TEMP/validate-ios-capture" "$shot"; then break; fi
+              echo "Waiting for $page to render (attempt $attempt)"
+            done
+            "$RUNNER_TEMP/validate-ios-capture" "$shot"
           done
           for shot in artifacts/ios-ui/*.png; do
             test -s "$shot"

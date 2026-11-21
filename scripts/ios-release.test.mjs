@@ -364,6 +364,9 @@ test('XCTest, generated Spanish, docs and macOS 26 CI travel with the app', () =
   assert.match(nativeWorkflow, /^ {2}ios-captures:\s*$/m);
   assert.match(nativeWorkflow, /runs-on: macos-26/);
   assert.match(nativeWorkflow, /SIMCTL_CHILD_WAVE_CAPTURE_PAGE/);
+  assert.match(nativeWorkflow, /validate-ios-capture/);
+  assert.match(nativeWorkflow, /for attempt in \{1\.\.8\}/);
+  assert.match(read('scripts/validate-ios-capture.swift'), /white/);
   assert.match(nativeWorkflow, /xcrun simctl io/);
   assert.match(nativeWorkflow, /ios- platforms\/ios/);
   for (const path of ['.github/workflows/release.yml', '.github/workflows/native.yml']) {
