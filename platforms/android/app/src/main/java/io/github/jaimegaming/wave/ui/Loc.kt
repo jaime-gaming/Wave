@@ -550,6 +550,7 @@ object Loc {
             "Mostly {genre}" to "Sobre todo {genre}",
             "Usually around {hour}:00" to "Casi siempre hacia las {hour}:00",
             "Off" to "Desactivado",
+            "On" to "Activado",
             "Manage listening history" to "Gestionar el historial de escucha",
             "Working through the files…" to "Recorriendo los archivos…",
             "Remove {title}?" to "¿Quitar {title}?",

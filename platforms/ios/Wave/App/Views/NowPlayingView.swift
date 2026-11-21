@@ -10,6 +10,8 @@ struct NowPlayingView: View {
     @State private var importingLyrics = false
     @State private var editingMetadata = false
     @State private var sharing = false
+    @State private var queueOpen = false
+    @State private var lyricsOpen = true
     @State private var confirmLyricsLookup = false
     @State private var lyricsLookupRunning = false
     @State private var lyricsLookupMessage: String?
@@ -62,145 +64,12 @@ struct NowPlayingView: View {
                 )
                 .ignoresSafeArea()
 
-                VStack(spacing: metrics.gap) {
-                    HStack {
-                        Text(WaveTheme.loc("Now playing"))
-                            .font(.system(size: metrics.bodySize * 0.8, weight: .semibold))
-                            .foregroundStyle(WaveTheme.muted)
-                            .textCase(.uppercase)
-                        Spacer()
-                        Button(WaveTheme.loc("Close")) { state.playerExpanded = false }
-                            .waveGlassButton()
-                    }
-
-                    if let song = state.current {
-                        ArtworkView(
-                            image: state.artwork(for: song),
-                            size: min(metrics.coverSize, geometry.size.width - metrics.padding * 2),
-                            corner: metrics.corner
-                        )
-                        .shadow(color: WaveTheme.accent.opacity(state.ambientMotion ? 0.22 : 0.1), radius: 30)
-
-                        VStack(spacing: 5) {
-                            Text(song.title)
-                                .font(.system(size: metrics.titleSize, weight: .bold))
-                                .minimumScaleFactor(0.7)
-                                .lineLimit(2)
-                                .multilineTextAlignment(.center)
-                            Text(song.artist)
-                                .font(.system(size: metrics.bodySize))
-                                .foregroundStyle(WaveTheme.muted)
-                                .lineLimit(1)
-                            if !song.album.isEmpty {
-                                Text(song.album)
-                                    .font(.system(size: metrics.bodySize * 0.8))
-                                    .foregroundStyle(WaveTheme.muted.opacity(0.8))
-                                    .lineLimit(1)
-                            }
-                        }
-
-                        lyricsView(metrics: metrics)
-                            .frame(maxHeight: .infinity)
-
-                        VStack(spacing: 8) {
-                            Slider(value: position, in: 0...max(1, state.duration))
-                                .tint(WaveTheme.accent)
-                            HStack {
-                                Text(format(state.currentTime))
-                                Spacer()
-                                Text("−\(format(max(0, state.duration - state.currentTime)))")
-                            }
-                            .font(.system(size: metrics.bodySize * 0.75).monospacedDigit())
-                            .foregroundStyle(WaveTheme.muted)
-                        }
-
-                        waveGlassContainer(spacing: metrics.gap) {
-                            HStack(spacing: metrics.gap * 1.8) {
-                                Button { state.previous() } label: {
-                                    Image(systemName: "backward.fill").font(.system(size: metrics.titleSize))
-                                }
-                                .accessibilityLabel(WaveTheme.loc("Previous"))
-                                .waveGlassButton()
-                                Button { state.togglePlayPause() } label: {
-                                    Image(systemName: state.isPlaying ? "pause.circle.fill" : "play.circle.fill")
-                                        .font(.system(size: metrics.heroSize))
-                                }
-                                .accessibilityLabel(state.isPlaying ? WaveTheme.loc("Pause") : WaveTheme.loc("Play"))
-                                .waveGlassButton()
-                                Button { state.next() } label: {
-                                    Image(systemName: "forward.fill").font(.system(size: metrics.titleSize))
-                                }
-                                .accessibilityLabel(WaveTheme.loc("Next"))
-                                .waveGlassButton()
-                            }
-                        }
-
-                        waveGlassContainer(spacing: metrics.gap) {
-                            VStack(spacing: metrics.gap) {
-                              HStack(spacing: metrics.gap) {
-                                Toggle(
-                                    WaveTheme.loc("Mix"),
-                                    isOn: Binding(
-                                        get: { state.mixEnabled },
-                                        set: { state.mixEnabled = $0 }
-                                    )
-                                )
-                                .toggleStyle(.switch)
-                                .tint(WaveTheme.accent)
-                                .font(.system(size: metrics.bodySize * 0.75))
-                                .fixedSize()
-                                Image(systemName: "speaker.fill")
-                                    .font(.system(size: metrics.bodySize * 0.75))
-                                    .foregroundStyle(WaveTheme.muted)
-                                Slider(value: $volume, in: 0...1)
-                                    .tint(WaveTheme.accent)
-                                    .accessibilityLabel(WaveTheme.loc("Volume"))
-                                    .onChange(of: volume) { _, value in
-                                        state.setVolume(Float(value))
-                                    }
-                              }
-                              HStack(spacing: metrics.gap * 1.5) {
-                                Spacer(minLength: 0)
-                                Button {
-                                    state.toggleFavorite(song)
-                                } label: {
-                                    Image(systemName: song.isFavorite ? "heart.fill" : "heart")
-                                        .font(.system(size: metrics.bodySize))
-                                }
-                                .accessibilityLabel(WaveTheme.loc("Favorites"))
-                                .waveGlassButton()
-                                Button {
-                                    sharing = true
-                                } label: {
-                                    Image(systemName: "square.and.arrow.up")
-                                        .font(.system(size: metrics.bodySize))
-                                }
-                                .accessibilityLabel(WaveTheme.loc("Share song"))
-                                .waveGlassButton()
-                                Menu {
-                                    Button(WaveTheme.loc("Find lyrics")) { confirmLyricsLookup = true }
-                                        .disabled(lyricsLookupRunning)
-                                    Button(WaveTheme.loc("Import lyrics")) { importingLyrics = true }
-                                    Button(WaveTheme.loc("Find song metadata")) { editingMetadata = true }
-                                } label: {
-                                    Image(systemName: "ellipsis.circle")
-                                        .font(.system(size: metrics.bodySize))
-                                }
-                                .accessibilityLabel(WaveTheme.loc("More options"))
-                                Spacer(minLength: 0)
-                              }
-                            }
-                        }
-                    } else {
-                        EmptyStateView(
-                            title: WaveTheme.loc("No songs yet"),
-                            actionTitle: WaveTheme.loc("Close"),
-                            action: { state.playerExpanded = false }
-                        )
-                    }
+                ScrollView {
+                    playerContent(metrics: metrics, width: geometry.size.width, height: geometry.size.height)
+                        .frame(minHeight: max(0, geometry.size.height - metrics.padding * 2), alignment: .top)
+                        .padding(metrics.padding)
                 }
-                .padding(metrics.padding)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .scrollIndicators(.hidden)
 
                 if idle && state.isPlaying {
                     ImmersiveIdleView(metrics: metrics, onWake: wake)
@@ -216,6 +85,7 @@ struct NowPlayingView: View {
                     idle = true
                 }
             }
+            .onAppear { volume = Double(state.player.volume) }
             .onChange(of: state.isPlaying) { _, playing in
                 lastInteraction = Date()
                 if !playing { idle = false }
@@ -251,6 +121,13 @@ struct NowPlayingView: View {
             } message: {
                 Text(lyricsLookupMessage ?? "")
             }
+            .sheet(isPresented: $queueOpen) {
+                NavigationStack {
+                    QueueView()
+                        .toolbar { Button(WaveTheme.loc("Close")) { queueOpen = false } }
+                }
+                .environmentObject(state)
+            }
             .sheet(isPresented: $editingMetadata) {
                 if let song = state.current {
                     CatalogueView(song: song).environmentObject(state)
@@ -271,6 +148,158 @@ struct NowPlayingView: View {
         }
     }
 
+    /// A phone-sized record, readable lyrics and one reachable transport deck.
+    /// The whole surface can scroll on short screens or with larger type.
+    @ViewBuilder
+    private func playerContent(metrics: RemixMetrics, width: CGFloat, height: CGFloat) -> some View {
+        VStack(spacing: metrics.gap) {
+            HStack {
+                Text(WaveTheme.loc("Now playing"))
+                    .font(.title3.bold())
+                Spacer()
+                Button { queueOpen = true } label: {
+                    Image(systemName: "text.line.first.and.arrowtriangle.forward")
+                        .frame(width: 44, height: 44)
+                }
+                .accessibilityLabel(WaveTheme.loc("Open queue"))
+                .waveGlassButton()
+                Button { state.playerExpanded = false } label: {
+                    Image(systemName: "chevron.down")
+                        .frame(width: 44, height: 44)
+                }
+                .accessibilityLabel(WaveTheme.loc("Close"))
+                .waveGlassButton()
+            }
+            if let song = state.current {
+                ArtworkView(
+                    image: state.artwork(for: song),
+                    size: max(96, min(width * 0.56, height * 0.30, 300)),
+                    corner: 26
+                )
+                .padding(.top, 2)
+                VStack(spacing: 4) {
+                    Text(song.title).font(.title2.bold()).lineLimit(2).multilineTextAlignment(.center)
+                    Text(song.artist).font(.body).foregroundStyle(WaveTheme.accent).lineLimit(1)
+                    if !song.album.isEmpty {
+                        Text(song.album).font(.caption).foregroundStyle(WaveTheme.muted).lineLimit(1)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+
+                Button { lyricsOpen.toggle() } label: {
+                    HStack {
+                        Image(systemName: "captions.bubble")
+                        Text(WaveTheme.loc("Lyrics"))
+                        Spacer()
+                        Image(systemName: lyricsOpen ? "chevron.up" : "chevron.down")
+                    }
+                    .foregroundStyle(WaveTheme.muted)
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityValue(WaveTheme.loc(lyricsOpen ? "Lyrics" : "Show lyrics"))
+                if lyricsOpen {
+                    lyricsView(metrics: metrics)
+                        .frame(height: max(90, min(height * 0.19, 180)))
+                }
+                Spacer(minLength: 0)
+                songActions(song)
+                transportDeck()
+            } else {
+                EmptyStateView(
+                    title: WaveTheme.loc("No songs yet"),
+                    actionTitle: WaveTheme.loc("Close"),
+                    action: { state.playerExpanded = false }
+                )
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    @ViewBuilder
+    private func songActions(_ song: Song) -> some View {
+        HStack(spacing: 6) {
+            Button { sharing = true } label: {
+                Image(systemName: "square.and.arrow.up").frame(width: 44, height: 44)
+            }
+            .accessibilityLabel(WaveTheme.loc("Share song"))
+            Menu {
+                Button(WaveTheme.loc("Find lyrics")) { confirmLyricsLookup = true }
+                    .disabled(lyricsLookupRunning)
+                Button(WaveTheme.loc("Import lyrics")) { importingLyrics = true }
+                Button(WaveTheme.loc("Find song metadata")) { editingMetadata = true }
+            } label: {
+                Image(systemName: "pencil").frame(width: 44, height: 44)
+            }
+            .accessibilityLabel(WaveTheme.loc("More options"))
+            Spacer()
+            Button { state.shuffle.toggle() } label: {
+                Image(systemName: "shuffle").frame(width: 44, height: 44)
+                    .foregroundStyle(state.shuffle ? WaveTheme.accent : WaveTheme.muted)
+            }
+            .accessibilityLabel(WaveTheme.loc("Shuffle"))
+            .accessibilityValue(state.shuffle ? WaveTheme.loc("On") : WaveTheme.loc("Off"))
+            Button { state.toggleFavorite(song) } label: {
+                Image(systemName: song.isFavorite ? "heart.fill" : "heart").frame(width: 44, height: 44)
+                    .foregroundStyle(song.isFavorite ? WaveTheme.accent : WaveTheme.muted)
+            }
+            .accessibilityLabel(WaveTheme.loc("Favorites"))
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private func transportDeck() -> some View {
+        VStack(spacing: 6) {
+            Slider(value: position, in: 0...max(1, state.duration))
+                .tint(WaveTheme.accent)
+                .accessibilityLabel(WaveTheme.loc("Song position"))
+            HStack {
+                Text(format(state.currentTime))
+                Spacer()
+                Text(format(state.duration))
+            }
+            .font(.caption.monospacedDigit())
+            .foregroundStyle(WaveTheme.muted)
+            HStack(spacing: 28) {
+                Button { state.previous() } label: {
+                    Image(systemName: "backward.end.fill").frame(width: 44, height: 44)
+                }
+                .accessibilityLabel(WaveTheme.loc("Previous"))
+                Button { state.togglePlayPause() } label: {
+                    Image(systemName: state.isPlaying ? "pause.fill" : "play.fill")
+                        .font(.title2.bold())
+                        .frame(width: 64, height: 64)
+                        .foregroundStyle(WaveTheme.background)
+                        .background(WaveTheme.accent, in: Circle())
+                }
+                .accessibilityLabel(state.isPlaying ? WaveTheme.loc("Pause") : WaveTheme.loc("Play"))
+                Button { state.next() } label: {
+                    Image(systemName: "forward.end.fill").frame(width: 44, height: 44)
+                }
+                .accessibilityLabel(WaveTheme.loc("Next"))
+            }
+            .buttonStyle(.plain)
+            HStack(spacing: 8) {
+                Image(systemName: volume > 0 ? "speaker.wave.2" : "speaker.slash")
+                    .foregroundStyle(WaveTheme.muted)
+                Slider(value: $volume, in: 0...1)
+                    .tint(WaveTheme.accent)
+                    .accessibilityLabel(WaveTheme.loc("Volume"))
+                    .onChange(of: volume) { _, value in state.setVolume(Float(value)) }
+                Text("\(Int(volume * 100))%")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(WaveTheme.muted)
+            }
+            Toggle(WaveTheme.loc("Mix"), isOn: Binding(get: { state.mixEnabled }, set: { state.mixEnabled = $0 }))
+                .font(.caption)
+                .tint(WaveTheme.accent)
+        }
+        .padding(14)
+        .background(WaveTheme.surface, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+    }
+
     @ViewBuilder
     private func lyricsView(metrics: RemixMetrics) -> some View {
         if lines.isEmpty {
@@ -285,7 +314,7 @@ struct NowPlayingView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             ScrollView {
-                LazyVStack(spacing: 12) {
+                LazyVStack(alignment: .leading, spacing: 12) {
                     ForEach(lines.indices, id: \.self) { index in
                         Text(lines[index].text.isEmpty ? "♪" : lines[index].text)
                             .font(
@@ -294,8 +323,8 @@ struct NowPlayingView: View {
                                     : .system(size: metrics.bodySize)
                             )
                             .foregroundStyle(index == activeLine ? WaveTheme.text : WaveTheme.muted)
-                            .multilineTextAlignment(.center)
-                            .frame(maxWidth: .infinity)
+                            .multilineTextAlignment(.leading)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                             .animation(state.ambientMotion ? .easeInOut(duration: 0.25) : nil, value: activeLine)
                     }
                 }

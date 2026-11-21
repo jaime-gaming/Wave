@@ -89,8 +89,8 @@ fun NowPlayingScreen(
         minOf(configuration.screenHeightDp * 0.44f, configuration.screenWidthDp * 0.3f)
             .coerceIn(96f, 300f).dp
     } else {
-        minOf(configuration.screenWidthDp * 0.56f, configuration.screenHeightDp * 0.3f)
-            .coerceIn(96f, 240f).dp
+        minOf(configuration.screenWidthDp * 0.60f, configuration.screenHeightDp * 0.28f)
+            .coerceIn(96f, 260f).dp
     }
 
     val motionEnabled = waveMotionEnabled()

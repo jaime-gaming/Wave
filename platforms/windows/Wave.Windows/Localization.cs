@@ -546,6 +546,7 @@ public static partial class Localization {
             ["Mostly {genre}"] = "Sobre todo {genre}",
             ["Usually around {hour}:00"] = "Casi siempre hacia las {hour}:00",
             ["Off"] = "Desactivado",
+            ["On"] = "Activado",
             ["Manage listening history"] = "Gestionar el historial de escucha",
             ["Working through the files…"] = "Recorriendo los archivos…",
             ["Remove {title}?"] = "¿Quitar {title}?",
