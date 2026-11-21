@@ -35,6 +35,7 @@ struct SearchView: View {
                             SongRow(song: song) { state.play(song) }
                         }
                     }
+                    .listRowBackground(WaveTheme.background)
                 } else {
                     Section(WaveTheme.loc("Songs")) {
                         ForEach(results) { song in
@@ -44,6 +45,7 @@ struct SearchView: View {
                             Text(WaveTheme.loc("No songs yet")).foregroundStyle(WaveTheme.muted)
                         }
                     }
+                    .listRowBackground(WaveTheme.background)
                     Section(WaveTheme.loc("YouTube")) {
                         Button(WaveTheme.loc("Search online")) { showOnlineNotice = true }
                             .disabled(searchingOnline || query.trimmingCharacters(in: .whitespacesAndNewlines).count < 2)
@@ -61,6 +63,7 @@ struct SearchView: View {
                             }
                         }
                     }
+                    .listRowBackground(WaveTheme.background)
                 }
             }
             .listStyle(.plain)
