@@ -1,9 +1,21 @@
 name: Native builds
 on:
   push:
-    paths: ['platforms/**', 'scripts/publish-native-screenshots.sh', '.github/workflows/native.yml']
+    paths:
+      [
+        'platforms/**',
+        'scripts/publish-native-screenshots.sh',
+        'scripts/validate-ios-capture.swift',
+        '.github/workflows/native.yml',
+      ]
   pull_request:
-    paths: ['platforms/**', 'scripts/publish-native-screenshots.sh', '.github/workflows/native.yml']
+    paths:
+      [
+        'platforms/**',
+        'scripts/publish-native-screenshots.sh',
+        'scripts/validate-ios-capture.swift',
+        '.github/workflows/native.yml',
+      ]
   workflow_call:
     inputs:
       tag:
