@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createIdentity, encodePairingLink, parsePairingLink, sasCode } from './pairing';
-import { keyFingerprint } from './identity';
+import { createIdentity, encodePairingLink, parsePairingLink } from './pairing';
 import { LoanInbox, PairingSession, type PairingFailure, type PairingState } from './session';
 import {
   base64ToBytes,
@@ -179,7 +178,7 @@ describe('pairing session', () => {
     session.start();
     await session.receive(encodeFrame({ type: 'revoke-loan', loanId: 'loan1' }));
     await session.receive(
-      JSON.stringify({ v: 1, type: 'sealed', iv: 'AAAAAAAAAAAAAAAA', data: 'AAAA' }),
+      JSON.stringify({ v: 2, type: 'sealed', iv: 'AAAAAAAAAAAAAAAA', data: 'AAAA' }),
     );
     expect(frames).toEqual([]);
     expect(session.state).toBe('failed');
@@ -204,7 +203,8 @@ describe('pairing session', () => {
         deviceId: identity.deviceId,
         name: 'PC',
         platform: 'web',
-        protocolVersion: 1,
+        protocolVersion: 2,
+        nonce: 'AAAAAAAAAAAAAAAAAAAAAA',
         publicKey: btoa(String.fromCharCode(...(self?.publicKey ?? new Uint8Array())))
           .replace(/\+/gu, '-')
           .replace(/\//gu, '_')
@@ -255,10 +255,13 @@ describe('loan inbox', () => {
 
 describe('sealed frame hardening', () => {
   /** Host/peer pair where every host frame is captured for inspection. */
-  async function pairedPair() {
+  async function pairedPair(identities?: {
+    host: Awaited<ReturnType<typeof createIdentity>>;
+    peer: Awaited<ReturnType<typeof createIdentity>>;
+  }) {
     let deliver = true;
-    const hostIdentity = await createIdentity();
-    const peerIdentity = await createIdentity();
+    const hostIdentity = identities?.host ?? (await createIdentity());
+    const peerIdentity = identities?.peer ?? (await createIdentity());
     const captured: string[] = [];
     const peerFrames: SyncFrame[] = [];
     const peers: { peer?: PairingSession } = {};
@@ -338,6 +341,37 @@ describe('sealed frame hardening', () => {
     expect(peerFrames).toEqual([]);
   });
 
+  it('rejects plaintext application frames even after pairing', async () => {
+    const { peer, peerFrames } = await pairedPair();
+    await peer.receive(encodeFrame({ type: 'ping', at: 123 }));
+    expect(peer.failure).toBe('authentication');
+    expect(peerFrames).toEqual([]);
+  });
+
+  it('authenticates the sequence number and direction', async () => {
+    const { host, peer, peerFrames, captured, stopDelivering } = await pairedPair();
+    stopDelivering();
+    await host.sendFrame({ type: 'ping', at: 1 });
+    const envelope = JSON.parse(captured.at(-1)!);
+    await peer.receive(JSON.stringify({ ...envelope, n: envelope.n + 1 }));
+    expect(peer.failure).toBe('authentication');
+    expect(peerFrames).toEqual([]);
+  });
+
+  it('rejects a ciphertext replayed into a fresh session with the same identities', async () => {
+    const identities = { host: await createIdentity(), peer: await createIdentity() };
+    const first = await pairedPair(identities);
+    await first.host.sendFrame({ type: 'ping', at: 8 });
+    await settle();
+    const recorded = first.captured.at(-1)!;
+    first.host.close();
+    first.peer.close();
+    const second = await pairedPair(identities);
+    await second.peer.receive(recorded);
+    expect(second.peer.failure).toBe('authentication');
+    expect(second.peerFrames).toEqual([]);
+  });
+
   it('refuses an oversized sealed envelope before decrypting', async () => {
     const identity = await createIdentity();
     const session = new PairingSession({
@@ -351,7 +385,7 @@ describe('sealed frame hardening', () => {
     session.start();
     await session.receive(
       JSON.stringify({
-        v: 1,
+        v: 2,
         type: 'sealed',
         n: 1,
         iv: 'AAAAAAAAAAAAAAAA',
@@ -374,7 +408,7 @@ describe('sealed frame hardening', () => {
     });
     session.start();
     await session.receive(
-      JSON.stringify({ v: 1, type: 'sealed', n: 1, iv: 'AAAAAAAAAAAAAAAA', data: 'AAAA' }),
+      JSON.stringify({ v: 2, type: 'sealed', n: 1, iv: 'AAAAAAAAAAAAAAAA', data: 'AAAA' }),
     );
     expect(frames).toEqual([]);
     expect(session.state).toBe('failed');
@@ -408,48 +442,13 @@ describe('loan inbox validation', () => {
   });
 });
 
-describe('a confirmation that arrives early', () => {
-  it('waits for the code instead of failing the pairing', async () => {
-    // Both devices show the same six digits at almost the same instant, and one
-    // of them confirms before the other has finished its own key exchange. That
-    // used to be treated as a protocol error and killed a perfect pairing.
-    const hostIdentity = await createIdentity(undefined, 'PC');
-    const guestIdentity = await createIdentity(undefined, 'Phone');
-    const sent: string[] = [];
-    const failures: string[] = [];
-    const guest = new PairingSession({
-      role: 'guest',
-      identity: guestIdentity,
-      deviceName: 'Phone',
-      platform: 'android',
-      send: (payload) => sent.push(payload),
-      onState: (_state, failure) => {
-        if (failure) failures.push(failure);
-      },
-      autoExpire: false,
-    });
-    const code = await sasCode(guestIdentity.publicKey, hostIdentity.publicKey);
-
-    // The hello starts an asynchronous handshake that is not awaited, so the
-    // confirmation that follows lands while the session is still inviting.
-    void guest.receive(
-      encodeFrame({
-        type: 'hello',
-        deviceId: hostIdentity.deviceId,
-        name: 'PC',
-        platform: 'web',
-        protocolVersion: 1,
-        publicKey: keyFingerprint(hostIdentity.publicKey),
-      }),
-    );
-    await guest.receive(encodeFrame({ type: 'pair-confirm', sas: code }));
-    expect(guest.failure).toBeUndefined();
-    // The listener pressing the button at that same moment is honoured too.
-    guest.confirm();
-
-    await settleUntil(() => guest.state === 'paired');
-    expect(guest.state).toBe('paired');
-    expect(failures).toEqual([]);
-    expect(sent.some((payload) => payload.includes('pair-confirm'))).toBe(true);
+describe('authenticated confirmations', () => {
+  it('rejects a forged plaintext confirmation', async () => {
+    const { host } = await connect({ confirm: false });
+    host.start();
+    await settleUntil(() => host.state === 'awaiting-confirmation');
+    await host.receive(encodeFrame({ type: 'pair-confirm', sas: host.sas! }));
+    expect(host.state).toBe('failed');
+    expect(host.failure).toBe('authentication');
   });
 });

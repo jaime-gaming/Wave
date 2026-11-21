@@ -17,7 +17,7 @@ import { decodeSignal, encodeSignal } from './signal';
 export type TransportState = 'idle' | 'gathering' | 'waiting' | 'connecting' | 'open' | 'closed';
 
 export interface Transport {
-  send: (payload: string) => void;
+  send: (payload: string) => Promise<void>;
   receive: (handler: (payload: string) => void) => void;
   onState: (handler: (state: TransportState) => void) => void;
   /** Resolves with the code to give the other device. */
@@ -50,31 +50,36 @@ export function createTransport(
   });
   let channel: RTCDataChannel | null = null;
   let state: TransportState = 'idle';
-  let queue: string[] = [];
+  let pendingOpen: {
+    resolve: (channel: RTCDataChannel) => void;
+    reject: (error: Error) => void;
+  }[] = [];
+  let sendTail: Promise<void> = Promise.resolve();
+  const failPending = () => {
+    const pending = pendingOpen;
+    pendingOpen = [];
+    for (const waiter of pending) waiter.reject(new Error('The connection closed.'));
+  };
 
+  const isClosed = () => state === 'closed';
   const setState = (next: TransportState) => {
-    if (state === next) return;
+    if (state === next || isClosed()) return;
     state = next;
+    if (next === 'closed') failPending();
     handlers.onState(next);
   };
 
   const attach = (next: RTCDataChannel) => {
     channel = next;
+    next.bufferedAmountLowThreshold = 256 * 1024;
     next.onopen = () => {
       setState('open');
-      // Anything queued while the channel was connecting goes out in order.
-      const pending = queue;
-      queue = [];
-      for (const payload of pending) next.send(payload);
+      const pending = pendingOpen;
+      pendingOpen = [];
+      for (const waiter of pending) waiter.resolve(next);
     };
-    next.onclose = () => {
-      queue = [];
-      setState('closed');
-    };
-    next.onerror = () => {
-      queue = [];
-      setState('closed');
-    };
+    next.onclose = () => setState('closed');
+    next.onerror = () => setState('closed');
     next.onmessage = (event) => {
       if (typeof event.data === 'string') handlers.onMessage(event.data);
     };
@@ -152,8 +157,44 @@ export function createTransport(
       return null;
     },
     send(payload: string) {
-      if (channel?.readyState === 'open') channel.send(payload);
-      else if (state !== 'closed' && state !== 'idle') queue.push(payload);
+      const task = sendTail.then(async () => {
+        if (state === 'closed') throw new Error('The connection closed.');
+        const open =
+          channel?.readyState === 'open'
+            ? channel
+            : await new Promise<RTCDataChannel>((resolve, reject) => {
+                pendingOpen.push({ resolve, reject });
+              });
+        if (open.readyState !== 'open' || isClosed()) throw new Error('The connection closed.');
+        if (open.bufferedAmount > 512 * 1024) {
+          await new Promise<void>((resolve, reject) => {
+            const cleanup = () => {
+              clearTimeout(timer);
+              open.removeEventListener('bufferedamountlow', low);
+              open.removeEventListener('close', closed);
+              open.removeEventListener('error', closed);
+            };
+            const low = () => {
+              cleanup();
+              resolve();
+            };
+            const closed = () => {
+              cleanup();
+              reject(new Error('The connection closed.'));
+            };
+            const timer = setTimeout(closed, 30_000);
+            open.addEventListener('bufferedamountlow', low);
+            open.addEventListener('close', closed);
+            open.addEventListener('error', closed);
+            if (open.readyState !== 'open') closed();
+            else if (open.bufferedAmount <= open.bufferedAmountLowThreshold) low();
+          });
+        }
+        if (open.readyState !== 'open' || isClosed()) throw new Error('The connection closed.');
+        open.send(payload);
+      });
+      sendTail = task.catch(() => undefined);
+      return task;
     },
     receive(handler) {
       handlers.onMessage = handler;
@@ -162,7 +203,6 @@ export function createTransport(
       handlers.onState = handler;
     },
     close() {
-      queue = [];
       setState('closed');
       try {
         channel?.close();

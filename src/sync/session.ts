@@ -51,7 +51,7 @@ export interface PairingSessionOptions {
   deviceName: string;
   platform: Platform;
   /** Writes a message to the peer. Must not throw. */
-  send: (payload: string) => void;
+  send: (payload: string) => void | Promise<void>;
   onState?: (state: PairingState, failure?: PairingFailure) => void;
   onSas?: (code: string) => void;
   /** Called only for authenticated frames received while paired. */
@@ -71,8 +71,10 @@ export class PairingSession {
   failure?: PairingFailure;
   sas?: string;
   peer?: DeviceInfo;
-  /** A confirmation that arrived before this side had a code to compare. */
-  private earlyConfirm?: string;
+  /** Fresh session salt prevents ciphertext replay across connections. */
+  private readonly nonce = crypto.getRandomValues(new Uint8Array(16));
+  private incoming: Promise<void> = Promise.resolve();
+  private outgoing: Promise<void> = Promise.resolve();
   /** The user confirmed while the handshake was still running. */
   private wantsConfirm = false;
   /** The peer's raw public key, kept so a known device can be recognised. */
@@ -106,17 +108,24 @@ export class PairingSession {
     this.startedAt = this.now();
     this.setState('inviting');
     this.scheduleExpiry();
-    this.sendRaw(
+    void this.sendRaw(
       encodeFrame({
         type: 'hello',
         ...this.device,
         publicKey: toBase64Url(this.options.identity.publicKey),
+        nonce: toBase64Url(this.nonce),
       }),
-    );
+    ).catch(() => undefined);
   }
 
   /** Applies one inbound transport message. Never throws on untrusted input. */
-  async receive(raw: string): Promise<void> {
+  receive(raw: string): Promise<void> {
+    const task = this.incoming.then(() => this.receiveOne(raw));
+    this.incoming = task.catch(() => this.fail('protocol'));
+    return this.incoming;
+  }
+
+  private async receiveOne(raw: string): Promise<void> {
     if (this.state === 'failed' || this.state === 'closed') return;
     if (this.state === 'idle') this.start();
     if (typeof raw !== 'string') {
@@ -124,6 +133,10 @@ export class PairingSession {
       return;
     }
 
+    if (raw.length > MAX_SEALED_BYTES + 512) {
+      this.fail('protocol');
+      return;
+    }
     const envelope = safeParse(raw);
     if (envelope && envelope.type === 'sealed') {
       await this.receiveSealed(envelope);
@@ -137,12 +150,11 @@ export class PairingSession {
     }
     const frame = decoded.frame;
     if (frame.type === 'hello') await this.receiveHello(frame);
-    else if (frame.type === 'pair-confirm') this.receiveConfirm(frame.sas);
+    else if (frame.type === 'pair-confirm') this.fail('authentication');
     else if (frame.type === 'pair-reject') this.fail('rejected');
     else if (frame.type === 'error') {
       if (frame.code === 'unsupported-version') this.fail('unsupported-version');
-    } else if (this.state === 'paired') this.options.onFrame?.(frame);
-    // Frames that need a key are dropped instead of applied while unpaired.
+    } else this.fail('authentication'); // All application frames must be sealed.
   }
 
   /** The user compared the six-digit code on both devices. */
@@ -155,14 +167,19 @@ export class PairingSession {
       return;
     }
     if (this.state !== 'awaiting-confirmation' || !this.sas) return;
+    const sas = this.sas;
     this.localConfirmed = true;
-    this.sendRaw(encodeFrame({ type: 'pair-confirm', sas: this.sas }));
-    this.maybeFinishPairing();
+    void this.sendSecure({ type: 'pair-confirm', sas }).then(
+      () => this.maybeFinishPairing(),
+      () => this.fail('protocol'),
+    );
   }
 
   reject(reason = 'User declined the pairing'): void {
     if (this.state === 'paired' || this.state === 'failed' || this.state === 'closed') return;
-    this.sendRaw(encodeFrame({ type: 'pair-reject', reason: reason.slice(0, 200) }));
+    void this.sendRaw(encodeFrame({ type: 'pair-reject', reason: reason.slice(0, 200) })).catch(
+      () => undefined,
+    );
     this.fail('rejected');
   }
 
@@ -174,13 +191,25 @@ export class PairingSession {
   async sendFrame(frame: SyncFrame): Promise<void> {
     if (this.state !== 'paired' || !this.sessionKey)
       throw new SyncError('not-paired', 'Devices are not paired.');
-    const sealed = await sealFrame(this.sessionKey, encodeFrame(frame));
-    // Sequence numbers make replays detectable: a recorded frame is rejected
-    // instead of being applied a second time.
-    const sequence = ++this.sendSequence;
-    this.sendRaw(
-      JSON.stringify({ v: SYNC_PROTOCOL_VERSION, type: 'sealed', n: sequence, ...sealed }),
-    );
+    await this.sendSecure(frame);
+  }
+
+  private sendSecure(frame: SyncFrame): Promise<void> {
+    const task = this.outgoing.then(async () => {
+      if (!this.sessionKey || this.state === 'closed' || this.state === 'failed')
+        throw new SyncError('not-paired', 'The session is closed.');
+      const sequence = ++this.sendSequence;
+      const sealed = await sealFrame(
+        this.sessionKey,
+        encodeFrame(frame),
+        `${this.role}:${sequence}`,
+      );
+      await this.sendRaw(
+        JSON.stringify({ v: SYNC_PROTOCOL_VERSION, type: 'sealed', n: sequence, ...sealed }),
+      );
+    });
+    this.outgoing = task.catch(() => this.fail('protocol'));
+    return task;
   }
 
   close(): void {
@@ -228,11 +257,19 @@ export class PairingSession {
       return;
     }
     try {
-      this.sessionKey = await deriveSessionKey(this.options.identity, peerKey);
+      const peerNonce = fromBase64Url(frame.nonce);
+      if (peerNonce.length !== 16) throw new Error('Invalid nonce');
+      this.sessionKey = await deriveSessionKey(
+        this.options.identity,
+        peerKey,
+        this.nonce,
+        peerNonce,
+      );
     } catch {
       this.fail('protocol');
       return;
     }
+    if (this.state !== 'inviting') return;
     this.peer = {
       deviceId: frame.deviceId,
       name: frame.name,
@@ -241,13 +278,9 @@ export class PairingSession {
     };
     this.peerPublicKey = peerKey;
     this.sas = await sasCode(this.options.identity.publicKey, peerKey);
+    if (this.state !== 'inviting') return;
     this.setState('awaiting-confirmation');
     this.options.onSas?.(this.sas);
-    // Whatever arrived while the key exchange was still running is applied now,
-    // in the order the peer sent it.
-    const earlyConfirm = this.earlyConfirm;
-    this.earlyConfirm = undefined;
-    if (earlyConfirm !== undefined) this.receiveConfirm(earlyConfirm);
     if (this.wantsConfirm) {
       this.wantsConfirm = false;
       this.confirm();
@@ -255,15 +288,6 @@ export class PairingSession {
   }
 
   private receiveConfirm(sas: string): void {
-    // The two devices derive the same code at almost the same moment, and one
-    // of them confirms immediately. The other may still be finishing its own
-    // key exchange when that confirmation arrives; treating it as a protocol
-    // error failed an otherwise perfect pairing, so it is held until the code
-    // exists and checked then.
-    if (this.state === 'inviting') {
-      this.earlyConfirm = sas;
-      return;
-    }
     if (this.state !== 'awaiting-confirmation' || !this.sas) {
       this.fail('protocol');
       return;
@@ -278,7 +302,8 @@ export class PairingSession {
   }
 
   private maybeFinishPairing(): void {
-    if (!this.localConfirmed || !this.peerConfirmed) return;
+    if (this.state !== 'awaiting-confirmation' || !this.localConfirmed || !this.peerConfirmed)
+      return;
     this.clearExpiry();
     this.setState('paired');
   }
@@ -292,7 +317,11 @@ export class PairingSession {
       this.fail('authentication');
       return;
     }
-    if (typeof envelope.iv !== 'string' || typeof envelope.data !== 'string') {
+    if (
+      envelope.v !== SYNC_PROTOCOL_VERSION ||
+      typeof envelope.iv !== 'string' ||
+      typeof envelope.data !== 'string'
+    ) {
       this.fail('protocol');
       return;
     }
@@ -311,10 +340,15 @@ export class PairingSession {
       this.fail('replay');
       return;
     }
-    const plaintext = await openFrame(this.sessionKey, {
-      iv: envelope.iv,
-      data: envelope.data,
-    });
+    const peerRole = this.role === 'host' ? 'guest' : 'host';
+    const plaintext = await openFrame(
+      this.sessionKey,
+      {
+        iv: envelope.iv,
+        data: envelope.data,
+      },
+      `${peerRole}:${sequence}`,
+    );
     if (plaintext === null) {
       this.fail('authentication');
       return;
@@ -327,7 +361,14 @@ export class PairingSession {
     // Only advance after authentication, so a forged envelope cannot consume a
     // sequence number and block the real peer.
     this.receiveSequence = sequence;
-    if (this.state !== 'paired') return;
+    if (decoded.frame.type === 'pair-confirm') {
+      this.receiveConfirm(decoded.frame.sas);
+      return;
+    }
+    if (this.state !== 'paired') {
+      this.fail('protocol');
+      return;
+    }
     this.options.onFrame?.(decoded.frame);
   }
 
@@ -344,11 +385,12 @@ export class PairingSession {
     this.options.onState?.(state, failure);
   }
 
-  private sendRaw(payload: string): void {
+  private async sendRaw(payload: string): Promise<void> {
     try {
-      this.options.send(payload);
-    } catch {
+      await this.options.send(payload);
+    } catch (error) {
       this.fail('protocol');
+      throw error;
     }
   }
 }

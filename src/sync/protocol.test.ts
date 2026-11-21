@@ -27,8 +27,9 @@ describe('sync protocol frames', () => {
         deviceId: 'device-1234',
         name: 'Pixel',
         platform: 'android',
-        protocolVersion: 1,
+        protocolVersion: 2,
         publicKey: 'BFake',
+        nonce: 'AAAAAAAAAAAAAAAAAAAAAA',
       },
       { type: 'pair-confirm', sas: '123456' },
       { type: 'pair-reject', reason: 'Declined' },
@@ -77,26 +78,26 @@ describe('sync protocol frames', () => {
   it('rejects hostile or unsupported frames', () => {
     expect(decodeFrame('not json')).toMatchObject({ ok: false, code: 'invalid-json' });
     expect(decodeFrame('[]')).toMatchObject({ ok: false, code: 'invalid-json' });
-    expect(decodeFrame(JSON.stringify({ v: 2, type: 'ping', at: 1 }))).toMatchObject({
+    expect(decodeFrame(JSON.stringify({ v: 1, type: 'ping', at: 1 }))).toMatchObject({
       code: 'unsupported-version',
     });
-    expect(decodeFrame(JSON.stringify({ v: 1, type: 'self-destruct' }))).toMatchObject({
+    expect(decodeFrame(JSON.stringify({ v: 2, type: 'self-destruct' }))).toMatchObject({
       code: 'unknown-type',
     });
     expect(
-      decodeFrame(JSON.stringify({ v: 1, type: 'hello', deviceId: 'has space' })),
+      decodeFrame(JSON.stringify({ v: 2, type: 'hello', deviceId: 'has space' })),
     ).toMatchObject({
       code: 'invalid-field',
     });
     expect(
       decodeFrame(
-        JSON.stringify({ v: 1, type: 'transfer-chunk', loanId: 'l1', index: 0, data: '<svg>' }),
+        JSON.stringify({ v: 2, type: 'transfer-chunk', loanId: 'l1', index: 0, data: '<svg>' }),
       ),
     ).toMatchObject({ code: 'invalid-field' });
     expect(
       decodeFrame(
         JSON.stringify({
-          v: 1,
+          v: 2,
           type: 'transfer-start',
           loanId: 'l1',
           trackId: 't1',
@@ -110,7 +111,7 @@ describe('sync protocol frames', () => {
     expect(
       decodeFrame(
         JSON.stringify({
-          v: 1,
+          v: 2,
           type: 'transfer-start',
           loanId: 'l1',
           trackId: 't1',

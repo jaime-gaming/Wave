@@ -279,7 +279,6 @@ export function useDevices(tracks: Track[]) {
 
   const confirm = useCallback(() => {
     linkRef.current?.confirm();
-    setStage('connected');
   }, []);
 
   const request = useCallback(async (entries: LibraryEntry[]) => {

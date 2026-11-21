@@ -61,3 +61,60 @@ it('rejects malformed signaling before touching the remote description', async (
   expect(Peer.last.setRemoteDescription).not.toHaveBeenCalled();
   transport.close();
 });
+
+it('waits for an open channel and applies backpressure until its buffer drains', async () => {
+  class Channel extends EventTarget {
+    readyState = 'connecting';
+    bufferedAmount = 0;
+    bufferedAmountLowThreshold = 0;
+    onopen?: () => void;
+    onclose?: () => void;
+    onerror?: () => void;
+    onmessage?: () => void;
+    send = vi.fn();
+    close = vi.fn(() => {
+      this.readyState = 'closed';
+      this.onclose?.();
+      this.dispatchEvent(new Event('close'));
+    });
+  }
+  class BufferedPeer extends Peer {
+    static channel: Channel;
+    override createDataChannel() {
+      BufferedPeer.channel = new Channel();
+      return BufferedPeer.channel;
+    }
+  }
+  vi.stubGlobal('RTCPeerConnection', BufferedPeer);
+  const transport = createTransport({ polite: false }, { onMessage: vi.fn(), onState: vi.fn() });
+  const code = transport.localCode();
+  Peer.last.iceGatheringState = 'complete';
+  Peer.last.onicegatheringstatechange?.();
+  await code;
+  const channel = BufferedPeer.channel;
+  const first = transport.send('first');
+  await Promise.resolve();
+  expect(channel.send).not.toHaveBeenCalled();
+  channel.readyState = 'open';
+  channel.onopen?.();
+  await first;
+  expect(channel.send).toHaveBeenCalledWith('first');
+  channel.bufferedAmount = 600 * 1024;
+  const second = transport.send('second');
+  await Promise.resolve();
+  expect(channel.send).toHaveBeenCalledTimes(1);
+  channel.bufferedAmount = 100 * 1024;
+  channel.dispatchEvent(new Event('bufferedamountlow'));
+  await second;
+  expect(channel.send).toHaveBeenLastCalledWith('second');
+  transport.close();
+});
+
+it('rejects pending sends if the connection closes before opening', async () => {
+  vi.stubGlobal('RTCPeerConnection', Peer);
+  const transport = createTransport({ polite: false }, { onMessage: vi.fn(), onState: vi.fn() });
+  const send = transport.send('hello');
+  await Promise.resolve();
+  transport.close();
+  await expect(send).rejects.toThrow('closed');
+});

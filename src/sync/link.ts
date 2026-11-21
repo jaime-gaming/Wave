@@ -1,4 +1,12 @@
-import { DEFAULT_CHUNK_BYTES, SyncError, type LibraryEntry } from './protocol';
+import {
+  DEFAULT_CHUNK_BYTES,
+  MAX_LIBRARY_ENTRIES,
+  MAX_LOAN_TRACK_BYTES,
+  SYNC_PROTOCOL_VERSION,
+  paginateLibraryIndex,
+  SyncError,
+  type LibraryEntry,
+} from './protocol';
 import { LoanInbox, PairingSession, type PairingFailure, type PairingState } from './session';
 import type { LocalIdentity } from './pairing';
 import { keyFingerprint } from './identity';
@@ -63,6 +71,10 @@ export class DeviceLink {
   private transport?: Transport;
   private inbox: LoanInbox;
   private sending = new Set<string>();
+  private peerEntries: LibraryEntry[] = [];
+  private requested = new Map<string, LoanRequest>();
+  private incoming: Promise<void> = Promise.resolve();
+  private serving: Promise<void> = Promise.resolve();
 
   private constructor(
     private readonly options: DeviceLinkOptions,
@@ -116,22 +128,29 @@ export class DeviceLink {
     const peerId = this.session.peer?.deviceId;
     if (!peerId) throw new SyncError('not-paired', 'Link a device first.');
     const requests: LoanRequest[] = entries.map((entry) => ({
-      loanId: `${entry.trackId}-${peerId}`.slice(0, 72),
+      loanId: crypto.randomUUID(),
       trackId: entry.trackId,
       deviceId: this.identity.deviceId,
       size: entry.size,
       title: entry.title,
       artist: entry.artist,
     }));
-    // Send in one frame so the peer can accept them as a batch.
-    const batch = requests.slice(0, 40);
-    await this.session.sendFrame({ type: 'loan-offer', requests: batch });
-    return batch.length;
+    // Bound each frame without silently dropping selections after the first 40.
+    for (const request of requests) this.requested.set(request.loanId, request);
+    for (let offset = 0; offset < requests.length; offset += 40) {
+      await this.session.sendFrame({
+        type: 'loan-offer',
+        requests: requests.slice(offset, offset + 40),
+      });
+    }
+    return requests.length;
   }
 
   close() {
     this.session?.close();
     this.transport?.close();
+    this.inbox.abortAll();
+    this.requested.clear();
   }
 
   private buildSession(transport: Transport, role: 'host' | 'guest') {
@@ -149,19 +168,29 @@ export class DeviceLink {
             platform: session.peer.platform,
             pairedAt: Date.now(),
             lastSeenAt: Date.now(),
+            protocolVersion: SYNC_PROTOCOL_VERSION,
             publicKey: session.peerPublicKey ? keyFingerprint(session.peerPublicKey) : undefined,
           });
           this.status({ kind: 'connected', peerName: session.peer.name });
           // A freshly paired peer gets our index straight away: browsing a
           // friend's library should not need a second round trip.
-          void this.sendLibrary(session);
+          void this.sendLibrary(session).catch(() =>
+            this.options.onError?.('The library could not be sent.'),
+          );
         } else if (state === 'failed')
           this.status({ kind: 'failed', reason: failure ?? 'transport' });
       },
       onSas: (code) => {
         void this.confirmIfKnown(session, code);
       },
-      onFrame: (frame) => void this.onFrame(frame),
+      onFrame: (frame) => {
+        // Sending must not block receipt: two peers may request songs at once.
+        if (frame.type === 'loan-offer') {
+          this.serving = this.serving.then(() => this.onFrame(frame));
+        } else {
+          this.incoming = this.incoming.then(() => this.onFrame(frame));
+        }
+      },
     });
     return session;
   }
@@ -181,7 +210,7 @@ export class DeviceLink {
     if (peerId && key) {
       try {
         const known = (await getDevices()).find((device) => device.deviceId === peerId);
-        if (known?.publicKey && known.publicKey === key) {
+        if (known?.protocolVersion === SYNC_PROTOCOL_VERSION && known.publicKey === key) {
           session.confirm();
           return;
         }
@@ -199,42 +228,42 @@ export class DeviceLink {
   private bind(transport: Transport, role: 'host' | 'guest') {
     transport.receive((payload) => void this.session?.receive(payload));
     transport.onState((state) => {
-      if (state === 'closed' && this.session && this.session.state !== 'paired')
+      if (state === 'closed' && this.session && this.session.state !== 'closed')
         this.status({ kind: 'failed', reason: 'transport' });
       void role;
     });
   }
 
   private async sendLibrary(session: PairingSession) {
-    const entries = this.options.tracks().map((track) => ({
-      trackId: track.id,
-      title: track.title,
-      artist: track.artist,
-      album: track.album,
-      duration: 0,
-      size: track.blob.size,
-    }));
-    // The frame ceiling is 96 KB, so a large library goes in slices.
-    const slices = Math.max(1, Math.ceil(entries.length / 600));
-    for (let index = 0; index < slices; index++) {
-      await session.sendFrame({
-        type: 'library-index',
-        entries: entries.slice(index * 600, (index + 1) * 600),
-        complete: index === slices - 1,
-      });
-    }
+    const entries = this.options
+      .tracks()
+      .filter((track) => track.blob.size > 0 && track.blob.size <= MAX_LOAN_TRACK_BYTES)
+      .slice(0, MAX_LIBRARY_ENTRIES)
+      .map((track) => ({
+        trackId: track.id,
+        title: track.title.slice(0, 200),
+        artist: track.artist.slice(0, 200),
+        album: track.album.slice(0, 200),
+        duration: 0,
+        size: track.blob.size,
+      }));
+    for (const page of paginateLibraryIndex(entries, 30 * 1024)) await session.sendFrame(page);
   }
 
   private async onFrame(frame: SyncFrame) {
     try {
       if (frame.type === 'library-index') {
-        this.options.onLibrary?.({
-          entries: frame.entries,
-          complete: frame.complete,
-        });
+        if (this.peerEntries.length + frame.entries.length > MAX_LIBRARY_ENTRIES)
+          throw new SyncError('too-many-entries', 'The other device sent too many songs.');
+        this.peerEntries.push(...frame.entries);
+        this.options.onLibrary?.({ entries: [...this.peerEntries], complete: frame.complete });
+        if (frame.complete) this.peerEntries = [];
       } else if (frame.type === 'loan-offer') {
         for (const request of frame.requests) await this.serve(request);
       } else if (frame.type === 'transfer-start') {
+        const request = this.requested.get(frame.loanId);
+        if (!request || request.trackId !== frame.trackId || request.size !== frame.size)
+          throw new SyncError('unrequested-transfer', 'The other device sent an unrequested song.');
         this.inbox.begin(frame);
         this.options.onProgress?.({
           received: 0,
@@ -249,28 +278,40 @@ export class DeviceLink {
         });
       } else if (frame.type === 'transfer-complete') {
         const { meta, bytes } = await this.inbox.complete(frame.loanId);
+        const request = this.requested.get(frame.loanId);
+        if (!request) throw new SyncError('unrequested-transfer', 'The song was not requested.');
         await commitLoan(
           {
             loanId: meta.loanId,
             trackId: meta.trackId,
             deviceId: this.session?.peer?.deviceId ?? 'peer',
             size: meta.size,
-            title: meta.trackId,
+            title: request.title,
+            artist: request.artist,
           },
           bytes,
           this.options.policy ?? DEFAULT_LOAN_POLICY,
           Date.now(),
-          'application/octet-stream',
+          meta.mime ?? 'application/octet-stream',
           frame.sha256,
         );
-        this.options.onLoaned({ loanId: meta.loanId, trackId: meta.trackId });
+        this.requested.delete(frame.loanId);
+        this.options.onLoaned({
+          loanId: meta.loanId,
+          trackId: meta.trackId,
+          title: request.title,
+          artist: request.artist,
+        });
         this.options.onProgress?.(null);
       } else if (frame.type === 'transfer-abort') {
         this.inbox.abort(frame.loanId);
+        this.requested.delete(frame.loanId);
         this.options.onProgress?.(null);
       }
     } catch (error) {
       this.inbox.abortAll();
+      this.requested.clear();
+      this.peerEntries = [];
       this.options.onProgress?.(null);
       this.options.onError?.(
         error instanceof SyncError ? error.message : 'A song could not be transferred.',
@@ -300,6 +341,9 @@ export class DeviceLink {
         sha256,
         chunkSize: DEFAULT_CHUNK_BYTES,
         chunkCount,
+        mime: /^(audio\/[a-z0-9.+-]+|application\/octet-stream)$/u.test(track.blob.type)
+          ? track.blob.type
+          : 'application/octet-stream',
       });
       for (let index = 0; index < chunkCount; index++) {
         const slice = bytes.subarray(

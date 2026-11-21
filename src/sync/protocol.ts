@@ -1,7 +1,7 @@
 import type { LoanRequest } from './loan';
 
 /**
- * Wave sync protocol, version 1.
+ * Wave sync protocol, version 2.
  *
  * Frames are plain JSON text so the same contract can be implemented by the web
  * client, the Android client and a future relay. Everything except the initial
@@ -9,16 +9,16 @@ import type { LoanRequest } from './loan';
  * device unless the user explicitly grants a loan, and a loan is always a
  * complete, verified file.
  */
-export const SYNC_PROTOCOL_VERSION = 1;
+export const SYNC_PROTOCOL_VERSION = 2;
 /** Upper bound for any single transport message, including base64 overhead. */
 export const MAX_FRAME_BYTES = 96 * 1024;
 /** Raw bytes per audio chunk. Base64 keeps the envelope under MAX_FRAME_BYTES. */
-export const DEFAULT_CHUNK_BYTES = 48 * 1024;
+export const DEFAULT_CHUNK_BYTES = 24 * 1024;
 /** Same ceiling as a local import: 200 MB per stored file. */
 export const MAX_LOAN_TRACK_BYTES = 200 * 1024 * 1024;
 export const MAX_LIBRARY_ENTRIES = 50_000;
 
-export type Platform = 'web' | 'android' | 'windows';
+export type Platform = 'web' | 'android' | 'ios' | 'windows';
 
 export interface DeviceInfo {
   deviceId: string;
@@ -43,10 +43,11 @@ export interface TransferMetadata {
   sha256: string;
   chunkSize: number;
   chunkCount: number;
+  mime?: string;
 }
 
 export type SyncFrame =
-  | ({ type: 'hello' } & DeviceInfo & { publicKey: string })
+  | ({ type: 'hello' } & DeviceInfo & { publicKey: string; nonce: string })
   | { type: 'pair-confirm'; sas: string }
   | { type: 'pair-reject'; reason: string }
   | { type: 'library-index'; entries: LibraryEntry[]; complete: boolean }
@@ -101,7 +102,8 @@ function readDevice(value: Record<string, unknown>): DeviceInfo | null {
   const platform = value.platform;
   const protocolVersion = count(value.protocolVersion, 1000);
   if (!deviceId || name === null || protocolVersion === null) return null;
-  if (platform !== 'web' && platform !== 'android' && platform !== 'windows') return null;
+  if (platform !== 'web' && platform !== 'android' && platform !== 'ios' && platform !== 'windows')
+    return null;
   return { deviceId, name: name.trim() || 'Wave device', platform, protocolVersion };
 }
 
@@ -112,10 +114,16 @@ function readTransferMetadata(value: Record<string, unknown>): TransferMetadata 
   const sha256 = string(value.sha256, 64);
   const chunkSize = count(value.chunkSize, MAX_FRAME_BYTES);
   const chunkCount = count(value.chunkCount, Math.ceil(MAX_LOAN_TRACK_BYTES / 1024));
+  const mime = value.mime === undefined ? undefined : string(value.mime, 100);
+  if (
+    mime === null ||
+    (mime !== undefined && !/^(audio\/[a-z0-9.+-]+|application\/octet-stream)$/u.test(mime))
+  )
+    return null;
   if (!loanId || !trackId || !size || !sha256 || !SHA256.test(sha256)) return null;
   if (!chunkSize || chunkSize < 1 || !chunkCount) return null;
   if (Math.ceil(size / chunkSize) !== chunkCount) return null;
-  return { loanId, trackId, size, sha256, chunkSize, chunkCount };
+  return { loanId, trackId, size, sha256, chunkSize, chunkCount, ...(mime ? { mime } : {}) };
 }
 
 function readEntries(value: unknown): LibraryEntry[] | null {
@@ -188,8 +196,10 @@ export function decodeFrame(raw: string): DecodeResult {
     case 'hello': {
       const device = readDevice(frame);
       const publicKey = string(frame.publicKey, 200);
-      if (!device || !publicKey) return fail('invalid-field', 'Malformed hello frame.');
-      return { ok: true, frame: { type: 'hello', ...device, publicKey } };
+      const nonce = string(frame.nonce, 22);
+      if (!device || !publicKey || !nonce || !/^[A-Za-z0-9_-]{22}$/u.test(nonce))
+        return fail('invalid-field', 'Malformed hello frame.');
+      return { ok: true, frame: { type: 'hello', ...device, publicKey, nonce } };
     }
     case 'pair-confirm': {
       const sas = string(frame.sas, 16);

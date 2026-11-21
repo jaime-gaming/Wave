@@ -146,13 +146,10 @@ export function DevicesPage({
     }
     setPasted('');
     setPasteError(false);
-    void (async () => {
-      if (asLink) return devices.join(asLink);
-      // A reply only exists while this device is waiting for one; anything else
-      // is a fresh invitation.
-      if (devices.stage === 'show-code') return devices.acceptReply(asCode!);
-      return devices.join(asCode!);
-    })();
+    // A displayed invite expects an answer, whether it is a bare code or a link.
+    // Otherwise this is a new invitation.
+    const payload = asLink ?? asCode!;
+    void (devices.stage === 'show-code' ? devices.acceptReply(payload) : devices.join(payload));
   };
 
   return (
@@ -225,7 +222,7 @@ export function DevicesPage({
         </div>
       )}
 
-      {devices.stage === 'idle' && (
+      {(devices.stage === 'idle' || devices.stage === 'show-code') && (
         <section className="devices-card devices-paste">
           <h3>
             <Link2 size={18} aria-hidden="true" /> {t('Paste a code')}

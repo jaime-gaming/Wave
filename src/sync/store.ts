@@ -28,6 +28,8 @@ export interface SyncDevice {
   platform: Platform;
   pairedAt: number;
   lastSeenAt: number;
+  /** Version in which the peer last proved its private key. */
+  protocolVersion?: number;
   /** Base64url of the peer's public key, so it can be recognised next time. */
   publicKey?: string;
 }
