@@ -5,10 +5,12 @@
 <p align="center">
   <img src="../../docs/media/android-home.png" alt="Wave Android Home" width="240" />
   <img src="../../docs/media/android-library.png" alt="Wave Android library" width="240" />
+  <img src="../../docs/media/android-remix.png" alt="Wave Android Remix" width="240" />
 </p>
 
 A native Kotlin and Compose music player for Android 8.0 (API 26) and newer. The images above are
 rendered by the Android UI test harness with a demo library; they are not physical-device tests.
+See the [capture guide](../../docs/SCREENSHOTS.md) for how the images are produced.
 
 ## Install
 

@@ -2,7 +2,7 @@
 
 Start with the guide that matches your goal. These are source documents, not a second published app.
 
-- [Guía de presentación en español](README.es.md) · [English project overview](../README.md)
+- [Guía de presentación en español](README.es.md) · [English project overview](../README.md) · [Platform screenshots](../README.md#screenshots)
 
 ## Experience and direction
 
@@ -13,6 +13,7 @@ Start with the guide that matches your goal. These are source documents, not a s
 ## Build and maintain
 
 - [Platforms](PLATFORMS.md) — current capability matrix, platform limits and builds.
+- [Screenshot capture](SCREENSHOTS.md) — demo data, reproducible captures and CI publication.
 - Native guides: [Android](../platforms/android/README.md), [Windows](../platforms/windows/README.md) and [iOS](../platforms/ios/README.md).
 - [Development](DEVELOPMENT.md) — setup, checks and contribution workflow.
 - [GitHub metadata review](GITHUB_METADATA.md) — proposed descriptions and topics for the public repositories.

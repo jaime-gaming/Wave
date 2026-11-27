@@ -2,11 +2,14 @@
 
 [Project overview](../../README.md) · [Español](../../docs/README.es.md) · [Platform comparison](../../docs/PLATFORMS.md)
 
-![Wave for Windows showing a native music library](../../docs/media/windows-home-dark.png)
+| Home                                                                                       | Search                                                                                |
+| ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
+| ![Wave for Windows showing a native music library](../../docs/media/windows-home-dark.png) | ![Wave for Windows searching a local collection](../../docs/media/windows-search.png) |
 
 A native C# and WPF player with a local library, playlists, lyrics and listening recaps. The
 screenshot comes from the WPF smoke test using a disposable demo library; it is not a physical
-device or audio-quality test.
+device or audio-quality test. The [capture guide](../../docs/SCREENSHOTS.md) explains how to
+reproduce it.
 
 ## Install
 

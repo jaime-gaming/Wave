@@ -10,19 +10,28 @@ Keep your originals: clearing website data, browser eviction, uninstalling Andro
 
 ## Optional song-detail lookups
 
-Songs whose own tags are incomplete — no artist, no album, no year, no sleeve, or a title that is
-really a filename — can have those gaps filled from a public catalogue. The switch is in Settings →
-Library and is **off by default**: nothing is sent until it is switched on, and switching it off stops
-every new request immediately.
+On the web, Auto Fill can look up incomplete song details. It is **off by default** in Settings →
+Library. When enabled, the primary catalogue is Apple's iTunes Search API; the title, artist and
+browser-language storefront are sent to Apple. If Apple has no suitable match, the search can be
+forwarded by Wave's service to Deezer. Artist names may also be sent through Wave's service to
+Deezer to find artist photos. Artwork returned by a provider may be downloaded and saved locally.
+No audio, existing artwork, account or listening history is sent. Providers and Wave's service
+receive connection information as described below.
 
-Apple's iTunes Search API receives the artist and title already stored on the device (or, when the
-artist is unknown, the title alone) and the storefront taken from the browser's language. It
-returns the matching release and a cover image, which is fetched once and stored locally. Nothing
-else is sent: no audio, no artwork from your files, no identifiers, no account, no listening
-history. A song that is already complete is never sent anywhere, a song edited by hand is never
-overwritten, and the running time always stays the decoder's own measurement.
+Auto Fill normally skips complete tracks and respects manual edits. The separate **Verify artist
+and title across the library** switch, also off by default, permits checking complete tracks against
+Apple and, when necessary, Deezer for swapped fields. The separate **Compare more catalogues**
+switch, off by default, additionally sends names from new Auto Fill searches to MusicBrainz and
+Deezer; it compares matched results and avoids automatically filling conflicting album, year or
+genre data. These switches only work with Auto Fill enabled. Turning either off stops new requests
+for its purpose; a request already sent cannot be recalled.
 
-When you explicitly choose **Find song details** in the web song editor, the entered search terms are sent to Apple and MusicBrainz directly and to Wave's same-origin service, which forwards them to Deezer. MusicBrainz sees the browser's connection information; Deezer sees the service's connection information, and the service receives the browser's request. Results are suggestions, not verified identity; choosing one applies its fields. The searches do not send audio, local artwork, accounts or listening history. MusicBrainz and Deezer are not used by the automatic completion switch.
+When you explicitly choose **Find song details** in the web song editor, the entered search terms
+are sent directly to Apple and MusicBrainz and to Wave's same-origin service for forwarding to
+Deezer. MusicBrainz sees the browser's connection information; Deezer sees the service's connection
+information, and the service receives the browser's request. Results are suggestions, not verified
+identity; choosing one applies its fields. The searches do not send audio, existing artwork,
+accounts or listening history.
 
 The catalogue's servers necessarily see connection information such as an IP address; HTTPS does
 not hide that from the recipient. Requests are spaced out, bounded, and skipped entirely while the
@@ -56,7 +65,7 @@ Provider: https://lrclib.net/docs. Its terms/privacy endpoints were not availabl
 
 Imported files are inspected on your device for title, artist, album, duration, source format, track/disc numbers, year/genre and supported embedded covers. A same-origin worker parses tags where supported. Original audio is saved unchanged; local checks do not identify recordings against an external catalogue.
 
-Local import checks do not use MusicBrainz or Cover Art Archive. Explicit editor searches may query MusicBrainz and Deezer, as described above. Optional iTunes catalogue lookups and cover downloads are described above and are off by default. Previously saved details/covers remain local and are not automatically erased or reverted. Prior requests already received by a provider cannot be recalled. Use local editing/restoration or browser site-data controls to manage saved data. The separate optional LRCLIB lyric policy above is unchanged.
+Local import checks do not use MusicBrainz or Cover Art Archive. Explicit editor searches may query MusicBrainz and Deezer; automatic searches can also use them under the separately described controls. Auto Fill and cover downloads are off by default. Previously saved details/covers remain local and are not automatically erased or reverted. Prior requests already received by a provider cannot be recalled. Use local editing/restoration or browser site-data controls to manage saved data. The separate optional LRCLIB lyric policy above is unchanged.
 
 ## Offline copy of the interface
 
@@ -78,8 +87,8 @@ its bit depth and its bitrate are never modified, and no processed copy is kept.
 ## Video clips and YouTube songs
 
 Clip discovery sends the song title and artist to public Piped or Invidious instances and stores
-the chosen video id locally; no audio or image leaves the device, and only the song being played is
-searched. A song added from YouTube stores the video id only: its title and length come from
+the chosen video id locally; no audio or existing artwork leaves the device. In the web app, the
+separately enabled library-wide clip search can also search other songs when Auto Fill is on. A song added from YouTube stores the video id only: its title and length come from
 YouTube's oEmbed endpoint, falling back to noembed, Piped or Invidious when the browser blocks that
 request. A YouTube song and any muted backdrop clip stream from YouTube inside the browser, so that
 traffic and the viewing record belong to YouTube's policy. Wave does not download, proxy, extract
@@ -117,6 +126,6 @@ After at least seven days and twelve relevant feature uses, a very occasional op
 
 ## iOS storage and cross-platform boundaries
 
-The iOS app copies selected local audio into its app container and stores its local library, playlists, history, artwork, preferences and imported or fetched lyrics there. Its Daily Mix and enhanced LRC highlighting run locally. Removing app data or uninstalling can remove these copies; keep the originals. iOS explicitly requested iTunes metadata and LRCLIB lyric lookups send the selected song metadata and ordinary connection information to those providers.
+The iOS app copies selected local audio into its app container and stores its local library, playlists, history, artwork, preferences and imported or fetched lyrics there. Its Daily Mix and enhanced LRC highlighting run locally. Removing app data or uninstalling can remove these copies; keep the originals. iOS explicit iTunes metadata and LRCLIB lyric lookups send the selected song metadata and ordinary connection information to those providers. The separate iOS automatic-lyrics switch is off by default; when enabled it searches LRCLIB for the currently selected song if lyrics are missing. Turning it off cancels active automatic work where possible; requests already received cannot be recalled.
 
 Device Linking and web backups are currently web features, not interoperable native-app transfer or restore. New WAVEBK2 exports encrypt music and metadata using the password you choose and sign the ciphertext with a device key stored locally. The public key and file size remain visible and the public key can link backups from the same device; compare its fingerprint with one recorded independently. Old WAVEBK1 copies are unencrypted and unsigned. Keep passwords and backups securely; Wave cannot recover the password. No native library or playback history is silently transferred to another platform. See [platform status](docs/PLATFORMS.md).

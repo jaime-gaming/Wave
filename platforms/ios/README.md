@@ -5,6 +5,7 @@
 <p align="center">
   <img src="../../docs/media/ios-home.png" alt="Wave iOS Home on the simulator" width="240" />
   <img src="../../docs/media/ios-library.png" alt="Wave iOS library on the simulator" width="240" />
+  <img src="../../docs/media/ios-now-playing.png" alt="Wave iOS player with lyrics on the simulator" width="240" />
 </p>
 
 A SwiftUI app for iPhone and iPad, iOS 17 and newer. It is **source-only for now**:
@@ -24,7 +25,8 @@ App Store upload.
   or removed while no Mix handover is underway; the current song is protected.
 - Reads synced LRC or plain-text lyrics from a file the listener chooses, and
   follows the playback clock, highlighting real enhanced-LRC word timestamps when present.
-  Optional manual LRCLIB search sends the title and artist.
+  Optional manual LRCLIB search sends the title and artist. Automatic search for the current song
+  is separately enabled in Settings and off by default; it does not upload audio.
 - Shares a visual card with song details, artwork and the Wave website; no audio is shared.
 - Offers local Daily Mix selections with detail, play/shuffle and save-to-playlist; the
   selector is simpler than web. Offers explicit iTunes catalogue and YouTube searches, and opens pasted YouTube video links in the official embed. These videos are not yet part of the local playback queue.
@@ -67,9 +69,10 @@ background audio, Now Playing, audio interruptions/audio focus, headset route
 changes, CarPlay remote commands, Handoff with `NSUserActivity`, `wave://` deep
 links and the system Share sheet. `WaveSystemCenter` connects them to the same
 `WaveState`; the widget extension is source-only and unsigned, with no
-entitlements or capability file. On request, lyrics searches contact LRCLIB, catalogue searches
-contact iTunes, and YouTube searches contact Wave and YouTube. Each search displays a notice
-before sending a query; audio is never uploaded. There is no account or analytics.
+entitlements or capability file. Manual lyrics searches contact LRCLIB after a confirmation,
+while automatic lyrics searches are controlled by the separate Settings switch. Explicit catalogue
+searches contact iTunes; YouTube searches contact Wave and YouTube. Audio is never uploaded.
+There is no account or analytics.
 
 ## Liquid Glass, iOS only
 
@@ -111,6 +114,7 @@ It does not archive, sign, notarize or publish an app.
 
 ## Native screenshots
 
+The [capture guide](../../docs/SCREENSHOTS.md) describes the other platforms and publication limits.
 The `ios-captures` job in `.github/workflows/native.yml` installs the unsigned app on an iPhone
 simulator with `WAVE_CAPTURE_PAGE` set to each page to seed an in-memory demo library.
 The capture fixture is simulator-only and is never persisted. It then uses `xcrun simctl io` to photograph the real SwiftUI screens and publishes
@@ -122,6 +126,6 @@ This is a native iOS client, not a claim of pixel-identical parity with the web,
 Android or Windows builds. Daily Mixes are simple local daily selections, not the web mood engine.
 The online YouTube search opens the official embedded video player; it does not yet add YouTube
 tracks to the library or queue. Native device linking, video clips and waveform/beat analysis
-are not in this target yet. Catalogue and LRCLIB searches are explicit and opt-in.
+are not in this target yet. Catalogue searches are explicit; LRCLIB searches are manual or separately enabled in Settings.
 Real-device playback, accessibility and performance passes still need to happen
 before any signed distribution.

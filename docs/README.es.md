@@ -1,6 +1,6 @@
 # Wave: tu música, en tu espacio
 
-[**Abrir Wave**](https://wave.jaime-gaming.com) · [Descargas](https://github.com/jaime-gaming/Wave/releases) · [English](../README.md) · [Documentación](README.md)
+[**Abrir Wave**](https://wave.jaime-gaming.com) · [Descargas](https://github.com/jaime-gaming/Wave/releases) · [English](../README.md) · [Por qué Wave](WHY_WAVE.md) · [Vídeo de presentación](media/wave-promo.mp4) · [Documentación](README.md)
 
 ![Inicio de Wave en la web con una colección de música](media/home-desktop.png)
 
@@ -55,22 +55,98 @@ música automáticamente. Las funciones no son idénticas: consulta la [comparat
 Wave no requiere una cuenta ni sincroniza automáticamente la biblioteca en la nube. Algunas
 funciones opcionales contactan con terceros: consulta [privacidad y flujo de datos](../PRIVACY.md).
 
+## Dónde funciona
+
+Wave tiene cuatro clientes independientes. «Sí» indica que la función existe en el código actual,
+no que sea idéntica en todas las plataformas ni que esté en la última descarga pública.
+
+| Función                                     | Web                                       | Windows          | Android                    | iOS                        |
+| ------------------------------------------- | ----------------------------------------- | ---------------- | -------------------------- | -------------------------- |
+| Biblioteca local, listas y búsqueda         | Sí                                        | Sí               | Sí                         | Sí                         |
+| Mix, letras y Daily Mix                     | Sí                                        | Sí               | Sí                         | Sí, Daily Mix más sencillo |
+| Resúmenes de escucha Remix                  | Sí                                        | Sí               | Sí                         | Sí                         |
+| Letras en línea opcionales                  | Sí                                        | Sí               | Sí                         | Sí, LRCLIB                 |
+| Datos de canciones en línea opcionales      | Auto Fill y editor                        | Aún no           | Aún no                     | Búsqueda explícita         |
+| YouTube                                     | Búsqueda, enlaces y reproductor integrado | Aún no           | Vista previa independiente | Vista previa independiente |
+| Enlazar dispositivos y transferir canciones | Clientes web                              | Solo cliente web | Solo cliente web           | Solo cliente web           |
+| Copia web cifrada y restauración            | Sí                                        | Aún no           | Aún no                     | Aún no                     |
+
+Las vistas previas nativas de YouTube no añaden vídeos a la biblioteca ni a la cola nativas. Las
+bibliotecas son independientes y no se sincronizan automáticamente. Consulta las diferencias de
+Mix, archivos y controles del sistema en la [comparativa de plataformas](PLATFORMS.md).
+
 ## Capturas
 
-Las imágenes usan bibliotecas de demostración. Muestran el código en desarrollo y no garantizan
-que una versión publicada sea idéntica.
+Un recorrido por Wave con bibliotecas de demostración. Las imágenes muestran el **código en
+desarrollo**, no necesariamente la última versión publicada. Las capturas web proceden de la web
+compilada; las de Windows, de la prueba WPF; las de Android, del entorno de pruebas Compose; y las
+de iOS, de un simulador de iPhone. No son pruebas en dispositivos físicos ni de calidad de audio.
+[Cómo se generan las capturas](SCREENSHOTS.md) (en inglés).
 
-| Reproductor web                                                    | Remix en la web                                      |
-| ------------------------------------------------------------------ | ---------------------------------------------------- |
-| ![Reproductor con portada y letras](media/now-playing-desktop.png) | ![Resumen de escucha Remix](media/remix-desktop.png) |
+### Web
+
+**Reproduciendo**, con las letras siguiendo la canción, y **Remix**, con tu resumen de escucha.
+
+| Reproductor                                                            | Remix                                                           |
+| ---------------------------------------------------------------------- | --------------------------------------------------------------- |
+| ![Reproductor web con portada y letras](media/now-playing-desktop.png) | ![Remix web con el resumen de escucha](media/remix-desktop.png) |
+
+**Daily Mix** reúne una selección antes de empezar a escuchar. En un teléfono, la biblioteca y
+los controles se adaptan a la pantalla.
+
+![Daily Mix web con su lista de canciones](media/daily-mix-desktop.png)
 
 <p align="center">
-  <img src="media/home-mobile.png" alt="Inicio web en un teléfono" width="230" />
-  <img src="media/android-home.png" alt="Inicio de Wave en Android" width="230" />
-  <img src="media/ios-home.png" alt="Inicio de Wave en iOS" width="230" />
+  <img src="media/home-mobile.png" alt="Inicio de Wave web en un teléfono" width="230" />
+  <img src="media/remix-mobile.png" alt="Remix de Wave web en un teléfono" width="230" />
 </p>
 
-![Biblioteca nativa de Wave en Windows](media/windows-home-dark.png)
+### Windows
+
+La colección local y la búsqueda en la aplicación nativa WPF.
+
+| Inicio                                                                                   | Búsqueda                                                         |
+| ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| ![Inicio de Wave para Windows con la colección y Daily Mix](media/windows-home-dark.png) | ![Búsqueda local en Wave para Windows](media/windows-search.png) |
+
+[Guía y compilación de Windows](../platforms/windows/README.md)
+
+### Android
+
+Inicio, biblioteca local y Remix en la aplicación nativa Compose.
+
+<p align="center">
+  <img src="media/android-home.png" alt="Inicio de Wave para Android" width="230" />
+  <img src="media/android-library.png" alt="Biblioteca de Wave para Android" width="230" />
+  <img src="media/android-remix.png" alt="Remix de Wave para Android" width="230" />
+</p>
+
+[Guía y compilación de Android](../platforms/android/README.md)
+
+### iOS y iPadOS
+
+La aplicación SwiftUI, desde el inicio hasta la biblioteca y el reproductor ampliado. Las imágenes
+son de un simulador de iPhone; la aplicación también se adapta al iPad.
+
+<p align="center">
+  <img src="media/ios-home.png" alt="Inicio de Wave para iOS" width="230" />
+  <img src="media/ios-library.png" alt="Biblioteca de Wave para iOS" width="230" />
+  <img src="media/ios-now-playing.png" alt="Reproductor de Wave para iOS con letras" width="230" />
+</p>
+
+[Guía y compilación de iOS](../platforms/ios/README.md)
+
+## ¿Por qué Wave?
+
+Wave está pensado para la música que ya tienes: puedes escuchar y organizar tu colección sin una
+cuenta ni una suscripción de Wave. La reproducción local, las letras guardadas y el historial
+permanecen en tu dispositivo; tus archivos originales no se recodifican. El proyecto es de código
+abierto y puedes ejecutar tu propia copia.
+
+No sustituye a un catálogo de streaming ni a una copia de seguridad en la nube. Algunas funciones
+hacen solicitudes opcionales a Internet, YouTube está sujeto a las condiciones de su proveedor y
+la compatibilidad de códecs o el uso sin conexión varían según la plataforma. [Por qué Wave](WHY_WAVE.md)
+explica tanto las ventajas como sus límites.
 
 ## Ejecutar el código
 

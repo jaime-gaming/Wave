@@ -2,50 +2,49 @@
 
 Most people already pay for a streaming service, and most of them also own music: a shelf of
 CDs, a folder of downloads from Bandcamp, a hard drive of FLACs. Wave is for that second
-library. It plays the files you have, on the three devices you actually use, and it treats them
-better than any service can.
+library. It plays the files you have in the browser and in the Windows, Android and iOS clients,
+with a focus on a library that remains under your control.
 
 This page is an honest comparison. Wave wins some of it, the services win the rest, and it says
 which is which.
 
 ## The short version
 
-|                 | Wave                           | Spotify / Apple Music / YouTube Music          |
-| --------------- | ------------------------------ | ---------------------------------------------- |
-| Catalogue       | Only what you own              | Tens of millions of songs                      |
-| Cost            | Zero                           | Monthly, per person, or with ads               |
-| Account         | None                           | Required, plus a subscription check            |
-| Audio           | Your file, unmodified          | Re-encoded stream at the service's bitrate     |
-| Works offline   | Always, for your whole library | Only downloaded tracks, tied to a subscription |
-| Data            | Stays on your device           | Their servers, their analytics                 |
-| Open source     | Yes                            | No                                             |
-| Recommendations | None, on purpose               | The reason most people stay                    |
+|                 | Wave                                               | Spotify / Apple Music / YouTube Music            |
+| --------------- | -------------------------------------------------- | ------------------------------------------------ |
+| Catalogue       | Only what you own                                  | Tens of millions of songs                        |
+| Cost            | Zero                                               | Monthly, per person, or with ads                 |
+| Account         | None                                               | Required, plus a subscription check              |
+| Audio           | Your file, unmodified                              | Re-encoded stream at the service's bitrate       |
+| Works offline   | Local library when the app and codec are available | Download support depends on the service and plan |
+| Data            | Local library; optional services receive queries   | Provider-operated accounts and services          |
+| Open source     | Yes                                                | No                                               |
+| Recommendations | Local mixes and listening-based suggestions        | Catalogue-wide recommendations                   |
 
 ## Where Wave is genuinely better
 
-**Your files are not re-encoded.** A streaming service sends you a compressed copy at a fixed
-bitrate. Wave hands your file to the decoder as it is: a FLAC plays as a FLAC, a 24-bit WAV as a
-24-bit WAV. Mix, the crossfade between two songs, changes only how they are joined, never the
-audio itself, and the change is undone when the join finishes.
+**Your files are not re-encoded.** Wave plays your source file rather than creating a new
+compressed copy. Codec support and actual output quality depend on the platform, decoder and audio
+device; Mix overlaps tracks and adjusts their playback levels without modifying the files on disk.
 
-**There is nothing to subscribe to.** No account, no trial, no family plan, no ads between
-songs, no "this song is not available in your country". The app works the first time you open
-it, and it keeps working if you stop paying for everything else.
+**There is nothing to subscribe to.** For local playback there is no Wave account, trial, family
+plan or Wave advertising between songs. You can use your own files without a Wave subscription.
 
-**It works offline by default.** Your library is on your device because that is where it was
-imported. There is no cached subset to manage and no expiry date on it.
+**Your imported library is local.** Saved files can play without a connection when the installed
+app, browser cache and audio codecs are available. YouTube and online lookups need a connection;
+keep original files and backups in case app data is cleared.
 
-**Nothing is measured except what you see.** No analytics, no telemetry, no listening data
-leaving the device. The only two things that ever go out are a lyric search (off until you turn
-it on, title and artist only) and clip discovery (title and artist, from public YouTube
-front-ends). Remix, the weekly recap, is computed from plays this device wrote down.
+**Listening history stays local.** Remix is computed from plays on the device. Optional lyrics,
+metadata, artist-photo and clip lookups, YouTube, playlist migration and device linking can contact
+third parties or another device when used. See [Privacy](../PRIVACY.md) for exactly what is sent.
 
 **Files you cannot stream are still yours.** Live recordings, bootlegs, an album that was
 pulled from a service, your own band's demo, music from a country your streaming account does
 not cover. A service can lose a licence overnight; your folder does not.
 
 **You can read the code.** Wave is MIT-licensed and small enough to audit. You can also host the
-web build yourself, so the whole player can be a static page you control.
+web client yourself; online metadata and YouTube features additionally use API endpoints described
+in the [hosting guide](PLATFORMS.md#browser-and-cloudflare).
 
 **Remix, without a gamified feed.** A weekly recap is a nice thing to look at. Wave's is one
 card and one playlist: the week's time, the songs you played most, and a list you can play or
@@ -55,15 +54,16 @@ save. It does not score you, compare you with friends, or decide what you should
 
 It would be dishonest to leave these out.
 
-- **You want to hear something you do not own.** Wave has no catalogue. Buying or ripping the
-  file is the only way to add it, with one exception: a YouTube song can be added by link, and
-  that needs a connection.
+- **You want to hear something you do not own.** Wave has no catalogue. Importing a local
+  file is the main route; YouTube can also be searched or added by link on the web, and needs a
+  connection.
 - **You want recommendations that learn.** Wave's daily mixes group what you already have by
-  the genre tags in your files. A service knows far more about what you might like next.
+  local metadata and listening signals. A service can recommend across a much larger catalogue.
 - **You listen on the move, away from your library.** There is no cloud copy and no sync: each
-  device has its own library. Device linking moves a song from one of your devices to another
-  by transfer, not by keeping both in the cloud.
-- **You want other people's playlists, podcasts, or the social side.** None of that is here.
+  device has its own library. Web device linking can transfer selected songs between web clients, not keep both libraries in the
+  cloud.
+- **You want a social feed or a podcast catalogue.** Wave does not provide those. On the web,
+  public playlist links or exported lists can be reviewed for import, but matches are not guaranteed.
 - **You do not want to manage files.** Importing is a few clicks, but a library you own is a
   library you keep. Wave is a player, not a backup: keep the originals somewhere safe.
 
@@ -72,13 +72,14 @@ It would be dishonest to leave these out.
 You could, and for pure playback on one machine they are good tools. Wave is aimed at the
 living room version of the same idea: a library you browse rather than a folder you open, with
 lyrics that follow the sung line, daily mixes, a real crossfade, a weekly recap, and the same
-library shape on the web, on Windows and on Android — including the lock screen, headset
-buttons and the car. If you want a file player and nothing else, they are lighter; if you want
+library shape on the web, Windows, Android and iOS. System media controls and other features
+vary by platform. If you want a file player and nothing else, they are lighter; if you want
 the collection to feel like a collection, that is what Wave is for.
 
 ## What Wave will never do
 
-- It will not lower the quality of your audio.
+- It will not deliberately re-encode your imported files; playback quality depends on your device and codecs.
 - It will not convert, normalise or "enhance" your files on disk.
-- It will not upload your library, ask you to sign in, or show you an ad.
-- It will not delete saved things to make room.
+- It will not automatically upload your library, ask for a Wave account, or add Wave advertising.
+  Explicit device transfers and third-party services have their own data flows and policies.
+- It will not intentionally delete saved music to make room; browsers or operating systems can clear app data, so keep backups.

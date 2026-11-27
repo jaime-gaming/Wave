@@ -5,17 +5,17 @@ implementations and local libraries; they are **not yet functionally equivalent*
 an app does not automatically synchronize its library with the others. The web remains the
 reference for capabilities not yet implemented natively.
 
-| Capability                     | Web                | Windows               | Android                                                      | iOS                                                          |
-| ------------------------------ | ------------------ | --------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| Local library and playlists    | Yes                | Yes                   | Yes                                                          | Yes, basic editing and ordered playback                      |
-| Daily Mix                      | Full local engine  | Native engine         | Native engine                                                | Simpler local daily selection                                |
-| YouTube search and playback    | Integrated         | Not yet               | Explicit search and embedded player; not in library or queue | Explicit search and embedded player; not in library or queue |
-| Online lyrics                  | Optional lookup    | Optional lookup       | Optional lookup                                              | Explicit LRCLIB lookup; local enhanced LRC words             |
-| Online catalogue metadata      | Yes                | Not yet               | Not yet                                                      | Explicit iTunes search and apply                             |
-| Web-compatible device linking  | Yes                | Not yet in native app | Not yet in native app                                        | Not yet                                                      |
-| Fix Volume                     | Yes                | Not yet               | Not yet                                                      | Not yet                                                      |
-| Web backup import/export       | Yes, empty restore | Not yet               | Not yet                                                      | Not yet                                                      |
-| Listening card share, no audio | Not yet            | Not yet               | Implemented                                                  | Implemented                                                  |
+| Capability                     | Web                | Windows               | Android                                                      | iOS                                                           |
+| ------------------------------ | ------------------ | --------------------- | ------------------------------------------------------------ | ------------------------------------------------------------- |
+| Local library and playlists    | Yes                | Yes                   | Yes                                                          | Yes, basic editing and ordered playback                       |
+| Daily Mix                      | Full local engine  | Native engine         | Native engine                                                | Simpler local daily selection                                 |
+| YouTube search and playback    | Integrated         | Not yet               | Explicit search and embedded player; not in library or queue | Explicit search and embedded player; not in library or queue  |
+| Online lyrics                  | Optional lookup    | Optional lookup       | Optional lookup                                              | Optional manual or automatic LRCLIB; local enhanced LRC words |
+| Online catalogue metadata      | Yes                | Not yet               | Not yet                                                      | Explicit iTunes search and apply                              |
+| Web-compatible device linking  | Yes                | Not yet in native app | Not yet in native app                                        | Not yet                                                       |
+| Fix Volume                     | Yes                | Not yet               | Not yet                                                      | Not yet                                                       |
+| Web backup import/export       | Yes, empty restore | Not yet               | Not yet                                                      | Not yet                                                       |
+| Listening card share, no audio | Not yet            | Not yet               | Implemented                                                  | Implemented                                                   |
 
 Native builds and features still require real-device testing. The iOS source remains unsigned. iOS Daily Mix has a detail list, play/shuffle and save-as-playlist; its algorithm remains simpler than the web engine.
 See the iOS README for its exact current scope. The table below describes the earlier 0.2.2
@@ -51,11 +51,7 @@ web/Windows/Android baseline and is retained for its detailed historical compari
 | Crash-proof atomic storage          | IndexedDB + quota protection                                 | Lock-protected atomic JSON + rolling `.bak` / `.corrupt` recovery | Atomic JSON + resilient batched imports + `optString` parsing   |
 | Hosted build checks                 | Passed                                                       | Contracts + WPF layout smoke in CI                                | Unit/lint/debug build in CI                                     |
 
-The rows marked "Not yet" are the honest remainder: they need an embedded player inside WPF and an Android
-WebView, or a signed release asset, and none of them is started. Device linking is the one row that is half
-done rather than not started — the whole of it exists in the web client, and a phone or a desktop reached
-through that client pairs like any other device; what the installed builds lack is the transport inside
-them. This historical table is not a parity claim: consult the current matrix above and the native sections below for present limitations.
+This historical table records the earlier release baseline, not present-day parity. For example, Android and iOS now provide a separate YouTube preview, and web device linking remains unavailable inside the native apps. Consult the current matrix above and the native sections below for present limitations.
 
 ## Browser and Cloudflare
 
@@ -118,7 +114,7 @@ playback clock to the lock screen, Control Center, headphones and CarPlay, and a
 Previous, Next and seek there. Automatic `lite`, `balanced` and `full` profiles reduce decorative
 motion and list/analysis budgets on modest devices without adding a visible Settings control.
 `npm run build:i18n` generates `Wave/es.lproj/Localizable.strings` from the same `i18n/es.json` as
-the other clients. iOS can make explicit, disclosed requests to LRCLIB and iTunes, and can search YouTube through the Wave Worker. No account, analytics or audio upload is involved.
+the other clients. iOS can make explicit requests to LRCLIB and iTunes and can search YouTube through the Wave Worker. Automatic LRCLIB lookups can also be enabled separately in Settings; they are off by default. No account, analytics or audio upload is involved.
 
 System presence follows Android's idea, with iOS frameworks: WidgetKit home/lock-screen widgets,
 ActivityKit Live Activities with Dynamic Island and a `.small` CarPlay/watch family, App Intents
