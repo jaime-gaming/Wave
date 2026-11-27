@@ -189,9 +189,9 @@ export function WelcomeSetup({
                 className="welcome-step"
                 custom={direction}
                 variants={{
-                  enter: (d: number) => ({ opacity: 0, x: animation.enabled ? d * 24 : 0 }),
-                  center: { opacity: 1, x: 0 },
-                  exit: (d: number) => ({ opacity: 0, x: animation.enabled ? d * -24 : 0 }),
+                  enter: (d: number) => ({ opacity: 0, y: animation.enabled ? d * 14 : 0 }),
+                  center: { opacity: 1, y: 0 },
+                  exit: (d: number) => ({ opacity: 0, y: animation.enabled ? d * -8 : 0 }),
                 }}
                 initial="enter"
                 animate="center"

@@ -10,7 +10,7 @@ import {
 } from '../domain/catalogue';
 import { downloadCover, preferredCountry, searchCatalogue } from '../services/catalogue';
 import { readArtwork } from '../data/artwork';
-import { searchDeezer } from '../services/musicBrainz';
+import { searchDeezer, searchMusicBrainz } from '../services/musicBrainz';
 import { markDetailsChecked } from '../data/library';
 import type { Track } from '../domain/types';
 import { rolesReviewKey } from '../domain/metadata';
@@ -60,12 +60,35 @@ export function detailsQueue(
   return worth.sort((left, right) => missing(right) - missing(left)).slice(0, DETAILS_BATCH);
 }
 
+/** Only compare candidates already matched to this recording; absent data is not disagreement. */
+export function catalogueDisagreements(matches: CatalogueRelease[]) {
+  const normalized = (value: string) =>
+    value
+      .normalize('NFKC')
+      .toLocaleLowerCase()
+      .replace(/[^\p{L}\p{N}]+/gu, ' ')
+      .trim();
+  const different = (values: (string | undefined)[]) => {
+    const present = values
+      .filter((value): value is string => !!value?.trim())
+      .map(normalized)
+      .filter(Boolean);
+    return new Set(present).size > 1;
+  };
+  return {
+    album: different(matches.map((match) => match.album)),
+    year: new Set(matches.flatMap((match) => (match.year ? [match.year] : []))).size > 1,
+    genre: different(matches.map((match) => match.genre)),
+  };
+}
+
 export function useCatalogueDetails({
   tracks,
   onUpdate,
   enabled = detailsEnabled(),
   online = true,
   verifyRoles = false,
+  contrastCatalogues = false,
 }: {
   tracks: Track[];
 
@@ -73,6 +96,7 @@ export function useCatalogueDetails({
   enabled?: boolean;
   online?: boolean;
   verifyRoles?: boolean;
+  contrastCatalogues?: boolean;
 }) {
   const [filling, setFilling] = useState(0);
   const [completed, setCompleted] = useState(0);
@@ -82,7 +106,7 @@ export function useCatalogueDetails({
   useEffect(() => {
     if (!enabled || !online) active.current?.abort();
     return () => active.current?.abort();
-  }, [enabled, online]);
+  }, [enabled, online, contrastCatalogues]);
 
   const run = useCallback(async () => {
     if (!enabled || !online || running.current) return;
@@ -104,28 +128,74 @@ export function useCatalogueDetails({
           continue;
         }
         let releases = await searchCatalogue(query, { country, signal });
+        let apple = [...releases];
+        let deezer: CatalogueRelease[] = [];
+        let musicBrainz: CatalogueRelease[] = [];
         let release: CatalogueRelease | undefined =
           confirmedRoleRelease(track, releases) ?? bestRelease(track, releases);
         if (!release && !signal.aborted) {
           for (const fallback of catalogueFallbackQueries(track)) {
-            releases = await searchCatalogue(fallback, { country, signal });
+            const results = await searchCatalogue(fallback, { country, signal });
+            apple = [...apple, ...results];
+            releases = [...releases, ...results];
             release = confirmedRoleRelease(track, releases) ?? bestRelease(track, releases);
             if (release || signal.aborted) break;
           }
         }
-        if (!release && !signal.aborted) {
-          const alternatives = await searchDeezer(query, signal);
-          release = confirmedRoleRelease(track, alternatives) ?? bestRelease(track, alternatives);
+        if ((!release || contrastCatalogues) && !signal.aborted) {
+          deezer = await searchDeezer(query, signal);
+          releases = [...releases, ...deezer];
+          release = confirmedRoleRelease(track, releases) ?? bestRelease(track, releases);
+        }
+        if (contrastCatalogues && !signal.aborted) {
+          musicBrainz = await searchMusicBrainz(query, signal);
+          releases = [...releases, ...musicBrainz];
+          // Check all candidates together, so an original-orientation match from one
+          // provider prevents an unsafe role swap suggested by another.
+          release = confirmedRoleRelease(track, releases) ?? bestRelease(track, releases);
         }
         if (signal.aborted) break;
+        // Do not apply a conflicting role swap even if it scored well in isolation.
+        if (
+          release &&
+          confirmedRoleRelease(track, [release]) &&
+          !confirmedRoleRelease(track, releases)
+        ) {
+          release = undefined;
+        }
         if (!release) {
           await markDetailsChecked(track.id);
           await new Promise((resolve) => setTimeout(resolve, DETAILS_GAP_MS));
           continue;
         }
         const { patch, filled } = detailsPatch(track, release);
+        const candidates = contrastCatalogues
+          ? [apple, deezer, musicBrainz].flatMap((source) => {
+              const match = confirmedRoleRelease(track, source) ?? bestRelease(track, source);
+              return match ? [match] : [];
+            })
+          : [];
+        const disagreement = catalogueDisagreements(candidates);
+        const remove = (field: keyof typeof patch, label: string) => {
+          delete patch[field];
+          const index = filled.indexOf(label);
+          if (index >= 0) filled.splice(index, 1);
+        };
+        if (disagreement.album) {
+          remove('album', 'album');
+          remove('trackNumber', 'order');
+          delete patch.discNumber;
+        }
+        if (disagreement.year) remove('year', 'year');
+        if (disagreement.genre) {
+          delete patch.genres;
+          for (const label of ['genre', 'genres']) {
+            const index = filled.indexOf(label);
+            if (index >= 0) filled.splice(index, 1);
+          }
+        }
 
-        if (!track.artwork && release.artworkUrl) {
+        if (!disagreement.album && !track.artwork && release.artworkUrl) {
           const file = await downloadCover(release.artworkUrl, signal);
           if (file) {
             try {
@@ -147,7 +217,7 @@ export function useCatalogueDetails({
       if (signal.aborted) asked.current.clear();
       setFilling(0);
     }
-  }, [enabled, online, onUpdate, tracks, verifyRoles]);
+  }, [enabled, online, onUpdate, tracks, verifyRoles, contrastCatalogues]);
 
   useEffect(() => {
     if (!enabled || !online || filling) return;

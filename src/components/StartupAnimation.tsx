@@ -27,8 +27,12 @@ export function StartupAnimation({
           aria-label={t('Loading Wave')}
           initial={{ opacity: 1 }}
           animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={animation.effects}
+          exit={
+            animation.enabled ? { opacity: 0, scale: 1.025, filter: 'blur(6px)' } : { opacity: 0 }
+          }
+          transition={
+            animation.enabled ? { duration: 0.28, ease: [0.4, 0, 1, 1] } : animation.effects
+          }
         >
           <motion.div
             className="boot-wordmark"

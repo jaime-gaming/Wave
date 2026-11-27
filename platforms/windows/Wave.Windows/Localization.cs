@@ -1083,6 +1083,8 @@ public static partial class Localization {
             ["Blend songs smoothly during playback."] = "Une las canciones suavemente durante la reproducción.",
             ["Balance loudness without changing your files."] = "Equilibra el volumen sin modificar tus archivos.",
             ["Look up missing lyrics for the song you play. Its title and artist are sent to LRCLIB; your audio stays here."] = "Busca letras que faltan para la canción que reproduces. Se envían el título y el artista a LRCLIB; el audio permanece aquí.",
+            ["Compare more catalogues"] = "Comparar más catálogos",
+            ["With Auto Fill on, compare new searches with Deezer and MusicBrainz. Song titles and artists are sent to those services. Existing manual edits are kept."] = "Con Auto Fill activado, compara las nuevas búsquedas con Deezer y MusicBrainz. Los títulos y artistas se envían a esos servicios. Se conservan las ediciones manuales.",
         };
 
     public static string Choice { get; private set; } = "system";

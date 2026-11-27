@@ -11014,3 +11014,27 @@ button:hover .wave-glyph--volume .glyph-wave-outer {
     padding-bottom: max(24px, env(safe-area-inset-bottom));
   }
 }
+
+/* The logo is written once as Wave opens; reduced-motion users get a still mark. */
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion='reduced']) .boot-wordmark path {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: boot-pen 680ms cubic-bezier(0.2, 0.65, 0.2, 1) forwards;
+  }
+  :root:not([data-motion='reduced']) .boot-wordmark path:nth-child(2),
+  :root:not([data-motion='reduced']) .boot-wordmark path:nth-child(3) {
+    animation-delay: 80ms;
+  }
+  :root:not([data-motion='reduced']) .boot-wordmark path:nth-child(4) {
+    animation-delay: 150ms;
+  }
+  :root:not([data-motion='reduced']) .boot-wordmark path:nth-child(n + 5) {
+    animation-delay: 210ms;
+  }
+  @keyframes boot-pen {
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+}

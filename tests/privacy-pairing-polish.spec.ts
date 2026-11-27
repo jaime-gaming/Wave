@@ -36,15 +36,20 @@ test('an incoming pairing link needs confirmation before connecting', async ({ p
 test('extended library searches require separate opt-in', async ({ page }) => {
   await page.goto('/Settings/Library');
   await page.getByText('Advanced options', { exact: true }).click();
+  const comparison = page.getByRole('switch', { name: 'Compare more catalogues' });
+  await expect(comparison).not.toBeChecked();
   const roles = page.getByRole('switch', { name: 'Verify artist and title across the library' });
   const clips = page.getByRole('switch', { name: 'Find clips across the library' });
   await expect(roles).not.toBeChecked();
   await expect(clips).not.toBeChecked();
+  await comparison.click();
+  await expect(comparison).toBeChecked();
   await roles.click();
   await expect(roles).toBeChecked();
   await expect(clips).not.toBeChecked();
   await page.reload();
   await page.getByText('Advanced options', { exact: true }).click();
   await expect(roles).toBeChecked();
+  await expect(comparison).toBeChecked();
   await expect(clips).not.toBeChecked();
 });

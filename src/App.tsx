@@ -350,6 +350,14 @@ function WaveApp({
 
   const [detailsOn, setDetailsOn] = useState(() => detailsEnabled());
   const [libraryClips, setLibraryClips] = useState(() => readFlag('wave-library-clips-consent-v1'));
+  const [contrastCatalogues, setContrastCatalogues] = useState(() =>
+    readFlag('wave-catalogue-contrast-consent-v1'),
+  );
+  useEffect(() => {
+    try {
+      localStorage.setItem('wave-catalogue-contrast-consent-v1', String(contrastCatalogues));
+    } catch {}
+  }, [contrastCatalogues]);
   const [verifyLibraryRoles, setVerifyLibraryRoles] = useState(() =>
     readFlag('wave-library-role-check-consent-v1'),
   );
@@ -394,6 +402,7 @@ function WaveApp({
     enabled: detailsOn,
     online,
     verifyRoles: verifyLibraryRoles,
+    contrastCatalogues,
   });
   const [editingTrack, setEditingTrack] = useState<Track | null>(null);
   const [playlistId, setPlaylistId] = useState<string | null>(
@@ -1443,6 +1452,21 @@ function WaveApp({
                           <LocalMetadataReview
                             advanced={
                               <>
+                                <div className="settings-switch-row">
+                                  <div>
+                                    <strong>{t('Compare more catalogues')}</strong>
+                                    <p className="settings-note">
+                                      {t(
+                                        'With Auto Fill on, compare new searches with Deezer and MusicBrainz. Song titles and artists are sent to those services. Existing manual edits are kept.',
+                                      )}
+                                    </p>
+                                  </div>
+                                  <MaterialSwitch
+                                    label={t('Compare more catalogues')}
+                                    checked={contrastCatalogues}
+                                    onChange={setContrastCatalogues}
+                                  />
+                                </div>
                                 <div className="settings-switch-row">
                                   <div>
                                     <strong>

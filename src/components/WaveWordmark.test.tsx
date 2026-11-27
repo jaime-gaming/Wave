@@ -10,6 +10,10 @@ describe('the Wave wordmark', () => {
 
     expect(svg.querySelectorAll('path')).toHaveLength(6);
     expect(svg.textContent).toBe('');
+    const paths = svg.querySelectorAll('path');
+    expect(paths[4]).toHaveAttribute('transform', 'translate(8.5 0)');
+    expect(paths[5]).toHaveAttribute('transform', 'translate(8.5 0)');
+    expect(svg).toHaveAttribute('viewBox', '1 4 96 21.2');
   });
 
   it('offers the first letter alone for a narrow rail', () => {

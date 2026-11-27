@@ -14,10 +14,10 @@
           <!-- The same five strokes the browser draws: W, the bowl and the stem of
                the a, a v that is a trough of the wave, and an e whose bar runs into
                its bowl. -->
-          <Canvas Width="92" Height="21.4">
+          <Canvas Width="96" Height="21.4">
             <Path Canvas.Left="-0.5" Canvas.Top="-4.4" Stroke="{DynamicResource AccentBrush}" StrokeThickness="3.8"
                   StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
-                  Data="M4 7C7 7 7 23 12 23C17 23 17 7 20 7C23 7 23 23 28 23C33 23 33 7 36 7 M47.2 10.8a6.1 6.1 0 1 0 0 12.2a6.1 6.1 0 1 0 0-12.2 M53.3 11.4V22.2 M62 10.9C63.4 15.2 65.2 23.3 66.9 23.3C68.6 23.3 70.4 15.2 71.8 10.9 M89.2 16.4H76.6 M89.2 16.4A6.3 6.3 0 1 0 87.6 21.7"/>
+                  Data="M4 7C7 7 7 23 12 23C17 23 17 7 20 7C23 7 23 23 28 23C33 23 33 7 36 7 M47.2 10.8a6.1 6.1 0 1 0 0 12.2a6.1 6.1 0 1 0 0-12.2 M53.3 11.4V22.2 M62 10.9C63.4 15.2 65.2 23.3 66.9 23.3C68.6 23.3 70.4 15.2 71.8 10.9 M92.9 16.4H80.3 M92.9 16.4A6.3 6.3 0 1 0 91.3 21.7"/>
           </Canvas>
         </Viewbox>
         <Button Style="{StaticResource NavButton}" Tag="Home" Click="NavigateClick">

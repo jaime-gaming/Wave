@@ -9,8 +9,9 @@ import {
   DETAILS_BATCH,
 } from './useCatalogueDetails';
 import { searchCatalogue } from '../services/catalogue';
-import { searchDeezer } from '../services/musicBrainz';
+import { searchDeezer, searchMusicBrainz } from '../services/musicBrainz';
 import { makeTrack } from '../test/fixtures';
+import type { Track } from '../domain/types';
 import { rolesReviewKey } from '../domain/metadata';
 
 vi.mock('../data/library', async (importOriginal) => ({
@@ -24,10 +25,14 @@ vi.mock('../services/catalogue', () => ({
   preferredCountry: vi.fn(() => undefined),
 }));
 
-vi.mock('../services/musicBrainz', () => ({ searchDeezer: vi.fn(async () => []) }));
+vi.mock('../services/musicBrainz', () => ({
+  searchDeezer: vi.fn(async () => []),
+  searchMusicBrainz: vi.fn(async () => []),
+}));
 beforeEach(() => {
   vi.mocked(searchCatalogue).mockClear();
   vi.mocked(searchDeezer).mockReset().mockResolvedValue([]);
+  vi.mocked(searchMusicBrainz).mockReset().mockResolvedValue([]);
 });
 
 const bare = (id: string, overrides = {}) =>
@@ -240,6 +245,183 @@ it('does not retry a failing provider forever in the same session', async () => 
     });
     expect(searchCatalogue).toHaveBeenCalledTimes(1);
     unmount();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it('consults MusicBrainz and Deezer on an Apple match only with separate comparison consent', async () => {
+  vi.useFakeTimers();
+  try {
+    const track = bare('compare', { title: 'Says', artist: 'Nils Frahm', album: '' });
+    const match = { title: 'Says', artist: 'Nils Frahm', album: 'Spaces', year: 2013 };
+    vi.mocked(searchCatalogue).mockResolvedValue([match]);
+    const update = vi.fn(async () => track);
+    const ordinary = renderHook(() =>
+      useCatalogueDetails({ tracks: [track], onUpdate: update, enabled: true }),
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2500);
+    });
+    expect(searchDeezer).not.toHaveBeenCalled();
+    expect(searchMusicBrainz).not.toHaveBeenCalled();
+    ordinary.unmount();
+    const compare = renderHook(() =>
+      useCatalogueDetails({
+        tracks: [track],
+        onUpdate: update,
+        enabled: true,
+        contrastCatalogues: true,
+      }),
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2500);
+    });
+    expect(searchDeezer).toHaveBeenCalledOnce();
+    expect(searchMusicBrainz).toHaveBeenCalledOnce();
+    compare.unmount();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it('does not swap artist and title when the catalogues disagree about their orientation', async () => {
+  vi.useFakeTimers();
+  try {
+    const track = bare('disagree', {
+      title: 'Nils Frahm',
+      artist: 'Says',
+      album: '',
+      duration: 90,
+    });
+    vi.mocked(searchCatalogue).mockResolvedValue([
+      { title: 'Says', artist: 'Nils Frahm', album: 'Spaces', duration: 90 },
+    ]);
+    vi.mocked(searchMusicBrainz).mockResolvedValue([
+      {
+        title: 'Nils Frahm',
+        artist: 'Says',
+        album: 'Other',
+        duration: 90,
+        provider: 'MusicBrainz',
+      },
+    ]);
+    const update = vi.fn<
+      (id: string, patch: Record<string, unknown>, expected: Track) => Promise<Track>
+    >(async () => track);
+    const view = renderHook(() =>
+      useCatalogueDetails({
+        tracks: [track],
+        onUpdate: update,
+        enabled: true,
+        contrastCatalogues: true,
+      }),
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2500);
+    });
+    for (const [, patch] of update.mock.calls) {
+      expect(patch).not.toHaveProperty('title', 'Says');
+      expect(patch).not.toHaveProperty('artist', 'Nils Frahm');
+    }
+    expect(searchMusicBrainz).toHaveBeenCalledOnce();
+    view.unmount();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it('cancels comparison work when its separate permission is withdrawn', async () => {
+  vi.useFakeTimers();
+  try {
+    const track = bare('cancel-comparison', { title: 'Says', artist: 'Nils Frahm' });
+    vi.mocked(searchCatalogue).mockResolvedValue([
+      { title: 'Says', artist: 'Nils Frahm', album: 'Spaces' },
+    ]);
+    let finish!: (value: Awaited<ReturnType<typeof searchMusicBrainz>>) => void;
+    vi.mocked(searchMusicBrainz).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const update = vi.fn(async () => track);
+    const view = renderHook(
+      ({ contrastCatalogues }) =>
+        useCatalogueDetails({
+          tracks: [track],
+          onUpdate: update,
+          enabled: true,
+          contrastCatalogues,
+        }),
+      { initialProps: { contrastCatalogues: true } },
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+    const signal = vi.mocked(searchMusicBrainz).mock.calls[0][1];
+    view.rerender({ contrastCatalogues: false });
+    expect(signal?.aborted).toBe(true);
+    await act(async () => {
+      finish([]);
+      await Promise.resolve();
+    });
+    expect(update).not.toHaveBeenCalled();
+    view.unmount();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it('keeps conflicting album, year, genre and cover out of automatic updates', async () => {
+  vi.useFakeTimers();
+  try {
+    const track = bare('conflicting-details', {
+      title: 'Says',
+      artist: 'Nils Frahm',
+      album: '',
+      fileName: 'Says.wav',
+      duration: 90,
+    });
+    vi.mocked(searchCatalogue).mockResolvedValue([
+      {
+        title: 'Says',
+        artist: 'Nils Frahm',
+        album: 'Spaces',
+        year: 2013,
+        genre: 'Ambient',
+        duration: 90,
+        artworkUrl: 'https://example.com/cover.jpg',
+      },
+    ]);
+    vi.mocked(searchMusicBrainz).mockResolvedValue([
+      {
+        title: 'Says',
+        artist: 'Nils Frahm',
+        album: 'Different release',
+        year: 2014,
+        genre: 'Classical',
+        duration: 90,
+        provider: 'MusicBrainz',
+      },
+    ]);
+    const update = vi.fn<
+      (id: string, patch: Record<string, unknown>, expected: Track) => Promise<Track>
+    >(async () => track);
+    const view = renderHook(() =>
+      useCatalogueDetails({
+        tracks: [track],
+        onUpdate: update,
+        enabled: true,
+        contrastCatalogues: true,
+      }),
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2500);
+    });
+    expect(searchMusicBrainz).toHaveBeenCalledOnce();
+    expect(update).not.toHaveBeenCalled();
+    view.unmount();
   } finally {
     vi.useRealTimers();
   }

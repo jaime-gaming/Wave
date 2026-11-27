@@ -37,9 +37,10 @@ function Pen({
         <path
           key={d}
           d={d}
+          pathLength={1}
           transform={
             paths.length > 1 && index > 0
-              ? `translate(${index < 3 ? 1.4 : index === 3 ? 3 : 4.8} 0)`
+              ? `translate(${index < 3 ? 1.4 : index === 3 ? 3 : 8.5} 0)`
               : undefined
           }
         />
@@ -64,7 +65,7 @@ export function WaveWordmark({
   ) : (
     <Pen
       paths={WORD}
-      viewBox="1 4 92 21.2"
+      viewBox="1 4 96 21.2"
       className={className ?? 'wave-wordmark wave-wordmark-full'}
     />
   );
