@@ -47,28 +47,24 @@ struct RootView: View {
         GeometryReader { geometry in
             TabView(selection: $state.selectedTab) {
                 HomeView(importing: $importing)
-                    .modifier(PlayerBarInset())
                     .tabItem { Label(WaveTheme.loc("Home"), systemImage: "house.fill") }
                     .tag(0)
                 LibraryView(importing: $importing)
                     .id(state.libraryNavigationID)
-                    .modifier(PlayerBarInset())
                     .tabItem { Label(WaveTheme.loc("Library"), systemImage: "music.note.list") }
                     .tag(1)
                 SearchView()
-                    .modifier(PlayerBarInset())
                     .tabItem { Label(WaveTheme.loc("Search"), systemImage: "magnifyingglass") }
                     .tag(2)
                 RemixView()
-                    .modifier(PlayerBarInset())
                     .tabItem { Label(WaveTheme.loc("Remix"), systemImage: "chart.bar.fill") }
                     .tag(3)
                 SettingsView(importing: $importing)
-                    .modifier(PlayerBarInset())
                     .tabItem { Label(WaveTheme.loc("Settings"), systemImage: "gearshape") }
                     .tag(4)
             }
             .toolbar(.hidden, for: .tabBar)
+            .modifier(PlayerBarInset())
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 HStack(spacing: 4) {
                     tabButton("Home", icon: "house.fill", tag: 0)
