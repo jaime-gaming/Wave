@@ -18,7 +18,6 @@ export const missingTag = (value: string) =>
   !value.trim() ||
   /^(?:unknown(?: (?:artist|album|title))?|untitled|n\/a|null|undefined)$/iu.test(value.trim());
 
-/** Builds a set of recurring artist identities (appearing on 2+ songs) from a library. */
 export function knownArtistSet(tracks: Pick<Track, 'artist'>[]): Set<string> {
   const counts = new Map<string, number>();
   for (const track of tracks) {
@@ -51,7 +50,6 @@ export function metadataIssues(
   return issues;
 }
 
-/** What is wrong with a song, said the way a person would say it. */
 export function describeIssues(issues: MetadataIssue[]): string {
   const missing = issues.filter((issue) => issue !== 'roles');
   const words: Record<Exclude<MetadataIssue, 'roles'>, string> = {
@@ -71,7 +69,6 @@ export function describeIssues(issues: MetadataIssue[]): string {
   return list ? `Needs ${list}` : '';
 }
 
-/** A confirmation expires if any of the evidence changes. */
 export function rolesReviewKey(track: {
   title: string;
   artist: string;

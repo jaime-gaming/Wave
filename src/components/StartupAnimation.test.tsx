@@ -13,6 +13,9 @@ it('shows on every opening and remains until the library is ready', () => {
   sessionStorage.setItem('wave-booted', '1');
   const first = render(<StartupAnimation loading />);
   expect(screen.getByRole('progressbar', { name: 'Loading Wave' })).toBeInTheDocument();
+  expect(
+    document.querySelector('.boot-wordmark .wave-wordmark-full')?.querySelectorAll('path'),
+  ).toHaveLength(6);
   act(() => vi.advanceTimersByTime(1000));
   expect(screen.getByRole('progressbar', { name: 'Loading Wave' })).toBeInTheDocument();
   first.unmount();

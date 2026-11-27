@@ -1,27 +1,7 @@
 import type { LyricLine } from './lyrics';
 
-/**
- * Word-level lyric formats used by the extra providers.
- *
- * Two shapes exist in the wild and both are worth reading, because they are the
- * only realistic source of real (not estimated) word timestamps for a local
- * file:
- *
- * - **YRC** (NetEase): `[lineStart,lineLength,0](wordStart,wordLength,0)word…`
- * - **KRC** (Kugou): `[lineStart,lineLength]<startOffset,length,0>word…`,
- *   delivered base64-encoded and XOR-obfuscated.
- *
- * Both are parsed into the same `LyricLine[]` the app already understands, with
- * `words[]` filled in. Anything inconsistent is dropped rather than guessed: a
- * line with non-monotonic word times falls back to its line time only.
- */
-
 const round = (value: number) => Math.round(value * 1000) / 1000;
 
-/**
- * NetEase YRC. Lines are `[start,length,0]` and each word carries its own
- * `(start,length,0)`. The text between markers is the word itself.
- */
 export function parseYrc(raw: string): LyricLine[] {
   const lines: LyricLine[] = [];
   for (const row of raw.replace(/^\uFEFF/u, '').split(/\r\n|\n|\r/u)) {
@@ -69,11 +49,6 @@ export function parseYrc(raw: string): LyricLine[] {
   return lines;
 }
 
-/**
- * Base64 KRC. The payload is XORed with a fixed key after a four-byte header,
- * and this is the only way to read its word timings; the result is still just
- * text and timings, never audio.
- */
 const KRC_KEY = [
   0x40, 0x47, 0x61, 0x77, 0x5e, 0x32, 0x74, 0x47, 0x51, 0x36, 0x31, 0x2d, 0xce, 0xd2, 0x6e, 0x69,
 ];
@@ -82,13 +57,13 @@ export async function decodeKrc(base64: string): Promise<string> {
   if (!base64 || base64.length > 2 * 1024 * 1024) return '';
   try {
     const binary = atob(base64);
-    // Some endpoints return base64 UTF-8 text rather than a KRC container.
+
     if (!binary.startsWith('krc1')) {
       const text = new TextDecoder().decode(Uint8Array.from(binary, (c) => c.charCodeAt(0)));
       return /^\s*\[(?:\d+,\d+|offset:)/u.test(text) ? text : '';
     }
     if (typeof DecompressionStream === 'undefined') return '';
-    // krc1 stays plaintext; XOR starts at byte zero of the *compressed body*.
+
     const payload = new Uint8Array(binary.length - 4);
     for (let index = 0; index < payload.length; index++)
       payload[index] = binary.charCodeAt(index + 4) ^ KRC_KEY[index % KRC_KEY.length];
@@ -123,7 +98,6 @@ export async function decodeKrc(base64: string): Promise<string> {
   }
 }
 
-/** Kugou KRC text (already decoded): `[start,length]<offset,length,0>word…`. */
 export function parseKrc(raw: string): LyricLine[] {
   const lines: LyricLine[] = [];
   for (const row of raw.split(/\r\n|\n|\r/u)) {
@@ -165,18 +139,12 @@ export function parseKrc(raw: string): LyricLine[] {
   return lines;
 }
 
-/** ISO-6709 style offset the providers embed in a header line: `[offset:123]`. */
 export function headerOffsetMs(raw: string): number {
   const match = /\[offset:\s*([+-]?\d+)\s*\]/iu.exec(raw);
   const value = Number(match?.[1] ?? 0);
   return Number.isFinite(value) && Math.abs(value) <= 10_000 ? value : 0;
 }
 
-/**
- * The only word timings worth trusting are ones that follow the song. Lines are
- * checked against the file's duration and against each other; a lyric that ends
- * far past the song, or that jumps backwards, is refused.
- */
 export function wordTimelinePlausible(lines: LyricLine[], duration: number): boolean {
   if (!lines.length) return false;
   let previous = -1;
@@ -198,14 +166,12 @@ export function wordTimelinePlausible(lines: LyricLine[], duration: number): boo
   return true;
 }
 
-/** True when at least half of the timed lines carry word stamps. */
 export function hasWordTimings(lines: LyricLine[]): boolean {
   const timed = lines.filter((line) => line.time !== undefined);
   if (!timed.length) return false;
   return timed.filter((line) => line.words?.length).length >= Math.ceil(timed.length / 2);
 }
 
-/** Readable text for a lyric body, used when the entry point needs plain lines. */
 export function lyricText(lines: LyricLine[]): string {
   return lines.map((line) => line.text).join('\n');
 }

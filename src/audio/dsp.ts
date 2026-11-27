@@ -1,56 +1,36 @@
 import { tempoStability } from './tempo';
 
-/**
- * Signal analysis used by Mix.
- *
- * Everything here is pure DSP: no DOM, no Web Audio, no storage. It runs in a
- * worker on a decoded mono copy of the song, so the original file is never
- * touched, resampled or written back. Analysis is used only to choose *where* and
- * *how* to blend two songs.
- *
- * The results are estimates. Every consumer must treat low confidence as
- * "unknown" instead of inventing a beat grid.
- */
-
-/** Frequency bands already matched to what matters for mixing. */
 export interface BandEnergies {
-  /** 20–160 Hz: kick and bass. */
   bass: number;
-  /** 160–500 Hz: low mids, snare body. */
+
   low: number;
-  /** 500–2000 Hz: vocals and most instruments. */
+
   mid: number;
-  /** 2000–5000 Hz: presence, consonants, hi-hats. */
+
   high: number;
 }
 
 export interface FrameFeatures {
   rms: number;
   bands: BandEnergies;
-  /** Share of energy above the bass band, 0–1. */
+
   brightness: number;
 }
 
 export interface Beats {
   bpm: number;
-  /** Seconds from the start of the file to the first beat. */
+
   offset: number;
-  /** 0–1; below ~0.35 the grid should be treated as unknown. */
+
   confidence: number;
-  /**
-   * 0–1; how much the tempo holds from one half of the song to the other.
-   *
-   * A drum machine scores 1. Live material — a drummer, a string quartet, a
-   * ballad that breathes — scores low, and a grid that drifts is worse than no
-   * grid at all: it puts the cue in the wrong bar.
-   */
+
   stability?: number;
 }
 
 export interface EnergySegment {
   start: number;
   end: number;
-  /** Average RMS of the segment, 0–1 scaled by the file peak. */
+
   level: number;
   kind: 'intro' | 'build' | 'body' | 'breakdown' | 'outro';
 }
@@ -58,37 +38,35 @@ export interface EnergySegment {
 export interface VocalRegion {
   start: number;
   end: number;
-  /** 0–1 heuristic likelihood that a lead voice is present. */
+
   strength: number;
 }
 
 export interface HarmonicKey {
-  /** Pitch class 0..11 (C = 0, C# = 1, ..., B = 11). */
   tonic: number;
   mode: 'major' | 'minor';
-  /** Human-readable musical key, e.g. 'A minor' or 'C major'. */
+
   name: string;
-  /** Camelot wheel code ('1A'..'12B') for harmonic mixing. */
+
   camelot: string;
-  /** Krumhansl-Schmuckler tonal correlation confidence in 0..1. */
+
   confidence: number;
 }
 
 export interface TrackAnalysis {
-  /** Seconds covered by the analysis (the whole file unless truncated). */
   duration: number;
-  /** Seconds per analysis frame. */
+
   frameSeconds: number;
   beats: Beats;
-  /** Audible start and end after trimming near-digital silence. */
+
   trimmed: { start: number; end: number };
   segments: EnergySegment[];
   vocals: VocalRegion[];
-  /** Average band balance, useful for a bass-swap decision. */
+
   profile: BandEnergies;
-  /** Largest RMS in the file, used to normalise levels. */
+
   peak: number;
-  /** Detected musical key and Camelot wheel position when tonal energy is clear. */
+
   key?: HarmonicKey;
 }
 
@@ -97,7 +75,6 @@ const LOW = [160, 500] as const;
 const MID = [500, 2000] as const;
 const HIGH = [2000, 5000] as const;
 
-/** In-place iterative radix-2 FFT with precomputed tables. */
 export function fft(re: Float32Array, im: Float32Array): void {
   const n = re.length;
   for (let i = 1, j = 0; i < n; i++) {
@@ -133,7 +110,6 @@ export function fft(re: Float32Array, im: Float32Array): void {
   }
 }
 
-/** Hann window, cached per length. */
 const windows = new Map<number, Float32Array>();
 function hann(size: number): Float32Array {
   let window = windows.get(size);
@@ -163,11 +139,6 @@ export interface FrameOptions {
   hopSize?: number;
 }
 
-/**
- * Frame-level features: RMS, four band energies and brightness. Cost is linear
- * in the number of frames; a five-minute song at 11 kHz takes a few hundred
- * milliseconds.
- */
 export function frameFeatures(
   samples: Float32Array,
   sampleRate: number,
@@ -255,10 +226,6 @@ function pearsonRotation(chroma: Float32Array, profile: number[], shift: number)
   return denom > 1e-9 ? num / denom : 0;
 }
 
-/**
- * Estimates musical key and Camelot wheel code from a 12-bin pitch-class chroma
- * using the Krumhansl-Schmuckler tonal correlation profiles. Purely local DSP.
- */
 export function estimateKeyFromChroma(chroma: Float32Array): HarmonicKey | undefined {
   let total = 0;
   for (let i = 0; i < 12; i++) total += chroma[i];
@@ -301,11 +268,6 @@ export function estimateKeyFromChroma(chroma: Float32Array): HarmonicKey | undef
   };
 }
 
-/**
- * Camelot-wheel harmonic compatibility in 0..1 between two tracks.
- * Returns neutral ~0.62 when either key is missing or low-confidence so
- * unmeasured tracks are never unfairly penalized.
- */
 export function harmonicCompatibility(a?: HarmonicKey, b?: HarmonicKey): number {
   const NEUTRAL = 0.62;
   if (!a || !b) return NEUTRAL;
@@ -337,10 +299,6 @@ export function harmonicCompatibility(a?: HarmonicKey, b?: HarmonicKey): number 
   return Math.round((NEUTRAL + (rawScore - NEUTRAL) * weight) * 1000) / 1000;
 }
 
-/**
- * Spectral-flux onset envelope: only positive energy changes count, which is
- * what makes a beat visible even in a dense mix.
- */
 export function onsetEnvelope(frames: FrameFeatures[]): Float32Array {
   const envelope = new Float32Array(frames.length);
   for (let index = 1; index < frames.length; index++) {
@@ -365,10 +323,6 @@ function normalise(values: Float32Array): Float32Array {
   return out;
 }
 
-/**
- * Tempo from autocorrelation of the onset envelope, with a preference around
- * 120 BPM to resolve the usual half/double-tempo ambiguity.
- */
 export function estimateTempo(
   onset: Float32Array,
   frameSeconds: number,
@@ -398,7 +352,7 @@ export function estimateTempo(
     const score = sum / (centred.length - lag);
     total += Math.abs(score);
     count++;
-    // Slight preference for the musical middle so 60 and 180 BPM do not win.
+
     const bpm = 60 / (lag * frameSeconds);
     const prior = 1 - Math.min(0.35, Math.abs(Math.log2(bpm / 120)) * 0.22);
     if (score * prior > bestScore) {
@@ -408,7 +362,6 @@ export function estimateTempo(
   }
   if (!bestLag || bestScore <= 0) return empty;
 
-  // Parabolic interpolation around the peak improves the estimate by a few BPM.
   const corr = (lag: number) => {
     let sum = 0;
     for (let index = 0; index + lag < centred.length; index++)
@@ -430,7 +383,6 @@ export function estimateTempo(
   };
 }
 
-/** Where inside one beat period the strongest onsets land, in frames. */
 export function estimatePhase(onset: Float32Array, periodInFrames: number): number {
   const bins = 64;
   const histogram = new Float32Array(bins);
@@ -444,7 +396,6 @@ export function estimatePhase(onset: Float32Array, periodInFrames: number): numb
   return (best / bins) * periodInFrames;
 }
 
-/** Aligns a time to the nearest beat of a grid, or returns it unchanged. */
 export function snapToBeat(time: number, beats: Beats): number {
   if (!beats.bpm || beats.confidence < 0.35) return Math.max(0, time);
   const period = 60 / beats.bpm;
@@ -453,28 +404,8 @@ export function snapToBeat(time: number, beats: Beats): number {
   return Math.max(0, beats.offset + Math.round(beatsFromStart) * period);
 }
 
-/**
- * The level below which a frame is nothing at all, on the same scale as a PCM
- * sample: about minus forty-eight decibels. Room noise and a digital gap sit
- * under it; a fade-out and a quiet coda sit above it and are kept.
- */
 export const SILENCE_FLOOR = 0.004;
 
-/**
- * Silence bounds from frame RMS.
- *
- * Three things were wrong with taking the first frame above two percent of the
- * loudest frame. One loud click — a needle drop, a tag at the head of the file —
- * raised the reference for the whole song and made a quiet intro read as silence.
- * A single quiet frame was enough to end the silence, so a crackle halfway
- * through a lead-in left most of it in place. And nothing bounded the answer, so
- * a hush at the top of an ambient track could be trimmed away with the music.
- *
- * So: the reference is the level of the loudest tenth of the song rather than its
- * single loudest frame, silence only ends where the music actually stays (the
- * level has to hold for a third of a second), and no edge is ever cut past a
- * quarter of the song or twenty seconds, whichever comes first.
- */
 export function silenceBounds(
   frames: FrameFeatures[],
   frameSeconds: number,
@@ -484,13 +415,11 @@ export function silenceBounds(
   if (!frames.length) return { start: 0, end: 0 };
   const levels = frames.map((frame) => frame.rms).sort((a, b) => a - b);
   const loudReference = levels[Math.min(levels.length - 1, Math.floor(levels.length * 0.9))];
-  // Relative alone calls a long fade "silence": the tail of a song that is
-  // already forty decibels down still has music in it. The absolute floor is
-  // what a fade never falls through, so a fade keeps its last seconds.
+
   const threshold = Math.max(loudReference * thresholdRatio, SILENCE_FLOOR);
   const held = Math.max(1, Math.round(sustainSeconds / Math.max(frameSeconds, 0.001)));
   const audible = (index: number) => (frames[index]?.rms ?? 0) > threshold;
-  /** The index where `held` audible frames in a row begin, or the end of the song. */
+
   const firstHeld = () => {
     let run = 0;
     for (let index = 0; index < frames.length; index++) {
@@ -499,7 +428,7 @@ export function silenceBounds(
     }
     return frames.length;
   };
-  /** The index one past the last place where `held` audible frames end a row. */
+
   const lastHeld = (from: number) => {
     let run = 0;
     for (let index = frames.length - 1; index >= from; index--) {
@@ -513,7 +442,7 @@ export function silenceBounds(
   const first = firstHeld();
   const last = lastHeld(first);
   if (last <= first) return { start: 0, end: total };
-  // Never cut further in than the ceiling, whatever the frames say.
+
   const start = Math.min(first * frameSeconds, ceiling);
   const end = Math.max(last * frameSeconds, total - ceiling);
   return {
@@ -539,11 +468,6 @@ function smooth(values: number[], radius: number): number[] {
   return out;
 }
 
-/**
- * Splits the song into coarse energy blocks (intro, build, body, breakdown,
- * outro). Block boundaries are where the smoothed level changes by more than
- * 35 %, which is what a listener hears as a section change.
- */
 export function energySegments(frames: FrameFeatures[], frameSeconds: number): EnergySegment[] {
   if (!frames.length) return [];
   const peak = Math.max(...frames.map((frame) => frame.rms)) || 1;
@@ -575,7 +499,6 @@ export function energySegments(frames: FrameFeatures[], frameSeconds: number): E
     level: tail.reduce((sum, value) => sum + value, 0) / Math.max(1, tail.length),
   });
 
-  // Keep the structure readable: never more than 24 blocks.
   const stride = Math.max(1, Math.ceil(blocks.length / 24));
   const reduced = stride === 1 ? blocks : blocks.filter((_, index) => index % stride === 0);
 
@@ -597,11 +520,6 @@ export function energySegments(frames: FrameFeatures[], frameSeconds: number): E
   });
 }
 
-/**
- * Regions likely to contain a lead voice, from the share of energy in the vocal
- * band plus brightness. This is a heuristic, not a transcription; mix decisions
- * that rely on it are always reversible and low-risk.
- */
 export function vocalRegions(
   frames: FrameFeatures[],
   frameSeconds: number,
@@ -647,7 +565,6 @@ export function vocalRegions(
   return regions;
 }
 
-/** Full analysis for one decoded mono track. */
 export function analyzePcm(
   samples: Float32Array,
   sampleRate: number,
@@ -658,8 +575,7 @@ export function analyzePcm(
   const onset = normalise(onsetEnvelope(frames));
   const beats: Beats = {
     ...estimateTempo(onset, frameSeconds),
-    // Measured on the same envelope, so "steady" and "rubato" are two readings
-    // of one signal rather than two guesses about it.
+
     stability: tempoStability(onset, frameSeconds, estimateTempo),
   };
   const peak = frames.reduce((max, frame) => Math.max(max, frame.rms), 0);
@@ -690,19 +606,6 @@ export function analyzePcm(
   };
 }
 
-/**
- * The first moment after the intro where the kick is already playing.
- *
- * Real DJ material opens with a long, deliberate intro: eight, sixteen, even
- * thirty-two bars of hats, pads and a filtered loop before the drums arrive.
- * Entering that with the outgoing song still playing gives the join nothing to
- * land on — the new record has no downbeat to arrive with until half a minute
- * later. This finds the frame where the bass is actually there, which is where a
- * DJ cues the record.
- *
- * Returns `null` when the bass never rises, so the caller keeps its own answer
- * instead of being handed a guess.
- */
 export function kickStart(
   analysis: TrackAnalysis,
   from = introEnd(analysis),
@@ -714,8 +617,7 @@ export function kickStart(
   if (!body.length) return null;
   const average = body.reduce((total, segment) => total + segment.level, 0) / body.length;
   if (average <= 0.01) return null;
-  // Level is the segment mean, so a kick is found where the section is at least
-  // `share` of the song's body — a filtered intro sits well below that.
+
   for (const segment of analysis.segments) {
     if (segment.end <= from) continue;
     if (segment.level >= average * share) return Math.max(from, segment.start);
@@ -723,7 +625,6 @@ export function kickStart(
   return null;
 }
 
-/** Where the first sustained body section starts, bounded to the audible part. */
 export function introEnd(analysis: TrackAnalysis): number {
   const body = analysis.segments.find(
     (segment) => segment.kind === 'body' || segment.kind === 'build',
@@ -731,7 +632,6 @@ export function introEnd(analysis: TrackAnalysis): number {
   return Math.max(analysis.trimmed.start, body?.start ?? analysis.trimmed.start);
 }
 
-/** Where the last full-energy section ends, i.e. where the outro begins. */
 export function outroStart(analysis: TrackAnalysis): number {
   const segments = analysis.segments;
   const lastBody = [...segments].reverse().find((segment) => segment.kind === 'body');

@@ -73,6 +73,7 @@ jobs:
         if: github.event_name == 'push' && always()
         run: |
           set -euo pipefail
+          rm -f artifacts/capture/failed
           npm run build
           # The capture launches the headless shell, which the test runner does not
           # install for itself.
@@ -110,10 +111,14 @@ jobs:
             echo "No images were captured; nothing to publish."
             exit 0
           fi
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git config user.name 'jaime-gaming'
+          git config user.email '250595486+jaime-gaming@users.noreply.github.com'
           git add docs/media
-          if [[ -f artifacts/capture/failed ]]; then git add -f artifacts/capture/capture.log artifacts/capture/failed; fi
+          if [[ -f artifacts/capture/failed ]]; then
+            git add -f artifacts/capture/capture.log artifacts/capture/failed
+          else
+            git rm -f --ignore-unmatch -- artifacts/capture/capture.log artifacts/capture/failed
+          fi
           if git diff --cached --quiet; then
             echo "Images unchanged."
             exit 0
@@ -134,3 +139,44 @@ jobs:
           done
           echo "Could not publish the images; the next run will photograph them again."
           exit 0
+
+  ios:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: iOS source contracts
+        run: node --test scripts/ios-release.test.mjs
+      - name: Select Xcode 26
+        run: |
+          set -euo pipefail
+          XCODE=$(python3 -c 'from pathlib import Path; import re; apps=[p for p in Path("/Applications").glob("Xcode_26*.app") if (p/"Contents/Developer").is_dir()]; key=lambda p: tuple(map(int, re.search(r"Xcode_([\d.]+)\.app", p.name).group(1).split("."))) if re.search(r"Xcode_([\d.]+)\.app", p.name) else (0,); print(max(apps, key=key)/"Contents/Developer" if apps else "", end="")')
+          test -n "$XCODE"
+          sudo xcode-select -s "$XCODE"
+          xcodebuild -version
+      - name: Show the Apple toolchain
+        run: swift --version && xcodebuild -version
+      - name: Test the shared WaveCore
+        run: swift test --package-path platforms/ios
+      - name: Test iOS playback on a simulator
+        run: |
+          set -euo pipefail
+          DEVICE=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin).get("devices",{}); found=[device for runtime,devices in d.items() if "iOS" in runtime for device in devices if device.get("isAvailable") and "iPhone" in device.get("name","")]; print(found[0]["udid"] if found else "", end="")')
+          test -n "$DEVICE"
+          set +e
+          xcodebuild -project platforms/ios/Wave.xcodeproj -scheme Wave -destination "platform=iOS Simulator,id=$DEVICE,arch=arm64" -derivedDataPath /tmp/WaveTestData ARCHS=arm64 ONLY_ACTIVE_ARCH=YES ENABLE_TESTABILITY=YES CODE_SIGNING_ALLOWED=NO test 2>&1 | tee /tmp/wave-ios-test.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [[ $status -ne 0 ]]; then
+            # Surface diagnostics even if the external log storage is unavailable.
+            grep -Ei 'error:|failed|testing failed|unable to|timed out' /tmp/wave-ios-test.log | tail -20 | while IFS= read -r line; do
+              echo "::error::${line//'%'/'%25'}"
+            done || true
+          fi
+          exit "$status"
+      - name: Build the unsigned iOS app
+        # No signing identity, team or App Store upload is configured: the
+        # simulator build is the honest proof that the SwiftUI app compiles.
+        run: xcodebuild -project platforms/ios/Wave.xcodeproj -scheme Wave -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/WaveDerivedData ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO build

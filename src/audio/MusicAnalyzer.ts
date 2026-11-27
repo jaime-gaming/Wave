@@ -1,5 +1,5 @@
 import { spectrumBands } from '../domain/musicSpectrum';
-/** A read-only tap of a native media element; never reroutes its audible output. */
+
 export class MusicAnalyzer {
   private context?: AudioContext;
   private stream?: MediaStream;
@@ -19,7 +19,7 @@ export class MusicAnalyzer {
       this.analyser.fftSize = this.samples.length;
       this.source = this.context.createMediaStreamSource(this.stream);
       this.source.connect(this.analyser);
-      // No destination connection: the original element is still the only output.
+
       void this.context.resume().catch(() => undefined);
     } catch (error) {
       this.dispose();

@@ -1,14 +1,3 @@
-/**
- * The mark, in the colour of what is playing.
- *
- * The tab is the one place where Wave is not on screen: a pinned tab, a
- * background window, a bookmark bar. Painting the favicon with the same hue the
- * interface takes from the cover keeps that one square telling the truth, and it
- * costs a single `data:` URI — no network, no canvas, no extra request.
- *
- * Browser tabs use a transparent mark. Installed web apps retain the tile;
- * the manifest and native platform icons are separate, unchanged assets.
- */
 const PATH = 'M4 7C7 7 7 23 12 23C17 23 17 7 20 7C23 7 23 23 28 23C33 23 33 7 36 7';
 
 const clampHue = (hue: number) => (Number.isFinite(hue) ? ((hue % 360) + 360) % 360 : 226);
@@ -18,7 +7,6 @@ const clampSaturation = (saturation: number) =>
 export const DEFAULT_HUE = 226;
 export const DEFAULT_SATURATION = 24;
 
-/** The favicon as an SVG source string, for tests and for the link element. */
 export function faviconSvg(
   hue = DEFAULT_HUE,
   saturation = DEFAULT_SATURATION,
@@ -40,12 +28,6 @@ export function faviconHref(hue?: number, saturation?: number, background = fals
   return `data:image/svg+xml,${encodeURIComponent(faviconSvg(hue, saturation, background))}`;
 }
 
-/**
- * Points the tab's icon at the current colour.
- *
- * Browsers only re-read the icon when `href` actually changes, so the previous
- * value is compared first: a re-render with the same colour is a no-op.
- */
 export function applyFavicon(hue?: number, saturation?: number): void {
   if (typeof document === 'undefined') return;
   const head = document.head;

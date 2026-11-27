@@ -2,33 +2,19 @@ import type { ImportedEntry } from './playlistImport';
 import { MAX_IMPORT_ENTRIES } from './playlistImport';
 import { parseImportLink } from './linkImport';
 
-/**
- * Reading a playlist someone exported from another app.
- *
- * Wave cannot ask Spotify or YouTube for a personal playlist without an account
- * and a server, so the honest way to bring a collection over is the file those
- * services already give you: an `.m3u` written by a desktop player, a `.csv`
- * from a data export, or simply the list copied off a screen. Everything here is
- * text in, entries out — no audio is read, written, or changed.
- */
 export type ImportSource = 'm3u' | 'csv' | 'text';
 
 export interface ParsedList {
   source: ImportSource;
-  /** A name the file itself carries, when it carries one. */
+
   name?: string;
   entries: ImportedEntry[];
-  /** Lines that looked like a playlist but yielded nothing usable. */
+
   skipped: number;
-  /** True when the file had more entries than Wave will import in one go. */
+
   truncated: boolean;
 }
 
-/**
- * `#EXTINF:<seconds> [artist="…"] [album="…"],<title>` — read piece by piece
- * rather than with one expression, because an attribute may itself contain a
- * comma and the title must survive it.
- */
 export function parseExtendedLine(line: string): {
   duration?: number;
   title: string;
@@ -68,7 +54,6 @@ function secondsFrom(value: string | undefined): number | undefined {
   return seconds > 0 ? seconds : undefined;
 }
 
-/** "Artist - Title" as every player and every screenshot writes it. */
 export function splitArtistTitle(text: string): { artist: string; title: string } {
   const cleaned = text.replace(/^\s*\d+[.)]\s*/u, '').trim();
   const dash = cleaned.split(/\s+[-–—]\s+/u);
@@ -84,7 +69,6 @@ function entry(id: string, raw: string, duration?: number): ImportedEntry {
   return { id, title: title || raw.trim(), artist, ...(duration ? { duration } : {}) };
 }
 
-/** A small CSV reader: quotes, doubled quotes, commas inside quotes. */
 export function readCsv(text: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
@@ -152,7 +136,7 @@ function parseCsvRows(rows: string[][], limit: number): ParsedList {
   const artistAt = findColumn(header, ARTIST_KEYS);
   const albumAt = findColumn(header, ALBUM_KEYS);
   const durationAt = findColumn(header, DURATION_KEYS);
-  // A duration in milliseconds is a Spotify export habit; anything else is seconds.
+
   const milliseconds = /ms/iu.test(header[durationAt] ?? '');
   const entries: ImportedEntry[] = [];
   let skipped = 0;
@@ -210,8 +194,6 @@ function parseM3u(text: string, limit: number): ParsedList {
       continue;
     }
     if (/^#EXTINF\s*:/iu.test(trimmed)) {
-      // A list copied by hand has no file paths between the tags: the previous
-      // song is complete as soon as the next one announces itself.
       if (pending && pending.label) {
         if (entries.length >= limit) break;
         entries.push(flushPending(pending, entries.length));
@@ -260,10 +242,6 @@ function parsePlainLines(text: string, limit: number): ParsedList {
   return { source: 'text', entries, skipped, truncated: lines.length > entries.length + skipped };
 }
 
-/**
- * Reads whatever was pasted: a link, an exported playlist, or a column of song
- * names. The result is always a proposal — nothing is stored by this function.
- */
 export function parsePlaylistText(raw: string, limit = MAX_IMPORT_ENTRIES): ParsedList {
   const text = raw.replace(/^\uFEFF/u, '').trim();
   if (!text) return { source: 'text', entries: [], skipped: 0, truncated: false };
@@ -284,7 +262,6 @@ export function parsePlaylistText(raw: string, limit = MAX_IMPORT_ENTRIES): Pars
   return parsePlainLines(text, limit);
 }
 
-/** Whether a pasted value is a link rather than a list, for the interface copy. */
 export function isLink(raw: string): boolean {
   const text = raw.trim();
   return /^[a-z]+:\/\//iu.test(text) || /^spotify:/iu.test(text);

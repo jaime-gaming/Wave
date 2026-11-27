@@ -49,10 +49,10 @@ export function DailyMixPage({
     heading.current?.closest('main')?.scrollIntoView({ block: 'start' });
   }, []);
   return (
-    <section className="daily-mix-page" aria-label={`Daily mix ${number} playlist`}>
+    <section className="daily-mix-page" aria-label={t('Daily mix {number} playlist', { number })}>
       <button className="text-button" onClick={onBack}>
         <ArrowLeft size={20} />
-        Back to Home
+        {t('Back to Home')}
       </button>
       <div className="daily-mix-header">
         <Artwork
@@ -67,11 +67,11 @@ export function DailyMixPage({
         />
         <div className="daily-mix-heading">
           <h2 tabIndex={-1} ref={heading}>
-            Daily mix {number}
+            {t('Daily mix {number}', { number })}
           </h2>
           <p className="daily-mix-label">{mix.label}</p>
           <p className="daily-mix-meta">
-            {songs.length} {songs.length === 1 ? 'song' : 'songs'} ·{' '}
+            {songs.length} {t(songs.length === 1 ? 'song' : 'songs')} ·{' '}
             {formatTime(songs.reduce((s, t) => s + t.duration, 0))}
           </p>
         </div>
@@ -83,7 +83,7 @@ export function DailyMixPage({
           onClick={() => onPlay(songs, songs[0].id)}
         >
           <Play size={20} />
-          Play mix
+          {t('Play mix')}
         </button>
         <button className="tonal-button" disabled={!songs.length} onClick={() => onShuffle(songs)}>
           <Shuffle size={20} />

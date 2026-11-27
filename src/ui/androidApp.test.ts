@@ -25,7 +25,7 @@ describe('offering the Android app', () => {
     expect(isAndroidBrowser(iphone)).toBe(false);
     expect(isAndroidBrowser(desktop)).toBe(false);
     expect(isAndroidBrowser(undefined)).toBe(false);
-    // The app itself is not asked to download the app.
+
     expect(isAndroidBrowser(androidPhone, true)).toBe(false);
   });
 
@@ -36,7 +36,7 @@ describe('offering the Android app', () => {
     expect(promptAlreadyAnswered()).toBe(true);
     rememberPromptAnswer('download');
     expect(promptAlreadyAnswered()).toBe(true);
-    // A device with no storage at all is never treated as already answered.
+
     expect(promptAlreadyAnswered(null)).toBe(false);
   });
 

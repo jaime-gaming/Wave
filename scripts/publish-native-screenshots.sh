@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Native jobs check out an exact SHA (detached HEAD), never an implicit push branch.
+
 set -euo pipefail
 : "${GITHUB_REF_NAME:?A source branch is required}"
 : "${GITHUB_SHA:?The captured source SHA is required}"
@@ -11,8 +11,8 @@ shopt -s nullglob
 shots=("$source_dir"/*.png)
 if [[ ${#shots[@]} -eq 0 ]]; then echo 'No native screenshots to publish.'; exit 0; fi
 for shot in "${shots[@]}"; do cp "$shot" "docs/media/$prefix$(basename "$shot")"; done
-git config user.name 'github-actions[bot]'
-git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+git config user.name 'jaime-gaming'
+git config user.email '250595486+jaime-gaming@users.noreply.github.com'
 git add docs/media/*.png
 if git diff --cached --quiet; then echo 'Native screenshots unchanged.'; exit 0; fi
 git commit -m "Refresh ${prefix:-Android }native screenshots [skip ci]"

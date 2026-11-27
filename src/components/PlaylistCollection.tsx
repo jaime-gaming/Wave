@@ -21,7 +21,7 @@ export function PlaylistCollection({
   query: string;
   onOpen: (id: string) => void;
   onCreate: () => void;
-  /** Only the playlists view offers migration; search results do not. */
+
   onImport?: () => void;
 }) {
   const t = useT();

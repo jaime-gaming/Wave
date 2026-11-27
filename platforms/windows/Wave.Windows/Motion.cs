@@ -5,22 +5,22 @@ using System.Windows.Media.Animation;
 
 namespace Wave.Windows;
 
-/// <summary>
-/// The window's movement, in one place.
-///
-/// Two shapes only, because two is what the interface actually needs: an
-/// entrance that rises a hair and fades in, and a settle for something that
-/// changes under the pointer. Both respect the Animations preference and
-/// Windows' own "show animations" system setting, and both collapse to nothing
-/// when either says no — no page should ever depend on an animation having
-/// finished to be usable.
-/// </summary>
+
+
+
+
+
+
+
+
+
+
 internal static class Motion
 {
     public static bool Enabled(bool preference) =>
         preference && SystemParameters.ClientAreaAnimation;
 
-    /// <summary>Fades an element in while it rises a few pixels into place.</summary>
+
     public static void Rise(FrameworkElement element, bool enabled, double distance = 10, int milliseconds = 280)
     {
         if (!enabled) { element.BeginAnimation(UIElement.OpacityProperty, null); element.Opacity = 1; element.RenderTransform = Transform.Identity; return; }
@@ -33,10 +33,10 @@ internal static class Motion
             new DoubleAnimation(distance, 0, TimeSpan.FromMilliseconds(milliseconds)) { EasingFunction = ease });
     }
 
-    /// <summary>
-    /// A restrained, non-overshooting settle for content that arrives: a new
-    /// cover, an opened page. Small enough to read as weight, not as a bounce.
-    /// </summary>
+
+
+
+
     public static void Settle(FrameworkElement element, bool enabled, double from = 0.96, int milliseconds = 260)
     {
         if (!enabled) { element.BeginAnimation(UIElement.OpacityProperty, null); element.Opacity = 1; element.RenderTransform = Transform.Identity; return; }
@@ -50,7 +50,7 @@ internal static class Motion
         scale.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(from, 1, duration) { EasingFunction = ease });
     }
 
-    /// <summary>Fades a surface between two colours, used when a page swaps content.</summary>
+
     public static void Fade(FrameworkElement element, bool enabled, double from = 0.35, int milliseconds = 180)
     {
         if (!enabled) { element.BeginAnimation(UIElement.OpacityProperty, null); element.Opacity = 1; element.RenderTransform = Transform.Identity; return; }
@@ -58,7 +58,7 @@ internal static class Motion
             new DoubleAnimation(from, 1, TimeSpan.FromMilliseconds(milliseconds))
             { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
     }
-    /// <summary>Small directional page travel, never a bounce or a layout resize.</summary>
+
     public static void Slide(FrameworkElement element, bool enabled, int direction = 1)
     {
         if (!enabled) { element.BeginAnimation(UIElement.OpacityProperty, null); element.Opacity = 1; element.RenderTransform = Transform.Identity; return; }
@@ -70,9 +70,18 @@ internal static class Motion
         element.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, duration) { EasingFunction = ease, FillBehavior = FillBehavior.Stop });
     }
 
-    /// <summary>Compresses the expanded player back down into the bottom mini-player bar.</summary>
+
+    // Cancel an in-flight transition before another navigation takes ownership.
+    public static void Reset(FrameworkElement element)
+    {
+        element.BeginAnimation(UIElement.OpacityProperty, null);
+        element.Opacity = 1;
+        element.RenderTransform = Transform.Identity;
+    }
+
     public static void CollapseToMini(FrameworkElement element, bool enabled, Action onComplete)
     {
+        Reset(element);
         if (!enabled)
         {
             element.Opacity = 1;
@@ -103,12 +112,12 @@ internal static class Motion
         offset.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(0, 128, duration) { EasingFunction = ease });
     }
 
-    /// <summary>Animate only a button's glyph. Rapid presses replace rather than accumulate.</summary>
+
     public static void IconAction(System.Windows.Controls.Button button, bool enabled, string kind)
     {
         if (button.Content is not FrameworkElement glyph) return;
         if (!enabled) { glyph.RenderTransform = Transform.Identity; return; }
-        // For Repeat1, spin only the arrow loop path so the centered "1" remains upright and steady.
+
         var targetGlyph = kind == "repeat" && glyph is System.Windows.Controls.Grid stack && stack.Children.Count > 0 && stack.Children[0] is FrameworkElement arrows
             ? arrows
             : glyph;

@@ -1,4 +1,3 @@
-/** Low-resolution source analysis; native output samples remain untouched. */
 export interface EnergyEnvelope {
   step: number;
   values: Float32Array;

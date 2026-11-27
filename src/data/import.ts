@@ -6,19 +6,8 @@ import { readArtwork } from './artwork';
 import { embeddedLyrics } from '../domain/lyrics';
 import type { Track } from '../domain/types';
 
-/**
- * Import formats: MP3, WAV, M4A, OGG and FLAC.
- *
- * FLAC is lossless and Wave stores it exactly as it is: no conversion, no
- * resampling, no re-encoding. Browsers play it natively (Chrome, Edge, Firefox),
- * and where a browser cannot decode it the existing playable-file error explains
- * the problem instead of silently degrading the file.
- *
- * This list gates the import picker and drag-and-drop only; a library saved by an
- * older Wave version keeps playing every format it already holds.
- */
 export const AUDIO_EXTENSIONS = ['mp3', 'wav', 'm4a', 'ogg', 'flac'];
-/** Formats Wave has never imported; kept only so the message can say why. */
+
 export const LEGACY_AUDIO_EXTENSIONS = ['aac', 'opus', 'aiff', 'aif', 'webm'];
 export const AUDIO_ACCEPT = AUDIO_EXTENSIONS.map((ext) => `.${ext}`).join(',');
 export const MAX_FILE_SIZE = 200 * 1024 * 1024;
@@ -29,7 +18,7 @@ export function fileExtension(name: string): string {
 export function isAudioFile(file: File): boolean {
   return AUDIO_EXTENSIONS.includes(fileExtension(file.name));
 }
-/** True for a format Wave used to accept, so the message can say why it is refused. */
+
 export function isLegacyAudioFile(file: File): boolean {
   return LEGACY_AUDIO_EXTENSIONS.includes(fileExtension(file.name));
 }
@@ -110,7 +99,6 @@ export async function readTrack(file: File, id: string): Promise<Track> {
     blob: file,
   };
   try {
-    // Metadata parsing is loaded only when the user imports music.
     const metadata = await parseLocalMetadata(file);
     const title = cleanTag(metadata.common.title);
     if (!missingTag(title)) track.title = title;
@@ -124,11 +112,10 @@ export async function readTrack(file: File, id: string): Promise<Track> {
       canonical(cleanTitle(inferred.title)) === canonical(cleanTitle(track.title))
         ? inferred.artist
         : (folder.artist ?? 'Unknown artist'));
-    // A position in an album is not part of a song's name.
+
     const numbered = stripLeadingNumber(track.title);
     if (numbered) track.title = numbered;
-    // A title tag that holds the whole line gives up its artist, but only when
-    // there is no artist to disagree with.
+
     if (missingTag(track.artist)) {
       const split = splitInlineArtist(track.title);
       if (split) {
@@ -154,9 +141,7 @@ export async function readTrack(file: File, id: string): Promise<Track> {
         : 0;
     try {
       track.lyrics = embeddedLyrics(metadata.common.lyrics);
-    } catch {
-      /* Unusable lyric tags must not block audio import. */
-    }
+    } catch {}
     track.trackNumber =
       metadata.common.track.no && metadata.common.track.no > 0
         ? metadata.common.track.no
@@ -186,13 +171,9 @@ export async function readTrack(file: File, id: string): Promise<Track> {
           new File([new Uint8Array(cover.data)], 'embedded-cover', { type: cover.format }),
         );
         break;
-      } catch {
-        /* Try another embedded image without discarding valid tags. */
-      }
+      } catch {}
     }
-  } catch {
-    // Missing or malformed tags must not prevent importing playable audio.
-  }
+  } catch {}
   track.metadataCheck = { checkedAt: Date.now(), issues: metadataIssues(track) };
   return track;
 }

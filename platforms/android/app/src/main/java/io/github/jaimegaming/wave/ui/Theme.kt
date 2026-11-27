@@ -43,7 +43,7 @@ private val NunitoSans = FontFamily(
     Font(R.font.nunito_sans_bold, FontWeight.Bold),
 )
 
-/** Match the active HSL tokens in the mobile website, not the older fallback palette. */
+
 private fun darkPalette(hue: Float) = darkColorScheme(
     primary = Color.hsl(hue, .58f, .80f),
     onPrimary = Color.hsl(hue, .40f, .18f),
@@ -88,7 +88,7 @@ private fun lightPalette(hue: Float) = lightColorScheme(
     error = Color(0xFFB3261E),
 )
 
-/** Coarse artwork sample, using the same chroma weighting as the web. */
+
 internal fun artworkHue(bitmap: android.graphics.Bitmap?): Float {
     if (bitmap == null || bitmap.width <= 0 || bitmap.height <= 0) return 226f
     var red = 0.0
@@ -165,7 +165,7 @@ private val WaveTypography = Typography(
     ),
 )
 
-/** Lyrics need air between lines; everything else stays tight. */
+
 val LyricLineStyle = TextStyle(
     fontFamily = NunitoSans,
     fontSize = 22.sp,
@@ -213,8 +213,8 @@ fun WaveTheme(
     val sampledHue = remember(artwork) { artworkHue(artwork) }
     var targetHue by remember { mutableStateOf(226f) }
     LaunchedEffect(sampledHue, song?.id, artwork) {
-        // Give the new sleeve a moment to load rather than flashing the neutral
-        // palette between two songs. The delay is cancelled when artwork arrives.
+
+
         if (song != null && artwork == null) kotlinx.coroutines.delay(180)
         val current = ((targetHue % 360f) + 360f) % 360f
         val distance = ((sampledHue - current + 540f) % 360f) - 180f

@@ -9,7 +9,7 @@ export interface Lyrics {
   offsetMs: number;
   source: 'local' | 'embedded' | 'lrclib' | 'netease' | 'kugou';
   providerId?: number;
-  /** Display name of the provider, when it is not LRCLIB. */
+
   provider?: string;
 }
 export const MAX_LYRICS_LENGTH = 100_000;
@@ -100,7 +100,7 @@ export function activeLyricIndex(lyrics: Lyrics, seconds: number): number {
   }
   return result;
 }
-/** Visual interpolation of line timing, not fabricated word timestamps. */
+
 export function lyricFillProgress(lyrics: Lyrics, seconds: number, duration?: number): number {
   const index = activeLyricIndex(lyrics, seconds);
   if (index < 0) return 0;
@@ -158,7 +158,6 @@ export function embeddedLyrics(
   }
 }
 
-/** Only provider-supplied timestamp segments receive word timing; plain LRC stays interpolated. */
 export function timedWordProgress(
   word: { time: number; end?: number },
   seconds: number,

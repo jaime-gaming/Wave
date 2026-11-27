@@ -20,7 +20,7 @@ describe('audio integrity', () => {
     expect(audioKind('Song.FLAC')).toBe('lossless');
     expect(audioKind('mix.wav')).toBe('lossless');
     expect(audioKind('song.mp3')).toBe('lossy');
-    // M4A may be AAC or ALAC, so it is never claimed to be lossless.
+
     expect(audioKind('song.m4a')).toBe('lossy');
     expect(audioKind('file')).toBe('unknown');
     expect(requiresExactCopy('song.flac')).toBe(true);
@@ -79,15 +79,14 @@ describe('audio integrity', () => {
 
   it('produces a real 24-bit PCM fixture whose maximum sample is untouched', () => {
     const fixture = wrapWav24(44100, 24, 1, 10);
-    // 44-byte header plus three bytes per sample.
+
     expect(fixture.byteLength).toBe(44 + 44100 * 10 * 3);
     expect(String.fromCharCode(...fixture.slice(0, 4))).toBe('RIFF');
     const header = new DataView(fixture.buffer, fixture.byteOffset);
     expect(header.getUint16(34, true)).toBe(24);
     expect(header.getUint16(22, true)).toBe(1);
     expect(header.getUint32(24, true)).toBe(44100);
-    // The first sample sits at the 24-bit ceiling, so any bit-depth reduction
-    // would be visible in the data itself, not only in the header.
+
     expect([fixture[44], fixture[45], fixture[46]]).toEqual([0xff, 0xff, 0x7f]);
     expect(fixture.slice(47).every((byte) => byte === 0)).toBe(true);
   });

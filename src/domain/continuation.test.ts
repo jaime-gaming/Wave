@@ -55,8 +55,7 @@ describe('autoplay after the queue ends', () => {
       makeTrack({ id: 'c', title: 'C', artist: 'C' }),
     ];
     const queue = continuationQueue(tracks, tracks[0], ['a', 'c', 'b'], () => 0, 2);
-    // Every song here has been heard, so the fallback opens with the one that has
-    // been away longest, never with the song that just finished.
+
     expect(queue[0]).toBe('c');
     expect(new Set(queue).size).toBe(queue.length);
   });
@@ -127,4 +126,31 @@ it('steers autoplay automatically toward tracks matching the current musical moo
       chillPicks++;
   }
   expect(chillPicks).toBeGreaterThan(75);
+});
+
+it('recycles the least recently heard first when the library has been exhausted', () => {
+  const tracks = Array.from({ length: 6 }, (_, i) =>
+    makeTrack({ id: `${i}`, artist: `Artist ${i}` }),
+  );
+  const recent = ['0', '1', '2', '3', '4', '5'];
+  for (let i = 0; i < 100; i++) {
+    const result = continuationQueue(tracks, tracks[5], recent, () => i / 100, 1);
+    expect(['0', '1', '2']).toContain(result[0]);
+  }
+});
+
+it('spreads repeats over consecutive autoplay extensions of a small library', () => {
+  const tracks = Array.from({ length: 6 }, (_, i) =>
+    makeTrack({ id: `${i}`, artist: `Artist ${i}` }),
+  );
+  let recent = tracks.map((track) => track.id);
+  let current = tracks[5];
+  const picked: string[] = [];
+  for (let i = 0; i < 4; i++) {
+    const [id] = continuationQueue(tracks, current, recent, () => 0.99, 1);
+    picked.push(id);
+    recent = [...recent, id];
+    current = tracks.find((track) => track.id === id)!;
+  }
+  expect(new Set(picked).size).toBe(4);
 });

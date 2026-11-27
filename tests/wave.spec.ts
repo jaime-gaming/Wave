@@ -1,5 +1,5 @@
 import { settingsMenu, closeSettings } from './helpers/settings';
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/returning-user';
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     if (localStorage.getItem('wave-mix-v2') === null) localStorage.setItem('wave-mix-v2', 'false');
@@ -12,7 +12,6 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { createHash } from 'node:crypto';
 
-// Contract tests are deterministic and never depend on public-service availability.
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     if (localStorage.getItem('wave-lyrics-consent-v1') === null)
@@ -124,7 +123,7 @@ test('advances at track end and supports repeat-one and repeat-all', async ({ pa
   const a = await createFixture(info.outputPath('A.wav'), 'A', 1);
   const b = await createFixture(info.outputPath('B.wav'), 'B', 1);
   await page.getByLabel('Import audio files').setInputFiles([a, b]);
-  // Queue assertions require the whole import, not just the first rendered row.
+
   await expect(page.getByRole('status')).toContainText('2 tracks added');
   await expect(page.getByRole('button', { name: 'Play A by Wave Tests' })).toBeVisible();
   await page.getByLabel('Sort tracks').selectOption('title');
@@ -377,7 +376,7 @@ test('player colors follow local artwork and reset for an untagged cover', async
   const path = await createFixture(info.outputPath('Signal.wav'), 'Signal', 20);
   await page.getByLabel('Import audio files').setInputFiles(path);
   await expect(page.getByRole('button', { name: 'Play Signal by Wave Tests' })).toBeVisible();
-  // Generate an owned raster fixture and persist it as if it were embedded cover art.
+
   await page.evaluate(async () => {
     const canvas = document.createElement('canvas');
     canvas.width = canvas.height = 64;
@@ -620,7 +619,7 @@ test('playlist covers and descriptions remain saved when library editing is turn
     page.getByRole('region', { name: 'Playlist details' }).getByText('A few songs for Saturday.'),
   ).toBeVisible();
   await expect(page.locator('.playlist-detail > .artwork img')).toBeVisible();
-  await enableEditor(page); // Toggle the existing setting off.
+  await enableEditor(page);
   await page.getByRole('button', { name: 'Edit playlist', exact: true }).click();
   form = page.getByRole('dialog', { name: 'Edit playlist', exact: true });
   await expect(form.getByLabel('Artwork file')).toHaveCount(0);
@@ -1364,9 +1363,7 @@ for (const viewport of [
       })
       .toBe(true);
     await expect(full.locator('.mix-artwork')).toBeVisible();
-    // The two sleeves are drawn edge to edge inside the stage cover. Each layer
-    // now carries its own entrance transform, so the cover is measured against
-    // its own layer rather than against the frame it is moving inside.
+
     const coverSizes = await full.locator('.mix-artwork').evaluate((element) => {
       const frame = element.getBoundingClientRect();
       const cover = element.closest('.stage-cover')!.getBoundingClientRect();

@@ -32,7 +32,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
@@ -57,13 +56,13 @@ import androidx.core.content.ContextCompat
 import io.github.jaimegaming.wave.Song
 import io.github.jaimegaming.wave.Updates
 
-/**
- * The shell: one screen at a time, a bar that stays, and a nav that never covers
- * content.
- *
- * Everything the phone version does is reachable from here in two taps at most:
- * the five destinations, the player, the queue, and every way into a song.
- */
+
+
+
+
+
+
+
 @Composable
 fun WaveApp(version: String, opening: Opening = Opening.Default) {
     val context = LocalContext.current
@@ -94,8 +93,8 @@ fun WaveApp(version: String, opening: Opening = Opening.Default) {
         state.destination = Destination.Settings
         state.open = null
     }
-    // Reading the music the system already indexes needs the audio permission; a
-    // refusal is answered in words rather than by an empty list.
+
+
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { grants ->
         if (grants.values.any { it }) state.importFromDevice()
         else state.notice = Loc.t("Wave needs permission to read the music on this device.")
@@ -128,7 +127,7 @@ fun WaveApp(version: String, opening: Opening = Opening.Default) {
         onDispose { state.dispose() }
     }
     val currentSong = player.current?.let { playing -> state.songs.find { it.id == playing.id } ?: playing }
-    // Keep the screen awake while Wave is open in the foreground and playing music.
+
     val hostView = LocalView.current
     DisposableEffect(hostView, player.playing, currentSong?.id) {
         hostView.keepScreenOn = player.playing && currentSong != null
@@ -138,7 +137,7 @@ fun WaveApp(version: String, opening: Opening = Opening.Default) {
         currentSong?.let { state.maybeLookupLyrics(it) }
     }
 
-    // Back closes what is open, in the order it was opened, before it leaves.
+
     BackHandler(enabled = state.nowPlayingOpen && !state.queueOpen) { state.nowPlayingOpen = false }
     BackHandler(enabled = state.queueOpen) { state.queueOpen = false }
     BackHandler(enabled = !state.nowPlayingOpen && !state.queueOpen && state.open != null) {
@@ -150,6 +149,7 @@ fun WaveApp(version: String, opening: Opening = Opening.Default) {
 
     val screenWidthDp = LocalConfiguration.current.screenWidthDp
     val wideLayout = screenWidthDp >= 600
+    val deviceProfile = rememberDeviceProfile()
 
     Box(Modifier.fillMaxSize()) {
         Row(
@@ -207,26 +207,23 @@ fun WaveApp(version: String, opening: Opening = Opening.Default) {
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(padding),
-                    contentAlignment = Alignment.TopCenter,
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .widthIn(max = 1160.dp),
-                    ) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
                         Notice(state.notice) { state.clearMessage() }
                         val playSong: (Song) -> Unit = { song -> state.play(song) }
                         val motionEnabled = waveMotionEnabled()
-                        CompositionLocalProvider(LocalChromeActions provides ChromeActions(addMusic, openSettings)) {
+                        CompositionLocalProvider(
+                            LocalWaveProfile provides deviceProfile,
+                            LocalChromeActions provides ChromeActions(addMusic, openSettings),
+                        ) {
                             AnimatedContent(
                                 targetState = state.destination,
                                 transitionSpec = {
                                     val enabled = motionEnabled
-                                    val direction = if (targetState.ordinal >= initialState.ordinal) 1 else -1
-                                    (fadeIn(tween(if (enabled) 200 else 0)) +
-                                        slideInHorizontally(tween(if (enabled) 260 else 0)) { if (enabled) direction * 18 else 0 }) togetherWith
-                                        (fadeOut(tween(if (enabled) 140 else 0)) +
-                                            slideOutHorizontally(tween(if (enabled) 180 else 0)) { if (enabled) -direction * 12 else 0 })
+                                    (fadeIn(tween(if (enabled) 220 else 0)) +
+                                        slideInVertically(tween(if (enabled) 240 else 0)) { if (enabled) 18 else 0 }) togetherWith
+                                        (fadeOut(tween(if (enabled) 100 else 0)) +
+                                            slideOutVertically(tween(if (enabled) 120 else 0)) { if (enabled) 4 else 0 })
                                 },
                                 label = "page",
                             ) { destination ->
@@ -270,12 +267,14 @@ fun WaveApp(version: String, opening: Opening = Opening.Default) {
                         .background(MaterialTheme.colorScheme.background)
                         .windowInsetsPadding(WindowInsets.safeDrawing),
                 ) {
-                    NowPlayingScreen(
-                        song = activeSong,
-                        state = state,
-                        onCollapse = { state.nowPlayingOpen = false },
-                        onEdit = { state.editing = activeSong },
-                    )
+                    CompositionLocalProvider(LocalWaveProfile provides deviceProfile) {
+                        NowPlayingScreen(
+                            song = activeSong,
+                            state = state,
+                            onCollapse = { state.nowPlayingOpen = false },
+                            onEdit = { state.editing = activeSong },
+                        )
+                    }
                 }
             }
         }

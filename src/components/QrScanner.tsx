@@ -7,18 +7,6 @@ interface Detector {
   detect: (source: CanvasImageSource) => Promise<{ rawValue: string }[]>;
 }
 
-/**
- * The reader, inside the app.
- *
- * A camera appears only when the button is pressed, and only for as long as the
- * panel is open: no permission is requested on page load, and the track is
- * stopped the moment the sheet closes or a code is read.
- *
- * Detection uses the browser's own `BarcodeDetector` where it exists, and a
- * small pure-JS decoder otherwise, so the same button works on desktop Chrome,
- * Android and iOS. Each frame is drawn small — a QR reads perfectly at 480 px —
- * which keeps the loop at a few per cent of one core.
- */
 export function QrScanner({
   onResult,
   onCancel,
@@ -30,10 +18,7 @@ export function QrScanner({
   const video = useRef<HTMLVideoElement>(null);
   const [error, setError] = useState('');
   const [ready, setReady] = useState(false);
-  // The answer is read through a ref, so the camera starts once. Depending on
-  // the callback itself restarted the stream on every render of the page behind
-  // it — a permission prompt blinking, a black frame, and a scanner that could
-  // never settle while the page it sits on was busy.
+
   const answer = useRef(onResult);
   useEffect(() => {
     answer.current = onResult;
@@ -108,7 +93,7 @@ export function QrScanner({
           await video.current.play().catch(() => undefined);
           setReady(true);
         }
-        // Frames start only once the picture is actually there.
+
         frame = requestAnimationFrame(() => void scan());
       } catch {
         setError(

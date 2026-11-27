@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './helpers/returning-user';
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     if (localStorage.getItem('wave-mix-v2') === null) localStorage.setItem('wave-mix-v2', 'false');
@@ -266,7 +266,7 @@ test('Privacy uses the exact Wave background and follows appearance changes from
   ).toBe(base);
   const other = await context.newPage();
   await other.goto('/');
-  // Wait for initial palette application before simulating a later storage change.
+
   await expect
     .poll(() => other.evaluate(() => document.documentElement.style.getPropertyValue('--wave-hue')))
     .toBe('226');
@@ -288,7 +288,7 @@ test('a mix is announced before it happens, then the sleeve splits and the join 
   await setup(page);
   await page.getByRole('button', { name: 'Open now playing', exact: true }).click();
   const full = page.getByRole('dialog', { name: 'Now playing' });
-  // Jump to twenty seconds before the end of the file: that is the lead-in.
+
   await page.evaluate(() => {
     const playing = (window as unknown as { __refineAudio: HTMLAudioElement[] }).__refineAudio.find(
       (a) => !a.paused,
@@ -298,7 +298,7 @@ test('a mix is announced before it happens, then the sleeve splits and the join 
   await expect(full.locator('.mix-cue')).toBeVisible();
   await expect(full.getByText('Mixing', { exact: true })).toBeVisible();
   await expect(full.locator('.mix-cue-next')).toHaveCount(1);
-  // The cue is not a static picture: the split opens as the join approaches.
+
   const before = await full
     .locator('.mix-cue')
     .evaluate((el) => Number(getComputedStyle(el).getPropertyValue('--cue-open')));
@@ -336,13 +336,12 @@ test('the transport stays visible initially, then the original idle scene opens 
     )
     .toBe(true);
   await page.clock.runFor(50);
-  // Five still seconds with the song running: the transport does not go away.
+
   await page.clock.fastForward(5000);
   await expect(full.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
   await expect(full.getByRole('slider', { name: 'Seek', exact: true })).toBeVisible();
   await expect(page.locator('.player-modal')).not.toHaveClass(/controls-idle/);
 
-  // The dedicated album/lyrics scene returns after thirty seconds.
   await page.clock.fastForward(26000);
   await expect(full.locator('.immersive-stage')).toBeVisible();
   await expect(full.locator('.player-normal-view')).toHaveCSS('visibility', 'hidden');

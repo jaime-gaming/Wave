@@ -1,18 +1,5 @@
 import { MAX_LOAN_TRACK_BYTES } from './protocol';
 
-/**
- * Temporary loans between devices.
- *
- * The user's decision for Wave 1.1 is deliberately simple: **loans are bounded
- * by space, not by a timer.** The borrowing device shows a list of offline
- * devices and can delete any loan (or a whole device) at any time; the granting
- * device can revoke what it shared. Nothing renews silently and **nothing is
- * ever deleted to make room**: a song that does not fit is refused, with the
- * numbers in the message, and the listener decides what to hand back.
- *
- * `expiresAt` exists in the model only for a future explicit option and is
- * ignored unless a caller sets it.
- */
 export interface LoanRecord {
   loanId: string;
   trackId: string;
@@ -37,9 +24,8 @@ export interface LoanRequest {
 }
 
 export interface LoanPolicy {
-  /** Total bytes of borrowed audio this device may hold. */
   capacityBytes: number;
-  /** Total number of borrowed tracks. */
+
   maxTracks: number;
 }
 
@@ -53,7 +39,7 @@ export type LoanRejection = 'duplicate' | 'too-large' | 'capacity' | 'limit' | '
 export interface GrantResult {
   loans: LoanRecord[];
   granted: LoanRecord[];
-  /** Unpinned loans removed to make room, oldest first. */
+
   evicted: LoanRecord[];
   rejected: { request: LoanRequest; reason: LoanRejection }[];
 }
@@ -82,7 +68,7 @@ export interface LoanUsage {
   capacityBytes: number;
   maxTracks: number;
   freeBytes: number;
-  /** True when capacity or count is reached; unpinned loans may be evicted. */
+
   full: boolean;
 }
 
@@ -108,7 +94,6 @@ export function loanUsage(
   };
 }
 
-/** Oldest first; deterministic even when timestamps collide. */
 export function evictionOrder(loans: LoanRecord[]): LoanRecord[] {
   return loans
     .filter((loan) => !loan.pinned)
@@ -121,11 +106,6 @@ export function evictionOrder(loans: LoanRecord[]): LoanRecord[] {
     );
 }
 
-/**
- * Grants what fits. Requests keep their order, duplicates are rejected, and
- * unpinned loans are evicted least-recently-used first. Pinned loans are never
- * evicted, so a request that cannot fit next to them is rejected instead.
- */
 export function grantLoans(
   existing: LoanRecord[],
   requests: LoanRequest[],
@@ -135,9 +115,7 @@ export function grantLoans(
   validatePolicy(policy);
   const loans = existing.slice();
   const granted: LoanRecord[] = [];
-  // Nothing is ever removed to make room. Borrowed songs are the listener's
-  // songs while they are here; a full budget is a conversation the interface
-  // shows, not a silent deletion.
+
   const evicted: LoanRecord[] = [];
   const rejected: GrantResult['rejected'] = [];
 
@@ -218,7 +196,6 @@ export function markLoansUsed(
   return loans.map((loan) => (touched.has(loan.loanId) ? { ...loan, lastUsedAt: now } : loan));
 }
 
-/** Only affects loans whose owner explicitly set an expiry. */
 export function pruneExpired(loans: LoanRecord[], now = Date.now()): RevokeResult {
   const removed = loans.filter((loan) => loan.expiresAt !== undefined && loan.expiresAt <= now);
   return {
@@ -232,11 +209,10 @@ export interface DeviceSummary {
   bytes: number;
   tracks: number;
   lastUsedAt: number;
-  /** Tracks with an explicit expiry, informational only. */
+
   expiring: number;
 }
 
-/** Powers the "Offline devices" list: what is stored, for whom, and how much. */
 export function summarizeDevices(loans: LoanRecord[]): DeviceSummary[] {
   const map = new Map<string, DeviceSummary>();
   for (const loan of loans) {
@@ -258,7 +234,6 @@ export function summarizeDevices(loans: LoanRecord[]): DeviceSummary[] {
   );
 }
 
-/** Suggests a capacity policy from the device's reported free space. */
 export function suggestPolicy(
   freeBytes: number,
   policy: LoanPolicy = DEFAULT_LOAN_POLICY,

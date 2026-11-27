@@ -1,9 +1,3 @@
-// Turns a Playwright run into GitHub annotations.
-//
-// The browser suite is the long pole and its report lives in an artifact, which
-// is not reachable from a phone or from the pull request page. The failing titles
-// are the useful part, so they are lifted out of the JSON report and put where a
-// reader already is, with a per-file count in the step summary.
 import { appendFileSync, readFileSync } from 'node:fs';
 import process from 'node:process';
 
@@ -47,7 +41,7 @@ for (const suite of report.suites ?? []) walk(suite, []);
 
 for (const failure of failures) {
   const detail = failure.error
-    // ANSI escape sequences in Playwright output are not useful in annotations.
+
     // eslint-disable-next-line no-control-regex
     .replace(/\x1b\[[0-9;]*m/g, '')
     .replaceAll('%', '%25')

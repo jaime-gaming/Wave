@@ -29,16 +29,14 @@ describe('video clip sync', () => {
   });
 
   it('lets the clip start before the song, and holds the frame until it catches up', () => {
-    // The picture begins four seconds before the music does.
     expect(planVideoSync({ position: 10, playing: true }, ready(6), { startAt: -4 })).toEqual({
       type: 'none',
     });
-    // At the very beginning there is no frame before zero, so the picture waits
-    // there while the song plays into it.
+
     expect(planVideoSync({ position: 0.5, playing: true }, ready(0), { startAt: -4 })).toEqual({
       type: 'none',
     });
-    // A positive start is the usual case: the upload has an intro.
+
     expect(planVideoSync({ position: 10, playing: true }, ready(10), { startAt: 30 })).toEqual({
       type: 'seek',
       to: 40,
@@ -58,21 +56,20 @@ describe('video clip sync', () => {
   });
 
   it('nudges the clip rate for small drift instead of jumping the picture', () => {
-    // Picture behind the song: play it a little faster.
     expect(planVideoSync({ position: 40, playing: true }, ready(39.6))).toEqual({
       type: 'nudge',
       rate: 1.1,
     });
-    // Picture ahead: slow it down.
+
     expect(planVideoSync({ position: 40, playing: true }, ready(40.4))).toEqual({
       type: 'nudge',
       rate: 0.9,
     });
-    // Already nudging at the right rate: stay quiet.
+
     expect(planVideoSync({ position: 40, playing: true }, { ...ready(39.6), rate: 1.1 })).toEqual({
       type: 'none',
     });
-    // Back in sync: return the clip to normal speed.
+
     expect(planVideoSync({ position: 40, playing: true }, { ...ready(40), rate: 1.1 })).toEqual({
       type: 'nudge',
       rate: 1,
@@ -88,11 +85,11 @@ describe('video clip sync', () => {
 
   it('respects the correction cooldown for small drift only', () => {
     const options = { now: 1_000, cooldownUntil: 5_000 };
-    // While cooling down after a seek the clip is left alone, whatever the drift.
+
     expect(planVideoSync({ position: 40, playing: true }, ready(39.5), options)).toEqual({
       type: 'none',
     });
-    // A large drift is corrected even during the cooldown: silence is worse.
+
     expect(
       planVideoSync(
         { position: 40, playing: true },
@@ -106,11 +103,11 @@ describe('video clip sync', () => {
     expect(clampVideoOffset(3.26)).toBe(3.3);
     expect(clampVideoOffset(-99)).toBe(-VIDEO_OFFSET_LIMIT_SECONDS);
     expect(clampVideoOffset(Number.NaN)).toBe(0);
-    // A 0.5 s offset explains the difference exactly, so no correction is needed.
+
     expect(planVideoSync({ position: 40, playing: true }, ready(40.5), { offset: 0.5 })).toEqual({
       type: 'none',
     });
-    // Without the offset the same difference is corrected by rate, not a seek.
+
     expect(planVideoSync({ position: 40, playing: true }, ready(40.5), { offset: -0.5 })).toEqual({
       type: 'nudge',
       rate: 0.9,
@@ -146,8 +143,6 @@ describe('video clip sync', () => {
 
 describe('fitting the picture to the song', () => {
   it('aims at the placed start of the clip, not at the beginning of the upload', () => {
-    // The music starts 18 s into the upload: at 30 s of the song the picture
-    // belongs at 48 s, and it is not treated as drift.
     expect(
       planVideoSync({ position: 30, playing: true }, ready(48), {
         startAt: 18,
@@ -165,7 +160,6 @@ describe('fitting the picture to the song', () => {
   });
 
   it('does not clamp the placement like a manual nudge', () => {
-    // 45 s in is beyond the manual offset limit; a placement is free to go there.
     expect(fitClipTime(10, 45)).toBe(10);
     expect(
       planVideoSync({ position: 10, playing: true }, ready(0), {
@@ -178,10 +172,10 @@ describe('fitting the picture to the song', () => {
 
   it('starts the picture again when the clip is shorter than the song', () => {
     expect(fitClipTime(10, 0, 180)).toBe(10);
-    // Past the end of the video, aim back inside it instead of beyond.
+
     expect(fitClipTime(200, 6, 180)).toBe(26);
     expect(fitClipTime(380, 0, 180)).toBe(20);
-    // Unknown or negligible lengths change nothing.
+
     expect(fitClipTime(200, 0)).toBe(200);
     expect(fitClipTime(200, 0, 3)).toBe(200);
   });

@@ -4,6 +4,7 @@ import {
   YOUTUBE_FALLBACK_EMBED_HOST,
   embedErrorMessage,
   embedPlayerState,
+  isYouTubeEmbedOrigin,
   readEmbedError,
   readEmbedEvent,
   readEmbedProgress,
@@ -15,23 +16,10 @@ import { useOnline } from '../ui/network';
 
 export interface YouTubeSeek {
   seconds: number;
-  /** Bumped for every seek so repeated seeks to the same second still apply. */
+
   nonce: number;
 }
 
-/**
- * Playback for songs that live on YouTube.
- *
- * The video *is* the source: it plays through the official embed, with sound, and
- * Wave drives it with its own transport — the video has no controls of its own.
- * Nothing is downloaded, proxied or extracted; the link to the song on YouTube
- * lives in the song's options.
- *
- * Sync is one-directional here — the embed is the master clock — because there is
- * no local file to compare against. Wave reads its position and duration from the
- * player's own `infoDelivery` events and interpolates between them so the seek bar
- * stays smooth.
- */
 export function YouTubeStage({
   track,
   playing,
@@ -46,25 +34,27 @@ export function YouTubeStage({
   onDuration,
   onEnded,
   onError,
+  onStarted,
 }: {
   track: Track;
   playing: boolean;
   volume: number;
-  /** Mix gain for this song, 0..1, applied on top of the master volume. */
+
   gain?: number;
-  /** Gain when the player mounts, so a crossfade starts from silence. */
+
   startGain?: number;
-  /** How long a gain change takes, so a crossfade is a ramp, not a step. */
+
   fadeSeconds?: number;
   seek: YouTubeSeek;
-  /** Position used when the player has to be mounted again, e.g. after expanding. */
+
   startAt?: number;
-  /** Keeps the player alive but out of the way while Now Playing is collapsed. */
+
   silent?: boolean;
   onTime: (seconds: number) => void;
   onDuration: (seconds: number) => void;
   onEnded: () => void;
   onError: (message: string) => void;
+  onStarted?: () => void;
 }) {
   const t = useT();
   const online = useOnline();
@@ -73,55 +63,42 @@ export function YouTubeStage({
   const [started, setStarted] = useState(false);
   const [autoplayBlocked, setAutoplayBlocked] = useState(false);
   const [embedHost, setEmbedHost] = useState<string>(YOUTUBE_EMBED_HOST);
-  /** Set when the embed refuses the video; retrying play would be pointless. */
+
   const refused = useRef(false);
+  const ended = useRef(false);
   const clock = useRef({ time: 0, playing: false, duration: 0, at: 0 });
   const videoId = track.videoId ?? '';
-  // Captured once: the embed URL must not change while the video is playing.
-  // A changing `src` reloads the iframe and restarts the song from zero.
-  /** Whether the song was already playing when this embed was mounted. */
+
   const [autoplay] = useState(playing);
-  /** Position to resume from on the embed's first ready event, then cleared. */
+
   const pendingResume = useRef(Math.max(0, startAt));
-  /**
-   * The last jump Wave asked for, and when it asked.
-   *
-   * The embed keeps reporting for a moment after a `seekTo` and those reports
-   * still carry the old position. Taking them at face value put the bar, the
-   * lyrics and the clip out of step for a second or so after every jump, which
-   * is what "it sometimes drifts" looked like. For a short window after a jump,
-   * a report that is nowhere near where we asked is the past, not the present.
-   */
+
   const jump = useRef({ at: Number.NEGATIVE_INFINITY, target: 0 });
 
-  /** The level the embed should be at right now. */
   const target = useCallback(
     () => Math.min(1, Math.max(0, volume)) * Math.min(1, Math.max(0, gain)),
     [volume, gain],
   );
 
-  const post = useCallback((func: string, args: unknown[] = []) => {
-    frame.current?.contentWindow?.postMessage(
-      JSON.stringify({ event: 'command', func, args, id: 1, channel: 'widget' }),
-      '*',
-    );
-  }, []);
+  const post = useCallback(
+    (func: string, args: unknown[] = []) => {
+      frame.current?.contentWindow?.postMessage(
+        JSON.stringify({ event: 'command', func, args, id: 1, channel: 'widget' }),
+        embedHost,
+      );
+    },
+    [embedHost],
+  );
 
-  /**
-   * YouTube's IFrame Player API requires the host page to announce
-   * `{ event: 'listening' }` before the embed emits `infoDelivery` updates
-   * (currentTime, duration, playerState, onEnded). Send it on iframe load
-   * and periodically until the first message comes back.
-   */
   const announceListening = useCallback(() => {
     const win = frame.current?.contentWindow;
     if (!win) return;
-    win.postMessage(JSON.stringify({ event: 'listening', id: 1, channel: 'widget' }), '*');
+    win.postMessage(JSON.stringify({ event: 'listening', id: 1, channel: 'widget' }), embedHost);
     post('addEventListener', ['onReady']);
     post('addEventListener', ['onStateChange']);
     post('addEventListener', ['onError']);
     post('addEventListener', ['onAutoplayBlocked']);
-  }, [post]);
+  }, [post, embedHost]);
 
   useEffect(() => {
     if (!online) {
@@ -137,8 +114,6 @@ export function YouTubeStage({
     return () => clearInterval(timer);
   }, [ready, online, announceListening]);
 
-  // If the privacy-enhanced host stalls without answering, transparently fall
-  // back to the standard YouTube embed host once before reporting an error.
   useEffect(() => {
     if (!playing || !online || started || refused.current || embedHost !== YOUTUBE_EMBED_HOST) {
       return;
@@ -151,8 +126,6 @@ export function YouTubeStage({
     return () => clearTimeout(timer);
   }, [playing, online, started, ready, embedHost]);
 
-  // Resume where Wave was when this instance mounted (expanding or collapsing
-  // Now Playing mounts a new player; the song must not jump back to the start).
   useEffect(() => {
     if (!ready) return;
     if (pendingResume.current > 0.5) {
@@ -165,10 +138,14 @@ export function YouTubeStage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, post]);
 
-  // Messages from the embed are untrusted: only documented events for this video.
+  useEffect(() => {
+    if (started) onStarted?.();
+  }, [started, onStarted]);
+
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
-      if (event.source !== frame.current?.contentWindow) return;
+      if (event.source !== frame.current?.contentWindow || !isYouTubeEmbedOrigin(event.origin))
+        return;
       const data = typeof event.data === 'string' ? safeJson(event.data) : event.data;
       if (data && typeof data === 'object') {
         const rec = data as { event?: unknown; info?: unknown };
@@ -180,8 +157,8 @@ export function YouTubeStage({
         if (rec.event === 'onReady') {
           setReady(true);
           if (playing && !refused.current) {
-            post('unMute');
             post('setVolume', [Math.round(target() * 100)]);
+            post('unMute');
             post('playVideo');
           }
           return;
@@ -193,10 +170,14 @@ export function YouTubeStage({
             clock.current.playing = directState === 'playing';
             clock.current.at = performance.now();
             if (directState === 'playing') {
+              ended.current = false;
               setStarted(true);
               setAutoplayBlocked(false);
             }
-            if (directState === 'ended') onEnded();
+            if (directState === 'ended' && !ended.current) {
+              ended.current = true;
+              onEnded();
+            }
             return;
           }
         }
@@ -215,7 +196,6 @@ export function YouTubeStage({
       const reportedState = info ? info.state : progress!.state;
       const settling = performance.now() - jump.current.at < 900;
       if (settling && Math.abs(reportedTime - jump.current.target) > 1.5) {
-        // Stale: keep the state and the duration, ignore the old position.
         clock.current = {
           ...clock.current,
           playing: reportedState ? reportedState === 'playing' : clock.current.playing,
@@ -233,18 +213,21 @@ export function YouTubeStage({
       };
       setReady(true);
       if (nextPlaying) {
+        ended.current = false;
         setStarted(true);
         setAutoplayBlocked(false);
       }
       onTime(reportedTime);
       if (reportedDuration > 0) onDuration(reportedDuration);
-      if (reportedState === 'ended') onEnded();
+      if (reportedState === 'ended' && !ended.current) {
+        ended.current = true;
+        onEnded();
+      }
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
   }, [videoId, playing, post, target, onEnded, onTime, onDuration, onError, silent, t]);
 
-  // The embed is the master clock; interpolate between its updates.
   useEffect(() => {
     if (!ready) return;
     const timer = setInterval(() => {
@@ -255,11 +238,6 @@ export function YouTubeStage({
     return () => clearInterval(timer);
   }, [ready, onTime]);
 
-  /**
-   * Play is commanded immediately and retried until the embed confirms it.
-   * Waiting for a first `infoDelivery` was fragile: on a slow or blocked embed
-   * that event may never arrive, and the song then looked like it never loaded.
-   */
   useEffect(() => {
     if (!playing || !online) {
       clock.current.playing = false;
@@ -269,8 +247,7 @@ export function YouTubeStage({
     let retry: ReturnType<typeof setTimeout> | undefined;
     const send = () => {
       if (clock.current.playing || refused.current || autoplayBlocked) return;
-      // Explicitly unmute and apply volume on every start attempt so the embed
-      // never starts muted or drops volume before initialization settles.
+
       post('unMute');
       post('setVolume', [Math.round(target() * 100)]);
       post('playVideo');
@@ -286,6 +263,7 @@ export function YouTubeStage({
   useEffect(() => {
     if (!ready || seek.nonce === 0 || appliedSeek.current === seek.nonce) return;
     appliedSeek.current = seek.nonce;
+    ended.current = false;
     jump.current = { at: performance.now(), target: Math.max(0, seek.seconds) };
     post('seekTo', [Math.max(0, seek.seconds), true]);
     clock.current = { ...clock.current, time: Math.max(0, seek.seconds), at: performance.now() };
@@ -293,11 +271,6 @@ export function YouTubeStage({
     if (playing) post('playVideo');
   }, [seek, ready, playing, post, onTime]);
 
-  /**
-   * Volume is ramped, never stepped: a crossfade out of (or into) a YouTube song
-   * sends one target and the player eases towards it at the frame rate, which is
-   * the same equal-power window the local deck uses.
-   */
   const applied = useRef<number | null>(startGain);
   const ramp = useRef<number | null>(null);
   useEffect(() => {
@@ -331,11 +304,13 @@ export function YouTubeStage({
     const timer = setTimeout(() => {
       if (!started && !refused.current)
         onError(
-          'YouTube did not start. Some browsers block video that starts by itself; open the song on YouTube if it stays silent.',
+          t(
+            'YouTube did not start. Some browsers block video that starts by itself; open the song on YouTube if it stays silent.',
+          ),
         );
     }, 8_000);
     return () => clearTimeout(timer);
-  }, [playing, online, started, onError]);
+  }, [playing, online, started, onError, t]);
 
   if (!online) return null;
 
@@ -354,17 +329,15 @@ export function YouTubeStage({
         src={youtubeEmbedUrl(videoId, {
           origin: typeof location === 'undefined' ? undefined : location.origin,
           host: embedHost,
-          // Mounting happens on a click, so autoplay is allowed here and means
-          // the video starts even if the first command message is lost.
+
           autoplay,
           controls: false,
-          mute: false,
+          mute: startGain === 0,
           disableKeyboard: true,
         })}
         allow="autoplay; encrypted-media; picture-in-picture"
         referrerPolicy="strict-origin-when-cross-origin"
-        // The embed is the sound source, not a control: it cannot be focused,
-        // clicked or hovered, so YouTube's own chrome never appears over Wave.
+
         tabIndex={-1}
         aria-hidden="true"
       />
@@ -381,7 +354,7 @@ export function YouTubeStage({
           {t('Play on YouTube')}
         </button>
       )}
-      {/* No second bar: the player's own transport drives this embed. */}
+      {}
       <div className="video-backdrop-veil" aria-hidden="true" />
     </div>
   );

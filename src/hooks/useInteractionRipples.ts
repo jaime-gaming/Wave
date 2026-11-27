@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useWaveMotion } from '../ui/motion';
-/** Local press feedback, clipped to the pressed control and removed after completion. */
+
 export function useInteractionRipples() {
   const motion = useWaveMotion();
   useEffect(() => {
@@ -35,7 +35,7 @@ export function useInteractionRipples() {
         typeof button.animate !== 'function'
       )
         return;
-      // One response per control, eight across the app: rapid input cannot build a ripple wall.
+
       for (const [node, animation] of active) {
         if (node.parentElement === button || active.size >= 8) {
           discard(node, animation);

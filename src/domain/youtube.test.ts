@@ -98,8 +98,6 @@ describe('YouTube links', () => {
 
 describe('the player clock', () => {
   it('reads a position even when the player sends no state', () => {
-    // The periodic delivery does not always carry `playerState`; the position is
-    // still the only thing that can keep the picture on the song.
     expect(readEmbedProgress({ event: 'infoDelivery', info: { currentTime: 31.5 } }, ID)).toEqual({
       currentTime: 31.5,
       duration: 0,

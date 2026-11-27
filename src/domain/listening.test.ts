@@ -23,7 +23,7 @@ import { makeTrack } from '../test/fixtures';
 
 const track = makeTrack();
 const next = makeTrack({ id: 'next', title: 'Next song', artist: 'Someone else' });
-/** Fixed local time so the day buckets do not depend on when the suite runs. */
+
 const now = new Date(2026, 9, 29, 20, 0, 0).getTime();
 const at = (daysAgo: number, hour = 12) => new Date(2026, 9, 29 - daysAgo, hour, 30, 0).getTime();
 
@@ -81,15 +81,15 @@ describe('the listening summary', () => {
   it('adds up the seconds and keeps a window of days', () => {
     expect(summary.totalSeconds).toBe(345);
     expect(summary.totalPlays).toBe(4);
-    // The 20-day-old play is outside the week but inside the month.
+
     expect(summary.weekSeconds).toBe(255);
     expect(summary.weekPlays).toBe(3);
     expect(summary.monthSeconds).toBe(345);
     expect(summary.days).toHaveLength(14);
-    // Yesterday, the 28th: two plays, and today has nothing yet.
+
     expect(summary.days.at(-2)).toMatchObject({ key: '2026-10-28', seconds: 165, plays: 2 });
     expect(summary.days.at(-1)).toMatchObject({ key: '2026-10-29', seconds: 0 });
-    // A day with nothing played is still a day, with a zero.
+
     expect(summary.days[0]).toMatchObject({ seconds: 0, plays: 0 });
   });
 
@@ -163,8 +163,7 @@ describe('the weekly recap', () => {
     expect(recap.plays).toBe(3);
     expect(recap.tracks).toBe(2);
     expect(recap.artists).toBe(2);
-    // The nine-day-old play falls in the seven days before this one, so it is
-    // the comparison, not the week.
+
     expect(recap.previousSeconds).toBe(300);
   });
 
@@ -196,8 +195,7 @@ describe('the weekly recap', () => {
 
   it('draws the week as seven days, gaps and all', () => {
     expect(recap.days).toHaveLength(7);
-    // Every day of the window is present, so the chart never changes width,
-    // and the seconds in the bars add up to the week's total.
+
     expect(recap.days.reduce((total, day) => total + day.seconds, 0)).toBe(recap.seconds);
     expect(recap.days.reduce((total, day) => total + day.plays, 0)).toBe(recap.plays);
     expect(recap.days[6].seconds).toBeGreaterThan(0);
@@ -227,7 +225,7 @@ describe('the weekly recap', () => {
     expect(week.genres[0].genre).toBe('Ambient');
     expect(week.genres[0].seconds).toBe(160);
     expect(week.genres.find((slot) => slot.genre === 'Electronic')?.seconds).toBe(100);
-    // The untagged song is still counted in the week, just not in a slice.
+
     expect(week.genres.reduce((total, slot) => total + slot.seconds, 0)).toBe(260);
     expect(week.seconds).toBe(360);
   });
@@ -264,10 +262,9 @@ describe('four weeks of history', () => {
       [track('a')],
       now,
     );
-    // The play on the boundary belongs to the later week, the one just before it
-    // to the earlier: no week counts the same play twice.
+
     expect(around.map((week) => week.plays)).toEqual([0, 1, 1, 0]);
-    // Nothing is counted twice anywhere in the four weeks.
+
     expect(around.reduce((sum, week) => sum + week.plays, 0)).toBe(2);
   });
 

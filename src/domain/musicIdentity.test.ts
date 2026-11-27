@@ -66,7 +66,7 @@ it('lifts the artist out of a title that holds the whole line', () => {
     artist: 'Nils Frahm',
     title: 'Says',
   });
-  // Not enough evidence to split: a number, a long left side, or brackets.
+
   expect(splitInlineArtist('1975')).toBeNull();
   expect(splitInlineArtist('12 - Says')).toBeNull();
   expect(splitInlineArtist('Song (Live) - Again')).toBeNull();
@@ -96,7 +96,7 @@ it('detects reversed roles from its own textual verdict as well as filename clue
       fileName: 'AC_DC - Back in Black.flac',
     }),
   ).toBe(true);
-  // Trusts its own verdict even without filename clues or matching tags.
+
   expect(
     rolesSwapped({
       title: 'Queen',
@@ -116,7 +116,7 @@ it('detects reversed roles from its own textual verdict as well as filename clue
       artist: 'Me Porto Bonito (feat. Chencho Corleone)',
     }),
   ).toBe(true);
-  // Correctly ordered songs and classic band names are not flagged.
+
   expect(
     rolesSwapped({ title: 'Song (Live)', artist: 'Artist', fileName: 'Artist - Song.mp3' }),
   ).toBe(false);
@@ -125,7 +125,7 @@ it('detects reversed roles from its own textual verdict as well as filename clue
   expect(rolesSwapped({ title: 'Artist', artist: 'Artist', fileName: 'Artist - Artist.mp3' })).toBe(
     false,
   );
-  // Filenames written "Song Title - Artist" flip cleanly when the verdict is strong.
+
   expect(inferFileMetadata('Bohemian Rhapsody (Remastered) - Queen.mp3')).toEqual({
     artist: 'Queen',
     title: 'Bohemian Rhapsody (Remastered)',

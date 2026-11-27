@@ -1,18 +1,13 @@
 import { parseYouTubeLink } from './youtube';
 
-/**
- * Reading a playlist link never downloads audio. Wave only asks providers for
- * public metadata (title, artist, duration) and then matches it against the
- * collection already stored on the device.
- */
-export type LinkProvider = 'spotify' | 'youtube';
+export type LinkProvider = 'spotify' | 'youtube' | 'deezer';
 export type LinkKind = 'playlist' | 'album' | 'track' | 'video' | 'artist';
 
 export interface ImportTarget {
   provider: LinkProvider;
   kind: LinkKind;
   id: string;
-  /** YouTube videos keep their parent playlist when the link contains one. */
+
   playlistId?: string;
 }
 export type LinkProblem =
@@ -31,7 +26,7 @@ const SPOTIFY_KINDS: Record<string, LinkKind> = {
 
 const PROBLEMS: Record<LinkProblem, string> = {
   empty: 'Paste a Spotify or YouTube playlist link.',
-  'unsupported-host': 'Only Spotify and YouTube links are supported.',
+  'unsupported-host': 'Only Spotify, YouTube and Deezer links are supported.',
   'unsupported-kind':
     'Use a Spotify playlist, album or song link, or a YouTube playlist or video link.',
   'invalid-id': 'That link does not contain a valid Spotify or YouTube identifier.',
@@ -42,7 +37,6 @@ const PROBLEMS: Record<LinkProblem, string> = {
 
 const fail = (reason: LinkProblem): LinkParse => ({ ok: false, reason, message: PROBLEMS[reason] });
 
-/** `spotify:playlist:37i9…` and `spotify:user:name:playlist:37i9…` URIs. */
 function parseSpotifyUri(text: string): LinkParse | null {
   if (!/^spotify:/iu.test(text)) return null;
   const parts = text.split(':').filter(Boolean);
@@ -53,7 +47,6 @@ function parseSpotifyUri(text: string): LinkParse | null {
   return { ok: true, target: { provider: 'spotify', kind: SPOTIFY_KINDS[kind], id } };
 }
 
-/** Spotify links may carry a locale prefix (`/intl-es/…`) and tracking queries. */
 function parseSpotifyUrl(url: URL): LinkParse | null {
   const host = url.hostname.toLowerCase();
   if (host === 'spotify.link' || host === 'spotify.app.link') return fail('short-link');
@@ -92,15 +85,22 @@ export function parseImportLink(raw: string): LinkParse {
   } catch {
     return fail('invalid-id');
   }
+  if (url.hostname === 'deezer.com' || url.hostname === 'www.deezer.com') {
+    const parts = url.pathname.split('/').filter(Boolean);
+    const at = parts.indexOf('playlist');
+    if (at < 0) return fail('unsupported-kind');
+    const id = parts[at + 1] ?? '';
+    if (!/^\d{1,20}$/u.test(id)) return fail('invalid-id');
+    return { ok: true, target: { provider: 'deezer', kind: 'playlist', id } };
+  }
   const spotify = parseSpotifyUrl(url);
   if (spotify) return spotify;
   return fail('unsupported-host');
 }
 
 export interface ProviderLimits {
-  /** Metadata that the provider can return for a link the user pasted. */
   metadata: string;
-  /** What Wave explicitly will not do with the link. */
+
   limitation: string;
 }
 
@@ -110,6 +110,10 @@ export const PROVIDER_LIMITS: Record<LinkProvider, ProviderLimits> = {
     limitation:
       'Spotify playlists owned by other accounts can no longer be read by new applications, and Wave never downloads Spotify audio.',
   },
+  deezer: {
+    metadata: 'Public playlist titles, artists and durations.',
+    limitation: 'Private playlists need an exported file. Wave never downloads Deezer audio.',
+  },
   youtube: {
     metadata: 'Public YouTube playlist titles, video titles, channels and durations.',
     limitation:
@@ -118,7 +122,7 @@ export const PROVIDER_LIMITS: Record<LinkProvider, ProviderLimits> = {
 };
 
 export function providerLabel(provider: LinkProvider): string {
-  return provider === 'spotify' ? 'Spotify' : 'YouTube';
+  return provider === 'spotify' ? 'Spotify' : provider === 'deezer' ? 'Deezer' : 'YouTube';
 }
 
 export function targetLabel(target: ImportTarget): string {

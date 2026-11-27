@@ -74,7 +74,7 @@ describe('playlist import matching', () => {
       ],
       [candidate({ id: 't1', album: 'One' }), candidate({ id: 't2', album: 'Two' })],
     );
-    // Both candidates score identically, so the entry needs review.
+
     expect(report.matches[0].status).toBe('ambiguous');
     expect(report.matches[0].alternatives.length).toBe(1);
     expect(report.matches[1].status).toBe('missing');
@@ -152,7 +152,7 @@ describe('playlist import at library scale', () => {
     const started = Date.now();
     const report = matchEntries(largePlaylist, largeLibrary);
     const elapsed = Date.now() - started;
-    // The exhaustive version of this workload took ~14 s and froze the page.
+
     expect(elapsed).toBeLessThan(4_000);
     expect(report.matches).toHaveLength(300);
     expect(report.matchedCount + report.ambiguousCount + report.missingCount).toBe(300);

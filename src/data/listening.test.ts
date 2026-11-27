@@ -36,7 +36,7 @@ describe('listening history storage', () => {
     for (const play of plays) await savePlay(play);
     expect(await countPlays()).toBe(MAX_PLAYS);
     const stored = await getPlays();
-    // The oldest three went, the newest is still there.
+
     expect(stored[0].at).toBe(3_000);
     expect(stored.at(-1)?.at).toBe((MAX_PLAYS + 2) * 1_000);
   });
@@ -50,10 +50,8 @@ describe('listening history storage', () => {
 
 describe('the library upgrade', () => {
   it('adds the history store to a version-3 library without touching its rows', async () => {
-    // Start from nothing so the database can be created at the older version.
     await deleted();
-    // A library as it was written by the previous release: tracks and
-    // playlists exist, listening history does not.
+
     const legacy = await openDB('wave-library', 3, {
       upgrade(db, oldVersion) {
         if (oldVersion < 1) db.createObjectStore('tracks', { keyPath: 'id' });
@@ -68,7 +66,6 @@ describe('the library upgrade', () => {
     expect(legacy.objectStoreNames.contains('plays')).toBe(false);
     legacy.close();
 
-    // Opening it again goes through the version-4 upgrade.
     const upgraded = await openLibrary();
     expect(upgraded.version).toBe(LIBRARY_VERSION);
     expect(upgraded.objectStoreNames.contains('plays')).toBe(true);
@@ -77,8 +74,6 @@ describe('the library upgrade', () => {
   });
 
   it('adds the folder store to a version-4 library without touching its rows', async () => {
-    // A library from before folders were remembered: history and playlists are
-    // there, and the only thing the version-5 upgrade may do is add one store.
     await deleted();
     const legacy = await openDB('wave-library', 4, {
       upgrade(db, oldVersion) {

@@ -10,16 +10,18 @@ import java.text.Normalizer
 data class LyricWord(val time: Double, val text: String, val end: Double? = null)
 data class LyricLine(val time: Double, val text: String, val words: List<LyricWord> = emptyList())
 
-/** Enhanced LRC keeps real word timestamps; ordinary LRC stays line-synchronised. */
+
 fun parseLrc(raw: String): List<LyricLine> {
+    val source = raw.removePrefix("\uFEFF").take(100000)
     val offset = Regex("\\[offset:\\s*([+-]?\\d+)\\s*\\]", RegexOption.IGNORE_CASE)
-        .find(raw)?.groupValues?.get(1)?.toDoubleOrNull()?.div(1000) ?: 0.0
+        .find(source)?.groupValues?.get(1)?.toDoubleOrNull()?.div(1000) ?: 0.0
+    if (!offset.isFinite() || abs(offset) > 10) return emptyList()
     val stamp = Regex("\\[(\\d{1,4}):([0-5]?\\d)(?:[.,:](\\d{1,3}))?\\]")
     val wordStamp = Regex("<(\\d{1,4}):([0-5]?\\d)(?:[.,:](\\d{1,3}))?>")
     fun time(match: MatchResult): Double = match.groupValues[1].toDouble() * 60 +
         match.groupValues[2].toDouble() + ("0." + match.groupValues[3].ifEmpty { "0" }).toDouble()
 
-    return raw.take(100000).lineSequence().flatMap { row ->
+    return source.lineSequence().flatMap { row ->
         val stamps = stamp.findAll(row).toList()
         if (stamps.isEmpty()) return@flatMap emptySequence()
         val content = stamp.replace(row, "")
@@ -54,57 +56,81 @@ fun parseLrc(raw: String): List<LyricLine> {
         }
     }.take(2000).sortedBy { it.time }.toList()
 }
-/** The bar shows tenths of a second, so a position is published when it moves one. */
-// A tenth of a second, minus a hair: 10.1 - 10.0 is 0.09999999999999964 in
-// binary floating point, and the bar still has to move at ten past ten.
+
+
+
 fun shouldPublishTime(last: Double, next: Double, fading: Boolean) =
     fading || kotlin.math.abs(next - last) >= .1 - 1e-9
-fun powerGains(progress: Double): Pair<Float,Float> { val angle=progress.coerceIn(0.0,1.0)*Math.PI/2; return cos(angle).toFloat() to sin(angle).toFloat() }
-/** A blend long enough to be a mix: an arrival, a passage together and a departure. */
+
 const val BLEND_SECONDS = 24.0
-/** The shortest a blend gets on material that is long enough to have one. */
+
 const val MIX_FLOOR_SECONDS = 12.0
-/**
- * How long two songs overlap, in seconds.
- *
- * The same rule the web client uses: the shorter song gets a fifth of itself, no
- * less than twelve seconds and no more than twenty-four, and never more than half
- * of it. The phone has no beat analysis, so it lines the two up on the seconds
- * rather than on the bar — but the length and the curve are the same ones, which
- * is what makes a mix sound like the same feature on both screens.
- */
+
+
+
+
+
+
+
+
+
 fun automaticBlendSeconds(outgoing: Double, incoming: Double): Double {
     if (!outgoing.isFinite() || !incoming.isFinite() || outgoing <= 0 || incoming <= 0) return 0.0
     val shortest = minOf(outgoing, incoming)
     return minOf(BLEND_SECONDS, maxOf(minOf(MIX_FLOOR_SECONDS, shortest / 4), shortest * 0.12), shortest / 2)
 }
-/** Smooth 0..1 ramp; the handover uses it so no level ever steps. */
+
 fun smoothstep(value: Double): Double { val t=value.coerceIn(0.0,1.0);return t*t*(3-2*t) }
-/**
- * Staged handover, kept in step with the web build: the incoming song is at level
- * by a quarter of the blend and holds, the outgoing song only leaves in the second
- * half. Constant power throughout, so the join never dips.
- */
+
+
+
+
+
 fun handoverGains(progress: Double): Pair<Float,Float> {
     val p=progress.coerceIn(0.0,1.0)
     val phase=when { p<.28 -> .5*smoothstep(p/.28); p<.62 -> .5+.06*smoothstep((p-.28)/.34); else -> .56+.44*smoothstep((p-.62)/.38) }
     val angle=phase*Math.PI/2
     return cos(angle).toFloat() to sin(angle).toFloat()
 }
+
+
+
+
+
+
+
+enum class EndingShape { FADE, ECHO_CUT }
+
+fun detectEnding(song: Song): EndingShape {
+    if (!song.duration.isFinite() || song.duration < 8) return EndingShape.FADE
+    val lastLyric = parseLrc(song.lyrics).lastOrNull()?.time ?: return EndingShape.FADE
+    val bar = song.bpm?.takeIf { it.isFinite() && it in 60.0..200.0 }?.let { 240.0 / it } ?: 2.0
+    val shortTail = maxOf(4.0, minOf(8.0, 2.0 * bar))
+    return if (song.duration - lastLyric <= shortTail) EndingShape.ECHO_CUT else EndingShape.FADE
+}
+
+@Suppress("UNUSED_PARAMETER")
+fun endingCut(shape: EndingShape): Double = 1.0
+
+
+@Suppress("UNUSED_PARAMETER")
+fun endingGains(progress: Double, shape: EndingShape): Pair<Float,Float> =
+    handoverGains(progress.coerceIn(0.0, 1.0))
+
 fun canonical(value:String) = Normalizer.normalize(value,Normalizer.Form.NFKD).replace(Regex("\\p{M}"),"").lowercase().replace(Regex("[^\\p{L}\\p{N}]+")," ").trim()
 
-/**
- * Searching the library, ranked the way a person means it.
- *
- * The order answers "what did you type" before "what contains what": the exact
- * title first, then titles that start with the words, then a word inside a title,
- * then names that merely contain the letters, and only then the artist, the album
- * and the file name. `null` means no match at all.
- */
-/**
- * One letter away: typed too quickly, spelled by ear, or two letters the wrong
- * way round. Never lets noise in, because every word of the query has to land.
- */
+
+
+
+
+
+
+
+
+
+
+
+
 private fun oneEditApart(a: String, b: String): Boolean {
     if (a == b) return true
     val longer = if (a.length >= b.length) a else b
@@ -120,12 +146,12 @@ private fun oneEditApart(a: String, b: String): Boolean {
     return longer.substring(at + 1) == shorter.substring(at)
 }
 
-/**
- * Every word of the query accounted for: the text already has it, or it is a word
- * of at least six letters one letter away. The floor keeps the tolerance from
- * swallowing the library — "light" and "night" are one letter apart and have
- * nothing to do with each other.
- */
+
+
+
+
+
+
 private fun nearWords(text: String, parts: List<String>): Boolean {
     if (parts.isEmpty()) return false
     val words = text.split(' ').filter { it.isNotEmpty() }
@@ -145,9 +171,9 @@ fun searchRank(song: Song, query: String): Int? {
     val artist = canonical(song.artist)
     val album = canonical(song.album)
     val file = canonical(song.filename.substringBeforeLast('.'))
-    // Every word of the query starting a word of the title is a real answer —
-    // "city mid" for Midnight City — while the same letters buried inside a word
-    // are not, and rank below who made the song.
+
+
+
     val starts = { text: String -> needle.split(' ').filter { it.isNotEmpty() }.let { parts ->
         parts.isNotEmpty() && parts.all { part -> text.split(' ').any { word -> word.startsWith(part) } }
     } }
@@ -163,20 +189,20 @@ fun searchRank(song: Song, query: String): Int? {
         starts(album) -> 5
         album.contains(needle) -> 5
         file.contains(needle) -> 6
-        // A search that answers with nothing because a letter moved is read as
-        // the library not holding the song, so one typo still finds it — under
-        // everything that was actually spelled that way.
+
+
+
         else -> if (nearWords("$title $artist $album $file", needle.split(' ').filter { it.isNotEmpty() })) 7 else null
     }
 }
 
-/**
- * The same ladder for names that carry no ranking of their own: artists, albums
- * and playlists. The name that was typed comes first, then one that starts with
- * it, then one holding that word, then any that merely contains the letters, and
- * a shorter name wins a tie because Night answers "night" more closely than
- * Nightcall (Deluxe).
- */
+
+
+
+
+
+
+
 fun rankNames(values: List<String>, query: String): List<String> {
     val needle = canonical(query)
     if (needle.isEmpty()) return values
@@ -200,12 +226,12 @@ fun rankNames(values: List<String>, query: String): List<String> {
         .map { it.third }
 }
 
-/**
- * Whether a name answers to what was typed, the way the site decides it: every
- * word has to be somewhere in the name, in any order, accents and punctuation
- * aside. Used for the collections — artists, albums, playlists — which have no
- * ranking of their own.
- */
+
+
+
+
+
+
 fun matchesSearch(value: String, query: String): Boolean {
     val words = canonical(query).split(' ').filter { it.isNotEmpty() }
     if (words.isEmpty()) return true
@@ -213,7 +239,7 @@ fun matchesSearch(value: String, query: String): Boolean {
     return words.all { text.contains(it) }
 }
 
-/** Every song that matches, closest first; the tie is broken by title. */
+
 fun rankSongs(songs: List<Song>, query: String): List<Song> {
     if (canonical(query).isEmpty()) return songs
     return songs
@@ -222,18 +248,18 @@ fun rankSongs(songs: List<Song>, query: String): List<Song> {
         .map { it.first }
 }
 
-/** Minimum, maximum tracks per Daily Mix and maximum simultaneous mixes, synced with Web 0.2.2. */
+
 const val MIN_DAILY_MIX_TRACKS = 7
 const val MAX_DAILY_MIX_TRACKS = 20
 const val MAX_DAILY_MIXES = 3
 
-/** A mix of one kind of music, rebuilt each morning with day-locked cover sleeves. */
+
 data class DailyMix(val label: String, val songs: List<Song>, val covers: List<Song> = songs.take(3))
 
-/** 4-axis local musical mood vector (0..1 per dimension), computed strictly on-device. */
+
 data class MoodVector(val energy: Double, val valence: Double, val intensity: Double, val intimacy: Double)
 
-/** Behavioral dwell / quick-skip sample for live on-device mood detection. */
+
 data class MoodSignal(
     val songId: String,
     val seconds: Int,
@@ -268,7 +294,7 @@ private val MOOD_LEXICAL_CUES: List<Pair<List<String>, MoodVector>> = listOf(
     listOf("fire", "run", "power", "electric", "storm", "rush", "fuego", "fuerza", "tormenta", "velocidad", "energia") to MoodVector(0.22, 0.0, 0.22, -0.16),
 )
 
-/** 100% on-device mood analysis combining EN/ES genres, title/album cues and duration contour. */
+
 fun analyzeSongMood(song: Song): MoodVector {
     var e = 0.20; var v = 0.20; var i = 0.20; var n = 0.20; var w = 0.40
     val genre = song.genre.trim().lowercase()
@@ -324,10 +350,10 @@ fun moodSimilarity(a: MoodVector, b: MoodVector): Double {
     return (1.0 - sqrt(de * de + dv * dv + di * di + dn * dn) / 2.2).coerceIn(0.0, 1.0)
 }
 
-/**
- * Infers the listener's live automatic session mood from local dwell/skip signals,
- * current playback, and local time-of-day prior. Never leaves the device.
- */
+
+
+
+
 fun inferListeningMood(
     songs: List<Song>,
     signals: List<MoodSignal>,
@@ -377,7 +403,7 @@ fun inferListeningMood(
     return MoodVector(ve.coerceIn(0.0, 1.0), vv.coerceIn(0.0, 1.0), vi.coerceIn(0.0, 1.0), vn.coerceIn(0.0, 1.0))
 }
 
-/** Local mood-aware Autoplay picker for Android when the queue ends. */
+
 fun pickAutoplayNext(
     library: List<Song>,
     current: Song,
@@ -385,10 +411,13 @@ fun pickAutoplayNext(
     signals: List<MoodSignal>,
     draw: Double = Math.random(),
 ): Song? {
-    val avoid = recentIds.takeLast(12).toSet()
-    val all = library.filter { it.id != current.id }
+    val history = recentIds.takeLast(32)
+    val avoid = history.toSet()
+    val all = library.distinctBy { it.id }.filter { it.id != current.id }
     if (all.isEmpty()) return null
-    val candidates = all.filterNot { it.id in avoid }.ifEmpty { all }
+    val fresh = all.filterNot { it.id in avoid }
+    val candidates = if (fresh.isNotEmpty()) fresh else
+        all.sortedBy { history.lastIndexOf(it.id) }.take(maxOf(1, (all.size + 1) / 2))
     val session = inferListeningMood(library, signals, current)
     val curMood = analyzeSongMood(current)
     val weighted = candidates.map { song ->
@@ -413,7 +442,7 @@ fun pickAutoplayNext(
     return weighted.first().first
 }
 
-/** Locks up to 3 distinct cover songs for the calendar day so covers never flicker. */
+
 fun mixCovers(pool: List<Song>, day: String, label: String): List<Song> {
     val ordered = pool.distinctBy { it.id }.sortedBy { mixDayHash("cover:$day:${label.lowercase()}:${it.id}") }
     val picked = ArrayList<Song>(3)
@@ -444,7 +473,8 @@ private fun mixDayHash(seed: String): Int {
 }
 
 private fun curateMixSongs(pool: List<Song>, day: String, label: String, limit: Int): List<Song> {
-    val maxCount = limit.coerceIn(0, 20)
+    val dailySize = 14 + (mixDayHash("size:$day:$label").toLong() and 0xffffffffL).rem(7).toInt()
+    val maxCount = minOf(limit.coerceIn(0, 20), dailySize)
     if (maxCount == 0 || pool.isEmpty()) return emptyList()
     val shuffled = pool.distinctBy { it.id }.sortedBy { mixDayHash("$day:$label:${it.id}") }
     val distinctArtists = shuffled.map { it.artist.trim().lowercase() }.distinct().size
@@ -473,7 +503,7 @@ private fun curateMixSongs(pool: List<Song>, day: String, label: String, limit: 
         picked.add(song)
     }
 
-    // Spread artists widely (4-slot cooldown) to avoid repeating any artist back-to-back.
+
     val remaining = picked.toMutableList()
     val ordered = ArrayList<Song>(picked.size)
     val recentArtists = ArrayDeque<String>()
@@ -501,11 +531,11 @@ private fun curateMixSongs(pool: List<Song>, day: String, label: String, limit: 
     return ordered
 }
 
-/**
- * Up to three complete Daily Mixes (min 7 songs, max 20 songs, max 3 mixes),
- * rebuilt each morning with day-locked covers, per-artist caps, wide spacing
- * and mood grouping for untagged libraries.
- */
+
+
+
+
+
 fun dailyMixes(songs: List<Song>, day: String, limit: Int = MAX_DAILY_MIX_TRACKS): List<DailyMix> {
     val unique = songs.distinctBy { it.id }
     val byGenre = unique
@@ -549,7 +579,7 @@ fun dailyMixes(songs: List<Song>, day: String, limit: Int = MAX_DAILY_MIX_TRACKS
         .filter { it.songs.size >= MIN_DAILY_MIX_TRACKS }
 }
 
-/** One listen, as it was heard. */
+
 data class Play(
     val songId: String,
     val at: Long,
@@ -557,24 +587,24 @@ data class Play(
     val completed: Boolean,
 )
 
-/** Seconds after which a listen is counted as a play. */
+
 const val PLAY_THRESHOLD_SECONDS = 30
 
-/** Full year of local history survives so Weekly, Monthly and Yearly Remix stay complete. */
+
 const val HISTORY_DAYS = 366
 const val HISTORY_PLAYS = 20000
 
-/** The oldest plays above this count fall away first. */
+
 const val MAX_PLAYS = 2000
 
-/** Half the song, at most thirty seconds, and never less than five. */
+
 fun playThreshold(duration: Double): Int =
     if (!duration.isFinite() || duration <= 0) PLAY_THRESHOLD_SECONDS
     else maxOf(5, minOf(PLAY_THRESHOLD_SECONDS, (duration / 2).toInt()))
 
 fun countsAsPlay(seconds: Int, duration: Double): Boolean = seconds >= playThreshold(duration)
 
-/** One history event per playback, excluding pauses, stalls and seek jumps. */
+
 class ListeningCounter {
     private var serial: Long? = null
     private var songId: String? = null
@@ -609,12 +639,12 @@ class ListeningCounter {
     }
 }
 
-/**
- * What the listening page shows.
- *
- * A deleted song keeps its seconds in the total — the time was still spent — but
- * every list is built from the songs that are still here, so nothing dangles.
- */
+
+
+
+
+
+
 data class ListeningSummary(
     val totalSeconds: Int,
     val weekSeconds: Int,
@@ -661,17 +691,17 @@ fun listeningSummary(plays: List<Play>, songs: List<Song>, now: Long): Listening
     )
 }
 
-/**
- * "1 song", "12 songs": a count and its word, singular when it should be.
- *
- * A summary reading "1 albums" is the kind of small wrongness that makes an app
- * look unfinished, and there are enough counts in the interface to be worth one
- * helper for all of them.
- */
+
+
+
+
+
+
+
 fun count(value: Int, singular: String, plural: String = singular + "s"): String =
     "$value ${if (value == 1) singular else plural}"
 
-/** Time in words: "3 min" reads better than "0:03:00" on a listening page. */
+
 fun listeningTime(seconds: Int): String {
     if (seconds < 60) return "less than a minute"
     val minutes = seconds / 60
@@ -681,7 +711,7 @@ fun listeningTime(seconds: Int): String {
     return if (rest == 0) "$hours h" else "$hours h $rest min"
 }
 
-/** A position or a length, as a clock reads it. */
+
 fun formatTime(seconds: Double): String {
     if (!seconds.isFinite() || seconds <= 0) return "0:00"
     val total = seconds.toInt()
@@ -692,19 +722,19 @@ fun formatTime(seconds: Double): String {
     return if (hours > 0) "$hours:${minutes.toString().padStart(2, '0')}:${rest.toString().padStart(2, '0')}" else tail
 }
 
-/**
- * The week as one card, and the list it earns.
- *
- * The window is the last seven local days, today included, and the comparison is
- * the seven before it. A recap is only about a real week: nothing here is a taste
- * profile or a guess at what to play next, it is what this device saw being heard.
- * "Remix" is the week's songs, most played first, topped up from the all-time
- * list when a week is thin, with no repeats.
- */
-/** One day of the week, so the recap can be drawn as bars rather than described. */
+
+
+
+
+
+
+
+
+
+
 data class DaySlice(val at: Long, val seconds: Int, val plays: Int)
 
-/** The week split by the genre tag on the files. */
+
 data class GenreSlice(val genre: String, val seconds: Int, val plays: Int)
 
 data class WeekRecap(
@@ -718,19 +748,19 @@ data class WeekRecap(
     val topSongs: List<Pair<Song, Int>>,
     val topArtists: List<Pair<String, Int>>,
     val songs: List<Song>,
-    /** Seven entries, oldest first, quiet days included. */
+
     val days: List<DaySlice> = emptyList(),
-    /** Plays per hour of the local day, 0–23. */
+
     val hours: List<Int> = emptyList(),
-    /** Biggest first; untagged songs are counted in the week but in no slice. */
+
     val genres: List<GenreSlice> = emptyList(),
 )
 
-/** The last four weeks, newest first, quiet ones included. */
+
 fun weeklyRecaps(plays: List<Play>, songs: List<Song>, now: Long, weeks: Int = 4): List<WeekRecap> =
     (0 until weeks.coerceIn(1, 52)).map { weekRecap(plays, songs, now, it) }
 
-/** How long a Remix list is. */
+
 const val REMIX_LENGTH = 12
 
 private fun startOfDay(at: Long): Long {
@@ -749,8 +779,8 @@ fun weekRecap(plays: List<Play>, songs: List<Song>, now: Long, weeksAgo: Int = 0
     val start = end - 6 * 24 * 60 * 60 * 1000L
     val finish = end + 24 * 60 * 60 * 1000L
     val previousStart = start - 7 * 24 * 60 * 60 * 1000L
-    // Bounded on both sides: a week before this one must not swallow the plays
-    // that belong to the week after it.
+
+
     val week = plays.filter { it.at >= start && it.at < finish }
     val previous = plays.filter { it.at in previousStart until start }
 
@@ -762,7 +792,7 @@ fun weekRecap(plays: List<Play>, songs: List<Song>, now: Long, weeksAgo: Int = 0
     val genres = mutableMapOf<String, GenreSlice>()
     val day = 24L * 60 * 60 * 1000
     for (play in week) {
-        // The shape of the week first: it counts every play, deleted songs too.
+
         val dayIndex = (((startOfDay(play.at) - start) / day).toInt()).coerceIn(0, 6)
         daySeconds[dayIndex] += play.seconds
         dayPlays[dayIndex] += 1
@@ -800,8 +830,8 @@ fun weekRecap(plays: List<Play>, songs: List<Song>, now: Long, weeksAgo: Int = 0
     return WeekRecap(
         start = start,
         end = end,
-        // Every play this week, including songs that have since been deleted:
-        // they were listened to, and the bars have to add up to the headline.
+
+
         seconds = week.sumOf { it.seconds },
         plays = week.size,
         tracks = counts.size,
@@ -821,7 +851,7 @@ fun weekRecap(plays: List<Play>, songs: List<Song>, now: Long, weeksAgo: Int = 0
     )
 }
 
-/** "23 – 29 Oct", or "28 Oct – 3 Nov" when the week crosses a month. */
+
 fun weekRange(start: Long, end: Long): String {
     val locale = java.util.Locale.US
     val first = java.util.Calendar.getInstance().apply { timeInMillis = start }
@@ -905,7 +935,7 @@ private fun rangeRecap(
     )
 }
 
-/** Monthly Remix recap for a calendar month (0 = current month). */
+
 fun monthlyRecap(plays: List<Play>, songs: List<Song>, now: Long, monthsAgo: Int = 0): WeekRecap {
     val cal = java.util.Calendar.getInstance().apply {
         timeInMillis = startOfDay(now)
@@ -918,7 +948,7 @@ fun monthlyRecap(plays: List<Play>, songs: List<Song>, now: Long, monthsAgo: Int
     return rangeRecap(plays, songs, start, finish, prevStart, start, now, buckets = 8)
 }
 
-/** Yearly Remix recap for a calendar year (0 = current year). */
+
 fun yearlyRecap(plays: List<Play>, songs: List<Song>, now: Long, yearsAgo: Int = 0): WeekRecap {
     val cal = java.util.Calendar.getInstance().apply {
         timeInMillis = startOfDay(now)

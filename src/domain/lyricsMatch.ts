@@ -57,7 +57,6 @@ export function artistMatch(local: string, remote: string) {
 export function lookupMetadata(
   track: Pick<Track, 'title' | 'artist'> & { fileName?: string; rolesReviewed?: string },
 ) {
-  // Correct only the search identity; the listener still confirms any tag edit.
   if (rolesSwapped(track) && track.rolesReviewed !== rolesReviewKey(track))
     return { title: cleanTitle(track.artist), artist: mainArtist(track.title) };
   if (track.artist.trim() && track.artist !== 'Unknown artist') {
@@ -74,7 +73,7 @@ export function lookupMetadata(
     ? { artist: mainArtist(inferred.artist), title: cleanTitle(inferred.title) }
     : { title: cleanTitle(track.title), artist: '' };
 }
-/** A deluxe/reissue suffix is not a different album identity. Performance editions are. */
+
 export const albumIdentity = (value: string) =>
   canonical(
     value
@@ -85,18 +84,10 @@ export const albumIdentity = (value: string) =>
       .replace(/\s*[([](?:\d{4} )?remaster(?:ed)?(?: \d{4})?[)\]]\s*/giu, ' ')
       .replace(/\s+-\s+(?:deluxe|expanded|special|anniversary)(?: edition| version)?\s*$/giu, ''),
   );
-/**
- * The words a rightsholder adds to a title without making it another recording.
- *
- * Lyrics services hold what *they* call the song: "Radio Edit", "Single
- * Version", "Remastered 2011", a bare "Explicit". The library holds what the
- * file says. Those two titles differ by a phrase and describe the same take, so
- * refusing the match on the difference is how a correct answer gets thrown away.
- */
+
 const EDITION_WORDS =
   /^(?:radio edit|single version|single edit|album version|original (?:mix|version)|explicit(?: version)?|clean(?: version)?|mono|stereo|remaster(?:ed)?(?: \d{4})?)$/u;
 
-/** The same song, allowing a tail of edition words on either title. */
 export function sameRecordingTitle(local: string, remote: string) {
   const a = canonical(cleanTitle(local)),
     b = canonical(cleanTitle(remote));

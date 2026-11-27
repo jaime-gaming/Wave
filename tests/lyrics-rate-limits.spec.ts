@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from './helpers/returning-user';
 import { wav } from './helpers/audio';
 
 async function editor(page: Page) {

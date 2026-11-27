@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/returning-user';
 import { wav } from './helpers/audio';
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {

@@ -1,56 +1,19 @@
-/*
- * Every export below is an icon component. The freshness rule cannot see that
- * through the small factory they share, so it is switched off for this file and
- * no other: there is nothing here that is not a drawing.
- */
 /* eslint-disable react-refresh/only-export-components */
-import { useId, type ReactNode, type SVGProps } from 'react';
+import { useEffect, useId, useRef, type ReactNode, type SVGProps } from 'react';
 
-/**
- * Wave's own icons.
- *
- * Every icon in the app is drawn here, the way the wordmark is drawn: one pen,
- * one stroke weight, round caps, and curves rather than assembly lines. An icon
- * pack — any icon pack — is recognisable at a glance because its glyphs share a
- * grid, a corner radius and a weight that belong to somebody else's product. A
- * screen of them reads as a template, which is exactly what an app about your own
- * records must not read as.
- *
- * The drawing rules, so that a new glyph cannot drift:
- *
- * - A 24 × 24 box, a stroke of 1.7, round caps and joins, nothing filled except
- *   where a shape has to be a dot.
- * - Sides are curved by a hair even when they are straight: strokes that run to
- *   the edge of the grid and stop dead are what makes packs look machined.
- * - Contrast is in the shape, not in the weight: a record is a circle with a gap
- *   where the light falls, a folder is open, a speaker is a cone with two arcs
- *   leaving it.
- *
- * They accept the same props a packed icon does (`size`, `className`, `color`,
- * `strokeWidth`, `fill`), so replacing one is an import change and nothing else.
- */
 type IconProps = SVGProps<SVGSVGElement> & { size?: number };
 
-/**
- * A number as path data wants it: no 6.3999999999999995.
- *
- * The same strings are copied into the Android and Windows drawing code, so a
- * tidy number here is a tidy number in three codebases.
- */
 const n = (value: number) => Math.round(value * 1000) / 1000;
 
-/** A rectangle drawn from its corner, with rounded corners. */
 const box = (x: number, y: number, width: number, height: number, radius: number) => {
   const inner = n(width - radius * 2);
   const tall = n(height - radius * 2);
   return `M${n(x + radius)} ${n(y)}h${inner}a${radius} ${radius} 0 0 1 ${radius} ${radius}v${tall}a${radius} ${radius} 0 0 1 ${-radius} ${radius}h${-inner}a${radius} ${radius} 0 0 1 ${-radius} ${-radius}v${-tall}a${radius} ${radius} 0 0 1 ${radius} ${-radius}Z`;
 };
 
-/** A circle as one closed path, so it needs no element of its own. */
 const ring = (cx: number, cy: number, r: number) =>
   `M${n(cx - r)} ${n(cy)}a${r} ${r} 0 1 0 ${n(r * 2)} 0a${r} ${r} 0 1 0 ${n(-r * 2)} 0`;
 
-/** A dot, drawn as a stroke of no length with a round cap. */
 const dot = (x: number, y: number) => `M${x} ${y}h.01`;
 
 function Pen({ size = 24, children, ...rest }: IconProps & { children: ReactNode }) {
@@ -84,14 +47,14 @@ const paths =
     </Pen>
   );
 
-/* ── Navigation ───────────────────────────────────────────────────────────── */
+export const ThumbsUp = paths(() => [
+  'M7 10v10H4a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1h3Z',
+  'M7 19c2 .2 3.1 1 5.1 1h4.2a2.4 2.4 0 0 0 2.3-1.8l1.5-5.5a2.2 2.2 0 0 0-2.1-2.8h-4.1l.5-3.3c.2-1.5-.5-2.6-1.5-2.6-.5 0-.8.4-1 1L10 8c-.7 1-1.6 1.7-3 2',
+]);
+export const ThumbsDown = (props: IconProps) => (
+  <ThumbsUp {...props} style={{ ...props.style, transform: 'rotate(180deg)' }} />
+);
 
-/**
- * A rooftop over a doorway.
- *
- * The apex is not a peak but a shallow crest, echoing the mark: the house is
- * drawn by the same hand that draws the W.
- */
 export const Home = ({ children, className, ...props }: IconProps) => (
   <Pen className={`wave-glyph wave-glyph--home${className ? ` ${className}` : ''}`} {...props}>
     <path
@@ -107,7 +70,6 @@ export const Home = ({ children, className, ...props }: IconProps) => (
   </Pen>
 );
 
-/** Two covers, one behind the other, with a record inside the front one. */
 export const Library = ({ children, className, ...props }: IconProps) => (
   <Pen className={`wave-glyph wave-glyph--library${className ? ` ${className}` : ''}`} {...props}>
     <path className="glyph-back-sleeve" d="M9.6 4.4h6.9a2.2 2.2 0 0 1 2.2 2.2v6.9" />
@@ -117,7 +79,6 @@ export const Library = ({ children, className, ...props }: IconProps) => (
   </Pen>
 );
 
-/** A magnifier, held at the angle a hand holds one. */
 export const Search = ({ children, className, ...props }: IconProps) => (
   <Pen className={`wave-glyph wave-glyph--search${className ? ` ${className}` : ''}`} {...props}>
     <g className="glyph-lens">
@@ -128,24 +89,74 @@ export const Search = ({ children, className, ...props }: IconProps) => (
   </Pen>
 );
 
-/** A clean six-tooth gear with a simple centered hub. */
-export const Settings = ({ children, className, ...props }: IconProps) => (
-  <Pen className={`wave-glyph wave-glyph--settings${className ? ` ${className}` : ''}`} {...props}>
-    <g className="glyph-gear">
-      <path d="M10.21 5.75L10.59 3.11A9 9 0 0 1 13.41 3.11L13.79 5.75A6.5 6.5 0 0 1 16.52 7.32L18.99 6.34A9 9 0 0 1 20.4 8.77L18.31 10.43A6.5 6.5 0 0 1 18.31 13.57L20.4 15.23A9 9 0 0 1 18.99 17.66L16.52 16.68A6.5 6.5 0 0 1 13.79 18.25L13.41 20.89A9 9 0 0 1 10.59 20.89L10.21 18.25A6.5 6.5 0 0 1 7.48 16.68L5.01 17.66A9 9 0 0 1 3.6 15.23L5.69 13.57A6.5 6.5 0 0 1 5.69 10.43L3.6 8.77A9 9 0 0 1 5.01 6.34L7.48 7.32A6.5 6.5 0 0 1 10.21 5.75Z" />
-      <path d={ring(12, 12, 2.8)} />
-    </g>
-    {children}
-  </Pen>
-);
+export const Settings = ({ children, className, ...props }: IconProps) => {
+  const gear = useRef<SVGGElement>(null);
+  useEffect(() => {
+    const part = gear.current;
+    const button = part?.closest('button');
+    if (!part || !button) return;
+    const release = () => {
+      (part.getAnimations?.() ?? [])
+        .filter((item) => item.id === 'gear-tighten')
+        .forEach((item) => item.cancel());
+      button.classList.remove('gear-is-tightened');
+    };
+    const tighten = () => {
+      if (
+        document.documentElement.dataset.motion === 'reduced' ||
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches ||
+        typeof part.animate !== 'function'
+      )
+        return;
+      const base = getComputedStyle(part).transform;
+      const rotation = base === 'none' ? 'rotate(0deg)' : base;
+      release();
+      button.classList.add('gear-is-tightened');
+      const motion = part.animate(
+        [
+          { transform: rotation, offset: 0 },
+          { transform: 'rotate(8deg) scale(0.94)', offset: 0.36 },
+          { transform: 'rotate(-2deg)', offset: 0.7 },
+          { transform: 'rotate(0deg)', offset: 1 },
+        ],
+        { duration: 360, easing: 'ease-out', fill: 'forwards' },
+      );
+      motion.id = 'gear-tighten';
+    };
+    const key = (event: KeyboardEvent) => {
+      if (!event.repeat && (event.key === 'Enter' || event.key === ' ')) tighten();
+    };
+    button.addEventListener('pointerdown', tighten);
+    button.addEventListener('keydown', key);
+    button.addEventListener('pointerleave', release);
+    button.addEventListener('blur', release);
+    return () => {
+      button.removeEventListener('pointerdown', tighten);
+      button.removeEventListener('keydown', key);
+      button.removeEventListener('pointerleave', release);
+      button.removeEventListener('blur', release);
+      release();
+    };
+  }, []);
+  return (
+    <Pen
+      className={`wave-glyph wave-glyph--settings${className ? ` ${className}` : ''}`}
+      {...props}
+    >
+      <g className="glyph-gear" ref={gear}>
+        <path d="M10.21 5.75L10.59 3.11A9 9 0 0 1 13.41 3.11L13.79 5.75A6.5 6.5 0 0 1 16.52 7.32L18.99 6.34A9 9 0 0 1 20.4 8.77L18.31 10.43A6.5 6.5 0 0 1 18.31 13.57L20.4 15.23A9 9 0 0 1 18.99 17.66L16.52 16.68A6.5 6.5 0 0 1 13.79 18.25L13.41 20.89A9 9 0 0 1 10.59 20.89L10.21 18.25A6.5 6.5 0 0 1 7.48 16.68L5.01 17.66A9 9 0 0 1 3.6 15.23L5.69 13.57A6.5 6.5 0 0 1 5.69 10.43L3.6 8.77A9 9 0 0 1 5.01 6.34L7.48 7.32A6.5 6.5 0 0 1 10.21 5.75Z" />
+        <path d={ring(12, 12, 2.8)} />
+      </g>
+      {children}
+    </Pen>
+  );
+};
 
-/** A record with the light falling across it. */
 export const Record = paths(() => [
   'M20.7 14.3a9 9 0 1 1-1.3-6.5',
   'M15.2 12.6a3.4 3.4 0 1 1-2.6-2.9',
 ]);
 
-/** The waveform that stands for the automatic mix. */
 export const Remix = ({ children, className, ...props }: IconProps) => (
   <Pen className={`wave-glyph wave-glyph--remix${className ? ` ${className}` : ''}`} {...props}>
     <path className="glyph-bar-1" d="M3.8 10.6v2.8" />
@@ -158,17 +169,10 @@ export const Remix = ({ children, className, ...props }: IconProps) => (
   </Pen>
 );
 
-/* ── Transport ────────────────────────────────────────────────────────────── */
-
-/** A triangle with a softly bowed leading edge: play. */
 export const Play = paths(() => [
   'M7.7 4.9c0-.9 1-1.4 1.7-.9l9 6.2c.7.5.7 1.5 0 2l-9 6.2c-.7.5-1.7 0-1.7-.9Z',
 ]);
 
-/**
- * Two capsules. They are drawn as thick strokes rather than as outlined
- * rectangles because at 22 px an outlined bar is a smudge with a hole in it.
- */
 export const Pause = ({ children, ...props }: IconProps) => (
   <Pen {...props}>
     <path d="M9.3 6.5v11" strokeWidth={2.7} />
@@ -177,7 +181,6 @@ export const Pause = ({ children, ...props }: IconProps) => (
   </Pen>
 );
 
-/** Morphing play/pause glyph whose shapes cross-pivot smoothly instead of snapping. */
 export const PlayPauseGlyph = ({
   playing,
   size = 24,
@@ -260,7 +263,6 @@ export const Repeat1 = ({ children, className, ...props }: IconProps) => (
   </Pen>
 );
 
-/** A speaker cone with two arcs leaving it. */
 export const Volume2 = ({ children, className, ...props }: IconProps) => (
   <Pen className={`wave-glyph wave-glyph--volume${className ? ` ${className}` : ''}`} {...props}>
     <path d="M4.2 9.7h2.6l3.9-3.2c.6-.5 1.5 0 1.5.8v9.4c0 .8-.9 1.3-1.5.8l-3.9-3.2H4.2a1 1 0 0 1-1-1v-2.6a1 1 0 0 1 1-1.1Z" />
@@ -275,8 +277,6 @@ export const VolumeX = paths(() => [
   'M16 9.9l4.2 4.4',
   'M20.2 9.9 16 14.3',
 ]);
-
-/* ── Actions ──────────────────────────────────────────────────────────────── */
 
 export const Plus = paths(() => ['M12 5.4v13.2', 'M5.4 12h13.2']);
 
@@ -353,8 +353,6 @@ export const FileText = paths(() => [
   'M7.9 16.5h4.6',
 ]);
 
-/* ── Media ────────────────────────────────────────────────────────────────── */
-
 export const Music2 = paths(() => [
   'M14.5 4.9v10.3',
   ring(11.7, 17.5, 2.8),
@@ -395,7 +393,7 @@ export const Film = ({ children, className, ...props }: IconProps) => {
       </defs>
       <g clipPath={`url(#${clipId})`}>
         <g className="glyph-film-strip">
-          {/* Two stacked film frames that scroll smoothly upward like a projector strip on click. */}
+          {}
           <path d="M7.5 4.8v26.4" />
           <path d="M16.5 4.8v26.4" />
           <path d="M3 12h18" />
@@ -426,8 +424,6 @@ export const Captions = paths(() => [
   'M9.9 10.3H8a1.7 1.7 0 0 0-1.7 1.7v1.4A1.7 1.7 0 0 0 8 15.1h1.9',
   'M16.4 10.3h-1.9a1.7 1.7 0 0 0-1.7 1.7v1.4a1.7 1.7 0 0 0 1.7 1.7h1.9',
 ]);
-
-/* ── Files and collections ────────────────────────────────────────────────── */
 
 export const FolderOpen = paths(() => [
   'M3.4 8.7V6.6a1.8 1.8 0 0 1 1.8-1.8h3.5l2.3 2.4h6.4a1.8 1.8 0 0 1 1.8 1.8v1.7',
@@ -468,8 +464,6 @@ export const Palette = paths(() => [
   dot(11.4, 7.3),
   dot(15.3, 8.4),
 ]);
-
-/* ── Devices and state ────────────────────────────────────────────────────── */
 
 export const Smartphone = paths(() => [box(6.5, 2.9, 11, 18.2, 3), 'M10.4 18.4h3.2']);
 
@@ -516,8 +510,6 @@ export const LocateFixed = paths(() => [
   'M18.4 12h3',
 ]);
 
-/* ── Arrows and chevrons ──────────────────────────────────────────────────── */
-
 export const ArrowLeft = paths(() => ['M19.2 12H4.9', 'M11 5.8 4.8 12 11 18.2']);
 
 export const ArrowRight = paths(() => ['M4.8 12h14.3', 'M13 5.8 19.2 12 13 18.2']);
@@ -533,8 +525,6 @@ export const ChevronDown = paths(() => ['M6.3 9.5 12 15.2l5.7-5.7']);
 export const ChevronLeft = paths(() => ['M14.5 5.9 8.4 12l6.1 6.1']);
 
 export const ChevronRight = paths(() => ['M9.5 5.9 15.6 12l-6.1 6.1']);
-
-/* ── Small utilities ──────────────────────────────────────────────────────── */
 
 export const CircleDashed = paths(() => [
   'M12 3.6a8.4 8.4 0 0 1 6.2 2.6',
@@ -561,10 +551,6 @@ export const SlidersHorizontal = paths(() => [
   ring(15.1, 16.3, 2.3),
 ]);
 
-/* ── Names inherited from the pack ─────────────────────────────────────────── */
-
-/** The pages that ask for a disc mean the record above. */
 export const Disc3 = Record;
 
-/** And the pages that ask for a waveform mean the mix's. */
 export const AudioLines = Remix;

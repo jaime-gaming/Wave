@@ -7,7 +7,7 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
-/** A quiet, bounded check; installation is always left to Android and the user. */
+
 object Updates {
     private fun version(value: String): List<Int>? {
         val match = Regex("^v?(\\d+)\\.(\\d+)\\.(\\d+)$").matchEntire(value) ?: return null

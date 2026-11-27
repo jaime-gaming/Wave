@@ -33,14 +33,14 @@ import io.github.jaimegaming.wave.Song
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/**
- * Song covers.
- *
- * The sleeve is inside the file, so it is read from the file and never copied,
- * re-encoded or uploaded. Decoding happens off the main thread and a small cache
- * keeps a scroll from decoding the same sleeve twice. A file without artwork
- * gets the same music-note placeholder as the mobile website.
- */
+
+
+
+
+
+
+
+
 private val artworkCache = object : LruCache<String, Bitmap>(24 * 1024) {
     override fun sizeOf(key: String, value: Bitmap) = value.byteCount / 1024
 }
@@ -72,12 +72,12 @@ private fun embedded(context: Context, path: String, maxSide: Int): Bitmap? {
         try {
             retriever.release()
         } catch (_: Exception) {
-            // Nothing to release.
+
         }
     }
 }
 
-/** MediaStore can expose album artwork separately from the audio file. */
+
 private fun mediaStoreArtwork(context: Context, path: String): ByteArray? {
     val uri = Uri.parse(path)
     if (uri.scheme != "content" || uri.authority != "media") return null
@@ -108,8 +108,8 @@ fun rememberArtwork(song: Song, maxSide: Int = 512): Bitmap? {
         val bitmap = withContext(Dispatchers.IO) { embedded(context, song.path, maxSide) }
         value = requestKey to bitmap
     }
-    // produceState retains its previous value while a new request starts. Never
-    // show the preceding song's sleeve for the new song during that interval.
+
+
     return state.value?.takeIf { it.first == requestKey }?.second
 }
 

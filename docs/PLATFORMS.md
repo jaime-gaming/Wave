@@ -1,4 +1,27 @@
-# Wave platforms · 0.2.2
+# Wave platforms
+
+Wave 0.3 is in development. The web, Windows, Android and iOS clients have independent
+implementations and local libraries; they are **not yet functionally equivalent**, and installing
+an app does not automatically synchronize its library with the others. The web remains the
+reference for capabilities not yet implemented natively.
+
+| Capability                     | Web                | Windows               | Android                                                      | iOS                                                          |
+| ------------------------------ | ------------------ | --------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| Local library and playlists    | Yes                | Yes                   | Yes                                                          | Yes, basic editing and ordered playback                      |
+| Daily Mix                      | Full local engine  | Native engine         | Native engine                                                | Simpler local daily selection                                |
+| YouTube search and playback    | Integrated         | Not yet               | Explicit search and embedded player; not in library or queue | Explicit search and embedded player; not in library or queue |
+| Online lyrics                  | Optional lookup    | Optional lookup       | Optional lookup                                              | Explicit LRCLIB lookup; local enhanced LRC words             |
+| Online catalogue metadata      | Yes                | Not yet               | Not yet                                                      | Explicit iTunes search and apply                             |
+| Web-compatible device linking  | Yes                | Not yet in native app | Not yet in native app                                        | Not yet                                                      |
+| Fix Volume                     | Yes                | Not yet               | Not yet                                                      | Not yet                                                      |
+| Web backup import/export       | Yes, empty restore | Not yet               | Not yet                                                      | Not yet                                                      |
+| Listening card share, no audio | Not yet            | Not yet               | Implemented                                                  | Implemented                                                  |
+
+Native builds and features still require real-device testing. The iOS source remains unsigned. iOS Daily Mix has a detail list, play/shuffle and save-as-playlist; its algorithm remains simpler than the web engine.
+See the iOS README for its exact current scope. The table below describes the earlier 0.2.2
+web/Windows/Android baseline and is retained for its detailed historical comparisons.
+
+## 0.2.2 baseline
 
 **Release 0.2.2, prepared 16 November 2026.** Wave has three independent implementations, not WebView/Electron wrappers. The web client is the most complete; Windows 11 follows its structure with native C#/WPF controls, while Android uses Kotlin/Compose. Libraries are separate and never synchronized or silently migrated.
 
@@ -32,8 +55,7 @@ The rows marked "Not yet" are the honest remainder: they need an embedded player
 WebView, or a signed release asset, and none of them is started. Device linking is the one row that is half
 done rather than not started — the whole of it exists in the web client, and a phone or a desktop reached
 through that client pairs like any other device; what the installed builds lack is the transport inside
-them. Everything above those rows exists on all three platforms; where the wording differs, it is the
-platform's own control for the same job, not a missing feature.
+them. This historical table is not a parity claim: consult the current matrix above and the native sections below for present limitations.
 
 ## Browser and Cloudflare
 
@@ -51,7 +73,7 @@ The Worker entry is `src/worker/index.ts`. Static assets use the `ASSETS` bindin
 
 ## Windows
 
-For development you need Windows and the .NET 10 SDK. To _use_ it you need neither: the release deliverable is a single signed self-contained **`Wave.exe`**. Download it and open it directly — no ZIP, no loose DLLs, no installer, no elevation.
+For development you need Windows and the .NET 10 SDK. To _use_ it you need neither: the intended new release deliverable is a single unsigned self-contained **`Wave.exe`**. Once published, download it and open it directly — no ZIP, no loose DLLs, no installer, no elevation.
 
 ```powershell
 dotnet run --project platforms/windows/Wave.Contracts.Tests -c Release
@@ -66,18 +88,74 @@ Home has collection shortcuts, daily mixes and album cards; the listening recap 
 
 CI runs a dependency-free contract runner, compiles/publishes the application and executes an isolated WPF smoke mode that exercises Home, Search, daily mixes, saved playlists, Remix, six Settings sections and narrow light-theme layout. It captures PNGs in `wave-windows-ui-smoke`, and a push publishes them as `docs/media/windows-*.png`; this is not a physical-device or codec/playback matrix. The fixture library is temporary and does not touch a real user library.
 
-Metadata reading remains limited to ID3/WAV. New MP3 imports can extract bounded ID3 APIC JPEG/PNG artwork; folder images named cover, folder or front are used when embedded art is unavailable, including for older linked tracks. Other embedded formats, the site's search kind tabs and recent searches, artist photos, album ordering, word-stamped LRC, waveform analysis and system media integration are not complete. YouTube songs, video clips and device linking are web-only, as they are on the phone: the pairing
+Metadata reading remains limited to ID3/WAV. New MP3 imports can extract bounded ID3 APIC JPEG/PNG artwork; folder images named cover, folder or front are used when embedded art is unavailable, including for older linked tracks. Other embedded formats, the site's search kind tabs and recent searches, artist photos, album ordering, word-stamped LRC, waveform analysis and system media integration are not complete. YouTube library integration, video clips and device linking are web-only: the pairing
 exchange is specified in [`PAIRING.md`](PAIRING.md) so that a native client can implement the same
 one instead of a second, incompatible one. OS codecs govern playback. Do not call this complete web parity.
 
-See [WINDOWS_RELEASE](WINDOWS_RELEASE.md) for single-file packaging, Authenticode signing and Defender scanning. Upstream notices live in the repository (`THIRD_PARTY_NOTICES.md` and `platforms/windows/`) rather than cluttering the user's download folder beside `Wave.exe`.
+See [WINDOWS_RELEASE](WINDOWS_RELEASE.md) for unsigned single-file packaging and Defender scanning. Windows may show a security warning for an unsigned executable. Upstream notices live in the repository (`THIRD_PARTY_NOTICES.md` and `platforms/windows/`) rather than cluttering the user's download folder beside `Wave.exe`.
 
 ## iOS
 
-Not shipped yet, and deliberately not promised for a date: the iPhone and iPad app arrives shortly
-after the Android one. It will be the same interface as the mobile website, with the system pieces —
-media session, lock screen, share sheet — done natively, exactly as the Android build does. Until
-then, Safari's **Add to Home Screen** gives a full-screen Wave that behaves like an app.
+A SwiftUI app for iPhone and iPad now lives in [`platforms/ios`](../platforms/ios/README.md). It
+deploys to iOS 17, compiles against the iOS 26 SDK in Xcode 26, opens with `Wave.xcodeproj` and
+builds for the simulator without a signing team. It is **source-only for now**: no signing identity,
+no `.ipa` in the Release assets and no App Store
+upload. Safari's **Add to Home Screen** remains the installed web option.
+
+The native client imports local audio and LRC files, reads tags and embedded artwork with
+AVFoundation, and keeps the library, playlists and 366-day history in atomically written JSON.
+Home, Library, Search, a queue, Now Playing, favorites, shuffle, repeat and local AutoPlay are
+SwiftUI screens. Playback uses two `AVAudioPlayer` decks. Mix overlaps the end of the
+outgoing recording with the beginning of the next and fades both continuously. The planner can
+still analyse tempo and lyrics, but automatic playback no longer skips estimated intros or cuts an
+estimated ending early. Nothing is time-stretched or rewritten. This change needs real-device audio
+validation, and a file that cannot be prepared may still leave a gap. The `Native builds` workflow also publishes real iOS screenshots from the running SwiftUI
+app on a simulator, alongside the Android and Windows captures; it publishes no distribution build.
+
+An `AVAudioSession` with the `audio` background mode keeps music playing with the screen off.
+`MPNowPlayingInfoCenter` and `MPRemoteCommandCenter` publish artwork, title, artist, album and the
+playback clock to the lock screen, Control Center, headphones and CarPlay, and accept Play, Pause,
+Previous, Next and seek there. Automatic `lite`, `balanced` and `full` profiles reduce decorative
+motion and list/analysis budgets on modest devices without adding a visible Settings control.
+`npm run build:i18n` generates `Wave/es.lproj/Localizable.strings` from the same `i18n/es.json` as
+the other clients. iOS can make explicit, disclosed requests to LRCLIB and iTunes, and can search YouTube through the Wave Worker. No account, analytics or audio upload is involved.
+
+System presence follows Android's idea, with iOS frameworks: WidgetKit home/lock-screen widgets,
+ActivityKit Live Activities with Dynamic Island and a `.small` CarPlay/watch family, App Intents
+and `AppShortcutsProvider` for Siri, Shortcuts, Spotlight and the Action button, an iOS 18
+`ControlWidget`, background audio, Now Playing, interruption and headset-route handling,
+CarPlay remote commands, Handoff with `NSUserActivity`, `wave://` deep links and the system Share
+sheet. `WaveSystemCenter` joins those surfaces to the same `WaveState`; the widget extension is
+source-only and unsigned, with no entitlements or capability file.
+
+**Liquid Glass is iOS-only.** `Wave/App/Views/LiquidGlass.swift` uses the real SwiftUI
+`GlassEffectContainer` and `.glassEffect(.regular, in:)` behind `#available(iOS 26, *)`, keeps a
+`.ultraThinMaterial` fallback for iOS 17–25, respects Reduce Transparency, groups controls so glass
+never samples glass, and applies `.buttonStyle(.glass)` to grouped buttons. Web CSS, Android and
+Windows are deliberately untouched. `WaveLayout` fills the whole safe width from 320 points to 4K,
+`WaveRecap` builds Weekly/Monthly/Yearly Remix from local history, and `ImmersiveIdleView` replaces
+the controls after thirty quiet seconds; all three live in the pure `WaveCore` package or the iOS
+app, never in another client.
+
+The logical core is also a dependency-free Swift package, so its LRC, search, library, Mix and
+performance contracts run as XCTest on a Mac without a simulator:
+
+```sh
+swift test --package-path platforms/ios
+xcodebuild -project platforms/ios/Wave.xcodeproj \
+  -scheme Wave \
+  -destination 'generic/platform=iOS Simulator' \
+  -derivedDataPath /tmp/WaveDerivedData \
+  CODE_SIGNING_ALLOWED=NO build
+```
+
+The `ios` job in `.github/workflows/ci.yml` selects Xcode 26 on `macos-26`, then runs those
+commands plus `node --test scripts/ios-release.test.mjs`. It neither signs nor publishes an app.
+iOS Daily Mix selections are local and simpler than the web mood engine. YouTube plays in the official
+embedded player but is not yet integrated with the native library or queue. Native device linking,
+video clips and waveform/beat analysis are not in this client. A real-device playback/accessibility/performance pass is still required
+before any signed distribution. See the [iOS README](../platforms/ios/README.md) for the complete
+build and scope notes.
 
 ## Android
 
@@ -93,7 +171,7 @@ The web client does not promote Android on Home and no longer opens an automatic
 
 The current source smooths tab indicator/tint changes, reduces button spring overshoot, reveals decoded artwork briefly, raises inactive lyric contrast and eases line focus. Lyric auto-follow pauses around a manual drag; the Now Playing slider previews position locally and performs one seek when released instead of repeated decoder seeks during the gesture. These are native-source changes, not a claim of device-verified performance or fresh Android screenshots. Compose animations follow the system animator duration scale.
 
-Android reads embedded artwork off the main thread and can also use MediaStore album artwork when available. The phone build is native, but its visual target is the mobile website rather than a different phone design. Its inset page, four-item dock, header actions, Home shortcuts, daily mixes, Remix and player have been brought closer to the web. `ui/Theme.kt` contains the palette and type; `ui/WaveChrome.kt` and `ui/WaveIcons.kt` contain the shared shell and the same line-art icons; `ui/Screens.kt` contains the pages; and `ui/WaveState.kt` connects them to the native library and player. Pickers, notifications and media-session controls remain Android features. Search carries the site's five kind tabs — All, Songs, Artists, Albums, Playlists — the artists, albums and playlists it finds, each opening its own collection, and the phrases searched lately, kept between launches and clearable in one tap. Both natives lay themselves out for the window they are in rather than for one reference size: the phone's Now Playing is two panes from 600 dp and one column below it, and the Windows rail turns into a column of icons under a thousand pixels of width. The icons are the web's own drawings: `WaveIcons.kt` and `App.xaml` carry the path data `Glyphs.tsx` produces, so the three clients draw one hand. This is not yet a claim of pixel-identical parity or a substitute for a device pass: YouTube songs, clip playback, device linking (and the Devices section of Settings that holds it) and the web's interpolated lyric fill are still web-only. Android highlights explicit enhanced-LRC word timestamps and falls back to synchronized lines when only line timings are available.
+Android reads embedded artwork off the main thread and can also use MediaStore album artwork when available. The phone build is native, but its visual target is the mobile website rather than a different phone design. Its inset page, four-item dock, header actions, Home shortcuts, daily mixes, Remix and player have been brought closer to the web. `ui/Theme.kt` contains the palette and type; `ui/WaveChrome.kt` and `ui/WaveIcons.kt` contain the shared shell and the same line-art icons; `ui/Screens.kt` contains the pages; and `ui/WaveState.kt` connects them to the native library and player. Pickers, notifications and media-session controls remain Android features. Search carries the site's five kind tabs — All, Songs, Artists, Albums, Playlists — the artists, albums and playlists it finds, each opening its own collection, and the phrases searched lately, kept between launches and clearable in one tap. Both natives lay themselves out for the window they are in rather than for one reference size: the phone's Now Playing is two panes from 600 dp and one column below it, and the Windows rail turns into a column of icons under a thousand pixels of width. The icons are the web's own drawings: `WaveIcons.kt` and `App.xaml` carry the path data `Glyphs.tsx` produces, so the three clients draw one hand. This is not yet a claim of pixel-identical parity or a substitute for a device pass: YouTube library/queue integration, clip playback, device linking (and the Devices section of Settings that holds it) and the web's interpolated lyric fill are still web-only. Android Search can explicitly search YouTube or open a video link in an official embed, separate from the native queue; it pauses local audio and closes the embed when the app backgrounds. Android highlights explicit enhanced-LRC word timestamps and falls back to synchronized lines when only line timings are available.
 
 Playback is `PlaybackService`, a media playback foreground service holding a `MediaSessionCompat`. That one thing is what puts the song on the lock screen, in the shade and in a car, what lets a headset pause it, and what survives the screen going off. The session also holds audio focus: a call or a navigation prompt pauses the music and, unless the listener paused it themselves, it comes back afterwards. Headphones out stops playback. Rotation and theme changes do not restart anything, because the activity declares the configuration changes it handles.
 

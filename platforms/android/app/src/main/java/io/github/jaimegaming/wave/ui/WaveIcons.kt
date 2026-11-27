@@ -17,11 +17,11 @@ import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-/*
- * The same line drawings the web client uses, on the same 24-unit grid, so the
- * phone draws Wave's own hand rather than a second, borrowed one. Kept as path
- * data rather than a font: a glyph from a font is whatever the device ships.
- */
+
+
+
+
+
 private val iconPaths = mapOf(
     "home" to listOf("M3.3 10.7C6 8.1 9 5.5 11.2 4a1.5 1.5 0 0 1 1.7 0c2.2 1.5 5.2 4.1 7.9 6.7", "M5.5 12.4v6.1a1.7 1.7 0 0 0 1.7 1.7h9.6a1.7 1.7 0 0 0 1.7-1.7v-6.1", "M9.7 20.1v-4a2.3 2.3 0 0 1 4.6 0v4"),
     "search" to listOf("M10.6 3.9a6.7 6.7 0 1 1-4.7 2a6.6 6.6 0 0 1 4.7-2", "M15.5 15.3l.9.9 4 3.9"),
@@ -42,6 +42,7 @@ private val iconPaths = mapOf(
     "more" to listOf("M12 6.2h.01", "M12 12h.01", "M12 17.8h.01"),
     "collapse" to listOf("M6.3 9.5 12 15.2l5.7-5.7"),
     "edit" to listOf("M4.9 19.1l.8-4L15.4 5.4a2 2 0 0 1 2.8 0l.5.5a2 2 0 0 1 0 2.8L8.9 18.3l-4 .8Z", "M13.9 7.1l3 3"),
+    "share" to listOf("M12 15V3", "M7.5 7.5 12 3l4.5 4.5", "M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"),
     "volume" to listOf("M11 5 6 9H3v6h3l5 4Z", "M15 8a6 6 0 0 1 0 8", "M18 5a10 10 0 0 1 0 14"),
     "mute" to listOf("M11 5 6 9H3v6h3l5 4Z", "M16 9l5 6", "M21 9l-5 6"),
     "shuffle" to listOf("M4 6.9h2.5c1.4 0 2.7.7 3.5 1.9l3.9 6.4c.8 1.2 2.1 1.9 3.5 1.9H20", "M4 17.1h2.5c1.4 0 2.7-.7 3.5-1.9l3.9-6.4c.8-1.2 2.1-1.9 3.5-1.9H20", "M17.7 4.6 20.2 6.9l-2.5 2.3", "M17.7 14.8 20.2 17.1l-2.5 2.3"),
@@ -55,14 +56,14 @@ private val iconPaths = mapOf(
     "chevron" to listOf("M9.5 5.9 15.6 12l-6.1 6.1"),
 )
 
-/** The same line icons as the mobile website, without depending on a font. */
+
 @Composable
 fun WaveIcon(name: String, size: Dp = 22.dp, tint: Color = MaterialTheme.colorScheme.onSurface) {
     val paths = remember(name) {
         iconPaths[name].orEmpty().map { PathParser().parsePathString(it).toPath() }
     }
-    // The pause bars are two capsules rather than two outlined boxes: at 20 dp an
-    // outlined bar is a smudge with a hole in it, so they are drawn heavier.
+
+
     val weight = if (name == "pause") 2.6f else 1.8f
     Canvas(Modifier.size(size)) {
         scale(this.size.width / 24f, this.size.height / 24f, pivot = Offset.Zero) {
@@ -71,10 +72,10 @@ fun WaveIcon(name: String, size: Dp = 22.dp, tint: Color = MaterialTheme.colorSc
     }
 }
 
-/**
- * Animated Shuffle glyph whose crossed cubic Bezier ribbons smoothly separate
- * into two straight parallel paths (`separation = 1f`) and glide back together.
- */
+
+
+
+
 @Composable
 fun WaveShuffleIcon(
     separation: Float,

@@ -1,8 +1,3 @@
-/* The expanded player owns its layout; transport and record do not inherit legacy grids. */
-/*
- * The expanded player grows out of the bar and collapses back into it, so its
- * origin is the bottom of the screen, where the compact player lives.
- */
 .player-modal {
   transform-origin: 50% 100%;
   will-change: transform, opacity;
@@ -19,8 +14,7 @@
   max-width: none;
   max-height: none;
   margin: 0;
-  /* A dialog carries a hairline border of its own; left in place it insets the
-     picture by a pixel on every side and draws a seam where the room begins. */
+
   border: 0;
   border-radius: 0;
   display: flex;
@@ -100,12 +94,7 @@
   isolation: isolate;
   transform: translateZ(0);
 }
-/*
- * When a clip is playing, the picture is the stage. The sleeve steps back to a
- * small reference in the corner instead of a square of album art in the middle
- * of the video, and it comes back the moment the picture is paused or hidden.
- * Sizes are capped so the layout never gains a scrollbar because of it.
- */
+
 .stage-cover {
   transition:
     width 0.4s cubic-bezier(0.32, 0, 0.24, 1),
@@ -127,25 +116,17 @@
   height: 100%;
   aspect-ratio: 1;
 }
-/* The stage already bounds its square; legacy thumbnail caps must not shrink Mix. */
+
 .stage-cover .mix-artwork {
   max-width: none;
 }
-/*
- * A mix is drawn in two moves, because it is heard in two moves: the new cover
- * settles in while it is arriving, and the old one only steps back once both
- * songs are already playing together. Every value is one progress number, so the
- * sleeve and the sound stay on the same clock.
- */
+
 .mix-artwork {
   position: relative;
   display: block;
   width: 100%;
   height: 100%;
-  /* The layers are absolute, so the frame needs a floor of its own: in the
-     compact bar the parent is sized by its content, which would otherwise be
-     nothing at all. It has to stay smaller than the smallest cover Wave draws
-     (40 px), or a mix would push the bar apart. */
+
   min-width: 34px;
   min-height: 34px;
   aspect-ratio: 1;
@@ -165,8 +146,6 @@
   border-radius: inherit;
 }
 .mix-outgoing {
-  /* Steps aside rather than dissolving: it drifts up and a little to the left as
-     it loses colour, the way a record is lifted off a deck. */
   opacity: calc(1 - var(--mix-leave, 0));
   transform: scale(calc(1 - var(--mix-leave, 0) * 0.05))
     translate(calc(var(--mix-leave, 0) * -1.2%), calc(var(--mix-leave, 0) * -1.6%))
@@ -175,20 +154,12 @@
     brightness(calc(1 - var(--mix-leave, 0) * 0.22));
 }
 .mix-incoming {
-  /* Invisible until it is the new record arriving: no double exposure. It settles
-     in from slightly large, from slightly low, and from a degree off upright, so
-     it reads as being set down rather than faded in. */
   opacity: var(--mix-arrive, 0);
   transform: scale(calc(1.055 - var(--mix-arrive, 0) * 0.055))
     translateY(calc((1 - var(--mix-arrive, 0)) * 1.4%))
     rotate(calc((1 - var(--mix-arrive, 0)) * -1.4deg));
 }
-/*
- * The moment both records are at the same level — the middle of the overlap —
- * the sleeve gathers a little warmth: a soft light behind it, brightest at the
- * true halfway point and gone by either end. It is the only ornament, and it is
- * driven by the same progress number as the sound.
- */
+
 .mix-artwork::after {
   content: '';
   position: absolute;
@@ -203,11 +174,11 @@
   mix-blend-mode: soft-light;
   opacity: calc(var(--mix-peak, 0) * 0.85);
 }
-/* The soft focus is a stage gesture; at 48 px it would only look like mush. */
+
 .stage-cover .mix-incoming {
   filter: blur(calc((1 - var(--mix-arrive, 0)) * 10px));
 }
-/* One band of light crossing the sleeve while the two songs meet. */
+
 .mix-seam {
   position: absolute;
   inset: 0;
@@ -397,7 +368,7 @@
   width: 100%;
   height: 100%;
 }
-/* Exact-size SVG, fixed wave period and an unclipped thumb. The native range owns input. */
+
 .wave-seek {
   grid-area: 1/1/2/-1;
   position: relative;
@@ -576,7 +547,7 @@
   box-shadow: 0 8px 24px #0002;
   z-index: 3;
 }
-/* Tonal light is above the modal paint, below every interactive surface. */
+
 .player-modal::before {
   display: none;
 }
@@ -874,31 +845,17 @@
   }
 }
 
-/* Video clip backdrop: fills the expanded player, muted, with Wave's own chrome. */
-/*
- * The clip, edge to edge.
- *
- * A backdrop has one job: fill the screen without black bars and without the
- * provider's interface. The frame is sized from its own container (not from the
- * viewport, which is what made it overhang on phones and letterbox on very wide
- * windows) and then zoomed a little, so the player's title bar, its channel
- * badge and the logo in the corner all fall outside the visible area. Nothing of
- * YouTube's chrome is left on top of the picture, and nothing is left to click.
- */
 .video-backdrop {
   position: absolute;
   inset: 0;
   z-index: -1;
   overflow: hidden;
-  /* The player's own floor, not a near-black slab: while nothing is painting —
-     a slow embed, a clip that never arrives — there must not be a rectangle
-     darker than the room around it. */
+
   background: var(--background);
   background: var(--player-bg, var(--background));
   container-type: size;
 }
-/* The picture is decoration and never a control surface: no hover, no click, no
-   focus, so the embed cannot raise any of its own interface over Wave's. */
+
 .video-backdrop,
 .video-backdrop--source,
 .video-backdrop iframe {
@@ -910,20 +867,18 @@
   position: absolute;
   top: 50%;
   left: 50%;
-  /* 16:9 that covers the container in either direction. */
+
   width: max(100cqw, 177.78cqh);
   height: max(56.25cqw, 100cqh);
   max-width: none;
   max-height: none;
   border: 0;
-  /* Barely more than the frame: the picture keeps almost all of itself, and the
-     edges it loses are the ones the veil covers anyway. A heavy crop was what
-     made a wide video look cut off and soft. */
+
   transform: translate(-50%, -50%) scale(1.12);
   transform-origin: center;
   pointer-events: none;
   border-radius: 0;
-  /* Hidden until the player reports it is really playing: see `.is-revealed`. */
+
   opacity: 0;
   filter: saturate(1.05) brightness(1) contrast(1.02);
   transition:
@@ -931,7 +886,7 @@
     filter 0.6s ease,
     transform 0.6s ease;
 }
-/* Older engines without container units: the viewport is the next best ruler. */
+
 @supports not (width: 1cqw) {
   .video-backdrop-frame {
     width: 100vw;
@@ -943,14 +898,7 @@
 .video-backdrop.is-revealed .video-backdrop-frame {
   opacity: 1;
 }
-/*
- * The picture is never a control surface.
- *
- * An embed left to itself answers a click or a hover with its own title bar, a
- * share button and a "Watch on YouTube" label. None of it can be reached here:
- * the frame takes no pointer, no hover and no focus, so the only way to play,
- * pause or seek is Wave's own transport.
- */
+
 .video-backdrop,
 .video-backdrop--source,
 .video-backdrop iframe,
@@ -959,16 +907,8 @@
   user-select: none;
   -webkit-user-select: none;
 }
-/*
- * A paused song pauses the picture, and YouTube answers a pause with its own
- * overlay: a play button, the title and a "watch on YouTube" button. Rather than
- * show that, the picture softens into a still, blurred wash until the music
- * comes back.
- */
+
 .video-backdrop.is-paused .video-backdrop-frame {
-  /* Blurred, not merely dimmed: a paused embed draws its own play button and a
-     "watch on YouTube" label, and a still is the only way to show the frame
-     without showing YouTube's interface over Wave's. */
   filter: brightness(0.5) saturate(0.85) blur(10px);
   transform: translate(-50%, -50%) scale(1.04);
 }
@@ -977,11 +917,7 @@
     transition: opacity 0.2s linear;
   }
 }
-/*
- * Edges closed off: the top band is where the player draws its title, the bottom
- * corner is where it draws its logo, and both are covered by the picture losing
- * itself into the interface. The middle stays untouched.
- */
+
 .video-backdrop-veil {
   position: absolute;
   inset: 0;
@@ -999,11 +935,6 @@
   pointer-events: none;
 }
 
-/*
- * Clip search: while there is no video the player shows one quiet line instead of
- * a dark sheet. It sits in the content layer, under the heading, and only the
- * retry inside it takes clicks.
- */
 .clip-note {
   position: absolute;
   bottom: 96px;
@@ -1061,7 +992,6 @@
   }
 }
 
-/* Add music: choosing a source ------------------------------------------------ */
 .add-music-modal {
   max-width: 560px;
 }
@@ -1151,7 +1081,6 @@
   line-height: 1.5;
 }
 
-/* YouTube songs: the video is the source, so the veil stays light ------------ */
 .video-backdrop--source .video-backdrop-veil {
   background: linear-gradient(
     180deg,
@@ -1160,7 +1089,7 @@
     rgba(0, 0, 0, 0.55) 100%
   );
 }
-/* A YouTube song is the picture itself: shown at once, never cropped. */
+
 .video-backdrop--source .video-backdrop-frame {
   pointer-events: none;
   opacity: 1;
@@ -1168,9 +1097,6 @@
   filter: none;
 }
 
-/* A YouTube song playing while Now Playing is collapsed.
- * Kept at a valid 240x200 viewport with tiny opacity so Chromium/YouTube never
- * suspends playback for being 1x1 or hidden. */
 .video-backdrop.youtube-silent {
   position: fixed;
   width: 240px;
@@ -1191,7 +1117,6 @@
   display: none;
 }
 
-/* Offline YouTube tracks are visibly greyed out and clearly marked unavailable. */
 .is-offline-track {
   opacity: 0.44;
   filter: grayscale(0.75);
@@ -1216,7 +1141,6 @@
   vertical-align: middle;
 }
 
-/* Add music: where the song comes from, in one line. */
 .add-music-note {
   margin: 10px 0 0;
   color: var(--muted);
@@ -1224,14 +1148,6 @@
   line-height: 1.5;
 }
 
-/*
- * Lyric reader.
- *
- * The list scrolls under a soft fade at both edges and the line being sung sits
- * in the middle of it, so the song reads as a page of text instead of a frame
- * that shows one line at a time. This is the reader Wave had in 0.1.0, with
- * larger type: a lyric you cannot read from a sofa is not a lyric view.
- */
 .lyric-line {
   font-size: clamp(24px, 2.5vw, 36px);
   line-height: 1.34;
@@ -1244,8 +1160,7 @@
   overflow-x: hidden;
   overscroll-behavior: contain;
   scrollbar-width: thin;
-  /* Room above the first line and below the last, so the sung line can always
-     reach the middle of the reader. */
+
   padding-block: clamp(56px, 22vh, 200px);
   scroll-padding-block: 40%;
   mask-image: linear-gradient(transparent, #000 14%, #000 86%, transparent);
@@ -1279,8 +1194,7 @@
 }
 .lyrics-cinematic .lyrics-scroll {
   gap: 0;
-  /* The lyrics page scrolls with the song instead of stopping on the first
-     verse. */
+
   flex: 1;
   min-height: 0;
   max-height: none;
@@ -1321,13 +1235,6 @@
   }
 }
 
-/*
- * The announcement.
- *
- * The playing cover, breathing: a very slow push in, a slight dim and a band of
- * light crossing it. No split, no second sleeve, no ring — those read as a
- * glitch next to the word, and the word is what does the announcing.
- */
 .mix-cue {
   position: relative;
   display: block;
@@ -1364,31 +1271,19 @@
 }
 .mix-cue-label {
   display: inline-block;
-  /* Quiet on purpose: a note in the margin, not an announcement. */
+
   color: var(--muted, #9aa2b1);
   line-height: 1;
   white-space: nowrap;
 }
-/*
- * The light travels across the word.
- *
- * One highlight crosses "MIXING" from left to right and rests, then goes round
- * again: the sweep is a single gradient over the whole word, so the letters are
- * lit in passing rather than each on a timer of its own. The word is uppercase
- * with wide tracking, which is what makes a passing light read as a sign.
- */
+
 .mix-cue-word {
   display: inline-block;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  /*
-   * Plain colours only. A `color-mix()` stop that an older browser cannot parse
-   * invalidates the whole gradient, and a gradient that is missing while the
-   * letters are transparent means no word at all — which is worse than a flat
-   * one. The highlight is the interface's own text colour.
-   */
+
   background-image: linear-gradient(
     100deg,
     currentColor 0%,
@@ -1404,7 +1299,7 @@
   background-repeat: no-repeat;
   animation: mix-cue-shimmer 4.4s cubic-bezier(0.4, 0, 0.3, 1) infinite;
 }
-/* Only clip to the letters where clipping to letters exists. */
+
 @supports (-webkit-background-clip: text) or (background-clip: text) {
   .mix-cue-word {
     -webkit-background-clip: text;
@@ -1429,14 +1324,7 @@
     -webkit-text-fill-color: currentColor;
   }
 }
-/*
- * The space the cue occupies is part of the transition.
- *
- * The label is pulled in from below while its own box grows from nothing, so
- * the artist line above it is pushed down gently instead of jumping the moment
- * a blend is announced. The gap lives inside the animated box for the same
- * reason: a margin would stay behind after the height had gone.
- */
+
 .stage-cue {
   overflow: hidden;
 }
@@ -1444,22 +1332,12 @@
   display: block;
   margin-top: 10px;
 }
-/* On the stage there is room for the word to be read, not just noticed. */
+
 .stage-cue .mix-cue-word {
   font-size: 12px;
   letter-spacing: 0.16em;
 }
 
-/*
- * Finishing passes on the listening screen.
- *
- * The composition is unchanged — cover and words on the left and right, the
- * transport in one quiet card at the bottom, the way a good player has always
- * looked. What is added is the last five per cent: a softer floor under the
- * cover, a play button that reads as a physical key rather than a coloured
- * rectangle, a sung lyric that lifts off the page instead of merely changing
- * colour, and transitions that settle instead of snapping.
- */
 .stage-cover {
   box-shadow:
     0 2px 6px #0002,
@@ -1533,8 +1411,6 @@
   }
 }
 
-/* Migration sheet: one paste field, then an honest preview before anything is
-   written. Rows are dense on purpose — a list of a hundred songs is not a form. */
 .migration-sheet {
   max-width: 560px;
 }
@@ -1679,13 +1555,6 @@
   max-width: 40ch;
 }
 
-/*
- * The silence question.
- *
- * It sits above the player bar, left aligned with it, and is never wider than a
- * sentence. It does not cover the bar, it does not push it, and it leaves as
- * soon as it is answered.
- */
 .silence-notice {
   position: fixed;
   left: calc(var(--rail-width, 0px) + 16px);
@@ -1707,10 +1576,7 @@
   max-width: 520px;
   margin-left: auto;
 }
-/*
- * Over the open player it sits above the transport, not above the bar: the same
- * notice, in the view the listener is actually looking at.
- */
+
 .silence-notice--stage {
   bottom: calc(env(safe-area-inset-bottom) + 104px);
   z-index: 45;
@@ -1753,12 +1619,6 @@
   }
 }
 
-/*
- * The break card.
- *
- * Dimming the whole page would suggest something has gone wrong. This floats a
- * small card over it instead, low on the screen where the eye already is.
- */
 .break-overlay {
   position: fixed;
   inset: 0;
@@ -1808,21 +1668,6 @@
   }
 }
 
-/*
- * With a clip playing, the picture is the room, and everything Wave draws sits
- * on top of it.
- *
- * The sleeve and the song's text are a panel in the top-left corner of the
- * picture; the words of the song are a panel in the bottom-right corner; the
- * transport runs along the foot, over the picture. It is the same three things
- * the player shows without a clip, laid over the video instead of beside it, so
- * nothing is left in a column of its own and the middle of the frame stays with
- * the video.
- *
- * Every selector names the layout as well as the player: the rules for a closed
- * lyric reader further up match this view too, and without the full name they
- * pull the record, the words and the transport into one cell.
- */
 .player-normal-view.clip-live .stage-layout,
 .player-normal-view.clip-live .stage-layout:has(.stage-lyrics[data-open='false']) {
   position: relative;
@@ -1831,12 +1676,11 @@
   align-items: stretch;
   gap: 0;
 }
-/* No shelf and no panel: the picture is already the surface. */
+
 .player-normal-view.clip-live .stage-layout::before {
   display: none;
 }
 
-/* The record, in the top-left corner of the picture. */
 .player-normal-view.clip-live .stage-layout .stage-record {
   grid-area: 1 / 1 / 2 / 2;
   align-self: start;
@@ -1849,11 +1693,7 @@
   padding: 4px 0 0;
   text-align: left;
 }
-/*
- * The sleeve is sized in pixels, not as a percentage of a column that is itself
- * sized by its contents: a percentage there can resolve against a width of
- * almost nothing, which is how the cover ends up invisible.
- */
+
 .player-normal-view.clip-live .stage-layout .stage-cover {
   order: 0;
   width: clamp(112px, 18vh, 168px);
@@ -1888,7 +1728,7 @@
   overflow-wrap: anywhere;
   text-shadow: 0 1px 18px rgb(0 0 0 / 62%);
 }
-/* Artist and album on one line, the way a sleeve prints them. */
+
 .player-normal-view.clip-live .stage-layout .stage-metadata {
   flex-direction: row;
   flex-wrap: wrap;
@@ -1919,7 +1759,6 @@
   margin-top: 4px;
 }
 
-/* The words, in the bottom-right corner of the picture. */
 .player-normal-view.clip-live .stage-layout .stage-lyrics {
   grid-area: 1 / 1 / 2 / 2;
   align-self: end;
@@ -1945,7 +1784,7 @@
 .player-normal-view.clip-live .stage-layout .stage-lyrics-toggle svg:last-child {
   margin-left: auto;
 }
-/* Closed, the toggle keeps the corner and nothing else moves. */
+
 .player-normal-view.clip-live .stage-layout:has(.stage-lyrics[data-open='false']) .stage-lyrics {
   align-self: end;
   justify-self: end;
@@ -1955,7 +1794,6 @@
   z-index: 0;
 }
 
-/* The transport: one compact bar at the foot, over the picture. */
 .player-normal-view.clip-live .stage-layout .stage-controls {
   grid-area: 2 / 1 / 3 / -1;
   width: 100%;
@@ -1969,8 +1807,7 @@
 .player-normal-view.clip-live .stage-layout .stage-transport {
   padding: 6px 16px 8px;
   border-radius: 24px;
-  /* Glass, not a slab: a light scrim that lets the picture through, so the
-     transport reads as part of the frame instead of a dark box on top of it. */
+
   background: rgb(255 255 255 / 9%);
   background: color-mix(in srgb, var(--text) 8%, transparent);
   backdrop-filter: blur(26px) saturate(1.2);
@@ -1995,26 +1832,9 @@
   transform-origin: right center;
 }
 
-/*
- * The picture takes the whole player.
- *
- * The backdrop is absolutely positioned inside the dialog, which means its box is
- * the dialog's *padding* box: any padding at all leaves a frame of the app around
- * the video, and a frame around a picture reads as one square that is darker than
- * the room. So the modal gives its padding up while a clip is live, the heading
- * and the stage carry their own, and the video runs to all four edges.
- */
 .player-modal:has(.clip-live) {
   padding: 0;
-  /*
-   * The picture is a dark room, whatever the app is wearing.
-   *
-   * A video cannot be recoloured, so a light theme around one can only frame
-   * it: a pale floor with a dark rectangle in the middle of it. While a clip is
-   * live the player keeps its own floor, ink and containers, and the picture
-   * runs into all of them, which is why the floor is a shade darker than the
-   * picture's own edges rather than a colour of its own.
-   */
+
   color-scheme: dark;
   --background: hsl(var(--wave-hue) 18% 7%);
   --surface: hsl(var(--wave-hue) 18% 10%);
@@ -2044,7 +1864,6 @@
   font-size: 17px;
 }
 
-/* Medium windows: the same corners, a little tighter. */
 @media (max-width: 1180px) {
   .player-normal-view.clip-live .stage-layout .stage-record {
     width: min(52%, 320px);
@@ -2064,7 +1883,6 @@
   }
 }
 
-/* Short windows: less type, more picture. */
 @media (max-height: 640px) {
   .player-normal-view.clip-live .stage-layout .stage-cover {
     width: clamp(88px, 20vh, 116px);
@@ -2087,11 +1905,6 @@
   }
 }
 
-/*
- * Narrow: the panels stop floating. The record sits under the heading as one row
- * of sleeve and text, the transport keeps the foot, and the words close the
- * column — one column, so nothing can land on anything else.
- */
 @media (max-width: 860px) {
   .player-normal-view.clip-live .stage-layout,
   .player-normal-view.clip-live .stage-layout:has(.stage-lyrics[data-open='false']) {
@@ -2162,22 +1975,13 @@
   }
 }
 
-/*
- * A 16:9 picture on a tall phone screen.
- *
- * Covering the screen with a landscape video in portrait means keeping the middle
- * third and throwing the rest away, which is how a clip ends up looking like a
- * badly framed still. On a phone the video takes a band of its own at the top,
- * whole and uncropped, and the player sits underneath it on the app's background.
- */
 @media (max-width: 760px) and (orientation: portrait) {
   .video-backdrop {
     position: fixed;
     inset: 0 0 auto 0;
     height: 56.25vw;
     border-radius: 0 0 22px 22px;
-    /* The band's own floor, not a slab of near-black: the app is a shade darker
-       than the picture, so the gap under a slow embed is a pause, not a square. */
+
     background: var(--player-bg, var(--background));
   }
   .video-backdrop-frame {
@@ -2190,7 +1994,7 @@
   }
   .video-backdrop.is-paused .video-backdrop-frame {
     filter: brightness(0.5) saturate(0.85) blur(8px);
-    /* A hair of scale keeps the soft edge from showing through the band. */
+
     transform: scale(1.04);
   }
   .video-backdrop-veil {
@@ -2205,11 +2009,7 @@
   .player-normal-view.clip-live {
     margin-top: 56.25vw;
   }
-  /*
-   * Under the band there is no picture left to save room for, so the record sits
-   * straight under it, the transport stays at the bottom where the thumb is, and
-   * the words close the column.
-   */
+
   .player-normal-view.clip-live .stage-layout,
   .player-normal-view.clip-live .stage-layout:has(.stage-lyrics[data-open='false']) {
     grid-template-rows: auto minmax(0, 1fr) auto auto;
@@ -2227,7 +2027,6 @@
   }
 }
 
-/* Keep the sleeve's rounded-square contour and elevation intact throughout Mix. */
 .mix-artwork,
 .mix-cue {
   border-radius: var(--cover-radius, inherit);
@@ -2273,7 +2072,7 @@
 .player-modal.is-idle .stage-lyrics-toggle:not(:focus-visible) {
   pointer-events: none;
 }
-/* Clip lyrics stay readable over bright footage, including the idle stage. */
+
 .player-normal-view.clip-live .stage-layout .stage-lyrics[data-open='true'] {
   --primary: #f2f4ff;
   --muted: #c8cad3;
@@ -2303,7 +2102,6 @@
   }
 }
 
-/* Restore the dedicated 0.1 album/lyrics scene, not faded transport controls. */
 .repeat-symbol {
   display: inline-flex;
 }
@@ -2425,7 +2223,6 @@
   color: #fff;
 }
 
-/* Idle video is the room, with credits at its edge rather than a second cover wall. */
 .immersive-time {
   font-size: 12px;
   font-variant-numeric: tabular-nums;
@@ -2482,7 +2279,11 @@
 .immersive-stage.with-video .immersive-credit p {
   font-size: 13px;
 }
-.immersive-stage.with-video .immersive-credit p:not(.immersive-time) + p:not(.immersive-time) {
+
+.immersive-stage.with-video
+  .immersive-credit
+  p:not(.immersive-time):not(.idle-eyebrow)
+  + p:not(.immersive-time):not(.idle-artist) {
   display: none;
 }
 .immersive-stage.with-video .lyrics-cinematic {
@@ -2559,4 +2360,326 @@
   color: var(--surface);
   font: inherit;
   cursor: pointer;
+}
+
+@media (max-width: 700px) and (orientation: portrait) {
+  .player-normal-view:not(.clip-live) .stage-layout,
+  .player-normal-view:not(.clip-live) .stage-layout:has(.stage-lyrics[data-open='false']) {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+  .player-normal-view:not(.clip-live) .stage-layout .stage-record,
+  .player-normal-view:not(.clip-live)
+    .stage-layout:has(.stage-lyrics[data-open='false'])
+    .stage-record {
+    grid-area: 1 / 1;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 10px;
+    padding: 0;
+  }
+  .player-normal-view:not(.clip-live) .stage-layout .stage-cover,
+  .player-normal-view:not(.clip-live)
+    .stage-layout:has(.stage-lyrics[data-open='false'])
+    .stage-cover {
+    width: min(56vw, 28dvh, 240px);
+    min-width: 0;
+  }
+  .player-normal-view:not(.clip-live) .stage-layout .stage-track,
+  .player-normal-view:not(.clip-live)
+    .stage-layout:has(.stage-lyrics[data-open='false'])
+    .stage-track {
+    width: 100%;
+    flex: 0 0 auto;
+    text-align: center;
+  }
+  .player-normal-view:not(.clip-live) .stage-metadata {
+    align-items: center;
+    margin-top: 4px;
+  }
+  .player-normal-view:not(.clip-live) .stage-layout .stage-lyrics,
+  .player-normal-view:not(.clip-live)
+    .stage-layout:has(.stage-lyrics[data-open='false'])
+    .stage-lyrics {
+    grid-area: 2 / 1;
+    justify-self: stretch;
+    width: auto;
+    padding: 0;
+  }
+  .player-normal-view:not(.clip-live) .stage-layout .stage-controls,
+  .player-normal-view:not(.clip-live)
+    .stage-layout:has(.stage-lyrics[data-open='false'])
+    .stage-controls {
+    grid-area: 3 / 1;
+  }
+  .player-normal-view:not(.clip-live) .stage-transport {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 6px 16px 8px;
+    gap: 0;
+  }
+  .player-normal-view:not(.clip-live) .stage-modes {
+    grid-area: 1 / 1;
+    justify-content: space-between;
+  }
+  .player-normal-view:not(.clip-live) .wave-seek {
+    grid-area: 2 / 1;
+  }
+  .player-normal-view:not(.clip-live) .stage-times {
+    grid-area: 3 / 1;
+  }
+  .player-normal-view:not(.clip-live) .stage-buttons {
+    grid-area: 4 / 1;
+    padding: 4px 0;
+  }
+  .player-normal-view:not(.clip-live) .stage-play {
+    width: 64px;
+    min-width: 64px;
+    height: 64px;
+  }
+  .player-normal-view:not(.clip-live) .stage-volume {
+    grid-area: 5 / 1;
+    justify-self: stretch;
+    width: 100%;
+  }
+}
+
+@media (max-width: 700px) and (orientation: portrait) and (max-height: 650px) {
+  .player-normal-view:not(.clip-live) .stage-layout .stage-cover,
+  .player-normal-view:not(.clip-live)
+    .stage-layout:has(.stage-lyrics[data-open='false'])
+    .stage-cover {
+    width: min(46vw, 19dvh);
+  }
+  .player-normal-view:not(.clip-live) .stage-layout .stage-record {
+    gap: 4px;
+  }
+  .player-normal-view:not(.clip-live) .stage-play {
+    width: 48px;
+    min-width: 48px;
+    height: 48px;
+  }
+}
+
+.player-modal::backdrop {
+  background: transparent;
+}
+.player-modal.player-cover-morphing .stage-cover,
+.player-modal.player-cover-morph-ready[inert] .stage-cover {
+  opacity: 0;
+  pointer-events: none;
+}
+.player-morph-art {
+  position: fixed;
+  z-index: 10;
+  overflow: hidden;
+  pointer-events: none;
+  box-shadow: 0 14px 48px #0003;
+}
+.player-morph-art .artwork {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.player-modal.player-controls-morphing.morph-has-play .stage-play,
+.player-modal.player-controls-morph-ready.morph-has-play[inert] .stage-play,
+.player-modal.player-controls-morphing.morph-has-previous .stage-skip:first-child,
+.player-modal.player-controls-morph-ready.morph-has-previous[inert] .stage-skip:first-child,
+.player-modal.player-controls-morphing.morph-has-next .stage-skip:last-child,
+.player-modal.player-controls-morph-ready.morph-has-next[inert] .stage-skip:last-child {
+  opacity: 0;
+  pointer-events: none;
+}
+.player-morph-control {
+  position: fixed;
+  z-index: 11;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  color: var(--player-ink);
+}
+.player-morph-control--play {
+  border-radius: 35%;
+  background: var(--player-accent);
+  color: var(--player-on-accent);
+}
+.player-modal.player-controls-morphing.morph-has-title .stage-track,
+.player-modal.player-controls-morph-ready.morph-has-title[inert] .stage-track,
+.player-modal.player-controls-morphing.morph-has-seek .stage-transport .wave-seek,
+.player-modal.player-controls-morph-ready.morph-has-seek[inert] .stage-transport .wave-seek {
+  opacity: 0;
+  pointer-events: none;
+}
+.player-morph-control--title {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+  overflow: hidden;
+  line-height: 1.2;
+}
+.player-morph-control--title strong,
+.player-morph-control--title span {
+  display: block;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.player-morph-control--title span {
+  color: var(--player-muted);
+  font-size: 0.72em;
+}
+.player-morph-control--seek {
+  padding: 0 6px;
+}
+.player-morph-control--play svg,
+.player-morph-control--previous svg,
+.player-morph-control--next svg {
+  width: 55%;
+  height: 55%;
+}
+
+.player-modal > .modal-heading,
+.player-modal > .player-normal-view,
+.player-modal > .stage-aura,
+.player-modal > .video-backdrop,
+.player-modal > .silence-notice--stage {
+  transition: opacity 260ms ease;
+}
+.player-modal[inert] > .modal-heading,
+.player-modal[inert] > .player-normal-view,
+.player-modal[inert] > .stage-aura,
+.player-modal[inert] > .video-backdrop,
+.player-modal[inert] > .silence-notice--stage {
+  opacity: 0;
+}
+
+.player-morph-control--seek .wave-seek {
+  width: 100%;
+  height: 100%;
+  min-height: 12px;
+}
+.player-morph-control--seek .wave-seek svg {
+  top: 0;
+  height: 100%;
+}
+
+.stage-lighting-morph {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+.player-modal.player-controls-morphing.morph-has-shuffle .stage-modes button:nth-child(1),
+.player-modal.player-controls-morph-ready.morph-has-shuffle[inert] .stage-modes button:nth-child(1),
+.player-modal.player-controls-morphing.morph-has-repeat .stage-modes button:nth-child(2),
+.player-modal.player-controls-morph-ready.morph-has-repeat[inert] .stage-modes button:nth-child(2),
+.player-modal.player-controls-morphing.morph-has-volume .stage-volume button,
+.player-modal.player-controls-morph-ready.morph-has-volume[inert] .stage-volume button {
+  opacity: 0;
+  pointer-events: none;
+}
+.player-morph-control--shuffle svg,
+.player-morph-control--repeat svg,
+.player-morph-control--volume svg {
+  width: 55%;
+  height: 55%;
+}
+
+@keyframes stage-details-arrive {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion='reduced']) .player-modal[open]:not([inert]) > .player-normal-view,
+  :root:not([data-motion='reduced']) .player-modal[open]:not([inert]) > .modal-heading {
+    animation: stage-details-arrive 320ms ease backwards;
+  }
+}
+
+.player-bar.player-cover-morph-source .compact-cover-open,
+.player-bar.player-controls-morph-source.morph-has-play .mini-play,
+.player-bar.player-controls-morph-source.morph-has-previous .mini-previous,
+.player-bar.player-controls-morph-source.morph-has-next .mini-next,
+.player-bar.player-controls-morph-source.morph-has-title .compact-title-open,
+.player-bar.player-controls-morph-source.morph-has-seek .compact-seek .wave-seek,
+.player-bar.player-controls-morph-source.morph-has-shuffle .compact-modes button:nth-child(1),
+.player-bar.player-controls-morph-source.morph-has-repeat .compact-modes button:nth-child(2),
+.player-bar.player-controls-morph-source.morph-has-volume .compact-volume button {
+  visibility: hidden;
+}
+
+.player-modal.player-cover-morph-ready .stage-cover,
+.player-modal.player-controls-morph-ready .stage-play,
+.player-modal.player-controls-morph-ready .stage-skip,
+.player-modal.player-controls-morph-ready .stage-track,
+.player-modal.player-controls-morph-ready .stage-transport .wave-seek,
+.player-modal.player-controls-morph-ready .stage-modes button,
+.player-modal.player-controls-morph-ready .stage-volume button {
+  transition: opacity 140ms ease-in-out;
+}
+.player-modal.player-cover-morphing .stage-cover,
+.player-modal.player-controls-morphing .stage-play,
+.player-modal.player-controls-morphing .stage-skip,
+.player-modal.player-controls-morphing .stage-track,
+.player-modal.player-controls-morphing .stage-transport .wave-seek,
+.player-modal.player-controls-morphing .stage-modes button,
+.player-modal.player-controls-morphing .stage-volume button {
+  transition: none;
+}
+
+.player-modal.player-cover-morph-ready[inert] .stage-cover,
+.player-modal.player-controls-morph-ready[inert] .stage-play,
+.player-modal.player-controls-morph-ready[inert] .stage-skip,
+.player-modal.player-controls-morph-ready[inert] .stage-track,
+.player-modal.player-controls-morph-ready[inert] .stage-transport .wave-seek,
+.player-modal.player-controls-morph-ready[inert] .stage-modes button,
+.player-modal.player-controls-morph-ready[inert] .stage-volume button {
+  transition: none;
+}
+
+.player-modal.player-cover-morphing .stage-cover,
+.player-modal.player-cover-morph-ready[inert] .stage-cover,
+.player-modal.player-controls-morphing.morph-has-play .stage-play,
+.player-modal.player-controls-morph-ready.morph-has-play[inert] .stage-play,
+.player-modal.player-controls-morphing.morph-has-previous .stage-skip:first-child,
+.player-modal.player-controls-morph-ready.morph-has-previous[inert] .stage-skip:first-child,
+.player-modal.player-controls-morphing.morph-has-next .stage-skip:last-child,
+.player-modal.player-controls-morph-ready.morph-has-next[inert] .stage-skip:last-child,
+.player-modal.player-controls-morphing.morph-has-title .stage-track,
+.player-modal.player-controls-morph-ready.morph-has-title[inert] .stage-track,
+.player-modal.player-controls-morphing.morph-has-seek .stage-transport .wave-seek,
+.player-modal.player-controls-morph-ready.morph-has-seek[inert] .stage-transport .wave-seek,
+.player-modal.player-controls-morphing.morph-has-shuffle .stage-modes button:nth-child(1),
+.player-modal.player-controls-morph-ready.morph-has-shuffle[inert] .stage-modes button:nth-child(1),
+.player-modal.player-controls-morphing.morph-has-repeat .stage-modes button:nth-child(2),
+.player-modal.player-controls-morph-ready.morph-has-repeat[inert] .stage-modes button:nth-child(2),
+.player-modal.player-controls-morphing.morph-has-volume .stage-volume button,
+.player-modal.player-controls-morph-ready.morph-has-volume[inert] .stage-volume button {
+  visibility: hidden;
+}
+.player-modal.player-cover-morph-ready .stage-cover,
+.player-modal.player-controls-morph-ready .stage-play,
+.player-modal.player-controls-morph-ready .stage-skip,
+.player-modal.player-controls-morph-ready .stage-track,
+.player-modal.player-controls-morph-ready .stage-transport .wave-seek,
+.player-modal.player-controls-morph-ready .stage-modes button,
+.player-modal.player-controls-morph-ready .stage-volume button {
+  transition: none;
+}
+
+.stage-mix-note {
+  margin: 4px 0 10px;
+  color: var(--player-muted);
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: center;
 }

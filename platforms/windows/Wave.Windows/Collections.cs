@@ -10,11 +10,11 @@ public record NativeMix(string Id, string Label, List<Song> Songs, List<Song>? C
 public record NativeMoodSignal(string SongId, int Seconds, double Duration, bool Completed, long At);
 public record NativeMoodVector(double Energy, double Valence, double Intensity, double Intimacy);
 
-/// <summary>
-/// 100% local mood & listening engine synchronized with Wave Web 0.2.2.
-/// Analyzes bilingual EN/ES genres, title/album semantics, dwell vs quick-skip
-/// engagement, session momentum, and personal local time-of-day habits strictly on-device.
-/// </summary>
+
+
+
+
+
 public static class NativeMood
 {
     private static readonly (string[] Tokens, NativeMoodVector Vec)[] GenreProfiles =
@@ -161,10 +161,10 @@ public static class NativeMood
         return new NativeMoodVector(Math.Clamp(ve, 0, 1), Math.Clamp(vv, 0, 1), Math.Clamp(vi, 0, 1), Math.Clamp(vn, 0, 1));
     }
 
-    /// <summary>
-    /// Chooses the best local Autoplay continuation song by blending session mood,
-    /// current song vibe, genre/album continuity, and artist variety.
-    /// </summary>
+
+
+
+
     public static Song? PickAutoplayNext(
         IEnumerable<Song> library,
         Song current,
@@ -172,11 +172,12 @@ public static class NativeMood
         IEnumerable<NativeMoodSignal> signals,
         Random? rng = null)
     {
-        var avoid = recentIds.TakeLast(12).ToHashSet(StringComparer.Ordinal);
+        var history = recentIds.TakeLast(32).ToList();
+        var avoid = history.ToHashSet(StringComparer.Ordinal);
         var all = library.Where(s => s.Id != current.Id).ToList();
         if (all.Count == 0) return null;
         var candidates = all.Where(s => !avoid.Contains(s.Id)).ToList();
-        if (candidates.Count == 0) candidates = all;
+        if (candidates.Count == 0) candidates = all.OrderBy(s => history.LastIndexOf(s.Id)).Take(Math.Max(1, (all.Count + 1) / 2)).ToList();
 
         var session = InferSession(library, signals, current);
         var curMood = AnalyzeSong(current);
@@ -213,7 +214,7 @@ public static class NativeCollections
     public const int MaxDailyMixTracks = 20;
     public const int MaxDailyMixes = 3;
 
-    /// <summary>"1 song", "12 songs": a count and its word, singular when it should be.</summary>
+
     public static string Count(int value, string singular) =>
         $"{value} {(value == 1 ? singular : singular + "s")}";
 
@@ -223,10 +224,10 @@ public static class NativeCollections
     private static string ArtistKey(Song song) =>
         (song.Artist ?? "").Trim().ToLowerInvariant();
 
-    /// <summary>
-    /// Selects up to 3 distinct cover artworks locked to (day, groupKey) so covers
-    /// never flicker or rotate while listening during the same calendar day.
-    /// </summary>
+
+
+
+
     public static List<Song> MixCovers(IEnumerable<Song> songs, DateOnly day, string groupKey)
     {
         var dayKey = day.ToString("yyyy-MM-dd");
@@ -254,10 +255,10 @@ public static class NativeCollections
         return picks;
     }
 
-    /// <summary>
-    /// Caps any dominant artist and spaces artists widely (4-slot cooldown) so
-    /// Daily Mixes never burn out a single artist with back-to-back repeats.
-    /// </summary>
+
+
+
+
     private static List<Song> CurateMixSongs(IEnumerable<Song> pool, DateOnly day, string groupKey)
     {
         var dayKey = day.ToString("yyyy-MM-dd");
@@ -265,6 +266,7 @@ public static class NativeCollections
             .OrderBy(s => DayHash($"{dayKey}:{groupKey}:{s.Id}"), StringComparer.Ordinal)
             .ToList();
 
+        int target = Math.Min(MaxDailyMixTracks, 14 + Convert.ToInt32(DayHash($"size:{dayKey}:{groupKey}").Substring(0, 2), 16) % 7);
         var distinctArtists = shuffled.Select(ArtistKey).Distinct().Count();
         int maxPerArtist = distinctArtists >= 6 ? 2 : distinctArtists >= 3 ? 3 : MaxDailyMixTracks;
 
@@ -284,15 +286,15 @@ public static class NativeCollections
             {
                 overflow.Add(song);
             }
-            if (selected.Count >= MaxDailyMixTracks) break;
+            if (selected.Count >= target) break;
         }
         foreach (var song in overflow)
         {
-            if (selected.Count >= MaxDailyMixTracks) break;
+            if (selected.Count >= target) break;
             selected.Add(song);
         }
 
-        // Wide artist spacing (4-slot cooldown window)
+
         var remaining = new List<Song>(selected);
         var ordered = new List<Song>(selected.Count);
         var recentArtists = new Queue<string>();
@@ -357,7 +359,7 @@ public static class NativeCollections
             var distinctArtists = unique.Select(ArtistKey).Distinct().Count();
             if (distinctArtists >= 2)
             {
-                // Mood-grouped multi-artist Daily Mixes synchronized with Wave Web 0.2.2.
+
                 var moodBuckets = unique
                     .GroupBy(s => NativeMood.Classify(NativeMood.AnalyzeSong(s)))
                     .Where(g => g.Count() >= MinDailyMixTracks)
@@ -401,9 +403,9 @@ public static class NativeCollections
         return ids.Distinct().Where(known.ContainsKey).Select(id => known[id]).ToList();
     }
 
-    /// <summary>A blend long enough to be a mix rather than a fade, in seconds.</summary>
+
     public const double BlendSeconds = 24;
-    /// <summary>The shortest blend on material long enough to have one.</summary>
+
     public const double MixFloorSeconds = 12;
 
     public static double MixWindow(double outgoing, double incoming) =>
@@ -433,4 +435,234 @@ public static class NativeCollections
 
     public static T? Load<T>(string folder, string name) =>
         Library.ReadJsonSafe<T>(Path.Combine(folder, name));
+}
+
+public enum NativeEndingShape { FadeToZero, EchoCut }
+
+
+
+
+
+
+
+public static class NativeEnding
+{
+    public static NativeEndingShape Detect(Song song)
+    {
+        if (!double.IsFinite(song.Duration) || song.Duration < 8) return NativeEndingShape.FadeToZero;
+        var stamps = NativePulse.LrcStamps(song.Lyrics);
+        if (stamps.Count == 0) return NativeEndingShape.FadeToZero;
+        double bar = song.Bpm is double bpm && double.IsFinite(bpm) && bpm >= 60 && bpm <= 200 ? 240 / bpm : 2;
+        double shortTail = Math.Max(4, Math.Min(8, 2 * bar));
+        return song.Duration - stamps[^1] <= shortTail ? NativeEndingShape.EchoCut : NativeEndingShape.FadeToZero;
+    }
+
+    public static double Cut(NativeEndingShape shape) => 1;
+
+    public static (double Outgoing, double Incoming) Gains(double progress, NativeEndingShape shape) =>
+        NativeCollections.HandoverGains(Math.Clamp(progress, 0, 1));
+
+}
+
+public enum NativeDeviceProfile { Lite, Balanced, Full }
+public sealed record DeviceSignals(
+    double? MemoryGB = null,
+    int? Cores = null,
+    bool ReducedMotion = false,
+    bool LowPowerMode = false,
+    double? ScreenScale = null,
+    bool SmallScreen = false);
+
+
+public static class NativePerformance
+{
+    public static NativeDeviceProfile Profile(DeviceSignals signals)
+    {
+        if (signals.ReducedMotion) return NativeDeviceProfile.Lite;
+        bool informative = signals.MemoryGB.HasValue || signals.Cores.HasValue || signals.LowPowerMode;
+        if (!informative) return NativeDeviceProfile.Full;
+        int score = 0;
+        if (signals.MemoryGB is double memory)
+            score += memory <= 2 ? -2 : memory <= 4 ? -1 : memory >= 6 ? 1 : 0;
+        if (signals.Cores is int cores)
+            score += cores <= 2 ? -2 : cores <= 4 ? -1 : cores >= 8 ? 1 : 0;
+        if (signals.LowPowerMode) score -= 3;
+        if ((signals.ScreenScale ?? 0) >= 3) score -= 1;
+        if (signals.SmallScreen) score -= 1;
+        return score <= -3 ? NativeDeviceProfile.Lite : score <= 0 ? NativeDeviceProfile.Balanced : NativeDeviceProfile.Full;
+    }
+
+    public static int RowsPerPage(NativeDeviceProfile profile) => profile switch
+    {
+        NativeDeviceProfile.Lite => 32,
+        NativeDeviceProfile.Balanced => 60,
+        _ => 80,
+    };
+
+    public static bool AmbientMotion(NativeDeviceProfile profile) => profile == NativeDeviceProfile.Full;
+    public static bool HeavyEffects(NativeDeviceProfile profile) => profile != NativeDeviceProfile.Lite;
+}
+
+public sealed record NativeRemixMetrics(
+    int Columns,
+    double HeroSize,
+    double TitleSize,
+    double CoverSize,
+    double Padding,
+    double Gap,
+    double MaxContentWidth);
+
+public static class NativeLayout
+{
+
+    public static NativeRemixMetrics Remix(double width, double height, double fontScale, NativeDeviceProfile profile)
+    {
+        double safeWidth = Math.Max(280, width), safeHeight = Math.Max(320, height);
+        double safeFont = Math.Clamp(fontScale, .85, 1.3);
+        int columns = safeWidth < 600 ? 1 : safeWidth < 900 ? 2 : safeWidth < 1600 ? 3 : 4;
+        double coverCeiling = profile == NativeDeviceProfile.Lite ? 180 : 320;
+        return new(
+            columns,
+            Math.Clamp(32 + safeWidth * .012, 30, 58) * safeFont,
+            Math.Clamp(20 + safeWidth * .004, 20, 34) * safeFont,
+            Math.Clamp(Math.Min(safeWidth * .22, Math.Min(safeHeight * .3, coverCeiling)), 72, coverCeiling),
+            Math.Clamp(8 + safeWidth * .008, 10, 34),
+            Math.Clamp(8 + safeWidth * .006, 8, 28),
+            safeWidth);
+    }
+}
+
+public sealed record PulseGrid(double Bpm, double Offset)
+{
+    public double Bar => 4 * 60 / Bpm;
+}
+
+public sealed record NativeMixPulsePlan(
+    double StartAt,
+    double Cue,
+    double Overlap,
+    int Bars,
+    bool PulseAligned = true);
+
+
+public static class NativePulse
+{
+    public const double TargetSeconds = 20;
+    public const double MinInstrumentalSeconds = 4;
+    public const double DriftBeats = 1.5;
+    public const double OctaveTolerance = .03;
+
+    private static readonly System.Text.RegularExpressions.Regex Stamp =
+        new(@"\[(\d{1,4}):([0-5]?\d)(?:[.,:](\d{1,3}))?\]", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    public static List<double> LrcStamps(string? lyrics)
+    {
+        var times = new List<double>();
+        if (string.IsNullOrEmpty(lyrics)) return times;
+        foreach (System.Text.RegularExpressions.Match match in Stamp.Matches(lyrics))
+        {
+            double minutes = double.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+            double seconds = double.Parse(match.Groups[2].Value, System.Globalization.CultureInfo.InvariantCulture);
+            double fraction = match.Groups[3].Success
+                ? double.Parse("0." + match.Groups[3].Value, System.Globalization.CultureInfo.InvariantCulture)
+                : 0;
+            double time = minutes * 60 + seconds + fraction;
+            if (double.IsFinite(time) && time >= 0) times.Add(time);
+        }
+        times.Sort();
+        return times;
+    }
+
+    public static double? EstimatedBpm(IReadOnlyList<double> stamps)
+    {
+        var times = stamps.Where(t => double.IsFinite(t) && t >= 0).OrderBy(t => t).ToList();
+        if (times.Count < 8) return null;
+        var gaps = new List<double>();
+        for (int i = 1; i < times.Count; i++)
+        {
+            double gap = times[i] - times[i - 1];
+            if (gap >= .25 && gap <= 8) gaps.Add(gap);
+        }
+        if (gaps.Count < 6) return null;
+        gaps.Sort();
+        double median = gaps[gaps.Count / 2];
+        int steady = gaps.Count(gap => Math.Abs(gap - median) <= median * .12);
+        if (steady * 5 < gaps.Count * 3) return null;
+        double baseBpm = 60 / median;
+        double? bpm = Enumerable.Range(0, 6)
+            .Select(power => baseBpm * Math.Pow(2, power))
+            .Where(candidate => candidate is >= 60 and <= 200)
+            .OrderBy(candidate => Math.Abs(candidate - 120))
+            .Select(candidate => (double?)candidate)
+            .FirstOrDefault();
+        return bpm > 0 ? bpm : null;
+    }
+
+    public static PulseGrid? Grid(Song song)
+    {
+        var stamps = LrcStamps(song.Lyrics);
+        double? tagged = song.Bpm is double value && double.IsFinite(value) && value is >= 60 and <= 200 ? value : null;
+        double bpm = tagged ?? EstimatedBpm(stamps) ?? 0;
+        if (bpm <= 0) return null;
+        double bar = 4 * 60 / bpm;
+        double offset;
+        if (tagged.HasValue && song.BarOffset is double explicitOffset && double.IsFinite(explicitOffset))
+            offset = ((explicitOffset % bar) + bar) % bar;
+        else if (stamps.Count > 0)
+            offset = stamps[0] - Math.Floor(stamps[0] / bar) * bar;
+        else offset = 0;
+        return new PulseGrid(bpm, offset);
+    }
+
+    private static double? Downbeat(PulseGrid grid, double from, double to, double desired)
+    {
+        if (to < from) return null;
+        double bar = grid.Bar;
+        int first = (int)Math.Ceiling((from - grid.Offset) / bar - 1e-9);
+        double? best = null;
+        double distance = double.PositiveInfinity;
+        for (int index = first; index <= first + 128; index++)
+        {
+            double time = grid.Offset + index * bar;
+            if (time > to + 1e-9) break;
+            double candidate = Math.Abs(time - desired);
+            if (candidate < distance - 1e-9 || (candidate <= distance + 1e-9 && (best == null || time < best.Value)))
+            {
+                best = time;
+                distance = candidate;
+            }
+        }
+        return best;
+    }
+
+    public static NativeMixPulsePlan? Plan(Song outgoing, Song incoming)
+    {
+        if (outgoing.Duration <= 8 || incoming.Duration <= 8) return null;
+        var gridA = Grid(outgoing);
+        var gridB = Grid(incoming);
+        if (gridA == null || gridB == null) return null;
+        var outgoingStamps = LrcStamps(outgoing.Lyrics);
+        var incomingStamps = LrcStamps(incoming.Lyrics);
+        if (outgoingStamps.Count == 0 || incomingStamps.Count == 0) return null;
+        double tailStart = Math.Min(outgoing.Duration, outgoingStamps[^1] + 1.5);
+        double tailEnd = outgoing.Duration;
+        double headEnd = Math.Min(incoming.Duration, incomingStamps[0]);
+        if (tailEnd - tailStart < MinInstrumentalSeconds || headEnd < MinInstrumentalSeconds) return null;
+        double barA = gridA.Bar, barB = gridB.Bar;
+        double startCeiling = tailEnd - 2 * barA;
+        double cueCeiling = headEnd - 2 * barB;
+        if (startCeiling < tailStart || cueCeiling < 0) return null;
+        double? startAt = Downbeat(gridA, tailStart, startCeiling, Math.Max(tailStart, outgoing.Duration - TargetSeconds));
+        double? cue = Downbeat(gridB, 0, cueCeiling, Math.Min(6, cueCeiling));
+        if (startAt == null || cue == null) return null;
+        double ratio = gridA.Bpm / gridB.Bpm;
+        bool octave = Math.Abs(ratio / 2 - 1) <= OctaveTolerance || Math.Abs(ratio * 2 - 1) <= OctaveTolerance;
+        double effectiveBpm = octave ? (ratio > 1 ? gridB.Bpm * 2 : gridB.Bpm / 2) : gridB.Bpm;
+        double drift = Math.Abs(1 - effectiveBpm / gridA.Bpm);
+        double driftLimit = drift > 0 ? DriftBeats * 60 / gridA.Bpm / drift : double.PositiveInfinity;
+        double available = Math.Min(TargetSeconds, Math.Min(tailEnd - startAt.Value, Math.Min(headEnd - cue.Value, driftLimit)));
+        int bars = (int)Math.Floor(available / barA + 1e-9);
+        if (bars < 2) return null;
+        return new NativeMixPulsePlan(startAt.Value, cue.Value, bars * barA, bars);
+    }
 }

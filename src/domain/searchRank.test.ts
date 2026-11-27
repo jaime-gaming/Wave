@@ -34,7 +34,7 @@ describe('search ranking', () => {
   it('ignores accents and word order, and keeps library order for equal matches', () => {
     expect(rankTracks(library, 'midnight').map((track) => track.id)).toEqual(['c']);
     expect(rankTracks(library, 'M83').map((track) => track.id)).toEqual(['c']);
-    // Both are word matches only, so the library order survives untouched.
+
     const tied = rankTracks(
       [
         makeTrack({ id: 'x', title: 'Golden Hour', artist: 'A' }),
@@ -81,7 +81,7 @@ describe('recent searches', () => {
       removeItem: () => undefined,
     } as unknown as Storage;
     expect(loadRecentSearches(broken)).toEqual([]);
-    // A store that refuses the write still answers for this session.
+
     expect(rememberSearch('anything', broken)).toEqual(['anything']);
   });
 });
@@ -111,8 +111,6 @@ describe('closer answers first', () => {
   });
 
   it('finds a song by its artist even when the title has none of the words', () => {
-    // The title is an exact word match, the artist match comes after it, and a
-    // song whose title only contains the letters comes last of the three.
     expect(rankMatch(shelf[0], 'nightcall')).toBe('prefix');
     expect(rankMatch(shelf[3], 'nightcall')).toBe('artist');
     expect(rankTracks(shelf, 'nightcall').map((track) => track.id)).toEqual([
@@ -152,7 +150,7 @@ describe('a query with a letter in the wrong place', () => {
     expect(rankMatch(library[1], 'nightclal')).toBe('near');
     expect(rankMatch(library[2], 'midngiht city')).toBe('near');
     expect(rankTracks(library, 'nightclal').map((track) => track.id)[0]).toBe('b');
-    // A correctly spelled query never needs the tolerance, so it keeps its rank.
+
     expect(rankMatch(library[1], 'nightcall')).toBe('exact');
     expect(rankMatch(library[1], 'night')).toBe('prefix');
   });
@@ -177,4 +175,40 @@ it('uses stable ranking with bounded, fractional and invalid limits', () => {
   expect(rankTracks(library, 'night', -1)).toEqual([]);
   expect(rankTracks(library, 'night', NaN)).toEqual([]);
   expect(rankTracks(library, 'night', 1.8)).toHaveLength(1);
+});
+
+it('requires separate occurrences for repeated words and forgives at most one typo', () => {
+  const once = makeTrack({ id: 'once', title: 'Love', artist: 'Someone', fileName: 'Love.wav' });
+  const twice = makeTrack({
+    id: 'twice',
+    title: 'Love Love',
+    artist: 'Someone',
+    fileName: 'track2.wav',
+  });
+  expect(rankTracks([once, twice], 'love love')).toEqual([twice]);
+  const track = makeTrack({
+    id: 'typos',
+    title: 'Midnight Calling',
+    artist: 'Someone',
+    fileName: 'file.wav',
+  });
+  expect(rankMatch(track, 'midnigth calling')).toBe('near');
+  expect(rankMatch(track, 'midnigth callnig')).toBeNull();
+});
+it('prioritizes a song matching both artist and title over incidental file-name matches', () => {
+  const incidental = makeTrack({
+    id: 'incidental',
+    title: 'Other',
+    artist: 'Someone',
+    fileName: 'Kavinsky Nightcall.wav',
+  });
+  const intended = makeTrack({
+    id: 'intended',
+    title: 'Nightcall',
+    artist: 'Kavinsky',
+    fileName: 'track.wav',
+  });
+  expect(rankTracks([incidental, intended], 'kavinsky nightcall').map((track) => track.id)).toEqual(
+    ['intended', 'incidental'],
+  );
 });

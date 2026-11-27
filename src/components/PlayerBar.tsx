@@ -1,5 +1,6 @@
 import { PlayerActionButton } from './PlayerActionButton';
 import { useIdleListening } from '../hooks/useIdleListening';
+import { IdleStage } from './IdleStage';
 import { MusicLighting } from './MusicLighting';
 import { VideoBackdrop } from './VideoBackdrop';
 import { YouTubeStage } from './YouTubeStage';
@@ -11,7 +12,7 @@ import { cueForTrack, useMixCue, type MixCue } from '../ui/mixCue';
 import { WaveSeek } from './WaveSeek';
 import { LyricsPanel } from './LyricsPanel';
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, motion, useIsPresent } from 'motion/react';
 import { useWaveMotion } from '../ui/motion';
 import type { RefObject } from 'react';
 import {
@@ -28,12 +29,30 @@ import { Heart, VolumeX, PlayPauseGlyph, ListMusic, Volume2 } from './Glyphs';
 import { Artwork } from './Artwork';
 import { getClip, loadClips } from '../domain/videoClips';
 import { Modal } from './Modal';
+import { PlayerMorphArtwork } from './PlayerMorphArtwork';
+import { PlayerMorphControls } from './PlayerMorphControls';
 import { formatTime, type Track } from '../domain/types';
 import type { usePlayer } from '../hooks/usePlayer';
 import { usePlayerColors } from '../hooks/usePlayerColors';
 import { usePlaybackTime } from '../hooks/playbackClock';
 
 import { useT } from '../i18n';
+function PlayerLighting({ animated }: { animated: boolean }) {
+  const present = useIsPresent();
+  return (
+    <motion.div
+      className="stage-lighting-morph"
+      style={{ transformOrigin: '50% 100%' }}
+      initial={animated ? { opacity: 0, scaleX: 0.3, scaleY: 0.12 } : false}
+      animate={
+        present ? { opacity: 1, scaleX: 1, scaleY: 1 } : { opacity: 0, scaleX: 0.3, scaleY: 0.12 }
+      }
+      transition={{ duration: animated ? 0.48 : 0, ease: [0.22, 1, 0.36, 1] }}
+    >
+      <MusicLighting className="stage-aura" />
+    </motion.div>
+  );
+}
 type PlayerProps = {
   player: ReturnType<typeof usePlayer>;
   onFavorite: (track: Track) => void;
@@ -43,8 +62,7 @@ type PlayerProps = {
   returnFocusRef: RefObject<HTMLElement | null>;
   queueOpen: boolean;
   onQueue: () => void;
-  /** Word-by-word lyric highlighting. */
-  /** Video clip backdrop, driven by the same transport. */
+
   videoClip?: boolean;
   onToggleVideoClip?: () => void;
   onLyrics: (track: Track) => void;
@@ -154,14 +172,14 @@ function PlayerDetails({
                 <button
                   className="metadata-link"
                   onClick={() => onArtist?.(current.artist)}
-                  aria-label={`Open artist ${current.artist}`}
+                  aria-label={t('Open artist {artist}', { artist: current.artist })}
                 >
                   {current.artist}
                 </button>
                 <button
                   className="metadata-link stage-album"
                   onClick={() => onAlbum?.(current)}
-                  aria-label={`Open album ${current.album}`}
+                  aria-label={t('Open album {album}', { album: current.album })}
                 >
                   {current.album}
                 </button>
@@ -169,13 +187,7 @@ function PlayerDetails({
             ) : (
               <p>{t('Choose a song from your library.')}</p>
             )}
-            {/*
-              The cue shares the line under the title with the artist, and the
-              block around it is what has to move: a word that appears and
-              disappears without the text around it reflowing leaves a gap that
-              snaps shut. The height is animated with the fade, so the title,
-              the artist and the words all settle together.
-            */}
+            {}
             <AnimatePresence initial={false}>
               {cue && (
                 <motion.div
@@ -204,6 +216,11 @@ function PlayerDetails({
               <span>{formatTime(time)}</span>
               <span>{formatTime(duration || current?.duration || 0)}</span>
             </div>
+            {player.youTube && player.mixEnabled && (
+              <p className="stage-mix-note">
+                {t('Mix is not available for YouTube songs yet. They will play normally.')}
+              </p>
+            )}
             <div className="stage-buttons">
               <button
                 className="stage-skip"
@@ -327,8 +344,6 @@ function PlayerDetails({
           )}
         </div>
         {current && (
-          // The reader travels with the record when the picture takes the stage,
-          // so entering a clip is a move rather than a jump.
           <motion.section
             className="stage-lyrics"
             data-open={lyricsOpen ? 'true' : 'false'}
@@ -384,7 +399,10 @@ export function PlayerBar(props: PlayerProps) {
   const t = useT();
   const [lyricsOpen, setLyricsOpen] = useState(true);
   const barRef = useRef<HTMLElement>(null);
-  const [collapseTarget, setCollapseTarget] = useState({ x: 0, y: 0, scaleX: 0.92, scaleY: 0.14 });
+  const [collapseClip, setCollapseClip] = useState(
+    () =>
+      `inset(${Math.max(0, (typeof window === 'undefined' ? 800 : window.innerHeight) - 80)}px 20px 16px 20px round 22px)`,
+  );
   const {
     player,
     expanded,
@@ -394,11 +412,9 @@ export function PlayerBar(props: PlayerProps) {
     onQueue,
     videoClip = false,
   } = props;
-  // The cue belongs to the song that is playing; a stale one is never drawn.
+
   const cue = useMixCue(player.mixCue);
-  // Either side of the cue can be the song that is playing: the cue arrives
-  // while the outgoing song is still on, and by the time the two meet the
-  // interface has already moved on to the incoming one.
+
   const pending = cueForTrack(cue, player.current?.id);
   const activeMixCue: MixCue | null =
     pending ??
@@ -410,13 +426,7 @@ export function PlayerBar(props: PlayerProps) {
           progress: 1,
         }
       : null);
-  /**
-   * The other half of a mix, when it has a picture of its own.
-   *
-   * Read from the stored clips rather than by rendering a second search: a song
-   * with no clip must leave the outgoing picture alone, not replace it with a
-   * note about a missing one, and a note inside a fade would be visible.
-   */
+
   const blendTrack = player.blend?.to;
   const blendTo =
     blendTrack &&
@@ -433,45 +443,40 @@ export function PlayerBar(props: PlayerProps) {
   const idle = idleListening.immersive;
   const showing = expanded || idle;
   useLayoutEffect(() => {
-    if (!showing) return;
     const measure = () => {
       const bar = barRef.current?.getBoundingClientRect();
-      if (bar && window.innerWidth && window.innerHeight) {
-        setCollapseTarget({
-          x: bar.left + bar.width / 2 - window.innerWidth / 2,
-          y: bar.top + bar.height / 2 - window.innerHeight / 2,
-          scaleX: bar.width / window.innerWidth,
-          scaleY: bar.height / window.innerHeight,
-        });
+      if (bar && bar.width > 0 && bar.height > 0 && window.innerWidth && window.innerHeight) {
+        setCollapseClip(
+          `inset(${Math.max(0, bar.top)}px ${Math.max(0, window.innerWidth - bar.right)}px ${Math.max(0, window.innerHeight - bar.bottom)}px ${Math.max(0, bar.left)}px round 22px)`,
+        );
       }
     };
     measure();
     window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
+    window.visualViewport?.addEventListener('resize', measure);
+    const observer =
+      typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : undefined;
+    if (barRef.current) observer?.observe(barRef.current);
+    return () => {
+      window.removeEventListener('resize', measure);
+      window.visualViewport?.removeEventListener('resize', measure);
+      observer?.disconnect();
+    };
   }, [showing]);
-  // Only this bar follows the position; the rest of the interface stays still.
+
   const time = usePlaybackTime(player.clock);
   const colors = usePlayerColors(
     player.state.playing ? player.current?.artwork : undefined,
     player.blend,
   );
   const animation = useWaveMotion();
-  // While the player is leaving, the silent YouTube host must not mount yet: two
-  // embeds of the same song would both be playing through the collapse. Closing
-  // turns it off; the end of the collapse turns it back on.
+
   const [stageGone, setStageGone] = useState(true);
-  // The picture, when there is one, is the stage. The sleeve steps back to a
-  // corner so the clip is not watched through a square of album art.
+
   const [clipLive, setClipLive] = useState(false);
-  /**
-   * A picture on screen changes what the whole window should look like.
-   *
-   * The spectral wash that follows the artwork is drawn by a sibling of the
-   * video, not by the video's container, so the only honest way to switch it off
-   * is at the root — the same place the palette and the motion preference live.
-   */
+
   const clipShowing = clipLive && videoClip && showing;
-  const stageHasVideo = showing && (clipShowing || !!player.stageYouTube);
+  const stageHasVideo = showing && (clipShowing || !!player.stageYouTubePlayers.length);
   useEffect(() => {
     const root = document.documentElement;
     if (stageHasVideo) root.dataset.clip = 'live';
@@ -603,13 +608,7 @@ export function PlayerBar(props: PlayerProps) {
               onClick={(event) => onOpen(event.currentTarget)}
             >
               <strong>{player.current?.title ?? t('Nothing playing')}</strong>
-              {/*
-                One line, two states: the artist normally, t("Mixing") while the
-                next song is being announced. Swapping the text in place made
-                the bar jump a pixel and read as a glitch, so the line hands over
-                instead — the old text leaves downwards, the new one arrives
-                from below it.
-              */}
+              {}
               <span className="compact-subline">
                 <AnimatePresence mode="wait" initial={false}>
                   {activeMixCue ? (
@@ -735,44 +734,16 @@ export function PlayerBar(props: PlayerProps) {
         </div>
       </footer>
 
-      {/* The expanded player leaves as an object rather than vanishing: it
-          scales back down towards the bar it came from and fades with it. */}
+      {}
       <AnimatePresence initial={false} onExitComplete={() => setStageGone(true)}>
         {showing && (
           <Modal
             title={t('Now playing')}
             fullScreen
-            // Opening unfolds smoothly out of the mini-player bar; closing compresses
-            // the full-screen player straight back down into the compact player bar.
-            enterMotion={
-              animation.enabled
-                ? {
-                    opacity: 0.25,
-                    y: '34vh',
-                    scaleX: 0.92,
-                    scaleY: 0.18,
-                    borderRadius: '28px',
-                  }
-                : undefined
-            }
-            exitMotion={
-              animation.enabled
-                ? {
-                    opacity: 0.15,
-                    ...collapseTarget,
-                    borderRadius: '28px',
-                    transitionEnd: { display: 'none' },
-                  }
-                : undefined
-            }
+            enterMotion={animation.enabled ? { opacity: 1, clipPath: collapseClip } : undefined}
+            exitMotion={animation.enabled ? { opacity: 1, clipPath: collapseClip } : undefined}
             exitTransition={
-              animation.enabled
-                ? {
-                    duration: 0.34,
-                    ease: [0.32, 0.72, 0, 1],
-                    opacity: { duration: 0.24, delay: 0.08, ease: 'easeIn' },
-                  }
-                : { duration: 0 }
+              animation.enabled ? { duration: 0.48, ease: [0.22, 1, 0.36, 1] } : { duration: 0 }
             }
             headerActions={
               <>
@@ -801,60 +772,72 @@ export function PlayerBar(props: PlayerProps) {
               onContinue={player.keepListening}
               onStop={player.stopForNow}
             />
-            {player.stageYouTube ? (
-              // A YouTube song plays through the embed: the video is the source, not
-              // a backdrop, so it stays visible whether or not the clip toggle is on.
-              <YouTubeStage
-                key={player.stageYouTube.track.videoId}
-                track={player.stageYouTube.track}
-                playing={player.state.playing}
-                volume={player.volume}
-                gain={player.stageYouTube.gain}
-                startGain={player.stageYouTube.startGain}
-                fadeSeconds={player.stageYouTube.fadeSeconds}
-                seek={player.youTube?.seek ?? { seconds: 0, nonce: 0 }}
-                startAt={time}
-                onTime={player.youTube?.onTime ?? (() => {})}
-                onDuration={player.youTube?.onDuration ?? (() => {})}
-                onEnded={player.youTube?.onEnded ?? (() => {})}
-                onError={player.youTube?.onError ?? (() => {})}
-              />
-            ) : (
-              videoClip &&
-              player.current && (
-                <>
-                  <VideoBackdrop
-                    track={player.current}
-                    time={time}
-                    duration={player.duration}
+            {player.stageYouTubePlayers.length
+              ? player.stageYouTubePlayers.map((item) => (
+                  <YouTubeStage
+                    key={item.track.id}
+                    track={item.track}
                     playing={player.state.playing}
-                    onRevealed={setClipLive}
+                    volume={player.volume}
+                    gain={item.gain}
+                    startGain={item.startGain}
+                    fadeSeconds={item.fadeSeconds}
+                    seek={
+                      item.track.id === player.current?.id
+                        ? (player.youTube?.seek ?? { seconds: 0, nonce: 0 })
+                        : { seconds: 0, nonce: 0 }
+                    }
+                    startAt={item.track.id === player.current?.id ? time : 0}
+                    silent={item.track.id !== player.current?.id}
+                    onTime={
+                      item.track.id === player.current?.id
+                        ? (player.youTube?.onTime ?? (() => {}))
+                        : () => {}
+                    }
+                    onDuration={
+                      item.track.id === player.current?.id
+                        ? (player.youTube?.onDuration ?? (() => {}))
+                        : () => {}
+                    }
+                    onEnded={
+                      item.track.id === player.current?.id
+                        ? (player.youTube?.onEnded ?? (() => {}))
+                        : () => {}
+                    }
+                    onError={
+                      item.track.id === player.current?.id
+                        ? (player.youTube?.onError ?? (() => {}))
+                        : () => {}
+                    }
                   />
-                  {/*
-                   * A mix is two songs for a while, so it is two pictures for a
-                   * while. The arriving song's clip fades in over the one that is
-                   * leaving, on the same progress number the sound uses, and the
-                   * handover is over when both are done. Songs without a clip
-                   * simply leave the other picture alone.
-                   */}
-                  {blendTo && (
-                    <div
-                      className="video-backdrop-blend"
-                      style={{ '--blend-progress': blendProgress } as CSSProperties}
-                    >
-                      <VideoBackdrop
-                        track={blendTo}
-                        time={blendSeconds}
-                        duration={blendTo.duration}
-                        playing={player.state.playing}
-                      />
-                    </div>
-                  )}
-                </>
-              )
-            )}
-            {/* The same question, in the open player: a long silence at the
-                edge of a file is not a fact about the bar. */}
+                ))
+              : videoClip &&
+                player.current && (
+                  <>
+                    <VideoBackdrop
+                      track={player.current}
+                      time={time}
+                      duration={player.duration}
+                      playing={player.state.playing}
+                      onRevealed={setClipLive}
+                    />
+                    {}
+                    {blendTo && (
+                      <div
+                        className="video-backdrop-blend"
+                        style={{ '--blend-progress': blendProgress } as CSSProperties}
+                      >
+                        <VideoBackdrop
+                          track={blendTo}
+                          time={blendSeconds}
+                          duration={blendTo.duration}
+                          playing={player.state.playing}
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
+            {}
             <SilenceNotice
               key={player.current?.id}
               className="silence-notice--stage"
@@ -865,7 +848,25 @@ export function PlayerBar(props: PlayerProps) {
               onRemove={player.removeSilence}
               onKeep={player.keepSilence}
             />
-            <MusicLighting className="stage-aura" />
+            <PlayerLighting animated={animation.enabled} />
+            {animation.enabled && !idle && player.current && (
+              <>
+                {!player.blend && !pending && (
+                  <PlayerMorphArtwork barRef={barRef} track={player.current} />
+                )}
+                <PlayerMorphControls
+                  barRef={barRef}
+                  playing={player.state.playing}
+                  track={player.current}
+                  time={time}
+                  duration={player.duration}
+                  clock={player.clock}
+                  shuffled={player.state.shuffled}
+                  repeat={player.state.repeat}
+                  volume={player.volume}
+                />
+              </>
+            )}
             <div
               data-track-id={player.current?.id}
               className={`player-normal-view${clipShowing ? ' clip-live' : ''}`}
@@ -883,102 +884,68 @@ export function PlayerBar(props: PlayerProps) {
             </div>
             <AnimatePresence initial={false}>
               {idle && player.current && (
-                <motion.div
+                <IdleStage
                   key="immersive"
-                  className={`immersive-stage${stageHasVideo ? ' with-video' : ''}${player.current.lyrics?.lines.length ? ' has-lyrics' : ' without-lyrics'}${player.blend || activeMixCue ? ' is-mixing' : ''}`}
-                  aria-label={t('Immersive listening')}
-                  initial={animation.enabled ? { opacity: 0, y: 8 } : false}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{
-                    opacity: 0,
-                    y: animation.enabled ? -6 : 0,
-                    transition: animation.effects,
-                  }}
-                  transition={animation.reveal}
-                >
-                  <div className="immersive-art">
-                    <div className="immersive-cover immersive-cover-frame">
-                      {player.blend ? (
-                        <MixVisual blend={player.blend} artworkClassName="immersive-cover-art" />
-                      ) : pending ? (
-                        <MixCueVisual cue={pending} artworkClassName="immersive-cover-art" />
-                      ) : (
-                        <Artwork track={player.current} className="immersive-cover-art" />
-                      )}
-                    </div>
-                    <div className="immersive-credit">
-                      <h2>{player.current.title}</h2>
-                      <p>{player.current.artist}</p>
-                      <p>{player.current.album}</p>
-                      <AnimatePresence initial={false}>
-                        {activeMixCue && (
-                          <motion.div
-                            className="immersive-mix-cue"
-                            key="immersive-mix-cue"
-                            initial={animation.enabled ? { opacity: 0, height: 0, y: 4 } : false}
-                            animate={{ opacity: 1, height: 'auto', y: 0 }}
-                            exit={animation.enabled ? { opacity: 0, height: 0, y: -2 } : undefined}
-                            transition={animation.effects}
-                          >
-                            <MixCueLabel cue={activeMixCue} />
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                      <p className="immersive-time">
-                        {formatTime(time)} <span aria-hidden="true">/</span>{' '}
-                        {formatTime(player.duration)}
-                      </p>
-                    </div>
-                  </div>
-                  {!!player.current.lyrics?.lines.length && (
-                    <LyricsPanel
-                      stage
-                      cinematic
-                      track={player.current}
-                      time={time}
-                      readTime={player.readTime}
-                      playing={player.state.playing}
-                      duration={player.duration}
-                      onSeek={player.seek}
-                      onEdit={() => props.onLyrics(player.current!)}
-                    />
-                  )}
-                  <div className="immersive-progress" aria-hidden="true">
-                    <span
-                      style={{
-                        transform: `scaleX(${player.duration > 0 ? Math.max(0, Math.min(1, time / player.duration)) : 0})`,
-                      }}
-                    />
-                  </div>
-                </motion.div>
+                  track={player.current}
+                  time={time}
+                  duration={player.duration}
+                  hasVideo={stageHasVideo}
+                  mixing={!!player.blend || !!activeMixCue}
+                  blend={player.blend}
+                  pending={pending}
+                  mixCue={activeMixCue}
+                  animation={animation}
+                  readTime={player.readTime}
+                  playing={player.state.playing}
+                  onSeek={player.seek}
+                  onEditLyrics={() => props.onLyrics(player.current!)}
+                />
               )}
             </AnimatePresence>
           </Modal>
         )}
       </AnimatePresence>
-      {/*
-        A YouTube song keeps playing while Now Playing is collapsed, so the embed
-        stays mounted in a one-pixel host. Expanding mounts the visible player from
-        the same position; the song never restarts because of a layout change.
-      */}
-      {!showing && stageGone && player.stageYouTube && (
-        <YouTubeStage
-          key={`silent-${player.stageYouTube.track.videoId}`}
-          track={player.stageYouTube.track}
-          playing={player.state.playing}
-          volume={player.volume}
-          gain={player.stageYouTube.gain}
-          startGain={player.stageYouTube.startGain}
-          fadeSeconds={player.stageYouTube.fadeSeconds}
-          seek={player.youTube?.seek ?? { seconds: 0, nonce: 0 }}
-          startAt={time}
-          silent
-          onTime={player.youTube?.onTime ?? (() => {})}
-          onDuration={player.youTube?.onDuration ?? (() => {})}
-          onEnded={player.youTube?.onEnded ?? (() => {})}
-          onError={player.youTube?.onError ?? (() => {})}
-        />
-      )}
+      {}
+      {!showing &&
+        stageGone &&
+        player.stageYouTubePlayers.map((item) => (
+          <YouTubeStage
+            key={`silent-${item.track.id}`}
+            track={item.track}
+            playing={player.state.playing}
+            volume={player.volume}
+            gain={item.gain}
+            startGain={item.startGain}
+            fadeSeconds={item.fadeSeconds}
+            seek={
+              item.track.id === player.current?.id
+                ? (player.youTube?.seek ?? { seconds: 0, nonce: 0 })
+                : { seconds: 0, nonce: 0 }
+            }
+            startAt={item.track.id === player.current?.id ? time : 0}
+            silent
+            onTime={
+              item.track.id === player.current?.id
+                ? (player.youTube?.onTime ?? (() => {}))
+                : () => {}
+            }
+            onDuration={
+              item.track.id === player.current?.id
+                ? (player.youTube?.onDuration ?? (() => {}))
+                : () => {}
+            }
+            onEnded={
+              item.track.id === player.current?.id
+                ? (player.youTube?.onEnded ?? (() => {}))
+                : () => {}
+            }
+            onError={
+              item.track.id === player.current?.id
+                ? (player.youTube?.onError ?? (() => {}))
+                : () => {}
+            }
+          />
+        ))}
     </>
   );
 }

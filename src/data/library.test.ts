@@ -68,3 +68,35 @@ it('persists and restores playback-only volume gain without changing source byte
   expect(saved.volumeFix).toBeUndefined();
   expect(await saved.blob!.arrayBuffer()).toEqual(await track.blob!.arrayBuffer());
 });
+
+it('stores valid catalogue track and disc numbers without touching listener edits', async () => {
+  const { applyOnlineDetails, editTrackMetadata } = await import('./library');
+  await saveTrack(makeTrack());
+  await applyOnlineDetails('signal', { trackNumber: 7, discNumber: 2 }, { checked: true });
+  expect((await getTracks())[0]).toMatchObject({ trackNumber: 7, discNumber: 2 });
+  await applyOnlineDetails('signal', { trackNumber: -1, discNumber: 1.5 });
+  expect((await getTracks())[0]).toMatchObject({ trackNumber: 7, discNumber: 2 });
+  await editTrackMetadata('signal', { title: 'Mine', artist: 'Wave Tests', album: 'First light' });
+  await applyOnlineDetails('signal', { trackNumber: 9, discNumber: 3 }, { checked: true });
+  expect((await getTracks())[0]).toMatchObject({ title: 'Mine', trackNumber: 7, discNumber: 2 });
+});
+
+it('does not apply a stale online result after a role review and can restore an automatic swap', async () => {
+  const { applyOnlineDetails, reviewTrackRoles, restoreTrackMetadata } = await import('./library');
+  const track = makeTrack({ title: 'Nils Frahm', artist: 'Says' });
+  await saveTrack(track);
+  await reviewTrackRoles(track.id, 'keep');
+  await applyOnlineDetails(track.id, { title: 'Says', artist: 'Nils Frahm' }, { expected: track });
+  expect((await getTracks())[0]).toMatchObject({ title: 'Nils Frahm', artist: 'Says' });
+  await saveTrack(track);
+  await applyOnlineDetails(track.id, { title: 'Says', artist: 'Nils Frahm' }, { expected: track });
+  const corrected = (await getTracks())[0];
+  expect(corrected).toMatchObject({
+    title: 'Says',
+    artist: 'Nils Frahm',
+    originalMetadata: { title: 'Nils Frahm', artist: 'Says' },
+  });
+  const restored = await restoreTrackMetadata(track.id);
+  expect(restored).toMatchObject({ title: 'Nils Frahm', artist: 'Says' });
+  expect(restored.rolesReviewed).toBeTruthy();
+});

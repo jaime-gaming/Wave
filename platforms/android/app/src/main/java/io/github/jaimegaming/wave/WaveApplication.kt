@@ -3,15 +3,15 @@ package io.github.jaimegaming.wave
 import android.app.Application
 import io.github.jaimegaming.wave.ui.Loc
 
-/**
- * One library and one player for the whole process.
- *
- * The interface and the playback service are two windows onto the same objects:
- * the notification shows the song the screen is showing, and a tap in either
- * place moves the same queue. Creating them here is what makes that true; a
- * player owned by an Activity would die with a rotation and a library owned by a
- * screen would be read four times for four tabs.
- */
+
+
+
+
+
+
+
+
+
 class WaveApplication : Application() {
     lateinit var library: Library
         private set
@@ -20,8 +20,8 @@ class WaveApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        // The language follows the device until Settings pins it; every screen
-        // reads its sentences through Loc.t from here on.
+
+
         Loc.init(this)
         library = Library(this)
         player = Player(this)
@@ -35,6 +35,6 @@ class WaveApplication : Application() {
     }
 }
 
-/** The running application, typed. */
+
 val android.content.Context.wave: WaveApplication
     get() = applicationContext as WaveApplication

@@ -15,7 +15,7 @@ describe('the tab, in the colour of the music', () => {
     expect(blue).not.toBe(orange);
     expect(blue).toContain('hsl(226');
     expect(orange).toContain('hsl(28');
-    // Same path as the interface draws, on a tile that survives a tab strip.
+
     expect(blue).not.toContain('<rect');
     expect(faviconSvg(226, 24, true)).toContain('<rect');
     expect(blue).toContain('stroke-linecap');
@@ -35,8 +35,6 @@ describe('the tab, in the colour of the music', () => {
     expect(link.type).toBe('image/svg+xml');
     expect(link.getAttribute('href')).toBe(faviconHref(90, 30));
 
-    // A second call with the same hue must not touch the element again: the
-    // browser re-reads the icon every time the attribute changes.
     const before = link.getAttribute('href');
     link.setAttribute('href', before as string);
     applyFavicon(90, 30);

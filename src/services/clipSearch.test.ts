@@ -29,7 +29,6 @@ describe('automatic clip search', () => {
     expect(result.cached).toBe(false);
     expect(fetcher.mock.calls[0][0]).toContain('m83%20midnight%20city');
 
-    // Second call is answered from the cache: no extra request leaves the device.
     const again = await findClip(song, { fetcher });
     expect(again.status).toBe('found');
     if (again.status === 'found') expect(again.cached).toBe(true);
@@ -58,9 +57,6 @@ describe('automatic clip search', () => {
   });
 
   it('asks a second host when the first one is slow, and takes the first good answer', async () => {
-    // The first host never answers. Before the hedge, one dead instance could
-    // spend the whole budget and the search said "unreachable" with the rest of
-    // the list still untried.
     const fetcher = vi.fn().mockImplementation((url: string) => {
       const target = String(url);
       if (target.includes('pipedapi.kavin.rocks')) return new Promise(() => {});
@@ -82,7 +78,7 @@ describe('automatic clip search', () => {
     });
     const result = await findClip(song, { fetcher, hedgeMs: 10, providerTimeoutMs: 5_000 });
     expect(result.status).toBe('found');
-    // Two hosts were asked; the healthy one answered and the search stopped there.
+
     expect(fetcher.mock.calls.slice(0, 2).map((call) => String(call[0]))).toEqual([
       expect.stringContaining('pipedapi.kavin.rocks'),
       expect.stringContaining('inv.nadeko.net'),
@@ -90,7 +86,6 @@ describe('automatic clip search', () => {
   });
 
   it('places the clip where the music is, not where the upload begins', () => {
-    // 24 s of intro on the upload: start the clip inside it, bounded and rounded.
     expect(
       rememberClip(
         'track-1',
@@ -98,7 +93,7 @@ describe('automatic clip search', () => {
         240,
       ),
     ).toMatchObject({ startAt: 18 });
-    // A clip about as long as the song starts at the beginning.
+
     expect(
       rememberClip(
         'track-2',
@@ -109,8 +104,6 @@ describe('automatic clip search', () => {
   });
 
   it('does not replay a remembered clip that the current rules reject', async () => {
-    // Saved before lyric videos stopped counting as clips. The cache is a
-    // shortcut, not a verdict: it is re-checked against today's rules.
     const stored = {
       videoId: 'eeeeeeeeeee',
       title: 'M83 - Midnight City (Lyric Video)',
@@ -160,7 +153,7 @@ describe('automatic clip search', () => {
     ).toMatchObject({ videoId: 'dX3k_QDnzHE' });
     expect(loadClips()['track-1'].videoId).toBe('dX3k_QDnzHE');
     expect(localStorage.getItem(CLIP_STORAGE_KEY)).toContain('track-1');
-    // A malformed video id can never be saved.
+
     expect(rememberClip('track-2', { videoId: 'nope', title: '', author: '', duration: 0 })).toBe(
       null,
     );
@@ -179,12 +172,11 @@ describe('automatic clip search', () => {
     localStorage.clear();
     fetcher.mockClear();
     await findClip({ ...song, title: 'Outro' }, { fetcher });
-    // The host that failed is not asked again immediately.
+
     expect(fetcher.mock.calls[0][0]).not.toContain('pipedapi.kavin.rocks');
   });
 
   it('stops at the search budget instead of hanging on dead hosts', async () => {
-    // A host that never answers; a real fetch rejects when its signal aborts.
     const fetcher = vi.fn(
       (_url: RequestInfo | URL, init?: RequestInit) =>
         new Promise<Response>((_resolve, reject) => {

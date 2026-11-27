@@ -156,7 +156,6 @@ h2 {
   --accent: hsl(var(--hue) 48% 28%);
 }
 
-/* Same tonal roles as Wave, without music-driven motion on a reading page. */
 body {
   transition: color 0.25s ease;
 }
@@ -180,4 +179,75 @@ body {
   .back-link {
     transition: none;
   }
+}
+
+.privacy-topic {
+  padding: 0;
+  overflow: hidden;
+}
+.privacy-topic summary {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: clamp(20px, 4vw, 30px);
+  list-style: none;
+}
+.privacy-topic summary::-webkit-details-marker {
+  display: none;
+}
+.privacy-topic summary:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: -5px;
+  border-radius: 24px;
+}
+.privacy-topic summary::after {
+  content: '+';
+  font-size: 26px;
+  color: var(--accent);
+  transition: transform 220ms ease;
+}
+.privacy-topic[open] summary::after {
+  transform: rotate(45deg);
+}
+.privacy-topic summary h2 {
+  margin: 0;
+}
+.privacy-content {
+  padding: 0 clamp(20px, 4vw, 30px) clamp(20px, 4vw, 30px);
+  animation: privacy-arrive 260ms ease both;
+}
+@keyframes privacy-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .privacy-content {
+    animation: none;
+  }
+  .privacy-topic summary::after {
+    transition: none;
+  }
+}
+
+.privacy-subtopic + .privacy-subtopic {
+  margin-top: 26px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+.privacy-subtopic h3 {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+}
+.privacy-subtopic p {
+  max-width: 72ch;
 }

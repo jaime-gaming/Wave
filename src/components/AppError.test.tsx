@@ -16,12 +16,12 @@ describe('AppError', () => {
         <Broken />
       </AppError>,
     );
-    expect(screen.getByRole('alert')).toHaveTextContent('Your music didn’t');
-    // The page is for the person, not for a console: the reason stays in the
-    // console and never becomes a line of technical text on screen.
+    expect(screen.getByRole('alert')).toHaveTextContent('We couldn’t open this screen');
+
     expect(screen.getByRole('alert')).not.toHaveTextContent('nothing to see');
-    expect(screen.getByRole('button', { name: 'Reload' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Reload Wave' })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Try this screen again' })).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Return to Home' })).toHaveAttribute('href', '/');
   });
 
   it('draws its children when nothing is wrong', () => {

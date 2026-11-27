@@ -9,7 +9,6 @@ import {
   OPEN_AIR_HZ,
 } from './mixGraph';
 
-/** Minimal AudioContext double: enough to verify wiring and automation. */
 class FakeParam {
   value = 0;
   targets: number[] = [];
@@ -83,12 +82,10 @@ describe('mix graph', () => {
     expect(filters[0].type).toBe('lowshelf');
     expect(filters[0].frequency.value).toBe(BASS_SHELF_HZ);
     expect(gains[0].gain.value).toBe(1);
-    // The chain reaches the speakers.
+
     const shelf = filters[0] as unknown as FakeNode;
     expect(shelf.connections[0]).toBe(gains[0] as unknown as FakeNode);
 
-    // Normalization is independent of crossfade gain; new sources set their
-    // own attenuation before play rather than emitting a loud first frame.
     graph!.setNormalization(element, 0.2, true);
     expect(gains[1].gain.value).toBe(0.2);
     expect(gains[0].gain.value).toBe(1);
@@ -103,7 +100,7 @@ describe('mix graph', () => {
     graph!.setGain(element, Number.NaN);
     expect(gains[0].gain.value).toBe(0);
     graph!.setBass(element, -6, 0.5);
-    // Scheduled with a short ramp, which is what avoids a click.
+
     expect(filters[0].gain.targets.length).toBeGreaterThan(0);
     expect(filters[0].gain.value).toBe(-6);
     graph!.setBass(element, -999);
@@ -169,7 +166,7 @@ describe('the outgoing filter', () => {
     expect(filterOutHz(0)).toBe(OPEN_AIR_HZ);
     expect(filterOutHz(0.4)).toBe(OPEN_AIR_HZ);
     expect(filterOutHz(1)).toBe(CLOSED_AIR_HZ);
-    // Monotonic, so the sweep is heard as one movement instead of pumping.
+
     let previous = OPEN_AIR_HZ;
     for (let step = 0; step <= 100; step++) {
       const value = filterOutHz(step / 100);

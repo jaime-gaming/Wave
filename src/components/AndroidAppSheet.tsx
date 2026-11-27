@@ -5,19 +5,13 @@ import { useWaveMotion } from '../ui/motion';
 import { ANDROID_APP_URL } from '../ui/androidApp';
 
 import { useT } from '../i18n';
-/**
- * Legacy standalone download sheet. The main web app no longer mounts it or prompts on Home.
- *
- * It is a small sheet above the player, not a modal: the song keeps playing and
- * nothing is blocked. Either answer is remembered, so the question is asked
- * once; the same sheet can still be opened from Settings, deliberately.
- */
+
 export function AndroidAppSheet({
   onDismiss,
   onKeepWeb,
 }: {
   onDismiss: () => void;
-  /** Remembered as "keep using the web" so the sheet stops appearing. */
+
   onKeepWeb: () => void;
 }) {
   const t = useT();

@@ -1,6 +1,5 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 
-// A coarse local sample is enough for a tonal player surface; artwork never leaves the browser.
 export function useArtworkColor(artwork?: string) {
   const [sample, setSample] = useState<{ artwork: string; hue: number; saturation: number } | null>(
     null,
@@ -54,9 +53,7 @@ export function useArtworkColor(artwork?: string) {
           hue: Math.round(hue),
           saturation: delta < 0.03 ? 8 : Math.min(48, Math.max(24, Math.round(delta * 100))),
         });
-      } catch {
-        /* A neutral player palette is the fallback for unavailable artwork. */
-      }
+      } catch {}
     };
     image.onerror = () => {
       if (active) setSample({ artwork, hue: 226, saturation: 24 });

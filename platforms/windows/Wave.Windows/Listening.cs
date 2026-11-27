@@ -1,37 +1,37 @@
 using System.IO;
 namespace Wave.Windows;
 
-/// <summary>One listen, as it was heard.</summary>
+
 public record Play(string SongId, long At, int Seconds, bool Completed);
 
-/// <summary>One day of the week, so the recap can be drawn as bars.</summary>
+
 public record DaySlice(long At, int Seconds, int Plays);
 
-/// <summary>The week split by the genre tags on the files.</summary>
+
 public record GenreSlice(string Genre, int Seconds, int Plays);
 
-/// <summary>The week as one card, and the list it earns.</summary>
+
 public record WeekRecap(long Start, long End, int Seconds, int Plays, int Tracks, int Artists,
     int PreviousSeconds, List<(Song Song, int Count)> TopSongs, List<(string Artist, int Count)> TopArtists, List<Song> Songs,
     List<DaySlice> Days, List<int> Hours, List<GenreSlice> Genres);
 
-/// <summary>What the Remix page shows, built only from the songs still here.</summary>
+
 public record ListeningSummary(int TotalSeconds, int WeekSeconds, int WeekPlays, int UniqueSongs,
     List<(Song Song, int Count)> TopSongs, List<(string Artist, int Count)> TopArtists, List<Song> Recent);
 
-/// <summary>
-/// Counting what was heard, and reading it back.
-///
-/// The rules match the web and Android builds: a listen counts at half the song,
-/// capped at thirty seconds and never under five, one row per run, and the newest
-/// two thousand kept. A deleted song keeps its seconds in the total, because the
-/// time was still spent, but never appears in a list.
-/// </summary>
+
+
+
+
+
+
+
+
 public static class Listening
 {
     public const int ThresholdSeconds = 30;
     public const int Keep = 2000;
-    /// <summary>Full calendar year of history survives so Weekly, Monthly and Yearly Remix stay accurate.</summary>
+
     public const int HistoryDays = 366;
     public const int HistoryPlays = 20000;
     private const long WeekMillis = 7L * 24 * 60 * 60 * 1000;
@@ -48,8 +48,8 @@ public static class Listening
     public static List<Play> Add(string folder, List<Play> plays, Play play)
     {
         var updated = plays.Append(play).OrderBy(p => p.At).ToList();
-        // Four weeks are kept whatever the count, and the count caps the rest, so
-        // Remix can still compare a week with the one before it.
+
+
         var keepFrom = DateTimeOffset.UtcNow.AddDays(-HistoryDays).ToUnixTimeMilliseconds();
         var recent = updated.Where(p => p.At >= keepFrom).TakeLast(HistoryPlays).ToList();
         var older = updated.Where(p => p.At < keepFrom).ToList();
@@ -87,7 +87,7 @@ public static class Listening
             counts.Count, topSongs, topArtists, recent);
     }
 
-    /// <summary>Time in words: "3 min" reads better than "0:03:00" on this page.</summary>
+
     public static string Time(int seconds)
     {
         if (seconds < 60) return "less than a minute";
@@ -99,11 +99,11 @@ public static class Listening
 
     public const int RemixLength = 12;
 
-    /// <summary>
-    /// The last seven local days, compared with the seven before them, and the
-    /// songs they earn. The week comes first; a thin week is topped up from the
-    /// all-time list so the Remix is a playlist rather than a footnote.
-    /// </summary>
+
+
+
+
+
     public static WeekRecap Recap(List<Play> plays, List<Song> songs, long now, int weeksAgo = 0)
     {
         var byId = songs.DistinctBy(s => s.Id).ToDictionary(s => s.Id);
@@ -111,15 +111,15 @@ public static class Listening
         var start = end.AddDays(-6).TicksToMillis();
         var finish = end.AddDays(1).TicksToMillis();
         var previousStart = end.AddDays(-13).TicksToMillis();
-        // Bounded on both sides: a week before this one must not swallow the
-        // plays that belong to the week after it.
+
+
         var week = plays.Where(p => p.At >= start && p.At < finish).ToList();
         var previous = plays.Where(p => p.At >= previousStart && p.At < start).ToList();
 
         var counts = new Dictionary<string, int>();
         var artists = new Dictionary<string, int>();
-        // The same plays counted three more ways: a bar per day, a column per
-        // hour, a slice per genre. Deleted songs still fill the first two.
+
+
         var daySeconds = new int[7];
         var dayPlays = new int[7];
         var hours = new int[24];
@@ -156,8 +156,8 @@ public static class Listening
             }
         }
         return new WeekRecap(start, end.TicksToMillis(),
-            // Every play this week, deleted songs included: they were heard, and
-            // the bars have to add up to the headline.
+
+
             week.Sum(p => p.Seconds), week.Count,
             counts.Count, artists.Count, previous.Sum(p => p.Seconds), top.Take(8).ToList(),
             artists.OrderByDescending(entry => entry.Value).ThenBy(entry => entry.Key, StringComparer.CurrentCultureIgnoreCase)
@@ -172,11 +172,11 @@ public static class Listening
                 .ToList());
     }
 
-    /// <summary>The last four weeks, newest first, quiet ones included.</summary>
+
     public static List<WeekRecap> Recaps(List<Play> plays, List<Song> songs, long now, int weeks = 4) =>
         Enumerable.Range(0, Math.Clamp(weeks, 1, 52)).Select(index => Recap(plays, songs, now, index)).ToList();
 
-    /// <summary>Builds a recap over any arbitrary local [startDate, endDate] range (Monthly / Yearly Remix).</summary>
+
     public static WeekRecap RangeRecap(List<Play> plays, List<Song> songs, DateTime startDate, DateTime endDate, DateTime prevStart, DateTime prevEnd, long now)
     {
         var byId = songs.DistinctBy(s => s.Id).ToDictionary(s => s.Id);
@@ -242,7 +242,7 @@ public static class Listening
                 .ToList());
     }
 
-    /// <summary>Monthly Remix recap for a calendar month (0 = current month, 1 = last month, ...).</summary>
+
     public static WeekRecap MonthlyRecap(List<Play> plays, List<Song> songs, long now, int monthsAgo = 0)
     {
         var anchor = StartOfDay(now).AddMonths(-Math.Max(0, monthsAgo));
@@ -253,7 +253,7 @@ public static class Listening
         return RangeRecap(plays, songs, start, end, prevStart, prevEnd, now);
     }
 
-    /// <summary>Yearly Remix recap for a calendar year (0 = current year, 1 = previous year, ...).</summary>
+
     public static WeekRecap YearlyRecap(List<Play> plays, List<Song> songs, long now, int yearsAgo = 0)
     {
         int year = StartOfDay(now).Year - Math.Max(0, yearsAgo);

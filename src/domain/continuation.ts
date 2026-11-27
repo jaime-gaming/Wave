@@ -5,10 +5,6 @@ import { transitionCompatibility } from './mixPlanner';
 import { analyzeSongMood, inferListeningMood, moodSimilarity, type ListeningSignal } from './mood';
 import type { Track } from './types';
 
-/**
- * Local musical context + dwell-weighted automatic listening mood + weighted variety.
- * Also skips YouTube songs automatically when offline so local playback never stalls.
- */
 export function continuationQueue(
   tracks: Track[],
   current: Track,
@@ -19,9 +15,8 @@ export function continuationQueue(
   moodSignals?: ListeningSignal[],
   online = true,
 ): string[] {
-  // Twenty-four songs is the memory of what autoplay has just been doing: a
-  // library of thirty should not come back to the same three songs all evening.
-  const heard = new Set(recent.slice(-24));
+  const history = recent.slice(-32);
+  const heard = new Set(history);
   const avoid = new Set(recent.slice(-6));
   const count = Number.isFinite(limit) ? Math.max(0, Math.min(20, Math.floor(limit))) : 12;
   const unique = new Map(tracks.map((track) => [track.id, track]));
@@ -36,11 +31,14 @@ export function continuationQueue(
         (t.source === 'youtube' ? online && /^[\w-]{11}$/.test(t.videoId ?? '') : !!t.blob?.size),
     ),
     fresh = candidates.filter((t) => !heard.has(t.id));
-  const pool = [...(fresh.length ? fresh : candidates)].sort(
-    (a, b) => recent.lastIndexOf(a.id) - recent.lastIndexOf(b.id),
+  // Once every playable track has been heard, recycle the oldest first instead of
+  // immediately drawing again from the whole library. Keep at least one option.
+  const oldest = [...candidates].sort(
+    (a, b) => history.lastIndexOf(a.id) - history.lastIndexOf(b.id),
   );
+  const pool = fresh.length ? [...fresh] : oldest;
+  const recycling = fresh.length === 0;
 
-  // Infer the listener's automatic current mood from dwell-weighted signals and session.
   const sessionMood = inferListeningMood(tracks, recent, current, analysisLookup, moodSignals);
   const moodCache = new Map<string, ReturnType<typeof analyzeSongMood>>();
   const moodOf = (track: Track) => {
@@ -56,7 +54,8 @@ export function continuationQueue(
   let anchor = current;
   while (pool.length && result.length < count) {
     const anchorMood = moodOf(anchor);
-    const weighted = pool.map((t) => {
+    const choices = recycling ? pool.slice(0, Math.max(1, Math.ceil(pool.length / 2))) : pool;
+    const weighted = choices.map((t) => {
       const sameArtist =
         canonical(mainArtist(t.artist)) === canonical(mainArtist(anchor.artist)) &&
         !missingTag(t.artist);
@@ -70,16 +69,13 @@ export function continuationQueue(
         t.duration > 0 && anchor.duration > 0
           ? Math.min(t.duration, anchor.duration) / Math.max(t.duration, anchor.duration)
           : 0;
-      // The next song of the same album, in order, is what a person would play
-      // next after a track that has a next track.
+
       const nextOnAlbum =
         sameAlbum &&
         !!t.trackNumber &&
         !!anchor.trackNumber &&
         t.trackNumber === anchor.trackNumber + 1;
 
-      // Mood affinity: blend similarity to the listener's session mood and to the
-      // track just finishing so Autoplay flows seamlessly through the current vibe.
       const candidateMood = moodOf(t);
       const anchorSim = moodSimilarity(candidateMood.vector, anchorMood.vector);
       const sessionSim = sessionMood
@@ -90,14 +86,12 @@ export function continuationQueue(
       const themeMatch = candidateMood.themes.some((theme) => anchorMood.themes.includes(theme))
         ? 1.5
         : 0;
-      // Gently dampen jarring mood whiplash when both tracks have confident mood profiles.
+
       const whiplashPenalty =
         combinedMood < 0.45 && candidateMood.confidence >= 0.45 && anchorMood.confidence >= 0.45
           ? 0.35
           : 1;
 
-      // Studio Mix compatibility: harmonically and rhythmically matched tracks get a
-      // clear lift so Autoplay + Mix transitions land seamlessly on-key and on-tempo.
       const anchorAnalysis = analysisLookup?.(anchor);
       const candidateAnalysis = analysisLookup?.(t);
       const mixFit =
@@ -108,8 +102,6 @@ export function continuationQueue(
       const mixClashDamp =
         anchorAnalysis?.key && candidateAnalysis?.key && mixFit < 0.38 ? 0.65 : 1;
 
-      // An artist heard a moment ago steps back, so a shuffle does not turn into
-      // five songs by the same band in a row.
       const justHeard = avoid.has(t.id) ? 0.2 : 1;
       const artist = canonical(mainArtist(t.artist));
       const artistIndex = recentArtists.lastIndexOf(artist);

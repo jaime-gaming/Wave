@@ -1,4 +1,4 @@
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="Wave.Windows.MainWindow" Title="Wave" Icon="/Wave.ico" Width="1280" Height="860" MinWidth="460" MinHeight="480" Background="{DynamicResource BackgroundBrush}" Foreground="{DynamicResource InkBrush}" FontFamily="{StaticResource WaveFont}" FontSize="15" Closing="ClosingWindow" PreviewKeyDown="WindowKey" SizeChanged="WindowResized">
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="Wave.Windows.MainWindow" Title="Wave" Icon="/Wave.ico" Width="1280" Height="860" MinWidth="460" MinHeight="480" Background="{DynamicResource BackgroundBrush}" Foreground="{DynamicResource InkBrush}" FontFamily="{StaticResource WaveFont}" FontSize="15" Closing="ClosingWindow" PreviewKeyDown="WindowKey" PreviewMouseMove="PointerInteracted" PreviewMouseDown="ButtonInteracted" SizeChanged="WindowResized">
   <Grid Background="{DynamicResource BackgroundBrush}">
     <Grid.ColumnDefinitions><ColumnDefinition x:Name="SidebarWidth" Width="216"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
     <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition x:Name="MiniHeight" Height="0"/></Grid.RowDefinitions>
@@ -282,5 +282,32 @@
         </StackPanel>
       </Grid>
     </Border>
+    <!-- Wave 3.0 immersive idle stage: thirty quiet seconds turn the player into
+         one sleeve, the credits, the Mix cue and a single line of progress. It is
+         decorative only; any pointer or key wakes the ordinary controls. -->
+    <Grid x:Name="IdleStage" Grid.RowSpan="2" Grid.ColumnSpan="2" Panel.ZIndex="50"
+          Background="{DynamicResource BackgroundBrush}" Visibility="Collapsed"
+          MouseMove="PointerInteracted" MouseDown="ButtonInteracted">
+      <Ellipse x:Name="IdleGlow" Width="720" Height="720" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.32">
+        <Ellipse.Fill>
+          <RadialGradientBrush>
+            <GradientStop Color="#5B8CFF" Offset="0"/>
+            <GradientStop Color="#00000000" Offset="1"/>
+          </RadialGradientBrush>
+        </Ellipse.Fill>
+      </Ellipse>
+      <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="900" Margin="32">
+        <Border x:Name="IdleArt" Width="320" Height="320" CornerRadius="42" Background="{DynamicResource TonalBrush}" HorizontalAlignment="Center" Margin="0,0,0,34"/>
+        <TextBlock x:Name="IdleEyebrow" Text="Now playing" FontSize="13" FontWeight="SemiBold" Opacity="0.7" HorizontalAlignment="Center" Margin="0,0,0,12"/>
+        <TextBlock x:Name="IdleTitle" FontSize="42" FontWeight="Bold" TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center"/>
+        <TextBlock x:Name="IdleArtist" FontSize="22" Opacity="0.86" TextTrimming="CharacterEllipsis" TextAlignment="Center" HorizontalAlignment="Center" Margin="0,8,0,0"/>
+        <TextBlock x:Name="IdleAlbum" FontSize="15" Opacity="0.62" TextTrimming="CharacterEllipsis" TextAlignment="Center" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+        <TextBlock x:Name="IdleMix" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Center" Margin="0,16,0,0"/>
+        <TextBlock x:Name="IdleClock" FontSize="14" Opacity="0.72" HorizontalAlignment="Center" Margin="0,24,0,16"/>
+        <Border x:Name="IdleTrack" Height="4" CornerRadius="2" Background="{DynamicResource TonalBrush}" HorizontalAlignment="Stretch" MinWidth="320">
+          <Border x:Name="IdleProgress" Height="4" CornerRadius="2" Background="{DynamicResource AccentBrush}" HorizontalAlignment="Left" Width="0"/>
+        </Border>
+      </StackPanel>
+    </Grid>
   </Grid>
 </Window>

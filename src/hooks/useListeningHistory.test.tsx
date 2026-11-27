@@ -15,7 +15,6 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-/** Advances the hook and a pretend player position together, one second a tick. */
 function setup(initial: {
   track?: typeof track;
   playing: boolean;
@@ -49,8 +48,6 @@ function setup(initial: {
 
 describe('recording what was listened to', () => {
   beforeEach(() => {
-    // Only the sampler's interval is faked: IndexedDB needs real timers to
-    // resolve, and faking them hangs every write in this file.
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
   });
 
@@ -60,7 +57,7 @@ describe('recording what was listened to', () => {
     expect(await getPlays()).toHaveLength(0);
     await listen(25);
     const plays = await getPlays();
-    // Still nothing: a session is written when it closes, not while it runs.
+
     expect(plays).toHaveLength(0);
   });
 
@@ -143,7 +140,7 @@ describe('recording what was listened to', () => {
   it('counts a play that ran to the end as completed', async () => {
     const { listen, rerender } = setup({ track, playing: true });
     await listen(60);
-    // A different song starting is how a finished one ends in practice.
+
     rerender({ track: other, playing: true, duration: 200 });
     await vi.waitFor(async () => expect(await getPlays()).toHaveLength(1));
     const plays = await getPlays();
@@ -153,7 +150,7 @@ describe('recording what was listened to', () => {
   it('does not count time that a seek jumped over', async () => {
     const { listen, rerender } = setup({ track, playing: true });
     await listen(4);
-    // Someone drags the slider an hour ahead: that is not an hour of listening.
+
     await act(async () => {
       vi.advanceTimersByTime(1_000);
     });

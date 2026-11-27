@@ -21,7 +21,7 @@ describe('MaterialSwitch', () => {
     fireEvent.pointerMove(toggle, { pointerId: 1, clientX: 120 });
     expect(toggle).toHaveClass('is-dragging');
     fireEvent.pointerUp(toggle, { pointerId: 1, clientX: 120 });
-    // Follow-up synthetic browser click after a drag must not immediately revert it.
+
     fireEvent.click(toggle);
 
     expect(onChange).toHaveBeenCalledTimes(1);

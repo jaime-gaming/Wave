@@ -32,7 +32,6 @@ function directory(name: string, children: (FileHandleLike | DirectoryHandleLike
   };
 }
 
-/** A directory whose listener always throws, as a revoked handle does. */
 const broken: DirectoryHandleLike = {
   kind: 'directory',
   name: 'locked',
@@ -87,8 +86,7 @@ describe('Remembering a folder', () => {
 
   it('reports access as needing a click when the browser cannot say', async () => {
     const folder = await rememberFolder(directory('No permissions API', []));
-    // jsdom has no permission API on a plain object, so the honest answer is
-    // "ask the listener", never "granted".
+
     expect(await folderAccess(folder)).toBe('prompt');
     await forgetFolder(folder.id);
   });
@@ -108,7 +106,7 @@ describe('Feature detection', () => {
     const window = { ...scope } as { showDirectoryPicker: unknown; top: unknown };
     window.top = window;
     expect(canShowFolderPicker(window as never)).toBe(true);
-    // A frame whose `top` is a different object is not a top-level window.
+
     expect(canShowFolderPicker({ ...scope, top: {} } as never)).toBe(false);
     expect(canShowFolderPicker(undefined)).toBe(false);
     expect(inEmbeddedFrame({} as never)).toBe(false);
@@ -121,7 +119,7 @@ describe('Feature detection', () => {
       },
     };
     expect(await pickFolder(cancelled)).toEqual({ ok: false, reason: 'cancelled' });
-    // Chrome refuses the picker in a cross-origin frame with an ordinary error.
+
     const refused = {
       showDirectoryPicker: async () => {
         throw new Error('Failed to execute showDirectoryPicker');

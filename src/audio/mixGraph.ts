@@ -1,41 +1,25 @@
-/**
- * Web Audio routing for Mix.
- *
- * Each deck gets `source → low shelf → gain → low-pass → destination`. The shelf
- * is what makes a bass swap possible: the outgoing kick and sub-bass are rolled
- * off while the incoming ones open, so the two songs never fight for the same low
- * end. The low-pass is what makes the handover audible as a mix: the outgoing
- * song loses its top as it leaves instead of simply getting quieter.
- *
- * The graph is additive, never destructive: it sits between the native element
- * and the speakers. The file, its sample rate, its bit depth and its bitrate are
- * untouched; nothing is re-encoded. If Web Audio is unavailable the engine falls
- * back to plain element volume, which sounds the same minus the bass swap.
- */
 export interface DeckChain {
   gain: GainNode;
   bass: BiquadFilterNode;
   air: BiquadFilterNode;
 }
 
-/** Widest pan a deck is moved during a mix, well short of a hard side. */
 export const MAX_PAN = 0.5;
 
-/** Low shelf corner: below this, the deck is the "bass" deck or it is not. */
 export const BASS_SHELF_HZ = 180;
-/** How far down the outgoing low end goes at the swap point. */
+
 export const BASS_CUT_DB = -22;
-/** Peaking midrange pocket carved gently on the outgoing deck so vocals stay clear. */
+
 export const MID_CARVE_HZ = 1_400;
-/** Gentle midrange dip during ordinary mixes so two leads never crowd the centre. */
+
 export const MID_CARVE_DB = -3.6;
-/** Deeper vocal-clearance dip when both records carry a voice in the overlap. */
+
 export const VOCAL_CARVE_DB = -6.0;
-/** A deck with its low-pass wide open: no audible change to the file. */
+
 export const OPEN_AIR_HZ = 20_000;
-/** Where the outgoing song's top ends up as it leaves the mix. */
+
 export const CLOSED_AIR_HZ = 1_600;
-/** Gentle incoming top-end opening corner so the new track blooms in smoothly. */
+
 export const INCOMING_OPEN_START_HZ = 4_800;
 
 type Chain = {
@@ -58,7 +42,6 @@ export class MixGraph {
     this.context = context;
   }
 
-  /** Returns null when Web Audio is unavailable (old browser, jsdom, private mode). */
   static create(): MixGraph | null {
     if (typeof AudioContext === 'undefined') return null;
     try {
@@ -73,23 +56,10 @@ export class MixGraph {
     return this.context.state !== 'closed';
   }
 
-  /**
-   * True only while the context is actually producing sound.
-   *
-   * This matters more than it looks: once an element is attached to a source
-   * node, its audio no longer reaches the speakers by itself. A suspended
-   * context would therefore make the song play silently. Nothing is attached
-   * until this is true.
-   */
   get running(): boolean {
-    // `state` is narrowed by the DOM lib; a suspended context makes no sound.
     return (this.context.state as AudioContextState) === 'running';
   }
 
-  /**
-   * Web Audio starts suspended until a user gesture. Returns whether the graph
-   * can be used right now; a browser that refuses keeps playback unplugged.
-   */
   async resume(): Promise<boolean> {
     if (this.running) return true;
     try {
@@ -100,10 +70,6 @@ export class MixGraph {
     return this.running;
   }
 
-  /**
-   * Connects a deck once. `createMediaElementSource` throws if called twice for
-   * the same element, so chains are cached and reused.
-   */
   chain(element: HTMLAudioElement): DeckChain | null {
     let chain = this.chains.get(element);
     if (!chain) {
@@ -126,8 +92,7 @@ export class MixGraph {
         const normalization = this.context.createGain();
         normalization.gain.value = 1;
         source.connect(normalization);
-        // A safety ceiling catches inter-sample/decoder peaks when boosting quiet tracks.
-        // At unity or below it stays bypass-equivalent (0 dB threshold, 0 dB knee).
+
         const limiter = this.context.createDynamicsCompressor?.();
         if (limiter) {
           limiter.threshold.value = 0;
@@ -141,9 +106,7 @@ export class MixGraph {
         bass.connect(gain);
         gain.connect(mid);
         mid.connect(air);
-        // A panner finishes the chain where the browser has one. It is the only
-        // effect in the graph that changes no level: two songs separate in the
-        // stereo field during a blend and come back to the centre.
+
         const pan = this.context.createStereoPanner?.();
         if (pan) {
           air.connect(pan);
@@ -173,7 +136,6 @@ export class MixGraph {
     };
   }
 
-  /** Independent from the unity-bounded crossfade curve; ramp to avoid clicks. */
   setNormalization(element: HTMLAudioElement, gain: number, immediate = false): void {
     const chain = this.chains.get(element);
     if (!chain) return;
@@ -181,7 +143,6 @@ export class MixGraph {
     const threshold = safe > 1 ? -1.5 : 0;
     const knee = safe > 1 ? 6 : 0;
     if (immediate) {
-      // New/reused sources begin at their own level, never the previous song's.
       chain.normalization.cancelScheduledValues?.(this.context.currentTime);
       chain.normalization.value = safe;
       if (chain.limiter) {
@@ -206,11 +167,6 @@ export class MixGraph {
     else chain.gain.value = safe;
   }
 
-  /**
-   * Sets the low-pass corner of a deck. Used only during a mix and always
-   * returned to `OPEN_AIR_HZ` afterwards, so nothing is filtered in normal
-   * playback.
-   */
   setAir(element: HTMLAudioElement, hertz: number, at = 0): void {
     const chain = this.chains.get(element);
     if (!chain) return;
@@ -229,10 +185,6 @@ export class MixGraph {
     else chain.bass.value = safe;
   }
 
-  /**
-   * Gentle peaking carve around 1.4 kHz on the outgoing deck during a blend so
-   * incoming vocals and leads stay intelligible. Always reset to 0 dB when idle.
-   */
   setMid(element: HTMLAudioElement, decibels: number, at = 0): void {
     const chain = this.chains.get(element);
     if (!chain?.mid) return;
@@ -241,12 +193,6 @@ export class MixGraph {
     else chain.mid.value = safe;
   }
 
-  /**
-   * Places a deck in the stereo field, −1 left to 1 right.
-   *
-   * Only ever moved during a blend and always returned to 0, so ordinary
-   * playback is exactly centred and unchanged.
-   */
   setPan(element: HTMLAudioElement, value: number, at = 0): void {
     const chain = this.chains.get(element);
     if (!chain?.pan) return;
@@ -255,26 +201,20 @@ export class MixGraph {
     else chain.pan.value = safe;
   }
 
-  /** Releases the context. Sources cannot be detached, so they are left silent. */
   async close(): Promise<void> {
     for (const source of this.sources) {
       try {
         source.disconnect();
-      } catch {
-        // Already disconnected.
-      }
+      } catch {}
     }
     this.sources.clear();
     this.chains.clear();
     try {
       await this.context.close();
-    } catch {
-      // Nothing to release.
-    }
+    } catch {}
   }
 }
 
-/** Bass shelf value for a deck at a given point of the swap. */
 export function bassShelfDb(
   role: 'outgoing' | 'incoming',
   progress: number,
@@ -282,42 +222,27 @@ export function bassShelfDb(
 ): number {
   const p = Math.max(0, Math.min(1, progress));
   const pivot = Math.max(0.25, Math.min(0.85, Number.isFinite(swapAt) ? swapAt : 0.55));
-  // The low end changes hands smoothly across the swap window so the kick never vanishes.
+
   const t = Math.max(0, Math.min(1, p / pivot));
   const smooth = t * t * (3 - 2 * t);
   const value = role === 'outgoing' ? BASS_CUT_DB * smooth : BASS_CUT_DB * (1 - smooth);
-  // Normalise -0 so setBass and tests see a plain zero.
+
   return value === 0 ? 0 : value;
 }
 
-/**
- * Low-pass corner for the outgoing deck across a mix, in hertz.
- *
- * The top is untouched for the first half (the two songs still have to sound
- * like themselves), then rolls down so the old song is unmistakably leaving.
- * Playback only: the element, the file and its samples are never changed, and
- * the corner returns to `OPEN_AIR_HZ` when the handover finishes.
- */
 export function filterOutHz(progress: number): number {
   const p = Math.max(0, Math.min(1, progress));
   const t = Math.max(0, Math.min(1, (p - 0.45) / 0.5));
   const smooth = t * t * (3 - 2 * t);
-  // Exponential sweep: 20 kHz → 1.6 kHz reads as a filter, not as a fade.
+
   const value = OPEN_AIR_HZ * Math.pow(CLOSED_AIR_HZ / OPEN_AIR_HZ, smooth);
   return Math.round(value);
 }
 
-/**
- * Outgoing 1.4 kHz midrange pocket carve across the active overlap.
- *
- * Returns 0 dB at the start and end of the mix, dipping smoothly around the
- * centre of the transition so the incoming vocal or melody sits cleanly in
- * front without masking. Deeper when both songs have active vocals.
- */
 export function midCarveDb(progress: number, vocalOverlap = false): number {
   const p = Math.max(0, Math.min(1, progress));
   if (p <= 0 || p >= 1) return 0;
-  // Smooth bell peaking near p = 0.52 where both decks share the stage most.
+
   const bell = Math.sin(Math.PI * p);
   const shaped = bell * bell;
   const depth = vocalOverlap ? VOCAL_CARVE_DB : MID_CARVE_DB;
@@ -325,13 +250,6 @@ export function midCarveDb(progress: number, vocalOverlap = false): number {
   return Math.abs(value) < 0.01 ? 0 : Math.round(value * 100) / 100;
 }
 
-/**
- * Incoming top-end bloom sweep during the first ~35 % of a mix.
- *
- * Opens the new track's air band exponentially from ~4.8–5.6 kHz to wide-open
- * 20 kHz so cymbals and transients arrive with studio cohesion rather than a
- * sudden sharp entrance, finishing wide open long before the midpoint.
- */
 export function incomingAirHz(progress: number, beatmatched = false): number {
   const p = Math.max(0, Math.min(1, progress));
   const span = beatmatched ? 0.32 : 0.38;

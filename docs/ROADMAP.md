@@ -1,8 +1,93 @@
+# Wave roadmap
+
+**Development: 0.3.0 · Latest public release: 0.2.2.** This is a prioritized plan,
+not a release schedule. Features described here may still need real-device validation.
+[Platform status](PLATFORMS.md) is the source of truth for differences between clients;
+[the changelog](../CHANGELOG.md) records release history.
+
+## The experience
+
+Wave is a private home for the music people already own. The priorities are dependable
+playback, a library that is easy to understand, and a coherent interface that feels at
+home on every screen. Features should be understandable without technical knowledge.
+
+## Playback and music
+
+- [x] Local playback, queue, playlists, shuffle and repeat on the web and native projects.
+- [x] Web Mix with local analysis and two decks. Automatic handovers preserve the
+      recorded opening and ending unless the listener explicitly trims a song.
+- [x] Local recommendations, Daily Mixes, listening history and Remix recaps, with
+      differences between clients documented in the platform matrix.
+- [ ] Listen to transitions on real devices with short tracks, quiet intros, live albums,
+      different codecs, interruptions, slow storage and a next file that cannot be opened.
+- [ ] Improve gapless playback and graceful recovery from unavailable or damaged files.
+- [ ] Bring web Mix, Fix Volume, lyrics and catalogue capabilities to native clients.
+- [ ] Investigate YouTube Mix without skipping the incoming beginning, respecting player policies
+      and platform autoplay restrictions. It is currently disabled for embedded playback; see
+      [the investigation](YOUTUBE_MIX.md).
+
+## Library, privacy and safety
+
+- [x] Local import, metadata editing, search and playlists; web backup restores only into
+      an empty library and excludes settings, links and folder permissions.
+- [x] Web reset asks for confirmation and clears Wave's local data before restarting.
+      Closing other Wave tabs may be necessary; a failed reset can be partial and retried.
+- [ ] Validate backup and reset with large libraries, interrupted writes, blocked tabs,
+      limited storage and offline restarts. Design compatible native backups before claiming parity.
+- [ ] Add import cancellation, richer organization and more accessible error recovery.
+- [ ] Complete provider rights, privacy and distribution review before production release.
+
+## One coherent interface
+
+- [x] Step-by-step web setup, local preferences, reduced motion and a responsive player.
+- [ ] Validate the two-way player morph and its live state during rapid track changes,
+      resizing, rotation, interruption and reduced-motion settings on real browsers.
+- [ ] Refine spacing, touch targets, keyboard and screen-reader behavior across every view.
+- [ ] Bring setup, settings, interactions, animations and core functions to the native apps;
+      use native conventions where needed without claiming parity prematurely.
+- [ ] Profile large libraries, slow devices, memory and battery use.
+
+## Shared experience across platforms
+
+The goal is a coherent core for every listener, not a WebView wrapper or identical platform chrome.
+Prioritize library and playback first, then YouTube, playlist migration, lyrics and catalogue,
+Fix Volume, clips, mood-aware recommendations, and comparable settings and accessible motion.
+Each native capability needs its own privacy and provider-rights review, resource limits and
+platform-specific device tests. Keep storage and UI modules small, reuse contracts where practical,
+and record gaps in the platform matrix rather than implying an unfinished feature exists.
+
+## Platforms and delivery
+
+- [x] Independent web, Android, Windows and iOS source projects; they keep separate libraries.
+- [ ] Complete the [platform matrix](PLATFORMS.md) feature gaps and validate real-device playback,
+      accessibility, background audio, OS integrations and mobile layouts.
+- [ ] Verify installation and the offline shell in mobile browsers.
+- [ ] Release Windows as the configured unsigned `Wave.exe`, with its warning clearly explained;
+      Android updates require the same signing key. See [Windows release](WINDOWS_RELEASE.md).
+- [ ] Decide on iOS distribution only when signing and provisioning are available; the present
+      iOS project is source-only and does not publish an IPA.
+
+## Possible later additions
+
+Equalizer and playback speed, additional library filters, optional casting, portable
+cross-platform backup, and better offline/import diagnostics are candidates, not promises.
+Account-based streaming and social features require a separate privacy and product decision.
+
+## Contributing
+
+Propose work in the [issue tracker](https://github.com/jaime-gaming/Wave/issues), including
+its user benefit, privacy impact, platform limitations and test plan. See
+[CONTRIBUTING](../.github/CONTRIBUTING.md).
+
+## Earlier roadmap and release history
+
+The following is the complete earlier roadmap, retained for historical context. Its version, completion claims, future plans and links reflect the time it was written and do not describe current platform parity. The current plan and platform matrix above take precedence.
+
 # Wave Roadmap
 
-**Version: 0.2.2 · Release date: 16 November 2026.**
+**Working version: 0.3.0 · Latest public release: 0.2.2.**
 
-Wave 0.2.2 delivers studio-grade harmonic 3-band EQ Mix transitions, a 100% local on-device Mood Engine across Web/Windows/Android, complete-only Daily Mixes (7–20 tracks, max 3, day-locked covers), Weekly/Monthly/Yearly Remix recaps, BS.1770 LUFS Fix Volume, unified YouTube search & link import with offline awareness, Windows 11 in-place library linking (Issue #14) and crash-proof atomic storage, and full native Windows/Android UI & playback parity.
+Wave includes local Mix and mood features, Daily Mixes, Remix recaps, optional YouTube lookup and native app projects. Native parity, real-device behavior and cross-platform interoperability are not complete; see [PLATFORMS](PLATFORMS.md).
 
 ## Vision
 
@@ -49,15 +134,15 @@ High priority after the initial player:
 - [x] Drag/button/keyboard song reordering in playlists and albums, persisted separately.
 - [x] Version-1 library migration and atomic pruning of deleted playlist references.
 - [x] Add unique tracks to the current queue without replacing it.
-- [ ] Drag-and-drop queue reordering.
-- [ ] Library/playlist backup and restore with clear file ownership.
-- [ ] Storage usage, quota information, and persistence requests.
+- [x] Drag-and-drop queue reordering on web.
+- [x] Web library backup and restore into an empty library, including original local audio, playlists and history; settings, device links and folder permissions are excluded. Native backup compatibility remains open.
+- [x] Web storage usage, quota information, and persistence requests (subject to browser support).
 - [ ] Import cancellation and metadata work in a worker.
 - [x] Folder import with explicit permission and browser fallbacks: directory picker first,
       directory input next, remembered handles stored locally and re-requested only from a click.
 - [ ] Additional filters and sorting options.
 - [x] Remember volume and last audible level, including mute/reload/unmute.
-- [ ] Optionally restore the queue/position.
+- [x] Optionally restore the web queue and position.
 - [ ] Better codec diagnostics and import failure details.
 - [x] Installable web app: manifest, maskable and Apple icons, standalone display, and an offline cache of the interface (never audio).
 - [ ] Verify installation and the offline shell on real Android and iOS devices.
@@ -71,14 +156,14 @@ Subject to feasibility and performance testing:
 - [x] Full-viewport desktop/tablet/mobile now-playing view and local artwork-driven colors.
 - [x] Dedicated Home overview and artist collection/detail with owned albums/songs.
 - [x] Source codec/sample-rate/bit-depth details where available, native original-Blob playback, and selected-order shuffle restoration.
-- [ ] Listening history and local statistics.
+- [x] Web listening history and local statistics; real-device validation remains open.
 - [x] Embedded/local LRC and plain lyrics, native-clock line highlighting, seeking, timing offsets and a friendly missing-lyrics state.
 - [ ] Equalizer and playback speed through browser audio APIs.
-- [ ] Volume normalization.
+- [x] Web Fix Volume with local analysis and reversible playback gain; native parity and real-device validation remain open.
 - [x] A dual-decoder overlap of twelve to twenty-four seconds, chosen per pair and cancelled back to the plain next song when a deck will not start; nothing about its length is configurable.
-- [x] One automatic Mix switch, per-pair bounded timing and silence-safe cues; no manual overlap duration or mode selector and no beat/tempo matching.
+- [x] One automatic Mix switch with bounded timing, silence-safe cues and local tempo-aware planning where analysis is available.
 - [x] Local patterned Autoplay continuation with repeat/pause priority and recent-song alternatives.
-- [x] Local import metadata validation with worker parsing and paged local review; no external catalogue or cover requests.
+- [x] Local import metadata validation and review; optional online catalogue and cover lookup is separately disclosed.
 - [x] Reorder the playback queue with drag, buttons and keyboard, retaining source/time and saved order.
 - [x] Contextual right-click actions, with keyboard support and native editing/selection escape hatches.
 - [x] Soft spectral illumination, complete absence hiding and media-clocked palette blending.
@@ -124,7 +209,7 @@ Use the [issue tracker](https://github.com/jaime-gaming/Wave/issues) to propose 
 
 Release 0.2.0 is dated 3 November 2026; published assets and tag identity are recorded on the GitHub Release. There is no released 1.0.0 or completed Android parity.
 
-Immediate import persistence, exact-byte renamed-file deduplication, compact covers/lyrics and browser-controlled eviction protection are implemented. Portable backup/export and lossless reduction of original audio storage are not implemented; original bytes necessarily occupy their original size.
+Immediate import persistence, exact-byte renamed-file deduplication, compact covers/lyrics and browser-controlled eviction protection are implemented. Web backup/export is implemented for an empty-library restore; lossless reduction of original audio storage is not implemented and original bytes occupy their original size.
 
 ## Three-platform update
 

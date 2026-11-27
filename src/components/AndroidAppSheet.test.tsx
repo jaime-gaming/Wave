@@ -15,7 +15,7 @@ describe('the Android offer', () => {
     expect(screen.getByRole('dialog', { name: /wave for android/i })).toBeInTheDocument();
     const download = screen.getByRole('link', { name: /download the app/i });
     expect(download).toHaveAttribute('href', ANDROID_APP_URL);
-    // Opening the file leaves Wave: the tab it opens gets no handle on the app.
+
     expect(download).toHaveAttribute('rel', 'noreferrer');
 
     await userEvent.click(screen.getByRole('button', { name: /keep using the web/i }));

@@ -10,38 +10,19 @@ import {
 } from '../domain/catalogue';
 import { downloadCover, preferredCountry, searchCatalogue } from '../services/catalogue';
 import { readArtwork } from '../data/artwork';
+import { searchDeezer } from '../services/musicBrainz';
 import { markDetailsChecked } from '../data/library';
 import type { Track } from '../domain/types';
+import { rolesReviewKey } from '../domain/metadata';
 
-/**
- * Filling in what a file could not say about itself.
- *
- * Runs quietly in the background, one song at a time and only when the listener
- * has turned lookups on and the library already has songs with holes: an unknown artist, no album, no year, no sleeve,
- * or a title that is really a filename. Each song is asked about once and then
- * left alone for a month — a catalogue that answers "no" today may answer
- * tomorrow, but not on every render.
- *
- * Nothing is ever overwritten: a title the listener typed, a tag the file
- * carried, and the length of the actual audio are all out of reach. A song that
- * is already complete is never sent anywhere at all.
- */
 export const DETAILS_FLAG = 'wave-complete-details';
-/** How long a song is left alone after one question. */
+
 export const DETAILS_RETRY_MS = 30 * 24 * 60 * 60_000;
-/** Songs asked about in one sitting: a library of thousands must not stampede. */
+
 export const DETAILS_BATCH = 12;
-/** Space between questions, so the provider is not hammered. */
+
 export const DETAILS_GAP_MS = 700;
 
-/**
- * Off, and it stays off until the listener turns it on.
- *
- * Reaching a catalogue means sending song names to somebody else, which is not
- * something to do on a person's behalf because they opened an app. The switch
- * lives in the song details panel, its default is off, and nothing here talks to
- * the network until it has been moved.
- */
 export function detailsEnabled(): boolean {
   try {
     return localStorage.getItem(DETAILS_FLAG) === 'on';
@@ -53,15 +34,25 @@ export function detailsEnabled(): boolean {
 export function setDetailsEnabled(enabled: boolean) {
   try {
     localStorage.setItem(DETAILS_FLAG, enabled ? 'on' : 'off');
-  } catch {
-    // A browser that refuses storage simply keeps the default.
-  }
+  } catch {}
 }
 
-/** The songs worth asking about right now, most incomplete first. */
-export function detailsQueue(tracks: Track[], now = Date.now()): Track[] {
+export function detailsQueue(
+  tracks: Track[],
+  now = Date.now(),
+  excluded: ReadonlySet<string> = new Set(),
+  verifyRoles = false,
+): Track[] {
   const worth = tracks.filter((track) => {
-    if (!needsDetails(track)) return false;
+    const verifyComplete =
+      verifyRoles &&
+      !track.editedAt &&
+      track.source !== 'youtube' &&
+      track.rolesReviewed !== rolesReviewKey(track) &&
+      track.duration > 0 &&
+      !!track.title.trim() &&
+      !!track.artist.trim();
+    if (excluded.has(track.id) || (!needsDetails(track) && !verifyComplete)) return false;
     if (track.detailsCheckedAt && now - track.detailsCheckedAt < DETAILS_RETRY_MS) return false;
     return true;
   });
@@ -74,84 +65,97 @@ export function useCatalogueDetails({
   onUpdate,
   enabled = detailsEnabled(),
   online = true,
+  verifyRoles = false,
 }: {
   tracks: Track[];
-  /** Stores the filled fields and gives the caller the updated song. */
-  onUpdate: (id: string, patch: Record<string, unknown>) => Promise<Track | null>;
+
+  onUpdate: (id: string, patch: Record<string, unknown>, expected: Track) => Promise<Track | null>;
   enabled?: boolean;
   online?: boolean;
+  verifyRoles?: boolean;
 }) {
   const [filling, setFilling] = useState(0);
   const [completed, setCompleted] = useState(0);
   const asked = useRef(new Set<string>());
   const running = useRef(false);
+  const active = useRef<AbortController | null>(null);
+  useEffect(() => {
+    if (!enabled || !online) active.current?.abort();
+    return () => active.current?.abort();
+  }, [enabled, online]);
 
   const run = useCallback(async () => {
     if (!enabled || !online || running.current) return;
-    const queue = detailsQueue(tracks).filter((track) => !asked.current.has(track.id));
+    const queue = detailsQueue(tracks, Date.now(), asked.current, verifyRoles);
     if (!queue.length) return;
     running.current = true;
+    const controller = new AbortController();
+    active.current = controller;
+    const signal = controller.signal;
     setFilling(queue.length);
     const country = preferredCountry();
     try {
       for (const track of queue) {
+        if (signal.aborted) break;
         asked.current.add(track.id);
         const query = catalogueQuery(track);
         if (!query) {
           await markDetailsChecked(track.id);
           continue;
         }
-        let releases = await searchCatalogue(query, { country });
+        let releases = await searchCatalogue(query, { country, signal });
         let release: CatalogueRelease | undefined =
           confirmedRoleRelease(track, releases) ?? bestRelease(track, releases);
-        if (!release) {
+        if (!release && !signal.aborted) {
           for (const fallback of catalogueFallbackQueries(track)) {
-            releases = await searchCatalogue(fallback, { country });
+            releases = await searchCatalogue(fallback, { country, signal });
             release = confirmedRoleRelease(track, releases) ?? bestRelease(track, releases);
-            if (release) break;
+            if (release || signal.aborted) break;
           }
         }
+        if (!release && !signal.aborted) {
+          const alternatives = await searchDeezer(query, signal);
+          release = confirmedRoleRelease(track, alternatives) ?? bestRelease(track, alternatives);
+        }
+        if (signal.aborted) break;
         if (!release) {
           await markDetailsChecked(track.id);
           await new Promise((resolve) => setTimeout(resolve, DETAILS_GAP_MS));
           continue;
         }
         const { patch, filled } = detailsPatch(track, release);
-        // The sleeve is the one part that needs a second request and a local copy:
-        // it is fetched only when there is a gap to fill and a release to fill it.
+
         if (!track.artwork && release.artworkUrl) {
-          const file = await downloadCover(release.artworkUrl);
+          const file = await downloadCover(release.artworkUrl, signal);
           if (file) {
             try {
               patch.artwork = await readArtwork(file);
               filled.push('cover');
-            } catch {
-              /* An unusable image is not a reason to lose the text that came with it. */
-            }
+            } catch {}
           }
         }
-        const updated = filled.length ? await onUpdate(track.id, patch) : null;
+        if (signal.aborted) break;
+        const updated = filled.length ? await onUpdate(track.id, patch, track) : null;
         if (!updated) await markDetailsChecked(track.id);
-        if (filled.length) setCompleted((count) => count + 1);
+        if (updated && filled.length) setCompleted((count) => count + 1);
         await new Promise((resolve) => setTimeout(resolve, DETAILS_GAP_MS));
       }
     } catch {
-      // A failed lookup or local write must not leave the panel permanently busy.
-      asked.current.clear();
     } finally {
       running.current = false;
+      if (active.current === controller) active.current = null;
+      if (signal.aborted) asked.current.clear();
       setFilling(0);
     }
-  }, [enabled, online, onUpdate, tracks]);
+  }, [enabled, online, onUpdate, tracks, verifyRoles]);
 
   useEffect(() => {
-    if (!enabled || !online) return;
-    // Deferred so a library that is still loading is not asked about twice.
+    if (!enabled || !online || filling) return;
+
     const timer = setTimeout(() => void run(), 1_500);
     return () => clearTimeout(timer);
-  }, [enabled, online, run]);
+  }, [enabled, online, run, filling]);
 
-  /** Asks again now, including songs that were already asked about today. */
   const lookUp = useCallback(() => {
     asked.current.clear();
     return run();
@@ -160,7 +164,6 @@ export function useCatalogueDetails({
   return { filling, completed, lookUp };
 }
 
-/** How much of the library still has gaps, for the one line that says so. */
 export function detailsSummary(tracks: Track[]): { incomplete: number; complete: number } {
   let incomplete = 0;
   for (const track of tracks) if (needsDetails(track)) incomplete++;

@@ -1,24 +1,15 @@
 import type { LoanRequest } from './loan';
 
-/**
- * Wave sync protocol, version 1.
- *
- * Frames are plain JSON text so the same contract can be implemented by the web
- * client, the Android client and a future relay. Everything except the initial
- * `hello` exchange is sealed with AES-GCM (see pairing.ts). Audio never leaves a
- * device unless the user explicitly grants a loan, and a loan is always a
- * complete, verified file.
- */
-export const SYNC_PROTOCOL_VERSION = 1;
-/** Upper bound for any single transport message, including base64 overhead. */
+export const SYNC_PROTOCOL_VERSION = 2;
+
 export const MAX_FRAME_BYTES = 96 * 1024;
-/** Raw bytes per audio chunk. Base64 keeps the envelope under MAX_FRAME_BYTES. */
-export const DEFAULT_CHUNK_BYTES = 48 * 1024;
-/** Same ceiling as a local import: 200 MB per stored file. */
+
+export const DEFAULT_CHUNK_BYTES = 24 * 1024;
+
 export const MAX_LOAN_TRACK_BYTES = 200 * 1024 * 1024;
 export const MAX_LIBRARY_ENTRIES = 50_000;
 
-export type Platform = 'web' | 'android' | 'windows';
+export type Platform = 'web' | 'android' | 'ios' | 'windows';
 
 export interface DeviceInfo {
   deviceId: string;
@@ -43,10 +34,11 @@ export interface TransferMetadata {
   sha256: string;
   chunkSize: number;
   chunkCount: number;
+  mime?: string;
 }
 
 export type SyncFrame =
-  | ({ type: 'hello' } & DeviceInfo & { publicKey: string })
+  | ({ type: 'hello' } & DeviceInfo & { publicKey: string; nonce: string })
   | { type: 'pair-confirm'; sas: string }
   | { type: 'pair-reject'; reason: string }
   | { type: 'library-index'; entries: LibraryEntry[]; complete: boolean }
@@ -101,7 +93,8 @@ function readDevice(value: Record<string, unknown>): DeviceInfo | null {
   const platform = value.platform;
   const protocolVersion = count(value.protocolVersion, 1000);
   if (!deviceId || name === null || protocolVersion === null) return null;
-  if (platform !== 'web' && platform !== 'android' && platform !== 'windows') return null;
+  if (platform !== 'web' && platform !== 'android' && platform !== 'ios' && platform !== 'windows')
+    return null;
   return { deviceId, name: name.trim() || 'Wave device', platform, protocolVersion };
 }
 
@@ -112,10 +105,16 @@ function readTransferMetadata(value: Record<string, unknown>): TransferMetadata 
   const sha256 = string(value.sha256, 64);
   const chunkSize = count(value.chunkSize, MAX_FRAME_BYTES);
   const chunkCount = count(value.chunkCount, Math.ceil(MAX_LOAN_TRACK_BYTES / 1024));
+  const mime = value.mime === undefined ? undefined : string(value.mime, 100);
+  if (
+    mime === null ||
+    (mime !== undefined && !/^(audio\/[a-z0-9.+-]+|application\/octet-stream)$/u.test(mime))
+  )
+    return null;
   if (!loanId || !trackId || !size || !sha256 || !SHA256.test(sha256)) return null;
   if (!chunkSize || chunkSize < 1 || !chunkCount) return null;
   if (Math.ceil(size / chunkSize) !== chunkCount) return null;
-  return { loanId, trackId, size, sha256, chunkSize, chunkCount };
+  return { loanId, trackId, size, sha256, chunkSize, chunkCount, ...(mime ? { mime } : {}) };
 }
 
 function readEntries(value: unknown): LibraryEntry[] | null {
@@ -165,7 +164,6 @@ function readLoanRequests(value: unknown): LoanRequest[] | null {
   return requests;
 }
 
-/** Validates and parses a frame. Unknown or malformed input is never applied. */
 export function decodeFrame(raw: string): DecodeResult {
   if (typeof raw !== 'string') return fail('invalid-json', 'Frame is not text.');
   const bytes = new TextEncoder().encode(raw).byteLength;
@@ -188,8 +186,10 @@ export function decodeFrame(raw: string): DecodeResult {
     case 'hello': {
       const device = readDevice(frame);
       const publicKey = string(frame.publicKey, 200);
-      if (!device || !publicKey) return fail('invalid-field', 'Malformed hello frame.');
-      return { ok: true, frame: { type: 'hello', ...device, publicKey } };
+      const nonce = string(frame.nonce, 22);
+      if (!device || !publicKey || !nonce || !/^[A-Za-z0-9_-]{22}$/u.test(nonce))
+        return fail('invalid-field', 'Malformed hello frame.');
+      return { ok: true, frame: { type: 'hello', ...device, publicKey, nonce } };
     }
     case 'pair-confirm': {
       const sas = string(frame.sas, 16);
@@ -295,7 +295,6 @@ export function encodeFrame(frame: SyncFrame): string {
   return raw;
 }
 
-/** UTF-8 byte length of a frame, used to enforce transport limits. */
 export function frameBytes(text: string): number {
   return new TextEncoder().encode(text).byteLength;
 }
@@ -326,7 +325,6 @@ export async function sha256Hex(bytes: Uint8Array): Promise<string> {
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
-/** Splits a file into the fixed-size chunks announced by `transfer-start`. */
 export function planTransfer(
   loanId: string,
   trackId: string,
@@ -346,11 +344,6 @@ export function planTransfer(
   return meta;
 }
 
-/**
- * Splits a library index into frames that fit the transport. A 50 000-song
- * library cannot travel in one 96 KiB message, so the sender pages it and marks
- * only the final frame `complete`.
- */
 export function paginateLibraryIndex(
   entries: LibraryEntry[],
   budgetBytes = MAX_FRAME_BYTES - 1024,
@@ -362,7 +355,7 @@ export function paginateLibraryIndex(
   const encoder = new TextEncoder();
   const pages: LibraryEntry[][] = [];
   let page: LibraryEntry[] = [];
-  let used = 128; // frame envelope allowance
+  let used = 128;
   for (const entry of entries) {
     const size = encoder.encode(JSON.stringify(entry)).byteLength + 1;
     if (size > budgetBytes - 128)
@@ -384,7 +377,6 @@ export function paginateLibraryIndex(
   }));
 }
 
-/** Receives chunks, rejecting gaps, duplicates, oversized data and wrong digests. */
 export class TransferAssembler {
   readonly meta: TransferMetadata;
   private readonly buffer: Uint8Array;
@@ -424,7 +416,6 @@ export class TransferAssembler {
     this.bytes += data.byteLength;
   }
 
-  /** Verifies the announced digest; the caller decides whether to persist. */
   async finish(): Promise<Uint8Array> {
     if (!this.complete) throw new SyncError('incomplete', 'Transfer is incomplete.');
     const digest = await sha256Hex(this.buffer);
@@ -433,7 +424,6 @@ export class TransferAssembler {
   }
 }
 
-/** Sends chunks one at a time so the transport can apply backpressure. */
 export class TransferSender {
   readonly meta: TransferMetadata;
   private readonly bytes: Uint8Array;
@@ -455,7 +445,6 @@ export class TransferSender {
     return this.index >= this.meta.chunkCount;
   }
 
-  /** Returns the next chunk frame, or null when everything has been sent. */
   next(): SyncFrame | null {
     if (this.done) return null;
     const index = this.index++;

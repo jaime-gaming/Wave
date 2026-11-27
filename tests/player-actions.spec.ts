@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/returning-user';
 import { wav } from './helpers/audio';
 for (const preference of ['enabled', 'system-reduced', 'app-disabled']) {
   test(`player action icons respond without moving their controls: ${preference}`, async ({

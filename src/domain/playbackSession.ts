@@ -5,7 +5,7 @@ export const RESUME_ON_RELOAD_KEY = 'wave-resume-on-reload';
 export interface PlaybackSession {
   state: PlayerState;
   positions: Record<string, number>;
-  /** Whether audio was actively playing when the session was last saved. */
+
   wasPlaying: boolean;
 }
 
@@ -20,9 +20,7 @@ export function readResumeOnReload(): boolean {
 export function writeResumeOnReload(enabled: boolean) {
   try {
     localStorage.setItem(RESUME_ON_RELOAD_KEY, enabled ? 'true' : 'false');
-  } catch {
-    /* Optional preference. */
-  }
+  } catch {}
 }
 
 export function readPlaybackSession(): PlaybackSession {
@@ -91,7 +89,5 @@ export function writePlaybackSession(state: PlayerState, positions: Record<strin
         positions,
       }),
     );
-  } catch {
-    /* Playback remains available with blocked/full storage. */
-  }
+  } catch {}
 }

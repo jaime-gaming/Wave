@@ -15,12 +15,13 @@ test('app surfaces contain no model branding or decorative magic icons', () => {
     'public',
     'platforms/android/app/src/main/java/io/github/jaimegaming/wave/ui',
     'platforms/windows/Wave.Windows',
+    'platforms/ios/Wave',
   ];
   const forbidden = /\b(?:OpenAI|ChatGPT|Claude|Gemini|AI-powered|Sparkles|WandSparkles)\b/i;
   for (const folder of surfaces)
     for (const file of files(fileURLToPath(new URL(folder, root)))) {
       if (
-        !/\.(?:tsx|kt|cs|xaml|html|svg)$/.test(file) ||
+        !/\.(?:tsx|kt|cs|xaml|html|svg|swift)$/.test(file) ||
         /[/\\](?:bin|obj|node_modules)[/\\]/.test(file)
       )
         continue;

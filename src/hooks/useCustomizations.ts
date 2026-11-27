@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { getCustomizations, saveAlbumOrder, saveArtistProfile } from '../data/library';
+import {
+  getCustomizations,
+  saveAlbumOrder,
+  saveArtistProfile,
+  saveMissingArtistPhoto,
+} from '../data/library';
 import type { AlbumOrder, ArtistProfile } from '../domain/types';
 export function useCustomizations() {
   const [artists, setArtists] = useState<ArtistProfile[]>([]),
@@ -31,6 +36,12 @@ export function useCustomizations() {
       return false;
     }
   }, []);
+  const fillArtistPhoto = useCallback(async (name: string, artwork: string) => {
+    const saved = await saveMissingArtistPhoto(name, artwork);
+    if (!saved) return false;
+    setArtists((current) => [...current.filter((item) => item.name !== saved.name), saved]);
+    return true;
+  }, []);
   const saveOrder = useCallback(async (id: string, ids: string[]) => {
     try {
       const saved = await saveAlbumOrder(id, ids);
@@ -46,5 +57,5 @@ export function useCustomizations() {
     setArtists(saved.artists);
     setAlbums(saved.albums);
   }, []);
-  return { reload, artists, albums, error, setError, saveArtist, saveOrder };
+  return { reload, artists, albums, error, setError, saveArtist, fillArtistPhoto, saveOrder };
 }

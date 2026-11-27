@@ -281,7 +281,7 @@ def window(
     radius = 44 if portrait else 30
     sprite = shadow_template(w, h, radius).copy()
     inset = 8 if portrait else 5
-    # Source pixels are cropped/resized only; controls and their state are never fabricated.
+
     ui = source.resize((w - inset * 2, h - inset * 2), Image.Resampling.LANCZOS)
     sprite.paste(
         ui,
@@ -308,7 +308,7 @@ def window(
     image.alpha_composite(sprite, (px, py))
 
 
-# Absolute chapter timings implement the approved storyboard, not wall-clock sleeps.
+
 SCENES = [
     (
         5,
@@ -448,15 +448,15 @@ def scene(index, t):
     chrome(im)
     if name == "blend":
         title(im, lines, sub, local, 76, 300)
-        # The whole window, uncropped. The overlap is a sleeve, a word in the
-        # margin and both hands of the transport; cropping to any one of them
-        # loses the other two, and the frame's own corners are what shows that
-        # this is the app and not a diagram.
+
+
+
+
         window(im, clip(name).frame(p), (660, 168, 1160, 724), local, p)
     elif name == "silence":
         title(im, lines, sub, local, 88, 250)
-        # The offer stands over the bar at the foot of the window, so the frame is
-        # taken from where the list, the notice and the bar all fit.
+
+
         window(
             im,
             clip(name).frame(p),

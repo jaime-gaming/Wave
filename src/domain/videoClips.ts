@@ -1,26 +1,16 @@
 import { parseYouTubeLink, youtubeThumbnailUrl, type YouTubeVideo } from './youtube';
 
-/**
- * The clip chosen for a song, stored locally per track.
- *
- * Wave 1.1 has no provider catalogue yet, so the user pastes the YouTube link
- * for a song once. It is kept in localStorage keyed by track ID: no account, no
- * upload, and the mapping never leaves the device. Deleting it stops the clip.
- */
 export const CLIP_STORAGE_KEY = 'wave-video-clips-v1';
-/** Upper bound so a corrupted entry cannot grow unbounded. */
+const CLIP_EXCLUSIONS_KEY = 'wave-video-clip-exclusions-v1';
+
 export const MAX_CLIP_ENTRIES = 2_000;
 
 export interface StoredClip {
   videoId: string;
-  /** Start offset inside the video, in seconds. */
+
   startAt: number;
   addedAt: number;
-  /**
-   * Length of the video, when it is known. Used only to fit the picture to the
-   * song: a clip shorter than the song has to be placed again instead of being
-   * seeked past its end. Zero when unknown.
-   */
+
   duration?: number;
 }
 
@@ -41,7 +31,7 @@ function sanitize(value: unknown): ClipMap {
     if (!trackId || typeof raw !== 'object' || !raw) continue;
     const entry = raw as Record<string, unknown>;
     if (typeof entry.videoId !== 'string' || !/^[A-Za-z0-9_-]{11}$/u.test(entry.videoId)) continue;
-    // The offset may be negative: a clip can begin before the song does.
+
     const start =
       typeof entry.startAt === 'number' && Number.isFinite(entry.startAt) && entry.startAt !== 0
         ? Math.max(-86_400, Math.min(86_400, Math.round(entry.startAt)))
@@ -68,7 +58,6 @@ export function loadClips(store: Storage | null = storage()): ClipMap {
   }
 }
 
-/** Fired whenever the stored clips change, so open views can re-read them. */
 export const CLIPS_CHANGED = 'wave:clips-changed';
 
 function persist(map: ClipMap, store: Storage | null): boolean {
@@ -78,12 +67,34 @@ function persist(map: ClipMap, store: Storage | null): boolean {
     if (typeof window !== 'undefined') window.dispatchEvent(new Event(CLIPS_CHANGED));
     return true;
   } catch {
-    // Quota or private mode: the clip still works for this session.
     return false;
   }
 }
 
-/** Saves a pasted link. Returns the parsed clip or a user-facing error. */
+function clipExclusions(store: Storage | null): string[] {
+  try {
+    const data: unknown = JSON.parse(store?.getItem(CLIP_EXCLUSIONS_KEY) ?? '[]');
+    return Array.isArray(data)
+      ? data.filter((id): id is string => typeof id === 'string').slice(-MAX_CLIP_ENTRIES)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+export function clipExcluded(trackId: string, store: Storage | null = storage()): boolean {
+  return clipExclusions(store).includes(trackId);
+}
+
+function setClipExcluded(trackId: string, excluded: boolean, store: Storage | null) {
+  if (!store) return;
+  try {
+    const ids = clipExclusions(store).filter((id) => id !== trackId);
+    if (excluded) ids.push(trackId);
+    store.setItem(CLIP_EXCLUSIONS_KEY, JSON.stringify(ids.slice(-MAX_CLIP_ENTRIES)));
+  } catch {}
+}
+
 export function saveClip(
   trackId: string,
   link: string,
@@ -104,11 +115,11 @@ export function saveClip(
     duration: 0,
   };
   const map = { ...loadClips(store), [trackId]: clip };
+  setClipExcluded(trackId, false, store);
   persist(map, store);
   return { ok: true, clip };
 }
 
-/** Saves a clip Wave found itself, with a validated video id. */
 export function storeClip(
   trackId: string,
   videoId: string,
@@ -133,6 +144,7 @@ export function storeClip(
 export function removeClip(trackId: string, store: Storage | null = storage()): ClipMap {
   const map = loadClips(store);
   delete map[trackId];
+  setClipExcluded(trackId, true, store);
   persist(map, store);
   return map;
 }

@@ -22,22 +22,22 @@ import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import io.github.jaimegaming.wave.ui.Loc
 
-/**
- * Music that keeps playing when the screen goes off.
- *
- * Android expects a playing app to be a foreground service with a media session:
- * that single thing is what puts the song on the lock screen, in the shade, on a
- * watch face and in a car, and what lets a pair of headphones pause it. Without
- * it the app is a sound that stops the moment another app wants the speaker.
- *
- * The session is also the audio focus holder. A call, a video or a navigation
- * prompt takes the focus away, the music pauses, and it comes back when the
- * interruption ends unless the listener paused it themselves — which is what
- * people expect, and what Android's own players do.
- *
- * Everything here is the platform API: no media library is needed to appear on a
- * lock screen, and one fewer dependency is one fewer thing to keep in step.
- */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 class PlaybackService : Service() {
     private lateinit var session: MediaSession
     private lateinit var manager: NotificationManager
@@ -45,12 +45,12 @@ class PlaybackService : Service() {
     private var focus: AudioFocusRequest? = null
     private var player: Player? = null
     private var registered = false
-    /** True while the pause was caused by something other than the listener. */
+
     private var resumeAfterFocus = false
 
     private val becomingNoisy = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            // Headphones out: stop. Android's own players all do this.
+
             if (intent?.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY) player?.pause()
         }
     }
@@ -71,7 +71,7 @@ class PlaybackService : Service() {
         }
     }
 
-    /** Every change the player makes redraws the notification and saves the volume. */
+
     private val publisher: () -> Unit = {
         publish()
         val app = application as WaveApplication
@@ -159,7 +159,7 @@ class PlaybackService : Service() {
         )
     }
 
-    /** Keeps the notification, the session metadata and the foreground state in step. */
+
     private fun publish() {
         val player = player ?: return
         val song = player.current
@@ -191,9 +191,9 @@ class PlaybackService : Service() {
                 .build(),
         )
         if (player.playing) requestFocus()
-        // One way in and out: the same call that starts the service in the
-        // foreground updates its notification, so a paused song keeps the
-        // controls it needs instead of a second, differently-posted copy.
+
+
+
         startForegroundNow()
         WaveWidgetProvider.refresh(this)
     }
@@ -209,8 +209,8 @@ class PlaybackService : Service() {
                 .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
-        // The three buttons are ordinary broadcasts: they work even if Android has
-        // just recreated the process to deliver one.
+
+
         fun action(code: Int, name: String): PendingIntent = PendingIntent.getBroadcast(
             this,
             code,
@@ -286,13 +286,13 @@ class PlaybackService : Service() {
         const val ACTION_NEXT = "io.github.jaimegaming.wave.NEXT"
         const val ACTION_PREVIOUS = "io.github.jaimegaming.wave.PREVIOUS"
 
-        /**
-         * Starts the service, or tells it to refresh its notification.
-         *
-         * A foreground service has to show a notification, so with nothing playing
-         * there is nothing to start: the caller is asking for a refresh, not for a
-         * service that would have to stop itself at once.
-         */
+
+
+
+
+
+
+
         fun refresh(context: Context) {
             val player = (context.applicationContext as WaveApplication).player
             if (player.current == null) return
@@ -304,13 +304,13 @@ class PlaybackService : Service() {
     }
 }
 
-/**
- * The three notification buttons, which the system sends as plain intents.
- *
- * They are handled here rather than in the service so a button still works while
- * the service is being created, which is the case right after a reboot or after
- * Android has reclaimed the process.
- */
+
+
+
+
+
+
+
 class PlaybackActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val player = (context.applicationContext as WaveApplication).player

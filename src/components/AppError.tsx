@@ -1,19 +1,6 @@
 import { Component, type ReactNode } from 'react';
 import { translateNow } from '../i18n/dictionary';
 
-/**
- * The one thing between a broken render and a blank page.
- *
- * Wave keeps everything on the device, so a screen that throws is a screen that
- * can be reloaded back to the same library — nothing is lost. What it must not do
- * is go white and silent, which is what an unhandled render error does to the
- * whole app.
- *
- * The page is written for the person looking at it, not for a console: no stack
- * trace, no error text, no file names. It says what happened in one sentence,
- * promises what was not touched, and offers the two honest ways out. The reason
- * itself goes to the console, where it is useful and where nobody has to read it.
- */
 export class AppError extends Component<{ children: ReactNode }, { crashed: boolean }> {
   state: { crashed: boolean } = { crashed: false };
 
@@ -22,7 +9,6 @@ export class AppError extends Component<{ children: ReactNode }, { crashed: bool
   }
 
   componentDidCatch(error: unknown) {
-    // The console keeps the trace; the page keeps the person calm and moving.
     console.error(translateNow('Wave could not draw this screen:'), error);
   }
 
@@ -30,33 +16,44 @@ export class AppError extends Component<{ children: ReactNode }, { crashed: bool
     if (!this.state.crashed) return this.props.children;
     return (
       <div className="app-crash" role="alert">
-        {/* A record that has stopped turning: the bars are where the sound was. */}
         <span className="app-crash-mark" aria-hidden="true">
-          <i />
-          <i />
-          <i />
-          <i />
+          <svg viewBox="0 0 32 32" fill="none">
+            <path
+              d="M6 18c3-7 5-7 8 0s5 7 8 0 4-5 4-5"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+            />
+            <path
+              d="M23 6l3 3m0-3-3 3"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+          </svg>
         </span>
-        <h1>{translateNow('This screen stopped. Your music didn’t.')}</h1>
+        <span className="app-crash-eyebrow">Wave</span>
+        <h1>{translateNow('We couldn’t open this screen')}</h1>
         <p>
           {translateNow(
-            'Nothing on this device was changed. Reload to continue right where you left off.',
+            'Try again or return to Home. Reloading does not delete your library, but playback may stop.',
           )}
         </p>
         <div className="app-crash-actions">
           <button className="primary-button" onClick={() => location.reload()}>
-            {translateNow('Reload')}
+            {translateNow('Reload Wave')}
           </button>
           <button
             className="tonal-button"
             onClick={() => {
-              // A fresh start that keeps the library: the drawing state is what
-              // broke, not the files.
               this.setState({ crashed: false });
             }}
           >
             {translateNow('Try this screen again')}
           </button>
+          <a className="app-crash-home" href={import.meta.env.BASE_URL}>
+            {translateNow('Return to Home')}
+          </a>
         </div>
       </div>
     );

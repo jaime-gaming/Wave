@@ -2,7 +2,7 @@ using System;
 
 namespace Wave.Windows;
 
-/// <summary>A session-only deadline, independent of UI timer ticks and sleep/resume.</summary>
+
 internal sealed class SleepTimer
 {
     private DateTimeOffset? deadline;

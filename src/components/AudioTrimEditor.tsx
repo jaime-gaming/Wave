@@ -3,10 +3,10 @@ import type { Track } from '../domain/types';
 import { formatTime } from '../domain/types';
 import { motion } from 'motion/react';
 import { useWaveMotion } from '../ui/motion';
+import { useT } from '../i18n';
 import { Play, Pause } from './Glyphs';
-import { MAX_ANALYSIS_BYTES, MAX_ANALYSIS_SECONDS } from '../audio/mixAnalysis';
+import { analysisBytesFor, MAX_ANALYSIS_SECONDS } from '../audio/mixAnalysis';
 
-/** Playback bounds only: the source file is never rewritten. */
 export function AudioTrimEditor({
   track,
   onChange,
@@ -20,6 +20,7 @@ export function AudioTrimEditor({
   track: Track;
   onChange: (bounds: { start: number; end: number }) => void;
 }) {
+  const t = useT();
   const previewOwner = useRef(onPreview);
   useEffect(() => {
     if (track.blob && track.duration) previewOwner.current?.();
@@ -67,7 +68,7 @@ export function AudioTrimEditor({
     const element = audio.current;
     if (element) element.src = objectUrl;
     let cancelled = false;
-    const tooLarge = track.blob.size > MAX_ANALYSIS_BYTES || track.duration > MAX_ANALYSIS_SECONDS;
+    const tooLarge = track.blob.size > analysisBytesFor() || track.duration > MAX_ANALYSIS_SECONDS;
     const context = !tooLarge && typeof AudioContext !== 'undefined' ? new AudioContext() : null;
     if (context)
       void track.blob
@@ -85,8 +86,7 @@ export function AudioTrimEditor({
             }
             return peak;
           });
-          // Display-relative amplitude makes quiet recordings legible without
-          // changing playback level or the silence decision.
+
           const maximum = Math.max(...result, 0.00001);
           setPeaks(result.map((value) => value / maximum));
         })
@@ -182,7 +182,7 @@ export function AudioTrimEditor({
             type="button"
             role="slider"
             className={`trim-handle trim-handle-${edge}`}
-            aria-label={`Trim ${edge}`}
+            aria-label={t(edge === 'start' ? 'Trim start' : 'Trim end')}
             aria-valuemin={edge === 'start' ? 0 : start + 0.1}
             aria-valuemax={edge === 'start' ? end - 0.1 : duration}
             aria-valuenow={edge === 'start' ? start : end}

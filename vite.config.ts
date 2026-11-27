@@ -1,14 +1,37 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import playlistWorker from './src/worker/index.ts';
-import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
-/** The version shown in the interface always comes from package.json. */
 const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
 
 export default defineConfig({
   plugins: [
     react(),
+    {
+      name: 'wave-versioned-offline-shell',
+      apply: 'build',
+      writeBundle(options) {
+        const outDir = options.dir ?? 'dist';
+        const html = readFileSync(resolve(outDir, 'index.html'), 'utf8');
+        const buildId = createHash('sha256')
+          .update(version)
+          .update('\0')
+          .update(html)
+          .digest('hex')
+          .slice(0, 12);
+        const swPath = resolve(outDir, 'sw.js');
+        const sw = readFileSync(swPath, 'utf8');
+        if (!sw.includes('__WAVE_BUILD_ID__'))
+          throw new Error('public/sw.js lost its __WAVE_BUILD_ID__ placeholder.');
+        const versioned = sw.replaceAll('__WAVE_BUILD_ID__', buildId);
+        if (versioned.includes('__WAVE_BUILD_ID__'))
+          throw new Error('The offline shell still has an unversioned cache name.');
+        writeFileSync(swPath, versioned);
+      },
+    },
     {
       name: 'wave-local-playlist-api',
       configureServer(server) {
@@ -24,7 +47,7 @@ export default defineConfig({
           }
           const host = req.headers.host ?? 'localhost';
           const origin = req.headers.origin ?? '';
-          // Preview proxies terminate TLS; preserve the public origin, not localhost.
+
           const protocol = origin.startsWith('https:') ? 'https' : 'http';
           const apiPath = `/api${req.url ?? ''}`;
           const request = new Request(`${protocol}://${host}${apiPath}`, {

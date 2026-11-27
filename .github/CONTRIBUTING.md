@@ -8,6 +8,9 @@ Participation is subject to the [Code of Conduct](CODE_OF_CONDUCT.md). Be respec
 
 ## Reporting bugs
 
+For a possible vulnerability, follow the private [security reporting policy](../SECURITY.md)
+instead of posting details in an issue.
+
 Search the [issue tracker](https://github.com/jaime-gaming/Wave/issues) before opening a new report. Include:
 
 - A clear title and description.
@@ -20,7 +23,7 @@ Do not upload private music, personal information, credentials, or copyrighted t
 
 ## Proposing features
 
-Open an issue describing the use case and proposed behavior. Check the [roadmap](docs/ROADMAP.md) and discuss significant architecture changes before implementing them. Network access, permissions, and storage changes need explicit privacy consideration.
+Open an issue describing the use case and proposed behavior. Check the [roadmap](../docs/ROADMAP.md) and discuss significant architecture changes before implementing them. Network access, permissions, and storage changes need explicit privacy consideration.
 
 ## Submitting changes
 
@@ -36,9 +39,17 @@ Open an issue describing the use case and proposed behavior. Check the [roadmap]
    npm run lint
    npm test
    npm run build
+   npm run test:release
+   npm run release:check
    npx playwright install chromium
-   npm run test:e2e
+   npm run test:smoke
    ```
+
+   The larger `npm run test:e2e` suite is diagnostic and includes known failing or flaky cases;
+   see [validation](../docs/VALIDATION.md). Report what you actually ran and any failures.
+   For Spanish copy changes, edit `i18n/es.json` and run `npm run build:i18n` to regenerate the
+   native language tables. Native changes also need the platform-specific checks in
+   [Development](../docs/DEVELOPMENT.md).
 
 7. Use a descriptive commit message, such as `feat: add playlist editing`, `fix: preserve queue position`, or `docs: explain browser storage`.
 8. Push your working branch to your fork or the appropriate remote and open a pull request.
@@ -73,7 +84,7 @@ Use shared theme variables rather than hard-coded page-specific colors. Support 
 - Add regression coverage when fixing a bug.
 - Test supported browsers manually where codec behavior differs.
 
-See the [development guide](docs/DEVELOPMENT.md) for setup and troubleshooting.
+See the [development guide](../docs/DEVELOPMENT.md) for setup and troubleshooting.
 
 ## Licensing
 
@@ -91,4 +102,4 @@ Questions and suggestions are welcome in the issue tracker.
 
 ## Independent native work and publication
 
-See [PLATFORMS](docs/PLATFORMS.md) for Android/Windows toolchains and the explicit parity gaps. Native source is not a web wrapper. Test platform lifecycle, interruptions, original-byte storage and malformed metadata independently. Do not claim runtime verification from syntax or XML checks. Never check in music, signing credentials, build artifacts or machine-local SDK paths. Public production distribution must satisfy owner-approved publication requirements and applicable dependency/runtime notices.
+See [PLATFORMS](../docs/PLATFORMS.md) for Android, Windows and iOS toolchains and the explicit parity gaps. Native source is not a web wrapper. Test platform lifecycle, interruptions, original-byte storage and malformed metadata independently. Do not claim runtime verification from syntax or XML checks. Never check in music, signing credentials, build artifacts or machine-local SDK paths. Public production distribution must satisfy owner-approved publication requirements and applicable dependency/runtime notices.

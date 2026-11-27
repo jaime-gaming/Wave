@@ -21,13 +21,17 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -52,8 +56,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -63,17 +70,19 @@ import io.github.jaimegaming.wave.DaySlice
 import io.github.jaimegaming.wave.count
 import io.github.jaimegaming.wave.Playlist
 import io.github.jaimegaming.wave.Song
+import io.github.jaimegaming.wave.WavePerformance
 import io.github.jaimegaming.wave.WeekRecap
 import io.github.jaimegaming.wave.listeningTime
 import io.github.jaimegaming.wave.matchesSearch
 import io.github.jaimegaming.wave.monthRange
 import io.github.jaimegaming.wave.rankNames
+import io.github.jaimegaming.wave.remixMetrics
 import io.github.jaimegaming.wave.weekRange
 import io.github.jaimegaming.wave.yearRange
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-// One calm card while the mix is built; motion follows system and app preferences.
+
 @Composable
 private fun DailyMixLoadingCard() {
     val pulse = if (waveMotionEnabled()) {
@@ -99,9 +108,10 @@ private fun DailyMixLoadingCard() {
     }
 }
 
-// --- Home ------------------------------------------------------------------
 
-/** The same Home composition as the mobile site, backed by the native library. */
+
+
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun HomeScreen(state: WaveState, onAddMusic: () -> Unit, onOpenSong: (Song) -> Unit) {
     if (state.open is Open.Mix) {
@@ -126,7 +136,7 @@ fun HomeScreen(state: WaveState, onAddMusic: () -> Unit, onOpenSong: (Song) -> U
     val buildingMixes = state.busy && songs.size >= 7 && mixes.isEmpty()
     val stickySection by remember(mixes.size, buildingMixes, albums.size, added.size) {
         derivedStateOf {
-            // Never show the sticky bar while the top Home header + collection card is still visible.
+
             val idx = listState.firstVisibleItemIndex
             if (idx < 1) null
             else {
@@ -137,7 +147,7 @@ fun HomeScreen(state: WaveState, onAddMusic: () -> Unit, onOpenSong: (Song) -> U
                 val albumIdx = if (albums.isNotEmpty()) cursor else -1
                 if (albums.isNotEmpty()) cursor += 1
                 val addedHeaderIdx = cursor
-                // Bind a section ONLY after the user has scrolled past its heading item so titles never duplicate.
+
                 when {
                     added.isNotEmpty() && idx > addedHeaderIdx -> Loc.t("Recently added songs")
                     albumIdx >= 0 && idx > albumIdx -> Loc.t("Recently added albums")
@@ -171,9 +181,10 @@ fun HomeScreen(state: WaveState, onAddMusic: () -> Unit, onOpenSong: (Song) -> U
                     )
                     Row(
                         modifier = Modifier
+                            .heightIn(min = 48.dp)
                             .clip(RoundedCornerShape(18.dp))
                             .background(MaterialTheme.colorScheme.primaryContainer)
-                            .clickable(onClick = onAddMusic)
+                            .clickable(role = Role.Button, onClick = onAddMusic)
                             .padding(horizontal = 14.dp, vertical = 11.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -182,14 +193,27 @@ fun HomeScreen(state: WaveState, onAddMusic: () -> Unit, onOpenSong: (Song) -> U
                         Text(Loc.t("Add music"), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
                     }
                 }
-                // The five places the collection can be seen. On a phone the site
-                // gives each one a row that says its number rather than a box with air
-                // in it, and the first is tinted; this is the same row.
-                shortcuts.forEachIndexed { index, (shelf, icon, amount) ->
-                    ShortcutRow(shelf, icon, amount, first = index == 0) {
-                        state.shelf = shelf
-                        state.destination = Destination.Library
-                        state.open = null
+
+
+
+                BoxWithConstraints(Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
+                    val columns = if (maxWidth < 560.dp) 2 else if (maxWidth < 800.dp) 3 else 5
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        maxItemsInEachRow = columns,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        shortcuts.forEachIndexed { index, (shelf, icon, amount) ->
+                            ShortcutCard(shelf, icon, amount, first = index == 0, modifier = Modifier.weight(1f)) {
+                                state.shelf = shelf
+                                state.destination = Destination.Library
+                                state.open = null
+                            }
+                        }
+                        repeat((columns - shortcuts.size % columns) % columns) {
+                            Spacer(Modifier.weight(1f))
+                        }
                     }
                 }
             }
@@ -256,7 +280,7 @@ fun HomeScreen(state: WaveState, onAddMusic: () -> Unit, onOpenSong: (Song) -> U
                 )
             }
         }
-        // Borderless top sticky section heading handoff — scrolls smoothly to top on tap.
+
         stickySection?.let { heading ->
             Row(
                 modifier = Modifier
@@ -280,8 +304,10 @@ fun HomeScreen(state: WaveState, onAddMusic: () -> Unit, onOpenSong: (Song) -> U
                     modifier = Modifier
                         .clip(RoundedCornerShape(14.dp))
                         .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                        .clickable(onClick = onAddMusic)
-                        .padding(8.dp),
+                        .clickable(role = Role.Button, onClick = onAddMusic)
+                        .semantics { contentDescription = Loc.t("Add music") }
+                        .sizeIn(minWidth = 48.dp, minHeight = 48.dp),
+                    contentAlignment = Alignment.Center,
                 ) {
                     WaveIcon("plus", 16.dp, MaterialTheme.colorScheme.onSurface)
                 }
@@ -290,39 +316,32 @@ fun HomeScreen(state: WaveState, onAddMusic: () -> Unit, onOpenSong: (Song) -> U
     }
 }
 
-/**
- * One collection shortcut. On a phone the site lays these out as a single column
- * — drawn icon, name, count at the right — with the first one tinted, so this is
- * the same row rather than five empty boxes.
- */
+
+
+
+
+
 @Composable
-private fun ShortcutRow(shelf: Shelf, icon: String, amount: Int, first: Boolean, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(bottom = 6.dp)
+private fun ShortcutCard(shelf: Shelf, icon: String, amount: Int, first: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Column(
+        modifier = modifier
+            .heightIn(min = 84.dp)
             .clip(RoundedCornerShape(16.dp))
             .background(if (first) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 13.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.SpaceBetween,
     ) {
-        WaveIcon(icon, 18.dp, MaterialTheme.colorScheme.primary)
-        Spacer(Modifier.width(10.dp))
-        Text(
-            text = Loc.t(shelf.label),
-            fontSize = 13.sp,
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
-        Text(
-            text = amount.toString(),
-            fontSize = 19.sp,
-            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            WaveIcon(icon, 18.dp, MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.weight(1f))
+            Text(amount.toString(), style = MaterialTheme.typography.titleLarge,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface)
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(Loc.t(shelf.label), style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -355,24 +374,24 @@ private fun DailyMixRow(mix: DailyMix, number: Int, onOpen: () -> Unit) {
     }
 }
 
-// --- Search ----------------------------------------------------------------
 
-/** The categories a search can be narrowed to, in the site's order. */
+
+
 private val SearchKinds = listOf("All", "Songs", "Artists", "Albums", "Playlists")
 
-/**
- * Search that answers while it is being typed, and says where a match was found.
- *
- * The list is ranked, not filtered: a title that starts with what was typed comes
- * before one that contains it, and an artist match says so instead of silently
- * appearing under a song whose title has nothing to do with the words. The kinds
- * above it narrow the answer to one place, the groups name what matched, and the
- * last few searches stay within reach — the same three things the site offers.
- */
+
+
+
+
+
+
+
+
+
 @Composable
 fun SearchScreen(state: WaveState, onOpenSong: (Song) -> Unit) {
-    // A collection opened from a result takes the page, and Back returns to the
-    // search with the words still in the box.
+
+
     if (state.open != null) {
         CollectionScreen(state, onOpenSong)
         return
@@ -380,11 +399,11 @@ fun SearchScreen(state: WaveState, onOpenSong: (Song) -> Unit) {
     var kind by rememberSaveable { mutableStateOf("All") }
     val words = state.query
     val songs = state.visible()
-    // Ranked like the songs: the artist, album or playlist whose name was typed
-    // comes first, instead of whatever the library happened to hold first. A
-    // collection is also found by who made it, so typing an artist's name reaches
-    // the albums under it rather than a dead end. Both lists are entry lists, the
-    // shape the rows below read.
+
+
+
+
+
     val allArtists = state.artists()
     val allAlbums = state.albums()
     val artists = rankNames(allArtists.keys.toList(), words)
@@ -400,8 +419,8 @@ fun SearchScreen(state: WaveState, onOpenSong: (Song) -> Unit) {
     val playlists = rankNames(state.playlists.map { it.name }, words).mapNotNull { name ->
         state.playlists.firstOrNull { it.name == name }
     }
-    // A search is remembered once it settles, not on every letter typed, so the
-    // list holds phrases rather than prefixes.
+
+
     LaunchedEffect(words) {
         if (words.trim().length >= 3) {
             delay(1200)
@@ -448,6 +467,9 @@ fun SearchScreen(state: WaveState, onOpenSong: (Song) -> Unit) {
                     )
                 }
             }
+        }
+        if (words.isNotBlank()) {
+            item { YouTubeSearch(words, state.player.playing) { state.player.pause() } }
         }
         if (words.isBlank()) {
             item {
@@ -563,15 +585,15 @@ fun SearchScreen(state: WaveState, onOpenSong: (Song) -> Unit) {
     }
 }
 
-// --- Library ---------------------------------------------------------------
 
-/**
- * The collection, one shelf at a time.
- *
- * A shelf is a filter, not a page: songs, albums, artists, playlists and the
- * favourites, with the same search over all of them. Opening an album or a
- * playlist comes back to the same shelf, so the library remembers where you were.
- */
+
+
+
+
+
+
+
+
 @Composable
 fun LibraryScreen(state: WaveState, onAddMusic: () -> Unit, onOpenSong: (Song) -> Unit) {
     val target = state.open
@@ -593,9 +615,9 @@ fun LibraryScreen(state: WaveState, onAddMusic: () -> Unit, onOpenSong: (Song) -
                     else -> "${state.visible().size} of ${state.songs.size} songs"
                 },
             )
-            // One scrolling row of pills, as on the phone site: the chosen one is
-            // filled with the accent and carries a small bar under it, the rest
-            // stay on the page's own surface.
+
+
+
             LazyRow(
                 modifier = Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -827,7 +849,7 @@ private fun PlaylistRow(playlist: Playlist, songs: List<Song>, onOpen: () -> Uni
     }
 }
 
-/** An album, an artist, a playlist or a mix, opened as a list of its songs. */
+
 @Composable
 private fun CollectionScreen(state: WaveState, onOpenSong: (Song) -> Unit) {
     val songs = state.openSongs()
@@ -916,9 +938,9 @@ private fun CollectionScreen(state: WaveState, onOpenSong: (Song) -> Unit) {
     }
 }
 
-// --- Remix ----------------------------------------------------------------
 
-/** Weekly, Monthly & Yearly Remix recaps and playable selection, matching Web 0.2.2. */
+
+
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun RemixScreen(state: WaveState) {
@@ -928,6 +950,14 @@ fun RemixScreen(state: WaveState) {
         "yearly" -> state.yearlyRecap
         else -> state.recap
     }
+    val configuration = LocalConfiguration.current
+    val profile = LocalWaveProfile.current
+    val metrics = remixMetrics(
+        configuration.screenWidthDp,
+        configuration.screenHeightDp,
+        configuration.fontScale,
+        profile,
+    )
     val songs = recap.songs
     val rangeLabel = when (period) {
         "monthly" -> monthRange(recap.start)
@@ -941,15 +971,21 @@ fun RemixScreen(state: WaveState) {
     }
     var confirming by remember { mutableStateOf(false) }
     LazyColumn(
-        modifier = Modifier.wavePage(),
-        contentPadding = PaddingValues(start = 14.dp, end = 14.dp, bottom = 24.dp),
+        modifier = Modifier.wavePage().testTag("remix-list"),
+        contentPadding = PaddingValues(
+            start = metrics.paddingDp.dp,
+            end = metrics.paddingDp.dp,
+            bottom = (metrics.gapDp * 2).dp,
+        ),
     ) {
         item {
             ScreenTitle(title = "Remix", subtitle = subtitle)
             val motionOn = waveMotionEnabled()
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.padding(bottom = 14.dp),
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy((metrics.gapDp * .6f).dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+                maxItemsInEachRow = maxOf(3, metrics.columns),
+                modifier = Modifier.fillMaxWidth().padding(bottom = metrics.gapDp.dp),
             ) {
                 listOf("weekly" to "Weekly", "monthly" to "Monthly", "yearly" to "Yearly").forEach { (id, label) ->
                     val selected = period == id
@@ -1019,8 +1055,8 @@ fun RemixScreen(state: WaveState) {
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.weight(1f),
                         )
-                        // Clearing is asked twice, in the page rather than in a dialog:
-                        // the second thought belongs where the first one was.
+
+
                         if (confirming) {
                             Text(
                                 Loc.t("Yes, clear"),
@@ -1049,18 +1085,19 @@ fun RemixScreen(state: WaveState) {
                             )
                         }
                     }
-                    // The week in one figure, with the sleeve of the song that earned it.
+
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                        modifier = Modifier.fillMaxWidth().padding(top = metrics.gapDp.dp),
                         verticalAlignment = Alignment.Bottom,
                     ) {
                         Column(Modifier.weight(1f).padding(bottom = 4.dp)) {
                             Text(
                                 text = listeningTime(shownRecap.seconds),
-                                fontSize = 52.sp,
-                                lineHeight = 56.sp,
+                                fontSize = metrics.heroSp.sp,
+                                lineHeight = (metrics.heroSp * 1.08f).sp,
                                 fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                                letterSpacing = (-2).sp,
+                                letterSpacing = (-metrics.heroSp * 0.035f).sp,
+                                maxLines = 2,
                                 color = MaterialTheme.colorScheme.primary,
                             )
                             Text(
@@ -1084,7 +1121,7 @@ fun RemixScreen(state: WaveState) {
                                 horizontalAlignment = Alignment.End,
                                 modifier = Modifier.padding(start = 16.dp),
                             ) {
-                                Cover(hero, size = 92.dp, radius = 18.dp)
+                                Cover(hero, size = metrics.coverDp.dp, radius = (metrics.coverDp * .18f).dp)
                                 Text(
                                     Loc.t("Most played"),
                                     style = MaterialTheme.typography.labelSmall,
@@ -1099,8 +1136,8 @@ fun RemixScreen(state: WaveState) {
         }
         item { WeekBars(recap.days) }
         item {
-            // Three things worth knowing, as one line of type rather than three
-            // cards: the genre, the hour, the artist that carried the week.
+
+
             val peakHour = recap.hours.indices.maxByOrNull { recap.hours[it] }
             NotesLine(recap, peakHour) { artist ->
                 state.destination = Destination.Library
@@ -1114,7 +1151,7 @@ fun RemixScreen(state: WaveState) {
                     Text(
                         Loc.t("Your Remix"),
                         style = MaterialTheme.typography.titleLarge,
-                        fontSize = 20.sp,
+                        fontSize = metrics.titleSp.sp,
                         fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
                     )
                     Text(
@@ -1165,10 +1202,11 @@ fun RemixScreen(state: WaveState) {
         }
         if (recap.topArtists.isNotEmpty()) {
             item {
-                // Quiet chips rather than a leaderboard.
+
                 androidx.compose.foundation.layout.FlowRow(
                     modifier = Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    maxItemsInEachRow = maxOf(4, metrics.columns * 3),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     recap.topArtists.forEach { (artist, plays) ->
@@ -1249,11 +1287,11 @@ fun RemixScreen(state: WaveState) {
         }
     }
 }
-/**
- * The genre, the hour and the artist that carried the week. On a phone the site
- * stacks them as three short lines, and the artist is the only part that goes
- * anywhere, so it is the only part coloured like a link.
- */
+
+
+
+
+
 @Composable
 private fun NotesLine(recap: WeekRecap, peakHour: Int?, onArtist: (String) -> Unit) {
     Column(
@@ -1288,13 +1326,13 @@ private fun NotesLine(recap: WeekRecap, peakHour: Int?, onArtist: (String) -> Un
     }
 }
 
-/**
- * The week as seven bars.
- *
- * One column per day, height in proportion to the day's minutes, grown once when
- * the screen opens with the same spring the web page uses. Quiet days keep a
- * stub so the week never changes width.
- */
+
+
+
+
+
+
+
 @Composable
 private fun WeekBars(days: List<DaySlice>) {
     if (days.isEmpty()) return
@@ -1351,21 +1389,22 @@ private fun WeekBars(days: List<DaySlice>) {
     }
 }
 
-/** "M", "T", "W" — the first letter of the local weekday. */
+
 private fun weekdayLetter(at: Long): String =
     java.text.SimpleDateFormat("EEEEE", java.util.Locale.getDefault())
         .format(java.util.Date(at))
         .take(1)
         .uppercase(java.util.Locale.getDefault())
 
-/** One song of the Remix: its place, its count, and a way in. */
+
 @Composable
 private fun RemixRow(song: Song, position: Int, plays: Int?, playing: Boolean, onPlay: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
-            .clickable(onClick = onPlay)
+            .semantics { contentDescription = Loc.t("Play {title} by {artist}", mapOf("title" to song.title, "artist" to song.artist)) }
+            .clickable(role = Role.Button, onClick = onPlay)
             .padding(vertical = 6.dp, horizontal = 4.dp),
         verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
     ) {
@@ -1405,7 +1444,7 @@ private fun RemixRow(song: Song, position: Int, plays: Int?, playing: Boolean, o
     }
 }
 
-// --- Settings --------------------------------------------------------------
+
 
 @Composable
 fun SettingsScreen(state: WaveState, version: String, onAddMusic: () -> Unit, onBack: () -> Unit) {
@@ -1480,8 +1519,8 @@ fun SettingsScreen(state: WaveState, version: String, onAddMusic: () -> Unit, on
                         }
                         Divider()
                         SectionTitle("Language")
-                        // Sistema · English · Español, exactly like the row on the site:
-                        // follow the device, or pin one language; the pin is remembered.
+
+
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                             listOf("system", "en", "es").forEach { option ->
                                 val active = Loc.choice == option

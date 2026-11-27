@@ -1,61 +1,70 @@
 import { createContext, useContext, useSyncExternalStore } from 'react';
 import { type Transition, type Variants } from 'motion/react';
 
-/**
- * Motion tokens.
- *
- * Two families, used on purpose: springs for anything the user moves or opens
- * (they settle without a hard stop), and eased fades for anything that only
- * changes appearance (they never overshoot). Every token collapses to zero
- * duration when the user asks for reduced motion, so nothing has to special-case
- * it at the call site.
- */
 export const MotionPreference = createContext(true);
 
 export const spatial: Transition = { type: 'spring', stiffness: 380, damping: 36, mass: 0.85 };
-/** A restrained accent spring: near-critical damping, no visible ringing. */
+
 export const wobble: Transition = { type: 'spring', stiffness: 460, damping: 34, mass: 0.8 };
 export const fastSpatial: Transition = { type: 'spring', stiffness: 650, damping: 38, mass: 0.7 };
 export const expressive: Transition = { type: 'spring', stiffness: 280, damping: 32, mass: 1 };
-/** Slow, wide movement for the stage: openings and artwork. */
+
 export const cinematic: Transition = { type: 'spring', stiffness: 150, damping: 27, mass: 1.1 };
-export const lateral: Transition = { type: 'spring', stiffness: 360, damping: 36, mass: 0.85 };
+export const lateral: Transition = { type: 'spring', stiffness: 310, damping: 34, mass: 0.85 };
 export const effects: Transition = { duration: 0.16, ease: [0.2, 0, 0, 1] };
-/** Longer cross-fade used when a whole surface changes. */
+
 export const reveal: Transition = { duration: 0.32, ease: [0.16, 1, 0.3, 1] };
 
-/** Entrance for a card or row: a short, sharp rise without expensive text blur. */
 export const riseIn: Variants = {
   hidden: { opacity: 0, y: 8 },
   visible: { opacity: 1, y: 0 },
 };
 
-/** Parent that releases its children one after another. */
 export const stagger = (delayChildren = 0.02, staggerChildren = 0.035): Variants => ({
   hidden: {},
   visible: { transition: { delayChildren, staggerChildren } },
 });
 
-const query = '(prefers-reduced-motion: reduce)';
-function subscribe(listener: () => void) {
-  const media = window.matchMedia(query);
-  media.addEventListener('change', listener);
-  return () => media.removeEventListener('change', listener);
+function mediaStore(query: string, fallback: boolean) {
+  let media: MediaQueryList | undefined;
+  const listeners = new Set<() => void>();
+  const getMedia = () => {
+    if (!media && typeof window !== 'undefined' && window.matchMedia) {
+      media = window.matchMedia(query);
+    }
+    return media;
+  };
+  const notify = () => {
+    for (const listener of [...listeners]) listener();
+  };
+  return {
+    snapshot: () => getMedia()?.matches ?? fallback,
+    subscribe: (listener: () => void) => {
+      const current = getMedia();
+      if (!listeners.size) current?.addEventListener('change', notify);
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+        if (!listeners.size) {
+          current?.removeEventListener('change', notify);
+          media = undefined;
+        }
+      };
+    },
+  };
 }
-const snapshot = () => window.matchMedia(query).matches;
-const hoverQuery = '(hover: hover) and (pointer: fine)';
-function subscribeHover(listener: () => void) {
-  const media = window.matchMedia(hoverQuery);
-  media.addEventListener('change', listener);
-  return () => media.removeEventListener('change', listener);
-}
-const hoverSnapshot = () => window.matchMedia(hoverQuery).matches;
+
+// Hundreds of song and lyric rows share two OS listeners, rather than each
+// allocating a pair of MediaQueryLists and change handlers.
+const reducedMotion = mediaStore('(prefers-reduced-motion: reduce)', true);
+const hover = mediaStore('(hover: hover) and (pointer: fine)', false);
 
 export function useWaveMotion() {
   const preference = useContext(MotionPreference);
-  const reduced = useSyncExternalStore(subscribe, snapshot, () => true);
+  const reduced = useSyncExternalStore(reducedMotion.subscribe, reducedMotion.snapshot, () => true);
+
   const enabled = preference && !reduced;
-  const canHover = useSyncExternalStore(subscribeHover, hoverSnapshot, () => false);
+  const canHover = useSyncExternalStore(hover.subscribe, hover.snapshot, () => false);
   return {
     enabled,
     hoverEnabled: enabled && canHover,
@@ -67,7 +76,7 @@ export function useWaveMotion() {
     cinematic: enabled ? cinematic : { duration: 0 },
     effects: enabled ? effects : { duration: 0 },
     reveal: enabled ? reveal : { duration: 0 },
-    /** Variants with the durations removed when motion is off. */
+
     rise: enabled ? riseIn : { hidden: { opacity: 1 }, visible: { opacity: 1 } },
     stagger: enabled ? stagger() : { hidden: {}, visible: {} },
   };

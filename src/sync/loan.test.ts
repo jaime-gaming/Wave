@@ -51,9 +51,7 @@ describe('loan policy', () => {
       capacityBytes: 30 * MB,
       maxTracks: 10,
     });
-    // 20 MB are already borrowed of a 30 MB budget. The listener's songs stay
-    // where they are, and the new request is refused with a reason the page can
-    // show, so nothing disappears behind their back.
+
     expect(result.evicted).toEqual([]);
     expect(result.granted).toEqual([]);
     expect(result.rejected[0].reason).toBe('capacity');
@@ -67,7 +65,7 @@ describe('loan policy', () => {
       maxTracks: 10,
     });
     expect(result.evicted).toEqual([]);
-    // 30 MB are pinned inside a 35 MB budget, so 15 MB can never fit.
+
     expect(result.rejected).toEqual([
       { request: request({ loanId: 'extra', size: 15 * MB }), reason: 'too-large' },
     ]);
@@ -78,7 +76,7 @@ describe('loan policy', () => {
       maxTracks: 10,
     });
     expect(tooLarge.rejected[0].reason).toBe('too-large');
-    // Above the 200 MB per-file ceiling a loan is not a capacity problem.
+
     const oversized = grantLoans([], [request({ loanId: 'oversized', size: 500 * MB })]);
     expect(oversized.rejected[0].reason).toBe('invalid');
   });

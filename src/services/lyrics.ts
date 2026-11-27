@@ -63,11 +63,6 @@ async function fetchLyrics(track: Track, signal: AbortSignal): Promise<LyricsRes
     const metadata = lookupMetadata(track);
     if (!metadata.artist || !metadata.title) return { lookup };
 
-    /**
-     * Opt-in word-level providers come first: when one answers, the lyrics carry
-     * real per-word timings and there is nothing for LRCLIB to improve. Any
-     * failure (offline, timeout, no match) simply falls through to LRCLIB.
-     */
     if (extendedLyricsEnabled()) {
       const wordLyrics = await fetchWordLyrics(
         { title: metadata.title, artist: metadata.artist, duration: track.duration },
@@ -77,16 +72,14 @@ async function fetchLyrics(track: Track, signal: AbortSignal): Promise<LyricsRes
         const raw = lyricText(wordLyrics.lines);
         try {
           const lyrics = parseLyrics(raw, 0, wordLyrics.provider);
-          // Keep the parsed timings: the raw text only carries line times.
+
           lyrics.lines = wordLyrics.lines;
           lyrics.offsetMs = wordLyrics.offsetMs;
           lyrics.provider = wordProviderName(wordLyrics.provider);
           const numeric = Number(wordLyrics.providerId);
           if (Number.isSafeInteger(numeric) && numeric > 0) lyrics.providerId = numeric;
           return { lookup: { ...lookup, status: 'found' }, lyrics };
-        } catch {
-          /* A malformed payload must not stop the LRCLIB path. */
-        }
+        } catch {}
       }
     }
     const params = new URLSearchParams({
@@ -103,7 +96,7 @@ async function fetchLyrics(track: Track, signal: AbortSignal): Promise<LyricsRes
           signal: controller.signal,
           credentials: 'omit',
           referrerPolicy: 'no-referrer',
-          // Safelisted headers avoid an OPTIONS preflight and a duplicate network retry.
+
           headers: { Accept: 'application/json' },
         });
         if (response.status === 404 || (path === 'get' && [400, 422].includes(response.status))) {
@@ -145,7 +138,7 @@ async function fetchLyrics(track: Track, signal: AbortSignal): Promise<LyricsRes
       };
       const plain = parseCandidate(record.plainLyrics);
       let lyrics = synchronized ? parseCandidate(record.syncedLyrics) : undefined;
-      // A malformed candidate must not prevent another verified recording from matching.
+
       if (!lyrics || !validLyricTimeline(lyrics, track.duration)) lyrics = plain;
       if (!lyrics) {
         const timed = parseCandidate(record.syncedLyrics);
@@ -166,7 +159,6 @@ async function fetchLyrics(track: Track, signal: AbortSignal): Promise<LyricsRes
       const match = recordingMatch(value, track),
         result = resultFor(match);
       if (result && match?.album === 'conflict') {
-        // A compilation/other album may supply text, but not authoritative timing.
         if (result.lyrics) deferred ??= result;
         return;
       }
@@ -179,9 +171,7 @@ async function fetchLyrics(track: Track, signal: AbortSignal): Promise<LyricsRes
       found = accept(await request('get', params));
       if (found) return found;
     }
-    // A title that carries edition words is searched twice: once as the file
-    // spells it, and once as the song is actually credited. The second form is
-    // what finds a match when "(Remastered 2011)" is in the way.
+
     const plainTitle = searchableTitle(metadata.title);
     for (const query of [
       new URLSearchParams({ track_name: metadata.title, artist_name: metadata.artist }),
@@ -223,10 +213,9 @@ interface PendingLookup {
 }
 const pending = new Map<string, PendingLookup>();
 
-/** Share identical concurrent work, while keeping every caller's cancellation independent. */
 export function lookupLyrics(track: Track, signal: AbortSignal): Promise<LyricsResult> {
   if (signal.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'));
-  // Include inferred identity and exact duration; never coalesce different recording identities.
+
   const metadata = lookupMetadata(track);
   const key = JSON.stringify([
     lyricsKey(track),

@@ -8,14 +8,7 @@ import type { ClipCandidate } from '../domain/clipSearch';
 import type { Track } from '../domain/types';
 
 import { useT } from '../i18n';
-/**
- * The clip for this song, and a way to change your mind.
- *
- * Automatic discovery is a guess, and a guess you cannot correct is worse than
- * no guess: this shows which video was picked, offers the runners-up, lets the
- * clip start a few seconds in when it has an intro, and can remove it entirely.
- * Everything is stored on this device and keyed by the song; nothing is uploaded.
- */
+
 export function ClipSection({ track }: { track: Track }) {
   const t = useT();
   const [clip, setClip] = useState(() => getClip(track.id, loadClips()));
@@ -57,8 +50,7 @@ export function ClipSection({ track }: { track: Track }) {
     }
     setLinkError(false);
     setLink('');
-    // Nothing is known about this upload's length, so it starts where it starts;
-    // the offset field below is right there if it needs a nudge.
+
     pick({ videoId: parsed.videoId, title: '', author: '', duration: 0 }, parsed.startAt ?? 0);
   };
 
@@ -109,8 +101,7 @@ export function ClipSection({ track }: { track: Track }) {
             <span>{t('Clip starts at')}</span>
             <input
               type="number"
-              // Either side of zero: positive when the upload has an intro before
-              // the music, negative when the picture begins before the song does.
+
               min={-3600}
               max={3600}
               step={1}

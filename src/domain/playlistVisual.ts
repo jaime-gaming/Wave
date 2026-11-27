@@ -3,7 +3,7 @@ const escape = (s: string) =>
     /[&<>"']/g,
     (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[c]!,
   );
-/** Flat library label with a consistent playlist glyph and member-color spine. */
+
 export function playlistIcon(id: string, name: string, colors: string[] = []): string {
   let hash = 0;
   for (const c of id) hash = (Math.imul(hash, 31) + c.charCodeAt(0)) >>> 0;

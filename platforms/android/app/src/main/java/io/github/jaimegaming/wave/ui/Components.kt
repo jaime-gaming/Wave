@@ -31,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -43,12 +44,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.jaimegaming.wave.Song
+import io.github.jaimegaming.wave.remixMetrics
 
-/**
- * The web's press: a card or a pill gives a little when it is pushed, and eases
- * back when it is let go. 0.97 is the same number `src/styles.css` uses, so the
- * phone feels like the site rather than merely similar to it.
- */
+
+
+
+
+
 @Composable
 fun Modifier.pressScale(pressed: Boolean, amount: Float = 0.972f): Modifier {
     val enabled = waveMotionEnabled()
@@ -60,7 +62,7 @@ fun Modifier.pressScale(pressed: Boolean, amount: Float = 0.972f): Modifier {
     return this.scale(scale)
 }
 
-/** The interaction source and its pressed flag, for a clickable that squashes. */
+
 @Composable
 fun rememberPress(): Pair<MutableInteractionSource, Boolean> {
     val source = remember { MutableInteractionSource() }
@@ -68,10 +70,10 @@ fun rememberPress(): Pair<MutableInteractionSource, Boolean> {
     return source to pressed
 }
 
-/**
- * The site's other inputs: a filled block with its own rounded corners and no
- * rule around it. Used where a field needs a label that stays put.
- */
+
+
+
+
 @Composable
 fun WaveTextField(
     value: String,
@@ -105,11 +107,11 @@ fun WaveTextField(
     )
 }
 
-/**
- * The search field, as the site draws it: a filled pill with the magnifier on
- * its left and no rule under it. Material's outlined field reads as a form; this
- * reads as the same page, which is the point of the port.
- */
+
+
+
+
+
 @Composable
 fun WaveSearchField(
     value: String,
@@ -137,7 +139,7 @@ fun WaveSearchField(
     )
 }
 
-/** The Wave mark: two crests, drawn rather than shipped as an asset. */
+
 @Composable
 fun WaveMark(size: Int = 28) {
     val color = MaterialTheme.colorScheme.primary
@@ -149,7 +151,7 @@ fun WaveMark(size: Int = 28) {
             cubicTo(23f, 7f, 23f, 23f, 28f, 23f)
             cubicTo(33f, 23f, 33f, 7f, 36f, 7f)
         }
-        // `this.size` is the canvas; the outer `size` is the mark's size in dp.
+
         scale(this.size.width / 40f, this.size.height / 32f, pivot = Offset.Zero) {
             drawPath(path, color, style = Stroke(4.5f, cap = StrokeCap.Round))
         }
@@ -159,20 +161,28 @@ fun WaveMark(size: Int = 28) {
 @Composable
 fun ScreenTitle(title: String, subtitle: String? = null, trailing: (@Composable () -> Unit)? = null) {
     val actions = LocalChromeActions.current
+    val configuration = LocalConfiguration.current
+    val metrics = remixMetrics(
+        configuration.screenWidthDp,
+        configuration.screenHeightDp,
+        configuration.fontScale,
+        LocalWaveProfile.current,
+    )
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 20.dp, bottom = 24.dp),
+            .padding(top = metrics.paddingDp.dp, bottom = metrics.gapDp.dp),
         verticalAlignment = Alignment.Top,
     ) {
         Column(Modifier.weight(1f)) {
             Text(
                 text = Loc.t(title),
                 style = MaterialTheme.typography.displaySmall,
-                fontSize = 40.sp,
-                lineHeight = 44.sp,
+                fontSize = metrics.titleSp.sp,
+                lineHeight = (metrics.titleSp * 1.08f).sp,
                 fontWeight = FontWeight.Bold,
-                letterSpacing = (-1).sp,
+                letterSpacing = (-0.6).sp,
+                maxLines = 2,
                 color = MaterialTheme.colorScheme.primary,
             )
             if (subtitle != null) {
@@ -223,7 +233,7 @@ fun SectionTitle(text: String, action: String? = null, onAction: (() -> Unit)? =
     }
 }
 
-/** A song row uses the same compact rounded surface as the web list. */
+
 @Composable
 fun SongRow(
     song: Song,
@@ -234,8 +244,8 @@ fun SongRow(
     modifier: Modifier = Modifier,
     trailing: String? = null,
 ) {
-    // The web row is a plain card on the page's own surface — no hairline, wider
-    // corners — and it gives a little when it is pushed.
+
+
     val shape = RoundedCornerShape(22.dp)
     val (interaction, pressed) = rememberPress()
     Row(
@@ -281,7 +291,7 @@ fun SongRow(
     }
 }
 
-/** One shape for every absence: what happened, and what to do about it. */
+
 @Composable
 fun EmptyState(title: String, body: String, actionLabel: String? = null, onAction: (() -> Unit)? = null) {
     Column(
@@ -318,7 +328,7 @@ fun EmptyState(title: String, body: String, actionLabel: String? = null, onActio
     }
 }
 
-/** A quiet note under a heading; never a dialog for something that is not one. */
+
 @Composable
 fun Notice(text: String, onDismiss: () -> Unit) {
     if (text.isBlank()) return

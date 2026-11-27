@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   alignIncomingLyrics,
   automaticBars,
-  bassSwapGains,
   handoverGains,
   isUsablePlan,
   levelTrim,
@@ -58,7 +57,7 @@ describe('Level matching across a handover', () => {
     const bLoud = levelTrim(quiet, loud);
     expect(bLoud.outgoing).toBe(1);
     expect(bLoud.incoming).toBeLessThan(1);
-    // -6 dB is the ceiling, so a badly mastered pair cannot be silenced.
+
     expect(bLoud.incoming).toBeGreaterThanOrEqual(0.5);
   });
 
@@ -77,17 +76,15 @@ describe('Mix transition planning', () => {
       analysis({ duration: 200, trimmed: { start: 0, end: 198 } }),
     );
     expect(plan.mode).toBe('beatmatched');
-    // Three phrases at 120 BPM: long enough for an arrival, a passage together
-    // and a departure, instead of one slide.
+
     expect(plan.bars).toBe(12);
     expect(plan.seconds).toBeCloseTo(24, 5);
-    // The incoming song is cued on the first bar of its body, not on the beatless
-    // intro it opens with, and never deeper than MAX_ENTRY.
+
     expect(plan.cue).toBeCloseTo(16.05, 2);
     expect(plan.cue).toBeLessThanOrEqual(MAX_ENTRY + 2);
     const entry = (plan.cue - 0.05) / (60 / 120);
     expect(Math.abs(entry - Math.round(entry))).toBeLessThan(0.01);
-    // The overlap must start on a beat of the outgoing grid.
+
     const period = 60 / 120;
     const beats = (plan.startAt - 0.05) / period;
     expect(Math.abs(beats - Math.round(beats))).toBeLessThan(0.01);
@@ -101,14 +98,12 @@ describe('Mix transition planning', () => {
       analysis({ beats: { bpm: 126, offset: 0.02, confidence: 0.8 } }),
     );
     expect(plan.mode).toBe('beatmatched');
-    // Six per cent apart, and both records still play exactly as recorded.
+
     expect(plan.notes.join(' ')).toMatch(/neither song is stretched/i);
     expect(JSON.stringify(plan)).not.toMatch(/Rate"/);
   });
 
   it('keeps the full overlap for close tempos and shortens a gap that would drift', () => {
-    // Four per cent apart at this speed never drifts more than half a beat inside
-    // the full twelve to twenty-four second overlap.
     const close = planTransition(
       analysis(),
       analysis({ beats: { bpm: 125, offset: 0, confidence: 0.9 } }),
@@ -116,8 +111,7 @@ describe('Mix transition planning', () => {
     expect(close.mode).toBe('beatmatched');
     expect(close.seconds).toBeGreaterThanOrEqual(12);
     expect(close.notes.join(' ')).toMatch(/neither song is stretched/i);
-    // 140 against 120 is seventeen per cent: at that gap the two pulses would be
-    // trading places well before the end, so the overlap is cut to what fits.
+
     const gap = planTransition(
       analysis(),
       analysis({ beats: { bpm: 140, offset: 0, confidence: 0.9 } }),
@@ -126,7 +120,7 @@ describe('Mix transition planning', () => {
     const drift = gap.seconds * Math.abs(1 - 140 / 120);
     expect(drift).toBeLessThanOrEqual(DRIFT_BEATS + 0.01);
     expect(gap.bars).toBeLessThan(close.bars);
-    // 140 against 112 is a wider gap than Mix will join at all.
+
     const wide = planTransition(
       analysis({ beats: { bpm: 112, offset: 0.05, confidence: 0.85 } }),
       analysis({ beats: { bpm: 140, offset: 0, confidence: 0.9 } }),
@@ -147,7 +141,7 @@ describe('Mix transition planning', () => {
     });
     const plan = planTransition(analysis(), breakdown);
     expect(plan.mode).toBe('beatmatched');
-    // Past the held pad, on a bar of the part that is actually playing.
+
     expect(plan.cue).toBeGreaterThanOrEqual(20);
     expect(Number.isInteger((plan.cue - 0) / (60 / 120) / 4)).toBe(true);
   });
@@ -174,7 +168,7 @@ describe('Mix transition planning', () => {
     const withVocal = analysis({ vocals: [{ start: 0, end: 60, strength: 0.8 }] });
     const plan = planTransition(analysis(), withVocal);
     expect(plan.mode).toBe('beatmatched');
-    // A vocal at the join shortens the overlap; it never moves the entry forward.
+
     expect(plan.cue).toBeLessThanOrEqual(MAX_CUE_LEAD);
     expect(plan.seconds).toBeLessThanOrEqual(12);
   });
@@ -191,8 +185,7 @@ describe('Mix transition planning', () => {
     });
     const plan = planTransition(analysis(), longIntro);
     expect(plan.mode).toBe('beatmatched');
-    // A 45-second intro is a section, not a count-in: Mix takes the first bar
-    // inside it and no more.
+
     expect(plan.cue).toBeLessThanOrEqual(MAX_ENTRY + 2);
     expect(plan.notes.join(' ')).not.toMatch(/skipped/i);
   });
@@ -214,10 +207,11 @@ describe('Mix transition planning', () => {
       vocals: [{ start: 0, end: 300, strength: 0.9 }],
     });
     const plan = planTransition(outgoing, incoming);
-    // Half of twelve bars, so the two voices collide for six bars, not twelve.
+
     expect(plan.bars).toBe(6);
     expect(plan.seconds).toBeCloseTo(12, 5);
     expect(plan.notes.join(' ')).toMatch(/halved/i);
+    expect(outgoing.trimmed.end - (plan.startAt + plan.seconds)).toBeLessThan(2.01);
   });
 
   it('keeps the overlap inside the audible tail', () => {
@@ -247,23 +241,6 @@ describe('gain curves', () => {
       const { outgoing, incoming } = planGains(progress);
       expect(outgoing ** 2 + incoming ** 2).toBeCloseTo(1, 6);
     }
-  });
-
-  it('swaps bass around the midpoint without a hole', () => {
-    const start = bassSwapGains(0);
-    const middle = bassSwapGains(0.45);
-    const end = bassSwapGains(1);
-    expect(start.outgoing).toBeCloseTo(1, 6);
-    expect(start.incoming).toBeCloseTo(0, 6);
-    expect(middle.outgoing).toBeCloseTo(middle.incoming, 2);
-    expect(end.incoming).toBeCloseTo(1, 6);
-    // Never both at zero: the low end is continuous.
-    for (let step = 0; step <= 20; step++) {
-      const gains = bassSwapGains(step / 20);
-      expect(Math.hypot(gains.outgoing, gains.incoming)).toBeGreaterThan(0.9);
-    }
-    expect(bassSwapGains(-1)).toEqual({ outgoing: 1, incoming: 0 });
-    expect(bassSwapGains(9).incoming).toBeCloseTo(1, 6);
   });
 
   it('chooses its own bar count so a blend lasts about the target length', () => {
@@ -301,21 +278,21 @@ describe('gain curves', () => {
     const first = planTransitionCached(a, b, { fallbackSeconds: 7 });
     const second = planTransitionCached(a, b, { fallbackSeconds: 7 });
     expect(second).toBe(first);
-    // Different options are a different plan.
+
     expect(planTransitionCached(a, b, { fallbackSeconds: 4 })).not.toBe(first);
+    expect(planTransitionCached(a, b, { ending: 'echo-cut' }).ending).toBe('echo-cut');
+    expect(planTransitionCached(a, b, { ending: 'fade-to-zero' }).ending).toBe('fade-to-zero');
   });
 });
 
 describe('the mix curve', () => {
   it('brings the new song in early and lets the old one leave afterwards', () => {
-    // A quarter of the way in the new song is already at level, which is what
-    // makes the handover audible as an arrival instead of a slide.
     expect(handoverGains(0.25).incoming).toBeGreaterThan(0.65);
-    // A symmetric crossfade would still be barely half way there.
+
     expect(handoverGains(0.25).incoming).toBeGreaterThan(planGains(0.25).incoming + 0.25);
-    // The old song is still there when the new one lands: this is a mix, not a cut.
+
     expect(handoverGains(0.25).outgoing).toBeGreaterThan(0.6);
-    // And it is the one that leaves in the second half of the overlap.
+
     expect(handoverGains(0.5).outgoing).toBeGreaterThan(handoverGains(0.75).outgoing);
     expect(handoverGains(0.9).outgoing).toBeLessThan(0.2);
   });
@@ -331,7 +308,7 @@ describe('the mix curve', () => {
     expect(handoverGains(0)).toEqual({ outgoing: 1, incoming: 0 });
     expect(handoverGains(1).incoming).toBeCloseTo(1, 12);
     expect(handoverGains(1).outgoing).toBeCloseTo(0, 12);
-    // No jumps anywhere: a step would be heard as a click.
+
     let previous = 0;
     for (let step = 0; step <= 400; step++) {
       const value = handoverGains(step / 400).incoming;
@@ -363,9 +340,10 @@ describe('keeping the blend on the phrase', () => {
 
   it('moves a late blend to the next bar instead of starting mid-bar', () => {
     const late = realignPlan(plan, 203.4);
-    // 20 s over 10 bars: each bar is 2 s, so the blend moves 4 s and loses 2 bars.
+
     expect(late).toMatchObject({ startAt: 204, bars: 8, seconds: 16 });
     expect(late?.notes.join(' ')).toMatch(/next bar/);
+    expect(realignPlan(plan, 204.05)).toMatchObject({ startAt: 204, bars: 8 });
   });
 
   it('gives up rather than stagger when the phrase is gone', () => {
@@ -378,13 +356,6 @@ describe('keeping the blend on the phrase', () => {
   });
 });
 
-/**
- * Real DJ material, which is not a click track.
- *
- * Three things it does that a synthetic groove does not: it opens with a long
- * intro, it is written at 174 and played at 87 (or the other way round), and
- * sometimes it is played by people rather than by a grid.
- */
 describe('Mix against real material', () => {
   const club = (over: Partial<TrackAnalysis> = {}) =>
     analysis({
@@ -423,7 +394,7 @@ describe('Mix against real material', () => {
       longIntro,
     );
     expect(plan.mode).toBe('beatmatched');
-    // Cued at the drums, not at second zero — and never past the bound.
+
     expect(plan.cue).toBeGreaterThan(24);
     expect(plan.cue).toBeLessThanOrEqual(MAX_ENTRY + 1);
   });
@@ -433,7 +404,7 @@ describe('Mix against real material', () => {
       analysis(),
       analysis({ beats: { bpm: 168, offset: 0, confidence: 0.8 } }),
     );
-    // No pitch, no rate: only the placement of the entry and the length change.
+
     expect(JSON.stringify(plan)).not.toMatch(/Rate"/);
     expect(plan.mode === 'beatmatched' || plan.mode === 'crossfade').toBe(true);
   });
@@ -441,10 +412,9 @@ describe('Mix against real material', () => {
 
 describe('The extra moves a mix makes', () => {
   it('separates the two songs in the stereo field and brings them home', () => {
-    // Nothing at the very start or the very end: ordinary playback is centred.
     expect(panSpread(0, 'outgoing')).toBe(0);
     expect(panSpread(1, 'incoming')).toBe(0);
-    // In the middle they are apart, and mirrored.
+
     expect(panSpread(0.5, 'outgoing')).toBeLessThan(0);
     expect(panSpread(0.5, 'incoming')).toBeGreaterThan(0);
     expect(panSpread(0.5, 'incoming')).toBeCloseTo(-panSpread(0.5, 'outgoing'), 3);
@@ -452,9 +422,6 @@ describe('The extra moves a mix makes', () => {
   });
 
   it('matches levels where the two songs actually meet, not on average', () => {
-    // Both songs average the same level, so a whole-body comparison finds
-    // nothing to do — but the join is between one song's quiet tail and the
-    // other's loud opening, which is exactly where the jolt used to be.
     const outgoing = analysis({
       segments: [
         { start: 0, end: 100, level: 0.9, kind: 'body' },
@@ -468,7 +435,7 @@ describe('The extra moves a mix makes', () => {
       ],
     });
     expect(levelTrim(outgoing, incoming)).toEqual({ outgoing: 1, incoming: 1 });
-    // The incoming song arrives loud over a quiet tail: it is the one turned down.
+
     const join = levelTrim(outgoing, incoming, { outgoing: 190, incoming: 0 });
     expect(join.outgoing).toBe(1);
     expect(join.incoming).toBeLessThan(1);
@@ -503,7 +470,6 @@ describe('The extra moves a mix makes', () => {
   });
 
   it('scores Camelot harmonic compatibility and tightens clashing keys while letting matches breathe', () => {
-    // Pure C major triad chroma (C=0, E=4, G=7) should resolve to C major (8B).
     const cMajorChroma = new Float32Array(12);
     cMajorChroma[0] = 1.0;
     cMajorChroma[4] = 0.72;
@@ -580,4 +546,40 @@ describe('timed lyric handovers', () => {
       ),
     ).toEqual(plan);
   });
+});
+
+it('recognises near-octave pulse across the folding boundary without slowing either track', () => {
+  const first = analysis({ beats: { bpm: 75, offset: 0, confidence: 0.9 } });
+  const second = analysis({ beats: { bpm: 147, offset: 0, confidence: 0.9 } });
+  const plan = planTransition(first, second);
+  expect(plan.mode).toBe('beatmatched');
+  expect(plan.seconds).toBeGreaterThan(0);
+  expect(transitionCompatibility(first, second)).toBeGreaterThan(0.6);
+});
+it('treats a missing spectral profile neutrally, but keeps a real spectral clash distinct', () => {
+  const bass = analysis({ profile: { bass: 1, low: 0, mid: 0, high: 0 } });
+  const high = analysis({ profile: { bass: 0, low: 0, mid: 0, high: 1 } });
+  const missing = analysis({ profile: { bass: 0, low: 0, mid: 0, high: 0 } });
+  expect(transitionCompatibility(bass, missing)).toBeGreaterThan(
+    transitionCompatibility(bass, high),
+  );
+  expect(Number.isFinite(transitionCompatibility(bass, missing))).toBe(true);
+});
+
+it('bounds residual drift even for near half-time tempos', () => {
+  const out = analysis({ beats: { bpm: 120, offset: 0.05, confidence: 0.9 } });
+  const into = analysis({ beats: { bpm: 61.5, offset: 0.05, confidence: 0.9 } });
+  const plan = planTransition(out, into);
+  expect(plan.mode).toBe('beatmatched');
+  const driftSeconds = plan.seconds * Math.abs(1 - (61.5 * 2) / 120);
+  expect(driftSeconds).toBeLessThanOrEqual((DRIFT_BEATS * 60) / 120 + 0.01);
+});
+
+it('treats adjacent tempos across the folding boundary as close, not half-time', () => {
+  const out = analysis({ beats: { bpm: 147, offset: 0.05, confidence: 0.9 } });
+  const into = analysis({ beats: { bpm: 149, offset: 0.05, confidence: 0.9 } });
+  const plan = planTransition(out, into);
+  expect(plan.mode).toBe('beatmatched');
+  expect(plan.seconds).toBeGreaterThan(10);
+  expect(plan.notes.join(' ')).not.toMatch(/Half-time relation/);
 });

@@ -36,9 +36,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -53,17 +57,18 @@ import io.github.jaimegaming.wave.LyricLine
 import io.github.jaimegaming.wave.Player
 import io.github.jaimegaming.wave.Song
 import io.github.jaimegaming.wave.parseLrc
+import kotlinx.coroutines.delay
 
-/**
- * Mobile Now Playing: the record above the words, with the transport at the
- * bottom. Native playback, seeking and lyric lookup still belong to the Android
- * player and its service.
- *
- * The screen is one column on a phone and two on anything wider, because the same
- * page on a computer puts the sleeve on one side and the words on the other. A
- * tablet held sideways with a single centred column leaves two thirds of the
- * screen empty and the lyrics stretched into a line nobody can follow.
- */
+
+
+
+
+
+
+
+
+
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NowPlayingScreen(
@@ -78,14 +83,14 @@ fun NowPlayingScreen(
     val active = lines.indexOfLast { it.time <= player.time }
     val configuration = LocalConfiguration.current
     val wide = configuration.screenWidthDp >= 600
-    // The sleeve is the hero, but never at the price of the words: beside them it
-    // takes about a third of the width, above them a little over half.
+
+
     val coverSize = if (wide) {
         minOf(configuration.screenHeightDp * 0.44f, configuration.screenWidthDp * 0.3f)
             .coerceIn(96f, 300f).dp
     } else {
-        minOf(configuration.screenWidthDp * 0.56f, configuration.screenHeightDp * 0.3f)
-            .coerceIn(96f, 240f).dp
+        minOf(configuration.screenWidthDp * 0.60f, configuration.screenHeightDp * 0.28f)
+            .coerceIn(96f, 260f).dp
     }
 
     val motionEnabled = waveMotionEnabled()
@@ -94,7 +99,7 @@ fun NowPlayingScreen(
     LaunchedEffect(dragging) {
         if (dragging || followAfter > 0L) followAfter = android.os.SystemClock.elapsedRealtime() + 6_500L
     }
-    // Let the listener read ahead without every new line fighting their gesture.
+
     LaunchedEffect(active, song.id, dragging, followAfter, motionEnabled) {
         if (active >= 0 && !dragging && android.os.SystemClock.elapsedRealtime() >= followAfter) {
             if (motionEnabled) listState.animateScrollToItem(active) else listState.scrollToItem(active)
@@ -102,38 +107,68 @@ fun NowPlayingScreen(
     }
     LaunchedEffect(song.id) { state.maybeLookupLyrics(song) }
 
-    Column(
+    var idle by remember(song.id) { mutableStateOf(false) }
+    var lastInteraction by remember(song.id) { mutableStateOf(android.os.SystemClock.elapsedRealtime()) }
+    val wake: () -> Unit = {
+        lastInteraction = android.os.SystemClock.elapsedRealtime()
+        idle = false
+    }
+    LaunchedEffect(song.id) {
+        while (true) {
+            delay(1000)
+            val quietFor = android.os.SystemClock.elapsedRealtime() - lastInteraction
+            if (player.playing && quietFor >= 30_000L) idle = true
+        }
+    }
+
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface)
-            .padding(horizontal = 16.dp),
+            .pointerInput(song.id) {
+                awaitPointerEventScope {
+                    while (true) {
+                        awaitPointerEvent()
+                        wake()
+                    }
+                }
+            },
     ) {
-        NowPlayingHeader(state, onCollapse)
-        if (wide) {
-            Row(
-                modifier = Modifier.fillMaxWidth().weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(28.dp),
-            ) {
-                Column(
-                    modifier = Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.surface)
+                .padding(horizontal = 16.dp),
+        ) {
+            NowPlayingHeader(state, onCollapse)
+            if (wide) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(28.dp),
                 ) {
-                    RecordBlock(song, coverSize)
-                    SongActions(song, state, onEdit, Modifier.fillMaxWidth().padding(top = 14.dp))
+                    Column(
+                        modifier = Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                    ) {
+                        RecordBlock(song, coverSize)
+                        SongActions(song, state, onEdit, Modifier.fillMaxWidth().padding(top = 14.dp))
+                    }
+                    Column(modifier = Modifier.weight(1.15f).fillMaxHeight()) {
+                        LyricsHeading(state)
+                        LyricsBody(song, state, lines, active, listState, player, Modifier.weight(1f).fillMaxWidth())
+                    }
                 }
-                Column(modifier = Modifier.weight(1.15f).fillMaxHeight()) {
-                    LyricsHeading(state)
-                    LyricsBody(song, state, lines, active, listState, player, Modifier.weight(1f).fillMaxWidth())
-                }
+            } else {
+                RecordBlock(song, coverSize)
+                LyricsHeading(state, Modifier.padding(top = 2.dp))
+                LyricsBody(song, state, lines, active, listState, player, Modifier.weight(1f).fillMaxWidth())
+                SongActions(song, state, onEdit, Modifier.fillMaxWidth())
             }
-        } else {
-            RecordBlock(song, coverSize)
-            LyricsHeading(state, Modifier.padding(top = 2.dp))
-            LyricsBody(song, state, lines, active, listState, player, Modifier.weight(1f).fillMaxWidth())
-            SongActions(song, state, onEdit, Modifier.fillMaxWidth())
+            TransportDeck(song, player)
         }
-        TransportDeck(song, player)
+        if (idle && player.playing) {
+            ImmersiveIdleStage(state = state, song = song, onWake = wake)
+        }
     }
 }
 
@@ -156,12 +191,12 @@ private fun NowPlayingHeader(state: WaveState, onCollapse: () -> Unit) {
     }
 }
 
-/**
- * The record and what it is.
- *
- * Records are square and belong in the middle: a centred sleeve with the words
- * under it reads as a record sleeve rather than a list row with a picture in it.
- */
+
+
+
+
+
+
 @Composable
 private fun RecordBlock(song: Song, coverSize: Dp) {
     Column(
@@ -231,7 +266,7 @@ private fun LyricsBody(
     modifier: Modifier,
 ) {
     if (!state.lyricsOpen) {
-        // Closed, the space belongs to the record rather than to an empty reader.
+
         Spacer(modifier)
         return
     }
@@ -281,10 +316,23 @@ private fun LyricsBody(
     }
 }
 
-/** The two things you might want from this song while it plays, and nothing else. */
+
 @Composable
 private fun SongActions(song: Song, state: WaveState, onEdit: () -> Unit, modifier: Modifier) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val artwork = rememberArtwork(song)
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        IconButton(onClick = {
+            scope.launch {
+                try { shareListening(context, song, artwork) }
+                catch (_: Exception) {
+                    android.widget.Toast.makeText(context, Loc.t("Unable to share"), android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
+        }, modifier = Modifier.size(42.dp).semantics { contentDescription = Loc.t("Share song") }) {
+            WaveIcon("share", 20.dp, MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         IconButton(onClick = onEdit, modifier = Modifier.size(42.dp).semantics { contentDescription = Loc.t("Edit lyrics") }) {
             WaveIcon("edit", 20.dp, MaterialTheme.colorScheme.onSurfaceVariant)
         }
@@ -295,12 +343,12 @@ private fun SongActions(song: Song, state: WaveState, onEdit: () -> Unit, modifi
     }
 }
 
-/**
- * Position, the two clocks and the transport, on one surface at the bottom.
- *
- * The opt-in travels with the function: it draws the same Material slider as the
- * screen above it, and an opt-in on the caller does not reach the callee.
- */
+
+
+
+
+
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TransportDeck(song: Song, player: Player) {

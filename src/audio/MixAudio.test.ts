@@ -69,8 +69,6 @@ it('overlaps two native sources, advances their identity and applies complementa
   expect(elements[1].volume).toBeCloseTo(0.37);
 });
 it('keeps the song on the native element when the audio context cannot run', async () => {
-  // A suspended context would swallow the audio: a media element routed into it
-  // no longer reaches the speakers. Playback must stay unplugged instead.
   const context = {
     state: 'suspended',
     currentTime: 0,
@@ -96,7 +94,7 @@ it('keeps the song on the native element when the audio context cannot run', asy
   });
   engine = new MixAudio(callbacks());
   engine.setMixEnabled(true);
-  // Creating the context at mount is what caused silence: nothing is built yet.
+
   expect(context.createMediaElementSource).not.toHaveBeenCalled();
   engine.load(new Blob(['a']));
   await engine.play();
@@ -301,7 +299,7 @@ it('an obsolete play rejection cannot cancel a fresh play intent', async () => {
   expect(started).toHaveBeenCalledOnce();
 });
 
-it('mixes from conservative cue points with the unshifted recording clock and original native blobs', async () => {
+it('keeps analysed intros and endings with the original native blobs', async () => {
   const values = new Float32Array(200);
   values.fill(0.1, 20, 180);
   vi.mocked(sourceEnvelope).mockResolvedValue({ step: 0.1, values });
@@ -318,7 +316,7 @@ it('mixes from conservative cue points with the unshifted recording clock and or
   elements[1].dispatchEvent(new Event('loadedmetadata'));
   await Promise.resolve();
   elements[0].currentTime = 16.2;
-  expect(engine.mixRemaining).toBeCloseTo(2);
+  expect(engine.mixRemaining).toBeCloseTo(3.8);
   engine.transition(
     b,
     2,
@@ -326,21 +324,21 @@ it('mixes from conservative cue points with the unshifted recording clock and or
     () => {},
   );
   await Promise.resolve();
-  expect(elements[1].currentTime).toBeCloseTo(1.85);
+  expect(elements[1].currentTime).toBeCloseTo(0);
   expect(engine.active.blob).toBe(b);
-  elements[1].currentTime = 2.15;
+  elements[1].currentTime = 0.57;
   vi.advanceTimersByTime(100);
   expect(elements[1].volume).toBeCloseTo(
     handoverGains(0.15).incoming / (handoverGains(0.15).incoming + handoverGains(0.15).outgoing),
   );
   expect(elements.reduce((sum, a) => sum + a.volume, 0)).toBeCloseTo(1);
-  expect(events.time).toHaveBeenLastCalledWith(2.15);
+  expect(events.time).toHaveBeenLastCalledWith(0.57);
   expect(events.blend).toHaveBeenLastCalledWith(
     expect.objectContaining({ progress: expect.closeTo(0.15), outgoing: a, incoming: b }),
   );
   engine.pause();
   engine.setMixEnabled(false);
-  expect(engine.mixRemaining).toBeCloseTo(17.85);
+  expect(engine.mixRemaining).toBeCloseTo(19.43);
 });
 
 it('executes a beat-matched plan at the tempo the song was recorded at', async () => {
@@ -375,13 +373,11 @@ it('executes a beat-matched plan at the tempo the song was recorded at', async (
     () => {},
   );
   await Promise.resolve();
-  // The incoming deck starts at the planned cue, at its own speed, silent until
-  // the blend owns it.
+
   expect(elements[1].currentTime).toBeCloseTo(12.5);
   expect(elements[1].playbackRate).toBe(1);
   expect(elements[1].volume).toBeCloseTo(0);
 
-  // Halfway through, both decks sit at equal power.
   elements[1].currentTime = 14.5;
   vi.advanceTimersByTime(100);
   expect(elements[0].volume + elements[1].volume).toBeCloseTo(1, 4);
@@ -389,8 +385,6 @@ it('executes a beat-matched plan at the tempo the song was recorded at', async (
     expect.objectContaining({ incoming: b, outgoing: a }),
   );
 
-  // After the overlap the outgoing file is released and the rate is still 1:
-  // nothing in a blend ever touches it.
   elements[1].currentTime = 16.5;
   vi.advanceTimersByTime(100);
   expect(elements[1].playbackRate).toBe(1);
@@ -444,7 +438,6 @@ it("reports analysed tempo without ever changing a deck's speed", () => {
 });
 
 it('moves the low end and closes the outgoing top when a mix is possible', async () => {
-  // A minimal AudioContext with the two filters each deck needs.
   const param = () => {
     const value = {
       value: 0,
@@ -506,17 +499,16 @@ it('moves the low end and closes the outgoing top when a mix is possible', async
   await Promise.resolve();
   elements[1].currentTime = 2;
   vi.advanceTimersByTime(100);
-  // Halfway through the overlap the low end has changed hands...
+
   expect(outShelf.gain.value).toBeLessThan(-10);
   expect(inShelf.gain.value).toBeGreaterThan(-10);
-  // ...the outgoing song carves a midrange vocal pocket and rolls down its top...
+
   expect(outMid.gain.value).toBeLessThan(-1);
   expect(outAir.frequency.value).toBeLessThan(20_000);
-  // ...and the incoming song is wide open by the midpoint.
+
   expect(inAir.frequency.value).toBe(20_000);
   expect(inMid.gain.value).toBe(0);
 
-  // When the handover ends nothing stays filtered or shifted.
   elements[1].currentTime = 6;
   vi.advanceTimersByTime(100);
   expect(inAir.frequency.value).toBe(20_000);
@@ -525,9 +517,6 @@ it('moves the low end and closes the outgoing top when a mix is possible', async
 });
 
 it('keeps the arriving song silent while the blend is still being set up', async () => {
-  // The gain loop runs every 20 ms whatever the engine is doing. It used to write
-  // a level of one into both decks whenever no blend existed yet, which is what
-  // made the next song arrive at full volume for a few frames and then drop.
   const gains: { value: number }[] = [];
   const context = {
     state: 'suspended',
@@ -566,8 +555,7 @@ it('keeps the arriving song silent while the blend is still being set up', async
   engine.load(a);
   await engine.play();
   engine.prepare(b);
-  // The arriving deck does not report that it is playing for a while, so the
-  // blend is not set up yet: exactly the gap the burst came from.
+
   let release: () => void = () => {};
   elements[1].play = vi.fn(
     () =>
@@ -584,9 +572,9 @@ it('keeps the arriving song silent while the blend is still being set up', async
   );
   await Promise.resolve();
   vi.advanceTimersByTime(200);
-  // Two decks, one gain node each; the second one is the song coming in.
+
   expect(gains.length).toBeGreaterThanOrEqual(2);
-  // The deck's own volume is the master; the graph carries the mix level.
+
   expect(gains[gains.length - 2].value).toBe(0);
   expect(elements[1].volume).toBe(1);
   release();
@@ -725,4 +713,106 @@ it('does not interrupt or re-seek an active transitioning incoming deck when pla
   expect(playSpy).not.toHaveBeenCalled();
   expect(elements[1].currentTime).toBeCloseTo(0.1);
   expect(engine.transitioning).toBe(true);
+});
+
+it('waits if the incoming song is shorter than the remaining outgoing audio', async () => {
+  const events = callbacks();
+  engine = new MixAudio(events);
+  const a = new Blob(['long']),
+    b = new Blob(['short']);
+  engine.load(a);
+  Object.defineProperty(elements[0], 'duration', { value: 20 });
+  engine.setMixEnabled(true);
+  await engine.play();
+  engine.prepare(b);
+  Object.defineProperty(elements[1], 'duration', { value: 3 });
+  elements[1].dispatchEvent(new Event('loadedmetadata'));
+  elements[0].currentTime = 15;
+  const started = vi.fn();
+  engine.transition(b, 10, () => true, started);
+  await Promise.resolve();
+  expect(started).not.toHaveBeenCalled();
+  expect(engine.element).toBe(elements[0]);
+  elements[0].currentTime = 17.5;
+  engine.transition(b, 10, () => true, started);
+  await Promise.resolve();
+  expect(started).toHaveBeenCalledOnce();
+  expect(elements[1].currentTime).toBe(0);
+});
+
+it('compensates for a delayed start and keeps the planned transition length', async () => {
+  const events = { ...callbacks(), blend: vi.fn() };
+  engine = new MixAudio(events);
+  const a = new Blob(['a']),
+    b = new Blob(['b']);
+  engine.load(a);
+  Object.defineProperty(elements[0], 'duration', { value: 30 });
+  engine.setMixEnabled(true);
+  await engine.play();
+  engine.prepare(b);
+  Object.defineProperty(elements[1], 'duration', { value: 30 });
+  let resolvePlay!: () => void;
+  elements[1].play = vi.fn(() => new Promise<void>((resolve) => (resolvePlay = resolve)));
+  elements[0].currentTime = 20;
+  engine.transitionWithPlan(
+    b,
+    {
+      mode: 'beatmatched',
+      seconds: 4,
+      startAt: 20,
+      cue: 5,
+      bassSwapAt: 0.5,
+      bars: 2,
+      phaseAligned: true,
+      notes: [],
+    },
+    () => true,
+    () => {},
+  );
+  elements[0].currentTime = 20.3;
+  resolvePlay();
+  await Promise.resolve();
+  expect(elements[1].currentTime).toBeCloseTo(5.3);
+  elements[1].currentTime = 7.15;
+  vi.advanceTimersByTime(100);
+  expect(events.blend).toHaveBeenLastCalledWith(
+    expect.objectContaining({ seconds: expect.closeTo(3.7), progress: expect.closeTo(0.5) }),
+  );
+});
+
+it('abandons a delayed planned transition without interrupting the outgoing song', async () => {
+  engine = new MixAudio(callbacks());
+  const a = new Blob(['a']),
+    b = new Blob(['b']);
+  engine.load(a);
+  Object.defineProperty(elements[0], 'duration', { value: 30 });
+  engine.setMixEnabled(true);
+  await engine.play();
+  engine.prepare(b);
+  Object.defineProperty(elements[1], 'duration', { value: 30 });
+  let resolvePlay!: () => void;
+  elements[1].play = vi.fn(() => new Promise<void>((resolve) => (resolvePlay = resolve)));
+  elements[0].currentTime = 20;
+  const started = vi.fn();
+  engine.transitionWithPlan(
+    b,
+    {
+      mode: 'beatmatched',
+      seconds: 4,
+      startAt: 20,
+      cue: 5,
+      bassSwapAt: 0.5,
+      bars: 2,
+      phaseAligned: true,
+      notes: [],
+    },
+    () => true,
+    started,
+  );
+  elements[0].currentTime = 21.5;
+  resolvePlay();
+  await Promise.resolve();
+  expect(started).not.toHaveBeenCalled();
+  expect(engine.active.blob).toBe(a);
+  expect(engine.transitioning).toBe(false);
 });

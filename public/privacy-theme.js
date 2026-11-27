@@ -1,4 +1,3 @@
-/* Visual preferences only. This page never opens the music library or a lyrics connection. */
 const waveSystemTheme = globalThis.matchMedia('(prefers-color-scheme: light)');
 function applyWaveAppearance() {
   let theme = 'system',
@@ -6,9 +5,7 @@ function applyWaveAppearance() {
   try {
     theme = globalThis.localStorage.getItem('wave-theme') || 'system';
     palette = JSON.parse(globalThis.localStorage.getItem('wave-palette') || 'null');
-  } catch {
-    /* Default Wave roles also work without storage. */
-  }
+  } catch {}
   const root = globalThis.document.documentElement;
   root.dataset.theme =
     theme === 'light' || (theme === 'system' && waveSystemTheme.matches) ? 'light' : 'dark';

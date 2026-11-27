@@ -1,3 +1,8 @@
+import {
+  parseKugouCandidates,
+  parseNetEaseSongs,
+  rankProviderSongs,
+} from '../domain/wordProviders';
 import { parseImportLink } from '../domain/linkImport';
 import {
   parseYouTubeLink,
@@ -8,7 +13,7 @@ import {
 
 function canonicalPlaylistUrl(
   input: string,
-): { provider: 'spotify' | 'youtube'; fetchUrl: string } | null {
+): { provider: 'spotify' | 'youtube' | 'deezer'; fetchUrl: string } | null {
   const parsed = parseImportLink(input);
   if (!parsed.ok) return null;
   const { target } = parsed;
@@ -20,6 +25,8 @@ function canonicalPlaylistUrl(
       fetchUrl: `https://open.spotify.com/embed/${target.kind}/${encodeURIComponent(target.id)}`,
     };
   }
+  if (target.provider === 'deezer')
+    return { provider: 'deezer', fetchUrl: `https://api.deezer.com/playlist/${target.id}/tracks` };
   const listId = target.kind === 'playlist' ? target.id : target.playlistId;
   if (!listId) return null;
   return {
@@ -44,10 +51,6 @@ const MAX_BODY = 1_500_000;
 const MAX_TRACKS = 300;
 const TIMEOUT_MS = 10_000;
 
-/**
- * Standard consent cookie and English Accept-Language so YouTube returns the
- * public watch/playlist page instead of an EU consent interstitial wall.
- */
 const YOUTUBE_HEADERS = {
   accept: 'text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8',
   'accept-language': 'en-US,en;q=0.9',
@@ -138,9 +141,7 @@ function extractJsonBlocks(html: string): unknown[] {
   if (next) {
     try {
       blocks.push(JSON.parse(next[1]));
-    } catch {
-      /* ignore malformed page payload */
-    }
+    } catch {}
   }
   for (const marker of [
     'var ytInitialData =',
@@ -208,7 +209,6 @@ export function extractYouTubePlaylistVideos(html: string): {
         pushVideo(videoId, title, artist, duration);
       }
 
-      // YouTube Music responsive list items
       const musicItem = record.musicResponsiveListItemRenderer as
         | {
             playlistItemData?: { videoId?: unknown };
@@ -336,6 +336,54 @@ async function handleImportPlaylist(request: Request, url: URL): Promise<Respons
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
+    if (target.provider === 'deezer') {
+      const rows: string[] = ['title,artist,album,duration'];
+      let partial = false;
+      for (let offset = 0; offset < MAX_TRACKS; offset += 100) {
+        const upstream = await fetch(`${target.fetchUrl}?limit=100&index=${offset}`, {
+          redirect: 'error',
+          signal: controller.signal,
+          headers: { accept: 'application/json' },
+        });
+        if (!upstream.ok) {
+          if (rows.length === 1)
+            return json({ error: 'That public playlist could not be read.' }, 502);
+          partial = true;
+          break;
+        }
+        const data = JSON.parse(await readBoundedText(upstream)) as {
+          data?: unknown;
+          next?: unknown;
+        };
+        if (!Array.isArray(data.data)) {
+          partial = true;
+          break;
+        }
+        for (const item of data.data.slice(0, 100)) {
+          if (!item || typeof item !== 'object') continue;
+          const row = item as {
+            title?: unknown;
+            artist?: { name?: unknown };
+            album?: { title?: unknown };
+            duration?: unknown;
+          };
+          const title = clean(row.title),
+            artist = clean(row.artist?.name),
+            album = clean(row.album?.title);
+          if (!title) continue;
+          const duration =
+            typeof row.duration === 'number' && Number.isFinite(row.duration) && row.duration > 0
+              ? Math.round(row.duration)
+              : 0;
+          rows.push([title, artist, album, String(duration)].map(csv).join(','));
+        }
+        if (!data.next || data.data.length === 0) break;
+        if (offset + 100 >= MAX_TRACKS) partial = true;
+      }
+      if (rows.length === 1)
+        return json({ error: 'No public tracks were found at that link.' }, 422);
+      return json({ provider: 'deezer', text: rows.join('\n'), partial });
+    }
     const fetchHeaders =
       target.provider === 'youtube'
         ? YOUTUBE_HEADERS
@@ -380,7 +428,6 @@ async function handleYouTubeMeta(request: Request, url: URL): Promise<Response> 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    // 1. Official YouTube oEmbed (fast, reliable, zero-JS, works on every public/unlisted video)
     const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(
       `https://www.youtube.com/watch?v=${videoId}`,
     )}&format=json`;
@@ -402,11 +449,8 @@ async function handleYouTubeMeta(request: Request, url: URL): Promise<Response> 
         title = clean(data.title);
         author = clean(data.author_name);
       }
-    } catch {
-      /* fall through to watch page */
-    }
+    } catch {}
 
-    // 2. Watch page HTML gives exact duration and serves as fallback if oEmbed was blocked
     try {
       const watchRes = await fetch(`https://www.youtube.com/watch?v=${videoId}&hl=en`, {
         redirect: 'error',
@@ -421,9 +465,7 @@ async function handleYouTubeMeta(request: Request, url: URL): Promise<Response> 
           if (meta.duration > 0) duration = meta.duration;
         }
       }
-    } catch {
-      /* oEmbed result alone is still fully usable */
-    }
+    } catch {}
 
     if (!title) {
       return json({ error: 'Video metadata could not be read.' }, 404);
@@ -508,7 +550,6 @@ function parseDurationText(raw: string): number {
     .reduce((acc, part) => acc * 60 + part, 0);
 }
 
-/** Extracts video search results from YouTube `ytInitialData` or `youtubei/v1/search` JSON. */
 export function extractYouTubeSearchResults(
   source: string | unknown,
   limit = 10,
@@ -547,7 +588,7 @@ export function extractYouTubeSearchResults(
           textOf(renderer.shortBylineText);
         const lengthText = textOf(renderer.lengthText);
         const duration = parseDurationText(lengthText);
-        // Skip live streams (no duration) when a length label says LIVE.
+
         const isLive = /live/iu.test(lengthText);
         if (title && !isLive) {
           seen.add(videoId);
@@ -598,7 +639,7 @@ async function handleYouTubeSearch(request: Request, url: URL): Promise<Response
   const timer = setTimeout(() => controller.abort(), 4_500);
   try {
     let items: YouTubeSearchItem[] = [];
-    // 1. Fast structured InnerTube search (no full HTML parse needed).
+
     try {
       const innerRes = await fetch('https://www.youtube.com/youtubei/v1/search?prettyPrint=false', {
         method: 'POST',
@@ -626,11 +667,8 @@ async function handleYouTubeSearch(request: Request, url: URL): Promise<Response
         const data = (await innerRes.json().catch(() => null)) as unknown;
         items = extractYouTubeSearchResults(data, limit);
       }
-    } catch {
-      /* Fall back to HTML search page below. */
-    }
+    } catch {}
 
-    // 2. Fallback to standard public search page when InnerTube is throttled.
     if (!items.length && !controller.signal.aborted) {
       const htmlRes = await fetch(
         `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}&hl=en`,
@@ -689,10 +727,17 @@ async function handleWordLyrics(request: Request, url: URL): Promise<Response> {
   }
   let title: string;
   let artist: string;
+  let duration = 0;
   try {
-    const body = (await request.json()) as { title?: unknown; artist?: unknown };
+    const body = (await request.json()) as {
+      title?: unknown;
+      artist?: unknown;
+      duration?: unknown;
+    };
     title = clean(body.title);
     artist = clean(body.artist);
+    if (typeof body.duration === 'number' && Number.isFinite(body.duration) && body.duration > 0)
+      duration = body.duration;
   } catch {
     return json({ error: 'Send song title and artist.' }, 400);
   }
@@ -702,98 +747,53 @@ async function handleWordLyrics(request: Request, url: URL): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 4_500);
   try {
+    const wanted = { title, artist, duration };
     const neteaseTask = (async () => {
-      const search = (await fetchJsonSafe(
+      const search = await fetchJsonSafe(
         `https://music.163.com/api/search/get/web?s=${encodeURIComponent(q)}&type=1&limit=8`,
         controller.signal,
         { referer: 'https://music.163.com/' },
-      )) as {
-        result?: {
-          songs?: {
-            id?: number | string;
-            name?: string;
-            artists?: { name?: string }[];
-            duration?: number;
-          }[];
-        };
-      } | null;
-      const songs = search?.result?.songs ?? [];
-      const out: {
-        provider: 'netease';
-        id: string;
-        title: string;
-        artist: string;
-        duration: number;
-        yrc?: string;
-        lrc?: string;
-      }[] = [];
-      for (const song of songs.slice(0, 3)) {
-        if (!song?.id || controller.signal.aborted) continue;
-        const payload = (await fetchJsonSafe(
-          `https://music.163.com/api/song/lyric?id=${encodeURIComponent(String(song.id))}&lv=-1&kv=-1&tv=-1&yv=-1`,
-          controller.signal,
-          { referer: 'https://music.163.com/' },
-        )) as { yrc?: { lyric?: string }; lrc?: { lyric?: string } } | null;
-        const yrc = typeof payload?.yrc?.lyric === 'string' ? payload.yrc.lyric : '';
-        const lrc = typeof payload?.lrc?.lyric === 'string' ? payload.lrc.lyric : '';
-        if (yrc || lrc) {
-          out.push({
-            provider: 'netease',
-            id: String(song.id),
-            title: clean(song.name),
-            artist: (song.artists ?? [])
-              .map((a) => clean(a?.name))
-              .filter(Boolean)
-              .join(', '),
-            duration: typeof song.duration === 'number' ? Math.round(song.duration / 1000) : 0,
-            ...(yrc ? { yrc } : {}),
-            ...(lrc ? { lrc } : {}),
-          });
-        }
-      }
-      return out;
+      );
+      const songs = rankProviderSongs(parseNetEaseSongs(search), wanted).slice(0, 3);
+      const results = await Promise.all(
+        songs.map(async (song) => {
+          const payload = (await fetchJsonSafe(
+            `https://music.163.com/api/song/lyric?id=${encodeURIComponent(song.id)}&lv=-1&kv=-1&tv=-1&yv=-1`,
+            controller.signal,
+            { referer: 'https://music.163.com/' },
+          )) as { yrc?: { lyric?: string } } | null;
+          const yrc = typeof payload?.yrc?.lyric === 'string' ? payload.yrc.lyric : '';
+          return yrc ? { provider: 'netease', ...song, yrc } : null;
+        }),
+      );
+      return results.filter((item) => item !== null);
     })();
 
     const kugouTask = (async () => {
-      const search = (await fetchJsonSafe(
+      const search = await fetchJsonSafe(
         `https://krcs.kugou.com/search?ver=1&man=yes&client=mobi&keyword=${encodeURIComponent(q)}`,
         controller.signal,
-      )) as {
-        candidates?: {
-          id?: string | number;
-          accesskey?: string;
-          song?: string;
-          singer?: string;
-          duration?: number;
-        }[];
-      } | null;
-      const candidates = (search?.candidates ?? []).filter((c) => c?.id && c?.accesskey);
-      const out: {
-        provider: 'kugou';
-        id: string;
-        title: string;
-        artist: string;
-        duration: number;
-        krc: string;
-      }[] = [];
-      for (const item of candidates.slice(0, 3)) {
-        if (controller.signal.aborted) continue;
-        const payload = (await fetchJsonSafe(
-          `https://lyrics.kugou.com/download?ver=1&client=pc&id=${encodeURIComponent(String(item.id))}&accesskey=${encodeURIComponent(String(item.accesskey))}&fmt=krc&charset=utf8`,
-          controller.signal,
-        )) as { content?: string } | null;
-        if (typeof payload?.content === 'string' && payload.content) {
-          out.push({
-            provider: 'kugou',
-            id: String(item.id),
-            title: clean(item.song),
-            artist: clean(item.singer),
-            duration: typeof item.duration === 'number' ? Math.round(item.duration / 1000) : 0,
-            krc: payload.content,
-          });
-        }
-      }
-      return out;
+      );
+      const songs = rankProviderSongs(parseKugouCandidates(search), wanted).slice(0, 3);
+      const results = await Promise.all(
+        songs.map(async (song) => {
+          const payload = (await fetchJsonSafe(
+            `https://lyrics.kugou.com/download?ver=1&client=pc&id=${encodeURIComponent(song.id)}&accesskey=${encodeURIComponent(song.accessKey ?? '')}&fmt=krc&charset=utf8`,
+            controller.signal,
+          )) as { content?: string } | null;
+          return typeof payload?.content === 'string' && payload.content
+            ? {
+                provider: 'kugou',
+                id: song.id,
+                title: song.title,
+                artist: song.artist,
+                duration: song.duration,
+                krc: payload.content,
+              }
+            : null;
+        }),
+      );
+      return results.filter((item) => item !== null);
     })();
 
     const [netease, kugou] = await Promise.all([neteaseTask, kugouTask]);
@@ -805,7 +805,74 @@ async function handleWordLyrics(request: Request, url: URL): Promise<Response> {
   }
 }
 
-/** Resolve only known public release assets; never accept an arbitrary redirect target. */
+async function handleDeezerSearch(request: Request, url: URL): Promise<Response> {
+  if (request.method !== 'POST') return json({ error: 'Method not allowed.' }, 405);
+  if (!isSameOrigin(request, url))
+    return json({ error: 'Cross-origin requests are not allowed.' }, 403);
+  let query: string;
+  try {
+    query = clean(((await request.json()) as { query?: unknown }).query);
+  } catch {
+    return json({ error: 'Send a search query.' }, 400);
+  }
+  if (query.length < 2) return json({ results: [] });
+  try {
+    const response = await fetch(
+      `https://api.deezer.com/search?${new URLSearchParams({ q: query, limit: '20' })}`,
+      {
+        signal: AbortSignal.timeout(5000),
+        redirect: 'error',
+        headers: { accept: 'application/json' },
+      },
+    );
+    if (!response.ok) return json({ results: [] });
+    const body = JSON.parse(await readBoundedText(response)) as { data?: unknown };
+    const rows = Array.isArray(body.data) ? body.data.slice(0, 20) : [];
+    const results = rows.flatMap((value: unknown) => {
+      if (!value || typeof value !== 'object') return [];
+      const row = value as {
+        title?: unknown;
+        duration?: unknown;
+        artist?: { name?: unknown; picture_medium?: unknown };
+        album?: { title?: unknown };
+      };
+      const title = clean(row.title),
+        artist = clean(row.artist?.name),
+        album = clean(row.album?.title);
+      if (!title || !artist) return [];
+      const duration =
+        typeof row.duration === 'number' && Number.isFinite(row.duration) && row.duration > 0
+          ? row.duration
+          : undefined;
+      let artistArtworkUrl: string | undefined;
+      try {
+        const image = new URL(
+          typeof row.artist?.picture_medium === 'string' ? row.artist.picture_medium : '',
+        );
+        if (
+          image.protocol === 'https:' &&
+          (image.hostname === 'cdns-images.dzcdn.net' ||
+            image.hostname === 'e-cdns-images.dzcdn.net')
+        )
+          artistArtworkUrl = image.href;
+      } catch {}
+      return [
+        {
+          title,
+          artist,
+          album,
+          ...(duration ? { duration } : {}),
+          ...(artistArtworkUrl ? { artistArtworkUrl } : {}),
+          provider: 'Deezer',
+        },
+      ];
+    });
+    return json({ results });
+  } catch {
+    return json({ results: [] });
+  }
+}
+
 async function handleDownload(request: Request, platform: string): Promise<Response> {
   if (request.method !== 'GET' && request.method !== 'HEAD')
     return json({ error: 'Method not allowed.' }, 405);
@@ -817,9 +884,8 @@ async function handleDownload(request: Request, platform: string): Promise<Respo
         : [];
   if (!names.length) return json({ error: 'Not found.' }, 404);
   try {
-    const apiUrl = 'https://api.github.com/repos/jaime-gaming/Wave/releases/latest';
-    // Cache shared public metadata briefly on Cloudflare to avoid exhausting
-    // GitHub's unauthenticated rate limit; never cache failed lookups.
+    const apiUrl = 'https://api.github.com/repos/jaime-gaming/Wave/releases?per_page=30';
+
     const edgeCache = (globalThis.caches as (CacheStorage & { default?: Cache }) | undefined)
       ?.default;
     const cacheKey = new Request(apiUrl);
@@ -836,35 +902,45 @@ async function handleDownload(request: Request, platform: string): Promise<Respo
         headers.set('cache-control', 'public, max-age=300');
         try {
           await edgeCache.put(cacheKey, new Response(copy.body, { headers }));
-        } catch {
-          /* Downloads still work without cache. */
-        }
+        } catch {}
       }
     }
-    const release = (await response.json()) as {
+    const releases = (await response.json()) as Array<{
+      draft?: boolean;
+      prerelease?: boolean;
       assets?: Array<{ name?: string; browser_download_url?: string }>;
-    };
-    const assets = Array.isArray(release.assets) ? release.assets : [];
-    for (const name of names) {
-      const asset = assets.find((item) => item.name === name);
-      if (!asset?.browser_download_url) continue;
-      const target = new URL(asset.browser_download_url);
-      if (
-        target.protocol !== 'https:' ||
-        target.hostname !== 'github.com' ||
-        !target.pathname.startsWith('/jaime-gaming/Wave/releases/download/') ||
-        !target.pathname.endsWith('/' + name)
-      )
-        continue;
-      return new Response(null, {
-        status: 302,
-        headers: { location: target.href, 'cache-control': 'no-store' },
-      });
+    }>;
+    if (!Array.isArray(releases)) throw new Error('Invalid release list');
+    for (const release of releases) {
+      if (release.draft || release.prerelease) continue;
+      const assets = Array.isArray(release.assets) ? release.assets : [];
+      for (const name of names) {
+        const asset = assets.find((item) => item.name === name);
+        if (!asset?.browser_download_url) continue;
+        const target = new URL(asset.browser_download_url);
+        if (
+          target.protocol !== 'https:' ||
+          target.hostname !== 'github.com' ||
+          !target.pathname.startsWith('/jaime-gaming/Wave/releases/download/') ||
+          !target.pathname.endsWith(`/${encodeURIComponent(name)}`)
+        )
+          continue;
+        return new Response(null, {
+          status: 302,
+          headers: { location: target.href, 'cache-control': 'no-store' },
+        });
+      }
     }
-  } catch {
-    /* Keep the failure explicit instead of sending people to an unrelated file. */
-  }
-  return json({ error: 'The download is temporarily unavailable. Please try again later.' }, 503);
+  } catch {}
+
+  const fallback =
+    platform === 'android'
+      ? 'https://github.com/jaime-gaming/Wave/releases/download/v0.2.2/Wave.apk'
+      : 'https://github.com/jaime-gaming/Wave/releases/download/v0.2.1/Wave-Windows-x64-unsigned.zip';
+  return new Response(null, {
+    status: 302,
+    headers: { location: fallback, 'cache-control': 'no-store' },
+  });
 }
 
 export default {
@@ -876,6 +952,7 @@ export default {
     if (url.pathname === '/api/youtube-meta') return handleYouTubeMeta(request, url);
     if (url.pathname === '/api/youtube-playlist') return handleYouTubePlaylist(request, url);
     if (url.pathname === '/api/youtube-search') return handleYouTubeSearch(request, url);
+    if (url.pathname === '/api/deezer-search') return handleDeezerSearch(request, url);
     if (url.pathname === '/api/word-lyrics') return handleWordLyrics(request, url);
     if (url.pathname.startsWith('/api/')) return json({ error: 'Not found.' }, 404);
     return env.ASSETS.fetch(request);

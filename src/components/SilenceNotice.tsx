@@ -5,14 +5,6 @@ import type { Track } from '../domain/types';
 import { AnimatePresence, motion } from 'motion/react';
 import { useWaveMotion } from '../ui/motion';
 
-/**
- * The one time Wave mentions dead air.
- *
- * It appears above the player, beside the song it belongs to, and stays until it
- * is answered — but it never takes the player's place, never covers it and never
- * asks twice. Removing the silence is a library decision: the file keeps every
- * sample, playback simply starts where the music starts.
- */
 export function SilenceNotice({
   text,
   track,
@@ -28,7 +20,7 @@ export function SilenceNotice({
   onTrim?: (bounds: { start: number; end: number }) => Promise<void>;
   onRemove: () => void;
   onKeep: () => void;
-  /** Where it is standing: over the bar, or over the open player. */
+
   className?: string;
 }) {
   const [reviewing, setReviewing] = useState(false);

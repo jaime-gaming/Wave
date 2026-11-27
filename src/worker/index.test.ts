@@ -187,25 +187,40 @@ it('extracts YouTube catalog search results cleanly and validates /api/youtube-s
   expect(crossOrigin.status).toBe(403);
 });
 
-it('resolves only known release downloads from the official repository', async () => {
+it('finds a Windows download in an older stable release, ignoring unsafe and prerelease assets', async () => {
   const fetch = vi.fn(
     async () =>
       new Response(
-        JSON.stringify({
-          assets: [
-            {
-              name: 'Wave.exe',
-              browser_download_url:
-                'https://evil.test/jaime-gaming/Wave/releases/download/v0.2.2/Wave.exe',
-            },
-            {
-              name: 'Wave-Windows-x64-unsigned.zip',
-              browser_download_url:
-                'https://github.com/jaime-gaming/Wave/releases/download/v0.2.1/Wave-Windows-x64-unsigned.zip',
-            },
-          ],
-        }),
-        { status: 200 },
+        JSON.stringify([
+          {
+            prerelease: true,
+            assets: [
+              {
+                name: 'Wave.exe',
+                browser_download_url:
+                  'https://github.com/jaime-gaming/Wave/releases/download/preview/Wave.exe',
+              },
+            ],
+          },
+          {
+            assets: [
+              {
+                name: 'Wave.exe',
+                browser_download_url:
+                  'https://evil.test/jaime-gaming/Wave/releases/download/v0.2.2/Wave.exe',
+              },
+            ],
+          },
+          {
+            assets: [
+              {
+                name: 'Wave-Windows-x64-unsigned.zip',
+                browser_download_url:
+                  'https://github.com/jaime-gaming/Wave/releases/download/v0.2.1/Wave-Windows-x64-unsigned.zip',
+              },
+            ],
+          },
+        ]),
       ),
   );
   vi.stubGlobal('fetch', fetch);
@@ -219,18 +234,131 @@ it('resolves only known release downloads from the official repository', async (
   ).toBe(404);
   expect(fetch).toHaveBeenCalledTimes(1);
 });
-it('reports unavailable downloads rather than redirecting to an untrusted file', async () => {
+it('uses a known official fallback when release lookup fails or returns an unsafe link', async () => {
   vi.stubGlobal(
     'fetch',
     vi.fn(
       async () =>
         new Response(
-          JSON.stringify({
-            assets: [{ name: 'Wave.apk', browser_download_url: 'https://example.com/Wave.apk' }],
-          }),
+          JSON.stringify([
+            {
+              assets: [{ name: 'Wave.apk', browser_download_url: 'https://example.com/Wave.apk' }],
+            },
+          ]),
         ),
     ),
   );
   const response = await worker.fetch(new Request('https://wave.test/api/download/android'), env);
-  expect(response.status).toBe(503);
+  expect(response.status).toBe(302);
+  expect(response.headers.get('location')).toBe(
+    'https://github.com/jaime-gaming/Wave/releases/download/v0.2.2/Wave.apk',
+  );
+});
+it('ranks provider results before concurrently fetching matching lyrics', async () => {
+  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.includes('music.163.com/api/search'))
+      return new Response(
+        JSON.stringify({
+          result: {
+            songs: [
+              ...Array.from({ length: 3 }, (_, i) => ({
+                id: i + 1,
+                name: 'Unrelated title',
+                ar: [{ name: 'Artist' }],
+                dt: 200000,
+              })),
+              { id: 99, name: 'Song', ar: [{ name: 'Artist' }], dt: 200000 },
+            ],
+          },
+        }),
+      );
+    if (url.includes('music.163.com/api/song/lyric'))
+      return new Response(JSON.stringify({ yrc: { lyric: '[0,1000](0,500,0)Hello' } }));
+    return new Response(JSON.stringify({ candidates: [] }));
+  });
+  vi.stubGlobal('fetch', fetch);
+  const response = await worker.fetch(
+    new Request('https://wave.test/api/word-lyrics', {
+      method: 'POST',
+      headers: { origin: 'https://wave.test', 'content-type': 'application/json' },
+      body: JSON.stringify({ title: 'Song', artist: 'Artist', duration: 200 }),
+    }),
+    env,
+  );
+  expect(await response.json()).toMatchObject({
+    results: [{ provider: 'netease', id: '99', artist: 'Artist', duration: 200 }],
+  });
+  expect(fetch.mock.calls.some(([url]) => String(url).includes('id=1&'))).toBe(false);
+});
+
+it('searches Deezer only for an explicit same-origin request, returning metadata only', async () => {
+  const fetcher = vi.fn().mockResolvedValue(
+    new Response(
+      JSON.stringify({
+        data: [
+          {
+            title: 'Song',
+            duration: 200,
+            artist: { name: 'Artist' },
+            album: { title: 'Album' },
+            preview: 'https://secret.test/audio',
+          },
+        ],
+      }),
+    ),
+  );
+  vi.stubGlobal('fetch', fetcher);
+  const req = (origin: string) =>
+    new Request('https://wave.test/api/deezer-search', {
+      method: 'POST',
+      headers: { origin, 'content-type': 'application/json' },
+      body: JSON.stringify({ query: 'Artist Song' }),
+    });
+  expect((await worker.fetch(req('https://other.test'), env)).status).toBe(403);
+  const response = await worker.fetch(req('https://wave.test'), env);
+  expect(await response.json()).toEqual({
+    results: [
+      { title: 'Song', artist: 'Artist', album: 'Album', duration: 200, provider: 'Deezer' },
+    ],
+  });
+  expect(String(fetcher.mock.calls[0][0])).toContain('https://api.deezer.com/search?');
+});
+
+it('reads public Deezer playlist pages using only the canonical API and reports partial results', async () => {
+  const fetch = vi
+    .fn()
+    .mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          data: [
+            {
+              title: 'Song, one',
+              artist: { name: 'Artist' },
+              album: { title: 'Album' },
+              duration: 220,
+            },
+          ],
+          next: 'https://untrusted.example/',
+        }),
+      ),
+    )
+    .mockResolvedValueOnce(new Response('', { status: 503 }));
+  vi.stubGlobal('fetch', fetch);
+  const response = await worker.fetch(
+    request('https://www.deezer.com/es/playlist/123456?track=private'),
+    env,
+  );
+  expect(response.status).toBe(200);
+  const data = await response.json();
+  expect(data.partial).toBe(true);
+  expect(parsePlaylistText(data.text).entries[0]).toMatchObject({
+    title: 'Song, one',
+    artist: 'Artist',
+    duration: 220,
+  });
+  expect(fetch.mock.calls.map(([url]) => url)).toEqual([
+    'https://api.deezer.com/playlist/123456/tracks?limit=100&index=0',
+    'https://api.deezer.com/playlist/123456/tracks?limit=100&index=100',
+  ]);
 });

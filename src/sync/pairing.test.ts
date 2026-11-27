@@ -16,6 +16,7 @@ describe('pairing keys and links', () => {
     const identity = await createIdentity(undefined, 'Living room PC');
     expect(identity.publicKey).toHaveLength(65);
     expect(identity.publicKey[0]).toBe(4);
+    expect(identity.keys.privateKey.extractable).toBe(false);
     const link = encodePairingLink({
       deviceId: identity.deviceId,
       name: 'Living room PC',
@@ -51,14 +52,16 @@ describe('session keys', () => {
   it('derives the same key on both devices and seals frames', async () => {
     const host = await createIdentity();
     const guest = await createIdentity();
-    const hostKey = await deriveSessionKey(host, guest.publicKey);
-    const guestKey = await deriveSessionKey(guest, host.publicKey);
+    const hostNonce = new Uint8Array(16).fill(1);
+    const guestNonce = new Uint8Array(16).fill(2);
+    const hostKey = await deriveSessionKey(host, guest.publicKey, hostNonce, guestNonce);
+    const guestKey = await deriveSessionKey(guest, host.publicKey, guestNonce, hostNonce);
 
     const sealed = await sealFrame(hostKey, 'hello from the host');
     expect(await openFrame(guestKey, sealed)).toBe('hello from the host');
-    // The host key cannot decrypt its own message with a different IV/key pair.
+
     const other = await createIdentity();
-    const strangerKey = await deriveSessionKey(other, guest.publicKey);
+    const strangerKey = await deriveSessionKey(other, guest.publicKey, hostNonce, guestNonce);
     expect(await openFrame(strangerKey, sealed)).toBeNull();
 
     const tampered = { ...sealed, data: `${sealed.data.slice(0, -2)}AA` };

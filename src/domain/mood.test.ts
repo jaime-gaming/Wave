@@ -181,3 +181,49 @@ describe('Local song mood engine', () => {
     expect(habitSession!.vector.energy).toBeGreaterThan(coldSession!.vector.energy + 0.08);
   });
 });
+
+it('treats a short track heard past twenty percent as tentative, not a skip', () => {
+  expect(dwellEngagement(2, 8, false)).toBeGreaterThan(0);
+});
+
+it('does not treat skipped recent songs as positive listening evidence', () => {
+  const skipped = makeTrack({ id: 'skip-only', genres: ['Techno'], duration: 200 });
+  const now = Date.now();
+  const mood = inferListeningMood(
+    [skipped],
+    ['skip-only'],
+    undefined,
+    undefined,
+    [{ trackId: 'skip-only', seconds: 4, duration: 200, at: now }],
+    now,
+  );
+
+  expect(mood).toBeUndefined();
+});
+it('keeps repeated skips from overcorrecting the inferred mood', () => {
+  const current = makeTrack({
+    id: 'calm-current',
+    title: 'Quiet',
+    genres: ['Ambient'],
+    duration: 200,
+  });
+  const skipped = makeTrack({
+    id: 'loud-skip',
+    title: 'Thunder',
+    genres: ['Heavy Metal'],
+    duration: 200,
+  });
+  const tracks = [current, skipped];
+  const now = Date.now();
+  const baseline = inferListeningMood(tracks, [], current, undefined, [], now)!;
+  const signals = Array.from({ length: 13 }, (_, i) => ({
+    trackId: skipped.id,
+    seconds: 3,
+    duration: 200,
+    at: now - i * 1000,
+  }));
+  const adjusted = inferListeningMood(tracks, [], current, undefined, signals, now)!;
+  for (const axis of ['energy', 'valence', 'intensity', 'intimacy', 'tempo'] as const) {
+    expect(Math.abs(adjusted.vector[axis] - baseline.vector[axis])).toBeLessThanOrEqual(0.341);
+  }
+});

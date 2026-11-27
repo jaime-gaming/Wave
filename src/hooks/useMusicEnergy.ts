@@ -32,10 +32,7 @@ export function useMusicEnergy(player: ReturnType<typeof usePlayer>) {
       attempts = 0;
     const bands = { bass: 0, body: 0, air: 0 },
       phases = { bass: 0, body: 1.7, air: 3.4 };
-    /**
-     * Writing a custom property invalidates style for the whole document, so a
-     * value that has not visibly changed is not written again.
-     */
+
     const written = new Map<string, string>();
     const write = (name: string, value: string) => {
       if (written.get(name) === value) return;
@@ -91,8 +88,7 @@ export function useMusicEnergy(player: ReturnType<typeof usePlayer>) {
           fallback();
 
         const playhead = current.readTime();
-        // When audio comes from a cross-origin embed (no local blob), create a
-        // gentle, breathing ambient pulse driven by playback progress & volume.
+
         const ambientLevel =
           !blob && canRead && current.volume > 0.01
             ? (0.26 + 0.14 * Math.sin(playhead * 1.35) + 0.08 * Math.cos(playhead * 2.4)) *
@@ -104,7 +100,7 @@ export function useMusicEnergy(player: ReturnType<typeof usePlayer>) {
             ? (liveAmplitude ?? energyAt(envelope, playhead)) * current.volume
             : ambientLevel
           : 0;
-        // Compress dynamic range for expressive quiet passages and punchy drops.
+
         const energy = amplitude > 0.001 ? Math.min(1, Math.pow(amplitude, 0.48) * 1.48) : 0;
         const analysisState =
           liveAmplitude !== undefined
@@ -134,7 +130,7 @@ export function useMusicEnergy(player: ReturnType<typeof usePlayer>) {
                   ),
                 )
               : energy;
-          // Calm, slow organic breathing instead of fast strobe movement.
+
           const attack = band === 'bass' ? 0.18 : band === 'body' ? 0.15 : 0.13;
           const release = band === 'bass' ? 0.055 : 0.045;
           bands[band] += (target - bands[band]) * (target > bands[band] ? attack : release);
@@ -146,7 +142,7 @@ export function useMusicEnergy(player: ReturnType<typeof usePlayer>) {
           write(`--music-${band}-x`, (Math.sin(phases[band]) * 14).toFixed(2) + '%');
           write(`--music-${band}-y`, (Math.cos(phases[band] * 0.73) * 11).toFixed(2) + '%');
         }
-        // Subtle, serene rhythmic bloom so kicks feel warm rather than jittery.
+
         bassAvg += (bands.bass - bassAvg) * 0.04;
         const beatHit = Math.max(0, (bands.bass - bassAvg) * 1.45);
         pulse += (Math.min(0.65, beatHit) - pulse) * (beatHit > pulse ? 0.2 : 0.06);

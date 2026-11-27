@@ -55,3 +55,11 @@ describe('incremental rows', () => {
     expect(screen.queryByText('more')).not.toBeInTheDocument();
   });
 });
+
+it('keeps the full library accessible without IntersectionObserver', () => {
+  vi.stubGlobal('IntersectionObserver', undefined);
+  render(<List total={25} />);
+  expect(screen.getAllByRole('listitem')).toHaveLength(25);
+  expect(screen.getByText('row 24')).toBeInTheDocument();
+  expect(screen.queryByText('more')).not.toBeInTheDocument();
+});

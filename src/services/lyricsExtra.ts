@@ -1,19 +1,6 @@
 import { lookupMetadata } from '../domain/lyricsMatch';
 import { searchableTitle } from '../domain/searchText';
-/**
- * Extra lyric providers, for word-by-word timings.
- *
- * LRCLIB is excellent at line timing and has no word stamps. NetEase and Kugou
- * publish word-level formats (YRC and KRC), which is the only realistic way to
- * get real per-word timing for a local file instead of an estimate.
- *
- * Both are community endpoints without a contract, so:
- * - they are **opt-in** in Settings and documented in PRIVACY;
- * - every request has a timeout and failures fall through to LRCLIB;
- * - only the title and artist are sent, never audio;
- * - a lyric is accepted only when the recording matches and the timings fit the
- *   file's duration.
- */
+
 import {
   parseKugouCandidates,
   parseKugouLyric,
@@ -40,9 +27,9 @@ export interface WordLyrics {
   provider: WordProviderId;
   lines: LyricLine[];
   offsetMs: number;
-  /** Provider row id, kept so the interface can credit the source. */
+
   providerId?: string;
-  /** True when the provider returned real per-word timing. */
+
   wordLevel: boolean;
 }
 
@@ -50,7 +37,7 @@ interface Context {
   fetcher?: typeof fetch;
   signal?: AbortSignal;
   timeoutMs?: number;
-  /** Override whether same-origin `/api/word-lyrics` is attempted before direct endpoints. */
+
   useWorker?: boolean;
 }
 
@@ -74,9 +61,7 @@ export function extendedLyricsEnabled(): boolean {
 export function setExtendedLyrics(enabled: boolean): void {
   try {
     localStorage.setItem(EXTENDED_LYRICS_KEY, String(enabled));
-  } catch {
-    /* Session-only preference. */
-  }
+  } catch {}
 }
 
 async function getJson(url: string, context: Context): Promise<unknown> {
@@ -87,8 +72,7 @@ async function getJson(url: string, context: Context): Promise<unknown> {
   const timer = setTimeout(() => controller.abort(), context.timeoutMs ?? PROVIDER_TIMEOUT_MS);
   const abort = () => controller.abort();
   context.signal?.addEventListener('abort', abort);
-  // Abort covers a normal fetch; the race covers an implementation that ignores
-  // the signal, so a dead provider can never keep a lookup pending.
+
   const deadline = new Promise<undefined>((resolve) => {
     controller.signal.addEventListener('abort', () => resolve(undefined), { once: true });
   });
@@ -115,7 +99,6 @@ async function getJson(url: string, context: Context): Promise<unknown> {
 const query = (title: string, artist: string) =>
   `${searchableTitle(title) || title} ${artist}`.trim();
 
-/** Same-origin Worker word-level lyric endpoint (avoids browser CORS blocks). */
 async function fromWorker(
   track: { title: string; artist: string; duration: number; fileName?: string },
   context: Context,
@@ -128,7 +111,7 @@ async function fromWorker(
   const controller = new AbortController();
   const timer = setTimeout(
     () => controller.abort(),
-    Math.max(3_800, context.timeoutMs ?? PROVIDER_TIMEOUT_MS),
+    Math.max(6_000, context.timeoutMs ?? PROVIDER_TIMEOUT_MS),
   );
   const onAbort = () => controller.abort();
   context.signal?.addEventListener('abort', onAbort, { once: true });
@@ -155,14 +138,14 @@ async function fromWorker(
     if (!items.length) return undefined;
     const ranked = rankProviderSongs(
       items.map((item, idx) => ({
-        id: item.id || String(idx),
+        id: String(idx),
         title: item.title || cleanTitle,
         artist: item.artist || meta.artist,
         duration: item.duration || 0,
       })),
       { ...track, ...meta },
     );
-    const byId = new Map(items.map((item, idx) => [item.id || String(idx), item]));
+    const byId = new Map(items.map((item, idx) => [String(idx), item]));
     for (const candidate of ranked) {
       const item = byId.get(candidate.id);
       if (!item) continue;
@@ -201,7 +184,6 @@ async function fromWorker(
   }
 }
 
-/** NetEase: search, then fetch the lyric with both formats requested. */
 async function fromNetEase(
   track: { title: string; artist: string; duration: number; fileName?: string },
   context: Context,
@@ -234,7 +216,6 @@ async function fromNetEase(
   return undefined;
 }
 
-/** Kugou: search for the lyric id, then download the KRC. */
 async function fromKugou(
   track: { title: string; artist: string; duration: number; fileName?: string },
   context: Context,
@@ -272,11 +253,6 @@ async function fromKugou(
   return undefined;
 }
 
-/**
- * Tries each provider until one returns usable word-level lyrics. Line-only
- * answers are ignored here on purpose: LRCLIB already does line timing better,
- * and mixing sources would make attribution and offsets inconsistent.
- */
 export async function fetchWordLyrics(
   track: { title: string; artist: string; duration: number; fileName?: string },
   context: Context = {},
@@ -285,16 +261,13 @@ export async function fetchWordLyrics(
   const controller = new AbortController();
   const abort = () => controller.abort();
   context.signal?.addEventListener('abort', abort, { once: true });
-  // Reserve time for line-sync fallback instead of letting several uploads use
-  // the entire outer lookup deadline. Cancellation also settles uncooperative fetches.
+
   const timer = setTimeout(abort, 7000);
   try {
-    // 1. Try same-origin server endpoint first (avoids browser CORS blocks).
     const workerHit = await fromWorker(track, { ...context, signal: controller.signal });
     if (workerHit?.wordLevel && !controller.signal.aborted) return workerHit;
     if (controller.signal.aborted) return undefined;
 
-    // 2. Fallback to direct provider queries (sequential when injected fetcher tests order, parallel otherwise).
     if (context.fetcher) {
       for (const provider of [fromNetEase, fromKugou]) {
         if (controller.signal.aborted) return undefined;
@@ -316,7 +289,6 @@ export async function fetchWordLyrics(
   }
 }
 
-/** Human-readable provider name for attribution in the lyrics panel. */
 export function wordProviderName(provider: WordProviderId): string {
   return provider === 'netease' ? 'NetEase' : 'Kugou';
 }

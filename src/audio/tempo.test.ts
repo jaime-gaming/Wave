@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { foldBpm, isRubato, tempoRelation, tempoStability } from './tempo';
 import { estimateTempo } from './dsp';
 
-/** An onset envelope with a click every `period` frames. */
 function clicks(period: (index: number) => number, length = 4000) {
   const envelope = new Float32Array(length);
   let position = 0;
@@ -45,7 +44,7 @@ describe('Tempo stability', () => {
       estimateTempo,
     );
     expect(steady).toBeGreaterThanOrEqual(0.9);
-    // A take that drifts from 100 to 150 BPM across the song.
+
     const drifting = tempoStability(
       clicks((index) => 25 + index * 0.12),
       0.02,
@@ -58,7 +57,16 @@ describe('Tempo stability', () => {
   it('treats steady material as mixable and drifting material as rubato', () => {
     expect(isRubato({ bpm: 120, offset: 0, confidence: 0.9, stability: 0.9 })).toBe(false);
     expect(isRubato({ bpm: 120, offset: 0, confidence: 0.9, stability: 0.2 })).toBe(true);
-    // An analysis from before stability was measured is not condemned by it.
+
     expect(isRubato({ bpm: 120, offset: 0, confidence: 0.9 })).toBe(false);
   });
+});
+
+it('compares the actual remaining gap across the folding boundary', () => {
+  const a = tempoRelation(75, 147);
+  const b = tempoRelation(147, 75);
+  expect(a.kind).toBe('half');
+  expect(b.kind).toBe('double');
+  expect(a.difference).toBeLessThan(0.03);
+  expect(b.difference).toBeLessThan(0.03);
 });

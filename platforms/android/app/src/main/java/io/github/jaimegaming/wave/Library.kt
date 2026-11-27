@@ -14,14 +14,14 @@ import org.json.JSONObject
 import java.io.File
 import java.security.MessageDigest
 
-/**
- * A song, as this device knows it.
- *
- * `id` is the SHA-256 of the audio bytes for an imported file and a hash of the
- * content URI for music that stays where the system keeps it, so importing the
- * same file twice cannot make two rows. `path` is a real path for a copied file
- * and a `content://` URI for one that was left in place; both play.
- */
+
+
+
+
+
+
+
+
 data class Song(
     val id: String,
     val title: String,
@@ -37,9 +37,12 @@ data class Song(
     val addedAt: Long = 0,
     val playCount: Int = 0,
     val lastPlayed: Long = 0,
+
+    val bpm: Double? = null,
+    val barOffset: Double? = null,
 )
 
-/** A list of songs in an order of the listener's choosing. */
+
 data class Playlist(
     val id: String,
     val name: String,
@@ -47,21 +50,21 @@ data class Playlist(
     val createdAt: Long = 0,
 )
 
-/**
- * Everything Wave keeps on the phone, in three files.
- *
- * `library.json` is the collection, `playlists.json` the lists built over it and
- * `history.json` what was heard. All three are written through [AtomicFile]: a
- * phone that dies mid-write loses the last change instead of the whole library,
- * which is the one guarantee a local app has to keep.
- */
+
+
+
+
+
+
+
+
 class Library(private val context: Context) {
     private val index = AtomicFile(File(context.filesDir, "library.json"))
     private val lists = AtomicFile(File(context.filesDir, "playlists.json"))
     private val history = AtomicFile(File(context.filesDir, "history.json"))
     private val audio = File(context.filesDir, "audio").apply { mkdirs() }
 
-    // --- the collection ----------------------------------------------------
+
 
     @Synchronized
     fun load(): List<Song> {
@@ -85,6 +88,8 @@ class Library(private val context: Context) {
                 addedAt = o.optLong("addedAt"),
                 playCount = o.optInt("playCount"),
                 lastPlayed = o.optLong("lastPlayed"),
+                bpm = o.optDouble("bpm", Double.NaN).takeIf { it.isFinite() && it in 60.0..200.0 },
+                barOffset = o.optDouble("barOffset", Double.NaN).takeIf { it.isFinite() },
             )
         }
     }
@@ -100,20 +105,21 @@ class Library(private val context: Context) {
                     .put("duration", s.duration).put("favorite", s.favorite)
                     .put("lyrics", s.lyrics).put("checkedAt", s.checkedAt)
                     .put("genre", s.genre).put("addedAt", s.addedAt)
-                    .put("playCount", s.playCount).put("lastPlayed", s.lastPlayed),
+                    .put("playCount", s.playCount).put("lastPlayed", s.lastPlayed)
+                    .put("bpm", s.bpm ?: JSONObject.NULL).put("barOffset", s.barOffset ?: JSONObject.NULL),
             )
         }
         write(index, array)
     }
 
-    /** Forgets a song, its copied file and any playlist entry that pointed at it. */
+
     @Synchronized
     fun delete(songId: String) {
         val song = load().find { it.id == songId } ?: return
         val remaining = load().filterNot { it.id == songId }
         save(remaining)
-        // Only copies inside Wave's own audio directory are ours to remove.
-        // A legacy absolute path, URI, or symlink must never delete an original.
+
+
         val owned = runCatching { File(song.path).canonicalFile }.getOrNull()
         val audioDirectory = runCatching { audio.canonicalFile }.getOrNull()
         val stillReferenced = owned != null && remaining.any { entry ->
@@ -125,7 +131,7 @@ class Library(private val context: Context) {
         }
     }
 
-    // --- playlists ---------------------------------------------------------
+
 
     @Synchronized
     fun loadPlaylists(): List<Playlist> {
@@ -179,9 +185,9 @@ class Library(private val context: Context) {
         savePlaylists(loadPlaylists().filterNot { it.id == playlistId })
     }
 
-    // --- listening ---------------------------------------------------------
 
-    /** The newest 2000 listens, oldest first. Older ones fall off the end. */
+
+
     @Synchronized
     fun loadPlays(): List<Play> {
         val values = readArray(history)
@@ -195,8 +201,8 @@ class Library(private val context: Context) {
     @Synchronized
     fun addPlay(play: Play) {
         val plays = loadPlays() + play
-        // Four weeks are kept whatever the count, and the count caps the rest, so
-        // a Remix can still compare a week with the one before it.
+
+
         val recentFrom = System.currentTimeMillis() - HISTORY_DAYS * 24L * 60 * 60 * 1000
         val recent = plays.filter { it.at >= recentFrom }.takeLast(HISTORY_PLAYS)
         val room = (MAX_PLAYS - recent.size).coerceAtLeast(0)
@@ -216,15 +222,15 @@ class Library(private val context: Context) {
         write(history, JSONArray())
     }
 
-    // --- importing ---------------------------------------------------------
 
-    /**
-     * Copies the chosen files into the app's own storage.
-     *
-     * A file is read once: the bytes are hashed as they stream past, and the hash
-     * is what decides whether it is new. Nothing is re-encoded — the copy is the
-     * file, byte for byte — so the audio that came in is the audio that plays.
-     */
+
+
+
+
+
+
+
+
     @Synchronized
     fun importFiles(uris: List<Uri>): Int {
         val songs = load().toMutableList()
@@ -281,15 +287,15 @@ class Library(private val context: Context) {
         return added
     }
 
-    /**
-     * Adds what the system already indexes, without copying a byte.
-     *
-     * The file stays where the listener put it, so a playlist of the phone's music
-     * costs nothing and stays in step with the rest of the phone. Entries the
-     * library already has are skipped by id.
-     */
-    // The interface asks for the audio permission before it calls this, and says
-    // so plainly when it is refused; the query itself cannot check that here.
+
+
+
+
+
+
+
+
+
     @SuppressLint("MissingPermission")
     @Synchronized
     fun importFromMediaStore(): Int {
@@ -353,16 +359,16 @@ class Library(private val context: Context) {
         return added
     }
 
-    /**
-     * Imports every audio file in a folder the listener picked, at any depth.
-     *
-     * The tree is walked through the document provider, so it works the same for
-     * internal storage, an SD card and a cloud folder the phone has mounted.
-     */
+
+
+
+
+
+
     @Synchronized
     fun importFolder(tree: Uri): Int {
         val uris = mutableListOf<Uri>()
-        // Document ids to visit, starting at the picked folder itself.
+
         val queue = ArrayDeque(listOf(DocumentsContract.getTreeDocumentId(tree)))
         while (queue.isNotEmpty() && uris.size < MAX_FILES) {
             val documentId = queue.removeFirst()
@@ -401,7 +407,7 @@ class Library(private val context: Context) {
             ?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
             ?: uri.lastPathSegment?.substringAfterLast('/') ?: "Audio"
 
-    /** Reads the tags once, when the file arrives, and never again. */
+
     private fun read(file: File, id: String, name: String, path: String): Song {
         var title = name.substringBeforeLast('.')
         var artist = "Unknown artist"
@@ -417,7 +423,7 @@ class Library(private val context: Context) {
             genre = metadata.extractMetadata(MediaMetadataRetriever.METADATA_KEY_GENRE)?.takeIf { it.isNotBlank() } ?: ""
             duration = (metadata.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toDoubleOrNull() ?: 0.0) / 1000
         } catch (_: Exception) {
-            // A file with no tags is still a file; the name is a fine title.
+
         } finally {
             metadata.release()
         }
@@ -442,8 +448,8 @@ class Library(private val context: Context) {
         return try {
             JSONArray(file.openRead().bufferedReader().use { it.readText() })
         } catch (_: Exception) {
-            // A half-written file from an older build must not lock the app out
-            // of its own library; an empty list is recoverable, a crash is not.
+
+
             JSONArray()
         }
     }

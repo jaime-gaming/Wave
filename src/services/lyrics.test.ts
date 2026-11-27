@@ -427,16 +427,14 @@ it('spaces independent lookups globally, not just subrequests of one song', asyn
 });
 
 it('searches an edition-free title when the file carries one', async () => {
-  // Every exact match misses and every search comes back empty, so all the
-  // variants are asked and can be inspected.
   const fetcher = vi.fn().mockResolvedValue(response([], 404));
   vi.stubGlobal('fetch', fetcher);
-  // A decoration the tag cleaner leaves alone, so it reaches the search.
+
   const track = makeTrack({ title: 'Signal - Radio Edit' });
   await lookupLyrics(track, new AbortController().signal);
   const asked = fetcher.mock.calls.map(([url]) => new URL(url as string).searchParams);
   const titles = asked.map((query) => query.get('track_name')).filter(Boolean);
   expect(titles).toContain('Signal - Radio Edit');
-  // The song's name, without the edition, is what providers actually index.
+
   expect(titles).toContain('Signal');
 });

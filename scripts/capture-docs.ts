@@ -1,15 +1,3 @@
-/**
- * Captures the images the README and the documentation pages show.
- *
- * Run it against a running dev server with a Chromium available to Playwright:
- *
- *   npm run dev
- *   npm run capture:docs            # writes docs/media/*.png
- *
- * The library it photographs is disposable and generated: same albums, same
- * covers, same demo lyrics every time, in its own browser context. Nothing here
- * reads a real collection, and no image is a mockup.
- */
 import { chromium, type Page } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
@@ -51,7 +39,6 @@ const words = [
   'And leave the windows open',
 ];
 
-/** Fills the library with the demo albums, their covers and their lyrics. */
 async function seedDemoLibrary(page: Page) {
   await page.goto(origin);
   await page.getByLabel('Import audio files').waitFor({ state: 'attached' });
@@ -96,9 +83,7 @@ async function seedDemoLibrary(page: Page) {
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(tx.error);
       });
-      // The recap needs a week behind it, so the demo library gets a week of
-      // listening written straight into the plays store: the same rows the
-      // player writes, in the same shape, and nothing invented for the picture.
+
       const tracksInLibrary = await new Promise<{ id: string }[]>((resolve) => {
         const read = db.transaction('tracks').objectStore('tracks').getAll();
         read.onsuccess = () => resolve(read.result as { id: string }[]);
@@ -107,8 +92,6 @@ async function seedDemoLibrary(page: Page) {
       const day = 24 * 60 * 60 * 1000;
       const now = Date.now();
       tracksInLibrary.forEach((track, index) => {
-        // The first tracks in the library were "played" more often; every play
-        // sits inside the last week, spread over different evenings.
         const times = 4 - Math.floor(index / 3);
         for (let play = 0; play < times; play += 1) {
           const at = now - ((index * 5 + play * 3) % 6) * day - play * 3600_000;
@@ -127,7 +110,6 @@ async function seedDemoLibrary(page: Page) {
       });
       db.close();
 
-      /** The three sleeve patterns, drawn once and shared by every song. */
       function cover(entry: { artist: string; album: string; color: string }) {
         const canvas = document.createElement('canvas');
         canvas.width = canvas.height = 600;
@@ -185,6 +167,7 @@ await context.addInitScript(() => {
   localStorage.setItem('wave-autoplay', 'false');
   localStorage.setItem('wave-animations-enabled', 'true');
   localStorage.setItem('wave-editor-enabled', 'true');
+  localStorage.setItem('wave-welcome-done', 'true');
 });
 
 const seed = await context.newPage();
@@ -204,7 +187,6 @@ await home.goto(origin);
 await home.waitForTimeout(1200);
 await shot(home, 'home-desktop.png');
 
-// Remix: the week and the list it earns, before anything is playing.
 await home.getByRole('button', { name: 'Remix', exact: true }).click();
 await home.waitForTimeout(900);
 await shot(home, 'remix-desktop.png');
@@ -223,7 +205,7 @@ await home.getByRole('button', { name: 'Play mix', exact: true }).click();
 await home.getByRole('button', { name: 'Open now playing', exact: true }).click();
 await home.waitForTimeout(1500);
 await shot(home, 'now-playing-desktop.png');
-// Capture the real inactivity scene rather than forcing a CSS class.
+
 await home.bringToFront();
 await home.locator('.immersive-stage').waitFor({ state: 'visible', timeout: 35_000 });
 await shot(home, 'immersive-desktop.png');
@@ -236,8 +218,6 @@ await volumeSettings.getByRole('switch', { name: 'Fix volume' }).click();
 await volumeSettings.getByRole('status').filter({ hasText: '9 of 9 recordings ready' }).waitFor();
 await shot(home, 'volume-fix-desktop.png');
 
-// Use a second disposable library: the desktop player above must not restore a
-// playing session into the phone screenshot through shared browser storage.
 const mobileContext = await browser.newContext({
   viewport: { width: 390, height: 844 },
   colorScheme: 'dark',
@@ -247,6 +227,7 @@ await mobileContext.addInitScript(() => {
   localStorage.setItem('wave-autoplay', 'false');
   localStorage.setItem('wave-animations-enabled', 'true');
   localStorage.setItem('wave-editor-enabled', 'true');
+  localStorage.setItem('wave-welcome-done', 'true');
 });
 const mobileSeed = await mobileContext.newPage();
 await seedDemoLibrary(mobileSeed);
@@ -259,10 +240,6 @@ await mobile.getByRole('button', { name: 'Remix', exact: true }).click();
 await mobile.waitForTimeout(900);
 await shot(mobile, 'remix-mobile.png');
 
-// A review pass photographs the layouts the docs do not show, so a change to the
-// header or the bottom dock can be looked at instead of imagined. It also prints
-// what overflows the viewport, because a phone screenshot cannot show a scrollbar
-// that was pushed off the screen. Off unless asked.
 if (process.env.WAVE_REVIEW) {
   const report = async (page: Page, label: string) => {
     const facts = await page.evaluate(() => {
@@ -317,7 +294,6 @@ if (process.env.WAVE_REVIEW) {
   }
 }
 
-// Demo-only eligibility seeding: production has no manual feedback trigger.
 const feedback = await context.newPage();
 await feedback.goto(origin);
 await feedback.getByRole('heading', { name: 'Your collection' }).waitFor();
@@ -329,7 +305,7 @@ await feedback.evaluate(() => {
   Math.random = () => 0;
   window.dispatchEvent(new CustomEvent('wave:feature-used', { detail: 'Remix' }));
 });
-await feedback.getByRole('dialog', { name: 'A moment for your opinion' }).waitFor();
+await feedback.getByRole('complementary', { name: 'A moment for your opinion' }).waitFor();
 await shot(feedback, 'feedback-desktop.png');
 await feedback.close();
 

@@ -24,7 +24,7 @@ it('drives both covers from one progress value, arriving before it leaves', () =
   expect(Number(root.style.getPropertyValue('--mix-leave'))).toBe(0);
   rerender(<MixVisual blend={{ ...blend, progress: 0.9 }} />);
   expect(Number(root.style.getPropertyValue('--mix-leave'))).toBeGreaterThan(0.5);
-  // Beyond the ends of the overlap the numbers stay inside their range.
+
   rerender(<MixVisual blend={{ ...blend, progress: 2 }} />);
   expect(Number(root.style.getPropertyValue('--mix-arrive'))).toBe(1);
   expect(Number(root.style.getPropertyValue('--mix-peak'))).toBe(0);

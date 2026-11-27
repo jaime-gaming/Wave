@@ -83,12 +83,11 @@ describe('library workflow', () => {
       size: 0,
     });
     expect(result.current.tracks[0].blob).toBeUndefined();
-    // The record is stored, not the media.
+
     expect(saveTrack).toHaveBeenCalledWith(
       expect.objectContaining({ source: 'youtube', videoId: 'dQw4w9WgXcQ' }),
     );
 
-    // Adding the same video twice, or an unreadable playlist, is refused with a reason.
     await act(async () => {
       added = await result.current.addYouTube('https://youtu.be/dQw4w9WgXcQ');
     });
@@ -99,7 +98,6 @@ describe('library workflow', () => {
     expect(added).toEqual(expect.objectContaining({ ok: false }));
     expect(result.current.tracks).toHaveLength(1);
 
-    // Public YouTube playlists import all new videos and skip duplicates cleanly.
     vi.mocked(fetchYouTubePlaylist).mockResolvedValueOnce({
       playlistId: 'PLabcdefgh12',
       title: 'Synthwave Night',
@@ -144,8 +142,6 @@ describe('library workflow', () => {
     expect(result.current.progress).toBeNull();
   });
   it('imports the rest of a folder when one file cannot be read', async () => {
-    // A folder of a thousand songs is not curated: one truncated download must
-    // not cost the other 999.
     vi.mocked(readTrack).mockRejectedValueOnce(new Error('bad tag'));
     const { result } = renderHook(useLibrary);
     await waitFor(() => expect(result.current.loading).toBe(false));
@@ -257,4 +253,62 @@ it('deduplicates legacy bytes without changing IDs and permits removal/reimport'
   expect(result.current.tracks).toHaveLength(1);
   expect(result.current.tracks[0].id).not.toBe('legacy');
   expect(saveTrack).toHaveBeenCalledOnce();
+});
+
+it('indexes legacy tracks once per size while importing a batch', async () => {
+  const old = makeTrack({ id: 'legacy-index', blob: new File(['music'], 'old.wav'), size: 5 });
+  vi.mocked(getTracks).mockResolvedValue([old]);
+  vi.mocked(recordContentHash).mockResolvedValue(old);
+  const { result } = renderHook(useLibrary);
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  await act(() =>
+    result.current.importFiles([
+      new File(['music'], 'copy.wav'),
+      new File(['other'], 'another.wav'),
+      new File(['other'], 'duplicate.wav'),
+    ]),
+  );
+  expect(recordContentHash).toHaveBeenCalledTimes(1);
+  expect(result.current.tracks).toHaveLength(2);
+  expect(result.current.message).toContain('2 already');
+  expect(old.contentHash).toBeUndefined();
+});
+
+it('reuses an existing YouTube song during playlist migration', async () => {
+  const existing = makeTrack({ id: 'yt-dQw4w9WgXcQ', source: 'youtube', videoId: 'dQw4w9WgXcQ' });
+  vi.mocked(getTracks).mockResolvedValueOnce([existing]);
+  const { result } = renderHook(useLibrary);
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  let track: typeof existing | null = null;
+  await act(async () => {
+    track = await result.current.addPlaylistVideo({
+      videoId: 'dQw4w9WgXcQ',
+      title: 'Says',
+      artist: 'Nils Frahm',
+      duration: 214,
+      thumbnail: '',
+    });
+  });
+  expect(track).toMatchObject({ id: existing.id });
+  expect(saveTrack).not.toHaveBeenCalled();
+  expect(result.current.tracks).toHaveLength(1);
+});
+
+it('warns when a YouTube playlist only partly saves because storage fails', async () => {
+  vi.mocked(fetchYouTubePlaylist).mockResolvedValueOnce({
+    playlistId: 'PLabcdefgh12',
+    title: 'Mix',
+    videos: [
+      { videoId: 'dQw4w9WgXcQ', title: 'One', artist: 'A', duration: 1, thumbnail: '' },
+      { videoId: '9bZkp7q19f0', title: 'Two', artist: 'B', duration: 1, thumbnail: '' },
+    ],
+  });
+  vi.mocked(saveTrack).mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('quota'));
+  const { result } = renderHook(useLibrary);
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  await act(async () => {
+    await result.current.addYouTube('https://www.youtube.com/playlist?list=PLabcdefgh12');
+  });
+  expect(result.current.tracks).toHaveLength(1);
+  expect(result.current.error).toMatch(/storage.*full/i);
 });

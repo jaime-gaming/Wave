@@ -3,7 +3,14 @@ package io.github.jaimegaming.wave.ui
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import androidx.activity.ComponentActivity
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -24,20 +31,20 @@ import org.robolectric.annotation.GraphicsMode
 import java.io.File
 import java.io.FileOutputStream
 
-/**
- * Real captures of the phone app, drawn by the phone app.
- *
- * The documentation needs screenshots of Android, and a screenshot of a design
- * that only exists in a headless JVM is not a screenshot of Android. So this
- * renders the same [WaveApp] the phone renders, on the real Robolectric graphics
- * stack, from a seeded library that is thrown away with the build directory. It
- * runs only when `-Dwave.screenshots` is passed, so an ordinary test run stays
- * fast, and it asserts nothing about pixels: a human looks at the PNGs.
- *
- * The artwork is drawn the way it is drawn on a phone with no embedded covers —
- * a music-note placeholder — because the fixture files contain no artwork.
- * Nothing here is a mock-up and nothing is retouched.
- */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [34], qualifiers = "w411dp-h891dp-xhdpi")
@@ -45,8 +52,8 @@ class ScreenshotTest {
     @get:Rule
     val rule = createAndroidComposeRule<ComponentActivity>()
 
-    // One test per screen: an activity may only be given content once, and JUnit
-    // builds a fresh one for each test.
+
+
     @Test
     fun home() = capture("android-home", Opening.Default)
 
@@ -67,8 +74,8 @@ class ScreenshotTest {
 
     @Test
     fun search() = capture("android-search", Opening.Where(Destination.Search)) {
-        // A word that is an album's name rather than a title's, so the picture
-        // shows what the page now does: the group above the songs.
+
+
         rule.onNode(hasSetTextAction()).performTextInput("night")
         rule.waitForIdle()
     }
@@ -80,6 +87,9 @@ class ScreenshotTest {
         rule.setContent { WaveTheme { WaveApp(version = "0.1.1") } }
         rule.onNodeWithText("Your collection").assertExists()
         rule.onNodeWithText("Jump back in").assertDoesNotExist()
+        rule.onNodeWithText("Favorites").performClick()
+        rule.onNodeWithText("No favorites yet").assertExists()
+        rule.onNodeWithText("Home").performClick()
         rule.onNodeWithContentDescription("Open settings").performClick()
         rule.onNodeWithText("Settings").assertExists()
         rule.onNodeWithText("Appearance").performClick()
@@ -100,11 +110,14 @@ class ScreenshotTest {
         seed(ApplicationProvider.getApplicationContext<WaveApplication>(), output)
         rule.setContent { WaveTheme { WaveApp(version = "0.1.1") } }
         rule.onNodeWithText("Remix").performClick()
-        // The figure, the sleeve of the song that earned it, and a list.
+
         rule.onNodeWithText("Most played").assertExists()
         rule.onNodeWithText("Your Remix").assertExists()
         rule.onNodeWithText("Play Remix").assertExists()
-        // The stat-card sections the page used to have are gone.
+        val songLabel = "Play After hours by Northbound"
+        rule.onNodeWithTag("remix-list").performScrollToNode(hasContentDescription(songLabel))
+        rule.onNodeWithContentDescription(songLabel).assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button))
+
         rule.onNodeWithText("More about this week").assertDoesNotExist()
         rule.onNodeWithText("Artists this week").assertDoesNotExist()
         rule.onNodeWithText("When you listen").assertDoesNotExist()
@@ -116,11 +129,11 @@ class ScreenshotTest {
         return File(flag).apply { mkdirs() }
     }
 
-    /** A small library and a week of plays, written through the app's own files. */
+
     private fun seed(app: WaveApplication, output: File) {
         val library = Library(app)
         app.preferences().edit().remove("appearance").apply()
-        // The same demo library the web captures use: three artists, an album each.
+
         val songs = listOf(
             Triple("After hours", "Northbound", "Night signals"),
             Triple("Slow motion", "Northbound", "Night signals"),
@@ -148,7 +161,7 @@ class ScreenshotTest {
         library.savePlaylists(emptyList())
         library.clearPlays()
         library.save(songs)
-        // The same shape of week as the web capture, with only fixture songs.
+
         val now = System.currentTimeMillis()
         songs.forEachIndexed { index, song ->
             repeat(4 - index / 3) { play ->
@@ -164,7 +177,7 @@ class ScreenshotTest {
         val app = ApplicationProvider.getApplicationContext<WaveApplication>()
         seed(app, output)
         if (opening == Opening.Player) {
-            // The screen is real; the files in this JVM fixture contain no audio.
+
             val songs = Library(app).load()
             app.player.play(songs, songs.first())
         }

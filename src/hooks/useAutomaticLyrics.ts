@@ -63,11 +63,10 @@ export function useAutomaticLyrics(
     const controller = new AbortController();
     clearTimeout(notify);
     notify = setTimeout(() => setLoading(track.id), 0);
-    const providerRetryAt = latest.current.reduce(
-      (max, t) =>
-        Number.isFinite(t.lyricsLookup?.retryAt) ? Math.max(max, t.lyricsLookup!.retryAt!) : max,
-      0,
-    );
+
+    const providerRetryAt = Number.isFinite(track.lyricsLookup?.retryAt)
+      ? track.lyricsLookup!.retryAt!
+      : 0;
     const delay = Math.max(
       450,
       (forcedId ? 0 : nextAllowed.current) - Date.now(),
@@ -85,9 +84,7 @@ export function useAutomaticLyrics(
           if (!upgrade || result.lyrics?.lines.some((line) => line.words?.length))
             await onResult(track.id, result);
         })
-        .catch(() => {
-          // A canceled lookup or failed local write must never overwrite local lyrics.
-        })
+        .catch(() => {})
         .finally(() => {
           if (!controller.signal.aborted && generation.current === requestId) setLoading(null);
         });
@@ -106,7 +103,7 @@ export function useAutomaticLyrics(
       .map((t) => t.lyricsLookup?.retryAt)
       .filter((time): time is number => Number.isFinite(time) && time! > now);
     if (!deadlines.length) return;
-    // Re-evaluate eligibility at the provider deadline, not fifteen minutes later.
+
     const timer = setTimeout(
       () => setRetry((value) => value + 1),
       Math.min(2_147_483_647, Math.min(...deadlines) - now + 25),

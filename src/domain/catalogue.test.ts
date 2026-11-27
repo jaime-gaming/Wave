@@ -40,11 +40,10 @@ describe('deciding what is worth asking about', () => {
       trackNumber: 3,
     });
     expect(needsDetails(complete)).toBe(false);
-    // On a real album with no position there is still something to ask: where the
-    // song sits in the running order.
+
     expect(needsDetails({ ...complete, trackNumber: undefined })).toBe(true);
     expect(needsDetails({ ...complete, editedAt: Date.now() })).toBe(false);
-    // A YouTube song is a reference, not a file, and has nothing to refine.
+
     expect(needsDetails({ ...complete, source: 'youtube' })).toBe(false);
   });
 
@@ -80,13 +79,11 @@ describe('matching a release to a track', () => {
     const cover = { ...release, artist: 'The Karaoke Collective' };
     expect(scoreRelease(known, cover)).toBe(0);
     expect(bestRelease(known, [cover])).toBeUndefined();
-    // With no artist to go on, the title still has to be convincing.
+
     expect(scoreRelease(track, { ...release, title: 'Something else entirely' })).toBe(0);
   });
 
   it('accepts a title the provider decorated', () => {
-    // A file says "Says"; the release says "Says (feat. Somebody) - Remastered".
-    // That is the same recording, and the bracket used to hide it.
     const decorated = { ...release, title: 'Says (feat. Somebody) - 2013 Remastered' };
     expect(scoreRelease(track, decorated)).toBeGreaterThan(0.6);
     expect(bestRelease(track, [decorated])).toBe(decorated);
@@ -123,7 +120,7 @@ describe('what may be written', () => {
       genres: ['Electronic'],
     });
     expect(filled).toEqual(['artist', 'album', 'year', 'genre']);
-    // The running time belongs to the decoded file, never to a catalogue.
+
     expect(patch).not.toHaveProperty('duration');
   });
 
@@ -237,4 +234,25 @@ it('corrects swapped roles only when the catalogue independently confirms the ex
   expect(confirmedRoleRelease(track, [{ ...release, duration: 400 }])).toBeUndefined();
   expect(confirmedRoleRelease(track, [{ ...release, artist: 'Cover band' }])).toBeUndefined();
   expect(confirmedRoleRelease({ ...track, editedAt: 1 }, [release])).toBeUndefined();
+});
+
+it('compares both orientations, respects manual decisions and detects swaps without a filename clue', async () => {
+  const { confirmedRoleRelease } = await import('./catalogue');
+  const { rolesReviewKey } = await import('./metadata');
+  const track = makeTrack({
+    title: 'Nils Frahm',
+    artist: 'Says',
+    fileName: 'unknown.mp3',
+    duration: 214,
+  });
+  expect(confirmedRoleRelease(track, [release])).toBe(release);
+  expect(
+    confirmedRoleRelease(track, [
+      release,
+      { ...release, title: track.title, artist: track.artist },
+    ]),
+  ).toBeUndefined();
+  expect(
+    confirmedRoleRelease({ ...track, rolesReviewed: rolesReviewKey(track) }, [release]),
+  ).toBeUndefined();
 });

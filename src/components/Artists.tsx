@@ -56,7 +56,7 @@ export const Artists = memo(function Artists({
     <section aria-label={t('Artists collection')} className="artists-collection">
       <div className="section-heading">
         <h2>
-          Artists <span>{artists.length}</span>
+          {t('Artists')} <span>{artists.length}</span>
         </h2>
         <p>{t('From your library')}</p>
       </div>
@@ -80,8 +80,8 @@ export const Artists = memo(function Artists({
               <ArtistPortrait artist={artist} photo={photos?.get(artist.name)} />
               <strong>{artist.name}</strong>
               <span>
-                {artist.tracks.length} {artist.tracks.length === 1 ? 'song' : 'songs'} ·{' '}
-                {artist.albums.length} {artist.albums.length === 1 ? 'album' : 'albums'}
+                {artist.tracks.length} {t(artist.tracks.length === 1 ? 'song' : 'songs')} ·{' '}
+                {artist.albums.length} {t(artist.albums.length === 1 ? 'album' : 'albums')}
               </span>
             </motion.button>
           ))}
@@ -122,7 +122,7 @@ export function ArtistHeader({
     <>
       <button className="text-button collection-back" onClick={onBack}>
         <ArrowLeft size={20} />
-        Back to artists
+        {t('Back to artists')}
       </button>
       <section className="artist-detail" aria-label={t('Artist details')}>
         <ArtistPortrait artist={artist} photo={photo} />
@@ -131,20 +131,22 @@ export function ArtistHeader({
           <div className="artist-stats">
             <span>
               <Music2 size={17} />
-              {artist.tracks.length} {artist.tracks.length === 1 ? 'song' : 'songs'}
+              {artist.tracks.length} {t(artist.tracks.length === 1 ? 'song' : 'songs')}
             </span>
             <span>
               <Disc3 size={17} />
-              {artist.albums.length} {artist.albums.length === 1 ? 'album' : 'albums'}
+              {artist.albums.length} {t(artist.albums.length === 1 ? 'album' : 'albums')}
             </span>
-            {artist.duration > 0 && <span>{formatTime(artist.duration)} known duration</span>}
+            {artist.duration > 0 && (
+              <span>{t('{time} known duration', { time: formatTime(artist.duration) })}</span>
+            )}
           </div>
           <div className="artist-actions">
             <button
               className="filled-button"
               disabled={!artist.tracks.length}
               onClick={onPlay}
-              aria-label={`Play artist ${artist.name}`}
+              aria-label={t('Play artist {artist}', { artist: artist.name })}
             >
               <Play size={19} />
               {t('Play')}
@@ -153,7 +155,7 @@ export function ArtistHeader({
               className="tonal-button"
               disabled={!artist.tracks.length}
               onClick={onShuffle}
-              aria-label={`Shuffle artist ${artist.name}`}
+              aria-label={t('Shuffle artist {artist}', { artist: artist.name })}
             >
               <Shuffle size={19} />
               {t('Shuffle')}

@@ -1,4 +1,12 @@
-import { DEFAULT_CHUNK_BYTES, SyncError, type LibraryEntry } from './protocol';
+import {
+  DEFAULT_CHUNK_BYTES,
+  MAX_LIBRARY_ENTRIES,
+  MAX_LOAN_TRACK_BYTES,
+  SYNC_PROTOCOL_VERSION,
+  paginateLibraryIndex,
+  SyncError,
+  type LibraryEntry,
+} from './protocol';
 import { LoanInbox, PairingSession, type PairingFailure, type PairingState } from './session';
 import type { LocalIdentity } from './pairing';
 import { keyFingerprint } from './identity';
@@ -7,19 +15,6 @@ import { commitLoan, getDevices, saveDevice } from './store';
 import type { SyncFrame } from './protocol';
 import type { Transport } from './transport';
 
-/**
- * Two devices, linked.
- *
- * The link owns the pairing session, the transport and the bytes. It does one
- * job — make a paired peer's songs playable here — and it keeps the interface
- * out of the cryptography: the pages above it say "pair", "offer", "send" and
- * "done", and never see a frame.
- *
- * A loan is a verified copy: the sender reads its own file, chunks it, and the
- * receiver assembles it, checks the SHA-256 and only then writes it. Nothing is
- * ever played from a half-received file and nothing is trusted because it
- * arrived.
- */
 export type LinkStatus =
   | { kind: 'idle' }
   | { kind: 'pairing'; state: PairingState }
@@ -63,6 +58,10 @@ export class DeviceLink {
   private transport?: Transport;
   private inbox: LoanInbox;
   private sending = new Set<string>();
+  private peerEntries: LibraryEntry[] = [];
+  private requested = new Map<string, LoanRequest>();
+  private incoming: Promise<void> = Promise.resolve();
+  private serving: Promise<void> = Promise.resolve();
 
   private constructor(
     private readonly options: DeviceLinkOptions,
@@ -72,10 +71,6 @@ export class DeviceLink {
     this.inbox = new LoanInbox(options.policy ?? DEFAULT_LOAN_POLICY);
   }
 
-  /**
-   * `identity` is this device's stable key pair (`identity.ts`). It is what lets
-   * the other side recognise us next time instead of starting from strangers.
-   */
   static create(options: DeviceLinkOptions, identity: LocalIdentity): DeviceLink {
     return new DeviceLink(options, identity);
   }
@@ -84,7 +79,6 @@ export class DeviceLink {
     this.options.onStatus?.(status);
   }
 
-  /** Host side: builds the code to show. */
   async invite(transport: Transport): Promise<string> {
     this.transport = transport;
     this.bind(transport, 'host');
@@ -94,7 +88,6 @@ export class DeviceLink {
     return transport.localCode();
   }
 
-  /** Guest side: pastes the host's code and returns the reply to send back. */
   async join(transport: Transport, code: string): Promise<string | null> {
     this.transport = transport;
     this.bind(transport, 'guest');
@@ -109,29 +102,35 @@ export class DeviceLink {
     this.session?.confirm();
   }
 
-  /** Asks the peer for songs. One request per track id. */
   async request(entries: LibraryEntry[]) {
     if (!this.session || this.session.state !== 'paired')
       throw new SyncError('not-paired', 'Link a device first.');
     const peerId = this.session.peer?.deviceId;
     if (!peerId) throw new SyncError('not-paired', 'Link a device first.');
     const requests: LoanRequest[] = entries.map((entry) => ({
-      loanId: `${entry.trackId}-${peerId}`.slice(0, 72),
+      loanId: crypto.randomUUID(),
       trackId: entry.trackId,
       deviceId: this.identity.deviceId,
       size: entry.size,
       title: entry.title,
       artist: entry.artist,
     }));
-    // Send in one frame so the peer can accept them as a batch.
-    const batch = requests.slice(0, 40);
-    await this.session.sendFrame({ type: 'loan-offer', requests: batch });
-    return batch.length;
+
+    for (const request of requests) this.requested.set(request.loanId, request);
+    for (let offset = 0; offset < requests.length; offset += 40) {
+      await this.session.sendFrame({
+        type: 'loan-offer',
+        requests: requests.slice(offset, offset + 40),
+      });
+    }
+    return requests.length;
   }
 
   close() {
     this.session?.close();
     this.transport?.close();
+    this.inbox.abortAll();
+    this.requested.clear();
   }
 
   private buildSession(transport: Transport, role: 'host' | 'guest') {
@@ -149,46 +148,44 @@ export class DeviceLink {
             platform: session.peer.platform,
             pairedAt: Date.now(),
             lastSeenAt: Date.now(),
+            protocolVersion: SYNC_PROTOCOL_VERSION,
             publicKey: session.peerPublicKey ? keyFingerprint(session.peerPublicKey) : undefined,
           });
           this.status({ kind: 'connected', peerName: session.peer.name });
-          // A freshly paired peer gets our index straight away: browsing a
-          // friend's library should not need a second round trip.
-          void this.sendLibrary(session);
+
+          void this.sendLibrary(session).catch(() =>
+            this.options.onError?.('The library could not be sent.'),
+          );
         } else if (state === 'failed')
           this.status({ kind: 'failed', reason: failure ?? 'transport' });
       },
       onSas: (code) => {
         void this.confirmIfKnown(session, code);
       },
-      onFrame: (frame) => void this.onFrame(frame),
+      onFrame: (frame) => {
+        if (frame.type === 'loan-offer') {
+          this.serving = this.serving.then(() => this.onFrame(frame));
+        } else {
+          this.incoming = this.incoming.then(() => this.onFrame(frame));
+        }
+      },
     });
     return session;
   }
 
-  /**
-   * A device we already trust confirms itself.
-   *
-   * The six digits exist to defeat a relay substituting its own key. When the
-   * peer's key is byte-for-byte the one saved the last time, there is nothing
-   * left to compare: that check was already made, and asking again is exactly
-   * the friction that teaches people to click through codes without reading
-   * them. An unknown key gets the full six-digit check.
-   */
   private async confirmIfKnown(session: PairingSession, code: string) {
     const peerId = session.peer?.deviceId;
     const key = session.peerPublicKey ? keyFingerprint(session.peerPublicKey) : undefined;
     if (peerId && key) {
       try {
         const known = (await getDevices()).find((device) => device.deviceId === peerId);
-        if (known?.publicKey && known.publicKey === key) {
+        if (known?.protocolVersion === SYNC_PROTOCOL_VERSION && known.publicKey === key) {
           session.confirm();
           return;
         }
-      } catch {
-        // No readable device list: fall back to the digits.
-      }
+      } catch {}
     }
+    if (this.session !== session || session.state !== 'awaiting-confirmation') return;
     this.status({
       kind: 'confirm',
       code,
@@ -199,42 +196,42 @@ export class DeviceLink {
   private bind(transport: Transport, role: 'host' | 'guest') {
     transport.receive((payload) => void this.session?.receive(payload));
     transport.onState((state) => {
-      if (state === 'closed' && this.session && this.session.state !== 'paired')
+      if (state === 'closed' && this.session && this.session.state !== 'closed')
         this.status({ kind: 'failed', reason: 'transport' });
       void role;
     });
   }
 
   private async sendLibrary(session: PairingSession) {
-    const entries = this.options.tracks().map((track) => ({
-      trackId: track.id,
-      title: track.title,
-      artist: track.artist,
-      album: track.album,
-      duration: 0,
-      size: track.blob.size,
-    }));
-    // The frame ceiling is 96 KB, so a large library goes in slices.
-    const slices = Math.max(1, Math.ceil(entries.length / 600));
-    for (let index = 0; index < slices; index++) {
-      await session.sendFrame({
-        type: 'library-index',
-        entries: entries.slice(index * 600, (index + 1) * 600),
-        complete: index === slices - 1,
-      });
-    }
+    const entries = this.options
+      .tracks()
+      .filter((track) => track.blob.size > 0 && track.blob.size <= MAX_LOAN_TRACK_BYTES)
+      .slice(0, MAX_LIBRARY_ENTRIES)
+      .map((track) => ({
+        trackId: track.id,
+        title: track.title.slice(0, 200),
+        artist: track.artist.slice(0, 200),
+        album: track.album.slice(0, 200),
+        duration: 0,
+        size: track.blob.size,
+      }));
+    for (const page of paginateLibraryIndex(entries, 30 * 1024)) await session.sendFrame(page);
   }
 
   private async onFrame(frame: SyncFrame) {
     try {
       if (frame.type === 'library-index') {
-        this.options.onLibrary?.({
-          entries: frame.entries,
-          complete: frame.complete,
-        });
+        if (this.peerEntries.length + frame.entries.length > MAX_LIBRARY_ENTRIES)
+          throw new SyncError('too-many-entries', 'The other device sent too many songs.');
+        this.peerEntries.push(...frame.entries);
+        this.options.onLibrary?.({ entries: [...this.peerEntries], complete: frame.complete });
+        if (frame.complete) this.peerEntries = [];
       } else if (frame.type === 'loan-offer') {
         for (const request of frame.requests) await this.serve(request);
       } else if (frame.type === 'transfer-start') {
+        const request = this.requested.get(frame.loanId);
+        if (!request || request.trackId !== frame.trackId || request.size !== frame.size)
+          throw new SyncError('unrequested-transfer', 'The other device sent an unrequested song.');
         this.inbox.begin(frame);
         this.options.onProgress?.({
           received: 0,
@@ -249,28 +246,40 @@ export class DeviceLink {
         });
       } else if (frame.type === 'transfer-complete') {
         const { meta, bytes } = await this.inbox.complete(frame.loanId);
+        const request = this.requested.get(frame.loanId);
+        if (!request) throw new SyncError('unrequested-transfer', 'The song was not requested.');
         await commitLoan(
           {
             loanId: meta.loanId,
             trackId: meta.trackId,
             deviceId: this.session?.peer?.deviceId ?? 'peer',
             size: meta.size,
-            title: meta.trackId,
+            title: request.title,
+            artist: request.artist,
           },
           bytes,
           this.options.policy ?? DEFAULT_LOAN_POLICY,
           Date.now(),
-          'application/octet-stream',
+          meta.mime ?? 'application/octet-stream',
           frame.sha256,
         );
-        this.options.onLoaned({ loanId: meta.loanId, trackId: meta.trackId });
+        this.requested.delete(frame.loanId);
+        this.options.onLoaned({
+          loanId: meta.loanId,
+          trackId: meta.trackId,
+          title: request.title,
+          artist: request.artist,
+        });
         this.options.onProgress?.(null);
       } else if (frame.type === 'transfer-abort') {
         this.inbox.abort(frame.loanId);
+        this.requested.delete(frame.loanId);
         this.options.onProgress?.(null);
       }
     } catch (error) {
       this.inbox.abortAll();
+      this.requested.clear();
+      this.peerEntries = [];
       this.options.onProgress?.(null);
       this.options.onError?.(
         error instanceof SyncError ? error.message : 'A song could not be transferred.',
@@ -278,7 +287,6 @@ export class DeviceLink {
     }
   }
 
-  /** Sends one requested track, verified by the receiver before it is stored. */
   private async serve(request: LoanRequest) {
     const session = this.session;
     const track = this.options.tracks().find((candidate) => candidate.id === request.trackId);
@@ -300,6 +308,9 @@ export class DeviceLink {
         sha256,
         chunkSize: DEFAULT_CHUNK_BYTES,
         chunkCount,
+        mime: /^(audio\/[a-z0-9.+-]+|application\/octet-stream)$/u.test(track.blob.type)
+          ? track.blob.type
+          : 'application/octet-stream',
       });
       for (let index = 0; index < chunkCount; index++) {
         const slice = bytes.subarray(

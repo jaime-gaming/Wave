@@ -4,8 +4,8 @@ import type { ListeningSummary } from '../domain/listening';
 import type { ListeningSignal } from '../domain/mood';
 import type { DailyMix } from '../domain/dailyMixes';
 import { DailyMixes } from './DailyMixes';
-import { memo, useMemo, useState } from 'react';
-import { motion } from 'motion/react';
+import { memo, useMemo, useState, type ReactNode } from 'react';
+import { AnimatePresence, motion, useIsPresent } from 'motion/react';
 import {
   ArrowUpRight,
   Disc3,
@@ -28,6 +28,24 @@ import { ArtistPortrait } from './Artists';
 import { LibraryContent } from './LibraryContent';
 
 import { useT } from '../i18n';
+function Notice({ children, label }: { children: ReactNode; label: string }) {
+  const animation = useWaveMotion();
+  const present = useIsPresent();
+  return (
+    <motion.aside
+      className="windows-app-notice"
+      aria-label={label}
+      aria-hidden={!present}
+      inert={!present}
+      initial={animation.enabled ? { opacity: 0, y: -8 } : false}
+      animate={{ opacity: 1, y: 0 }}
+      exit={animation.enabled ? { opacity: 0, y: -8 } : { opacity: 0 }}
+      transition={animation.effects}
+    >
+      {children}
+    </motion.aside>
+  );
+}
 export const HomePage = memo(function HomePage({
   tracks,
   listening,
@@ -38,6 +56,7 @@ export const HomePage = memo(function HomePage({
   loading,
   busy,
   onAdd,
+  addAction,
   onMix,
   onView,
   onAlbum,
@@ -53,7 +72,7 @@ export const HomePage = memo(function HomePage({
   listening?: ListeningSummary;
   moodSignals?: ListeningSignal[];
   artistPhotos?: Map<string, string | undefined>;
-  /** Opens the device screen: the first thing a phone should offer. */
+
   onDevices?: () => void;
   playlists: Playlist[];
   current?: Track;
@@ -61,6 +80,7 @@ export const HomePage = memo(function HomePage({
   loading: boolean;
   busy: boolean;
   onAdd: () => void;
+  addAction?: ReactNode;
   onMix: (mix: DailyMix, number: number) => void;
   onView: (view: LibraryView) => void;
   onAlbum: (id: string) => void;
@@ -116,44 +136,44 @@ export const HomePage = memo(function HomePage({
   ] as const;
   return (
     <div className="home-content">
-      {showWindowsNotice && (
-        <aside className="windows-app-notice" aria-label={t('Wave for Windows')}>
-          <div>
-            <strong>{t('Try Wave for Windows')}</strong>
-            <p>{t('Enjoy Wave as a Windows app. Your web library stays in this browser.')}</p>
-            <p>
-              {t(
-                'The latest public release may be an older test build: Windows may be unsigned and Android debug-signed.',
-              )}
-            </p>
-          </div>
-          <a className="tonal-button" href="/api/download/windows">
-            {t('Download for Windows')}
-          </a>
-          <button
-            className="icon-button"
-            type="button"
-            aria-label={t('Dismiss')}
-            onClick={() => {
-              try {
-                localStorage.setItem('wave-windows-notice-dismissed', 'true');
-              } catch {
-                /* Session only. */
-              }
-              setShowWindowsNotice(false);
-            }}
-          >
-            <X size={18} />
-          </button>
-        </aside>
-      )}
+      <AnimatePresence initial={false}>
+        {showWindowsNotice && (
+          <Notice label={t('Wave for Windows')}>
+            <div>
+              <strong>{t('Try Wave for Windows')}</strong>
+              <p>{t('Enjoy Wave as a Windows app. Your web library stays in this browser.')}</p>
+              <p>
+                {t('The Windows download may be an older version and may show a security warning.')}
+              </p>
+            </div>
+            <a className="tonal-button" href="/api/download/windows">
+              {t('Download for Windows')}
+            </a>
+            <button
+              className="icon-button"
+              type="button"
+              aria-label={t('Dismiss')}
+              onClick={() => {
+                try {
+                  localStorage.setItem('wave-windows-notice-dismissed', 'true');
+                } catch {}
+                setShowWindowsNotice(false);
+              }}
+            >
+              <X size={18} />
+            </button>
+          </Notice>
+        )}
+      </AnimatePresence>
       <section aria-label={t('Your collection')} className="home-overview">
         <div className="section-heading">
           <h2>{t('Your collection')}</h2>
-          <button className="tonal-button" disabled={busy} onClick={onAdd}>
-            <Plus size={18} />
-            {t('Add music')}
-          </button>
+          {addAction ?? (
+            <button className="tonal-button" disabled={busy} onClick={onAdd}>
+              <Plus size={18} />
+              {t('Add music')}
+            </button>
+          )}
         </div>
         <div className="home-shortcuts">
           {destinations.map(([view, label, Icon], index) => (
@@ -161,9 +181,13 @@ export const HomePage = memo(function HomePage({
               key={view}
               className="home-shortcut"
               onClick={() => onView(view)}
+              initial={animation.enabled ? { opacity: 0, y: 10 } : false}
+              animate={{ opacity: 1, y: 0 }}
               whileHover={animation.hoverEnabled ? { y: -2 } : undefined}
               whileTap={animation.enabled ? { scale: 0.975 } : undefined}
-              transition={animation.fast}
+              transition={
+                animation.enabled ? { ...animation.fast, delay: index * 0.035 } : animation.fast
+              }
             >
               <Icon size={22} />
               <strong>{counts[index]}</strong>
@@ -172,15 +196,7 @@ export const HomePage = memo(function HomePage({
           ))}
         </div>
       </section>
-      {/*
-       * Linking, first, on a phone.
-       *
-       * A person opening Wave on their phone usually has their music on the
-       * computer in front of them, and the one thing that makes this app worth
-       * having there is that the two devices share what they hold. It is a card
-       * of its own at the top of the page rather than a line in Settings, and it
-       * disappears once a device is linked.
-       */}
+      {}
       {onDevices && (
         <motion.button
           type="button"

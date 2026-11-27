@@ -28,7 +28,6 @@ describe('DailyMixes', () => {
     );
     expect(screen.queryByRole('region', { name: 'Daily mixes' })).not.toBeInTheDocument();
 
-    // While importing/creating with enough songs, show the friendly skeleton loader.
     rerender(<DailyMixes tracks={tracks} loading={false} busy={true} onOpen={onOpen} />);
     const status = screen.getByRole('status');
     expect(status).toHaveTextContent('Your daily mix is on its way');
@@ -37,12 +36,10 @@ describe('DailyMixes', () => {
     expect(document.querySelectorAll('.daily-mix-skeleton')).toHaveLength(1);
     expect(screen.queryByRole('button', { name: /Open Daily mix/i })).not.toBeInTheDocument();
 
-    // Once complete, mixes appear and are persisted to localStorage.
     rerender(<DailyMixes tracks={tracks} loading={false} busy={false} onOpen={onOpen} />);
     expect(screen.getByRole('button', { name: /Open Daily mix 1/i })).toBeInTheDocument();
-    expect(localStorage.getItem('wave-daily-mixes-v2')).toBeTruthy();
+    expect(localStorage.getItem('wave-daily-mixes-v3')).toBeTruthy();
 
-    // Remounting restores today's persisted mixes instantaneously without showing a skeleton.
     unmount();
     render(<DailyMixes tracks={tracks} loading={false} busy={false} onOpen={onOpen} />);
     expect(screen.queryByText('Your daily mix is on its way')).not.toBeInTheDocument();
@@ -62,7 +59,6 @@ describe('DailyMixes', () => {
     const initialCovers = readCovers();
     expect(initialCovers).toHaveLength(3);
 
-    // Toggling favorites or receiving updated listening summaries must not cycle covers.
     const updatedTracks = tracks.map((track, idx) =>
       idx === 0 ? { ...track, favorite: true } : track,
     );

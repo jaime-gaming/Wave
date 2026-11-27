@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../App';
@@ -7,6 +7,7 @@ import { makeTrack } from './fixtures';
 
 vi.mock('../data/library', () => ({
   getTracks: vi.fn(),
+  openLibrary: vi.fn().mockResolvedValue({ getAll: vi.fn().mockResolvedValue([]), close: vi.fn() }),
   getCustomizations: vi.fn().mockResolvedValue({ artists: [], albums: [] }),
   saveArtistProfile: vi.fn(),
   saveAlbumOrder: vi.fn(),
@@ -31,8 +32,66 @@ beforeEach(() => {
   );
 });
 describe('application', () => {
+  it('keeps Home unmounted through setup and only records completion when skipped', async () => {
+    vi.mocked(getTracks).mockResolvedValue([]);
+    localStorage.setItem('wave-animations-enabled', 'false');
+    const user = userEvent.setup();
+    render(<App />);
+    const welcome = await screen.findByRole(
+      'dialog',
+      { name: 'Welcome to Wave' },
+      { timeout: 4000 },
+    );
+    expect(screen.queryByRole('main')).not.toBeInTheDocument();
+    expect(localStorage.getItem('wave-welcome-done')).toBeNull();
+    await user.click(within(welcome).getByRole('button', { name: 'Explore Wave' }));
+    expect(await screen.findByRole('main')).toBeInTheDocument();
+    expect(localStorage.getItem('wave-welcome-done')).toBe('true');
+  });
+  it('stays in setup while local music is saved and only finishes on request', async () => {
+    vi.mocked(getTracks).mockResolvedValue([]);
+    localStorage.setItem('wave-animations-enabled', 'false');
+    let finishSave!: () => void;
+    vi.mocked(saveTrack).mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finishSave = resolve;
+        }),
+    );
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole('dialog', { name: 'Welcome to Wave' }, { timeout: 4000 });
+    await user.click(screen.getByRole('button', { name: 'Get started' }));
+    await user.type(await screen.findByRole('textbox', { name: 'Your name' }), 'Alex');
+    for (let step = 0; step < 5; step++) {
+      await user.click(await screen.findByRole('button', { name: 'Continue' }));
+    }
+    await user.click(await screen.findByRole('button', { name: 'Add my music' }));
+    await user.click(await screen.findByRole('button', { name: /from this device/i }));
+    const input = screen.getByLabelText('Choose music files', { selector: 'input' });
+    fireEvent.change(input, {
+      target: { files: [new File(['music'], 'Signal.wav', { type: 'audio/wav' })] },
+    });
+    expect(await screen.findByRole('progressbar', { name: 'Adding music' })).toBeInTheDocument();
+    await waitFor(() => expect(saveTrack).toHaveBeenCalled());
+    expect(screen.queryByRole('main')).not.toBeInTheDocument();
+    expect(localStorage.getItem('wave-welcome-done')).toBeNull();
+    await act(async () => finishSave());
+    expect(await screen.findByRole('button', { name: 'Add more music' })).toHaveClass(
+      'tonal-button',
+    );
+    const explore = screen.getByRole('button', { name: 'Explore Wave' });
+    expect(explore).toHaveClass('filled-button');
+    await user.click(explore);
+    expect(await screen.findByRole('main')).toBeInTheDocument();
+    expect(localStorage.getItem('wave-listener-name')).toBe('Alex');
+    expect(localStorage.getItem('wave-welcome-done')).toBe('true');
+    await user.click(screen.getByRole('button', { name: 'Remix' }));
+    expect(await screen.findByText('Your Remix, Alex')).toBeInTheDocument();
+  });
   it('shows an honest empty collection without sample songs', async () => {
     vi.mocked(getTracks).mockResolvedValue([]);
+    localStorage.setItem('wave-welcome-done', 'true');
     render(<App />);
     expect(await screen.findByText('No songs yet')).toBeInTheDocument();
     for (const button of screen.getAllByRole('button', { name: 'Play' }))

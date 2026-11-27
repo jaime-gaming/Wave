@@ -9,7 +9,14 @@ import {
   DETAILS_BATCH,
 } from './useCatalogueDetails';
 import { searchCatalogue } from '../services/catalogue';
+import { searchDeezer } from '../services/musicBrainz';
 import { makeTrack } from '../test/fixtures';
+import { rolesReviewKey } from '../domain/metadata';
+
+vi.mock('../data/library', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../data/library')>()),
+  markDetailsChecked: vi.fn(async () => null),
+}));
 
 vi.mock('../services/catalogue', () => ({
   searchCatalogue: vi.fn(async () => []),
@@ -17,7 +24,11 @@ vi.mock('../services/catalogue', () => ({
   preferredCountry: vi.fn(() => undefined),
 }));
 
-beforeEach(() => vi.mocked(searchCatalogue).mockClear());
+vi.mock('../services/musicBrainz', () => ({ searchDeezer: vi.fn(async () => []) }));
+beforeEach(() => {
+  vi.mocked(searchCatalogue).mockClear();
+  vi.mocked(searchDeezer).mockReset().mockResolvedValue([]);
+});
 
 const bare = (id: string, overrides = {}) =>
   makeTrack({ id, title: `Song ${id}`, artwork: undefined, year: undefined, ...overrides });
@@ -32,8 +43,29 @@ describe('deciding which songs to ask about', () => {
       trackNumber: 2,
     });
     expect(detailsQueue([complete])).toEqual([]);
-    // A known album with no position still has one thing to ask about.
+
     expect(detailsQueue([{ ...complete, trackNumber: undefined }])).toHaveLength(1);
+  });
+
+  it('checks complete songs for swapped roles only with separate permission', () => {
+    const complete = makeTrack({
+      artwork: 'cover',
+      year: 2020,
+      genres: ['Ambient'],
+      trackNumber: 1,
+      duration: 214,
+    });
+    expect(detailsQueue([complete])).toEqual([]);
+    expect(detailsQueue([complete], Date.now(), new Set(), true)).toEqual([complete]);
+    expect(
+      detailsQueue(
+        [{ ...complete, rolesReviewed: rolesReviewKey(complete) }],
+        Date.now(),
+        new Set(),
+        true,
+      ),
+    ).toEqual([]);
+    expect(detailsQueue([{ ...complete, editedAt: 1 }], Date.now(), new Set(), true)).toEqual([]);
   });
 
   it('asks most incomplete first, and never more than a batch at a time', () => {
@@ -108,4 +140,107 @@ describe('deciding which songs to ask about', () => {
       vi.useRealTimers();
     }
   });
+});
+
+it('uses another catalogue when the first has no matching release, only with permission', async () => {
+  vi.useFakeTimers();
+  try {
+    const track = bare('fallback', { title: 'Says', artist: 'Nils Frahm', album: '' });
+    vi.mocked(searchDeezer).mockResolvedValue([
+      { title: 'Says', artist: 'Nils Frahm', album: 'Spaces', year: 2013, provider: 'Deezer' },
+    ]);
+    const update = vi.fn(async () => track);
+    renderHook(() => useCatalogueDetails({ tracks: [track], onUpdate: update, enabled: true }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000);
+    });
+    expect(searchDeezer).toHaveBeenCalled();
+    expect(update).toHaveBeenCalledWith(
+      track.id,
+      expect.objectContaining({ album: 'Spaces' }),
+      track,
+    );
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it('cancels an in-flight lookup when permission is turned off and saves nothing late', async () => {
+  vi.useFakeTimers();
+  try {
+    const track = bare('cancel', { title: 'Says', artist: 'Nils Frahm' });
+    let finish!: (value: Awaited<ReturnType<typeof searchCatalogue>>) => void;
+    vi.mocked(searchCatalogue).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const update = vi.fn(async () => track);
+    const { rerender } = renderHook(
+      ({ enabled }) => useCatalogueDetails({ tracks: [track], onUpdate: update, enabled }),
+      { initialProps: { enabled: true } },
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+    const signal = vi.mocked(searchCatalogue).mock.calls[0][1]?.signal;
+    rerender({ enabled: false });
+    expect(signal?.aborted).toBe(true);
+    await act(async () => {
+      finish([{ title: 'Says', artist: 'Nils Frahm', album: 'Spaces', year: 2013 }]);
+      await Promise.resolve();
+    });
+    expect(update).not.toHaveBeenCalled();
+    expect(searchDeezer).not.toHaveBeenCalled();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it('continues beyond the first batch even when no track is updated', async () => {
+  vi.useFakeTimers();
+  try {
+    const tracks = Array.from({ length: DETAILS_BATCH + 3 }, (_, i) => bare(`batch-${i}`));
+    const update = vi.fn(async () => null);
+    const { unmount } = renderHook(() =>
+      useCatalogueDetails({ tracks, onUpdate: update, enabled: true }),
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_500);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(8_000);
+    });
+    const queries = vi.mocked(searchDeezer).mock.calls.map(([query]) => query);
+    expect(queries).toHaveLength(tracks.length);
+    expect(update).not.toHaveBeenCalled();
+    unmount();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it('does not retry a failing provider forever in the same session', async () => {
+  vi.useFakeTimers();
+  try {
+    const tracks = [bare('unreachable')];
+    vi.mocked(searchCatalogue).mockRejectedValueOnce(new Error('offline'));
+    const { unmount } = renderHook(() =>
+      useCatalogueDetails({ tracks, onUpdate: vi.fn(async () => null), enabled: true }),
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_500);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15_000);
+    });
+    expect(searchCatalogue).toHaveBeenCalledTimes(1);
+    unmount();
+  } finally {
+    vi.useRealTimers();
+  }
 });

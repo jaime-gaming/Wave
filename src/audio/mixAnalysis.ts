@@ -1,25 +1,17 @@
-/**
- * Background analysis pipeline for Mix.
- *
- * Decoding happens on a short, bounded copy (mono, 11 kHz) so a 200 MB FLAC is
- * never held fully decoded in memory: OfflineAudioContext resamples and mixes to
- * mono for us. The DSP itself runs in a worker, so scrolling and playback stay
- * smooth while a song is analysed.
- *
- * Nothing here touches the stored file.
- */
 import { analyzePcm, type TrackAnalysis } from './dsp';
+import { budgetFor, currentProfile } from '../ui/performance';
 
-/** Analysis sample rate: enough for BPM, bands and vocals, cheap to compute. */
 export const ANALYSIS_SAMPLE_RATE = 11_025;
-/** Skip analysis for very large or very long files; the planner then falls back. */
+
 export const MAX_ANALYSIS_BYTES = 60 * 1024 * 1024;
 export const MAX_ANALYSIS_SECONDS = 15 * 60;
 
 const cache = new Map<Blob, TrackAnalysis>();
-/** Keep decoded analysis bounded in long listening sessions. */
-const MAX_CACHED_ANALYSES = 32;
 const pending = new Map<Blob, Promise<TrackAnalysis | undefined>>();
+
+export function analysisBytesFor(): number {
+  return Math.min(MAX_ANALYSIS_BYTES, budgetFor(currentProfile()).maxAnalysisBytes);
+}
 
 export function cachedAnalysis(blob: Blob | undefined): TrackAnalysis | undefined {
   return blob ? cache.get(blob) : undefined;
@@ -28,7 +20,9 @@ export function cachedAnalysis(blob: Blob | undefined): TrackAnalysis | undefine
 export function cacheAnalysis(blob: Blob, analysis: TrackAnalysis): void {
   cache.delete(blob);
   cache.set(blob, analysis);
-  while (cache.size > MAX_CACHED_ANALYSES) cache.delete(cache.keys().next().value!);
+
+  const maxCached = budgetFor(currentProfile()).maxCachedAnalyses;
+  while (cache.size > maxCached) cache.delete(cache.keys().next().value!);
 }
 
 export function clearAnalysisCache(): void {
@@ -70,7 +64,7 @@ function createClient(): Client | null {
         new Promise<TrackAnalysis>((resolve, reject) => {
           const id = nextId++;
           queue.set(id, { resolve, reject });
-          // The buffer is transferred, not copied: no second copy in memory.
+
           worker.postMessage({ id, samples, sampleRate }, [samples.buffer]);
         }),
       terminate: () => worker.terminate(),
@@ -85,17 +79,16 @@ function analysisClient(): Client | null {
   return client;
 }
 
-/** Decodes to mono at ANALYSIS_SAMPLE_RATE. Returns null when unsupported. */
 export async function decodeForAnalysis(
   blob: Blob,
 ): Promise<{ samples: Float32Array; sampleRate: number } | null> {
   if (typeof OfflineAudioContext === 'undefined') return null;
-  if (blob.size > MAX_ANALYSIS_BYTES) return null;
+  if (blob.size > analysisBytesFor()) return null;
   try {
     const probe = new OfflineAudioContext(1, 1, ANALYSIS_SAMPLE_RATE);
     const buffer = await probe.decodeAudioData(await blob.arrayBuffer());
     if (!(buffer.duration > 0) || buffer.duration > MAX_ANALYSIS_SECONDS) return null;
-    // Mix to mono: the analysis does not care about stereo placement.
+
     const length = buffer.length;
     const mono = new Float32Array(length);
     for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
@@ -110,7 +103,6 @@ export async function decodeForAnalysis(
   }
 }
 
-/** Analyse a song once; concurrent calls share the work. */
 export async function analyzeTrack(blob: Blob): Promise<TrackAnalysis | undefined> {
   const done = cache.get(blob);
   if (done) return done;
@@ -127,7 +119,6 @@ export async function analyzeTrack(blob: Blob): Promise<TrackAnalysis | undefine
       cacheAnalysis(blob, analysis);
       return analysis;
     } catch {
-      // A worker failure must not break playback: analyse on the main thread once.
       try {
         const analysis = analyzePcm(decoded.samples, decoded.sampleRate);
         cacheAnalysis(blob, analysis);
@@ -142,7 +133,6 @@ export async function analyzeTrack(blob: Blob): Promise<TrackAnalysis | undefine
   return work;
 }
 
-/** Fire-and-forget warm-up used when a song becomes current or next. */
 export function primeAnalysis(blob: Blob | undefined): void {
   if (!blob || cache.has(blob) || pending.has(blob)) return;
   void analyzeTrack(blob);

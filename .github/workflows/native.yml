@@ -1,9 +1,21 @@
 name: Native builds
 on:
   push:
-    paths: ['platforms/**', 'scripts/publish-native-screenshots.sh', '.github/workflows/native.yml']
+    paths:
+      [
+        'platforms/**',
+        'scripts/publish-native-screenshots.sh',
+        'scripts/validate-ios-capture.swift',
+        '.github/workflows/native.yml',
+      ]
   pull_request:
-    paths: ['platforms/**', 'scripts/publish-native-screenshots.sh', '.github/workflows/native.yml']
+    paths:
+      [
+        'platforms/**',
+        'scripts/publish-native-screenshots.sh',
+        'scripts/validate-ios-capture.swift',
+        '.github/workflows/native.yml',
+      ]
   workflow_call:
     inputs:
       tag:
@@ -81,6 +93,11 @@ jobs:
             echo "WAVE_ANDROID_KEY_PASSWORD=$EPHEMERAL_PASS" >> "$GITHUB_ENV"
             echo "Android APK signing: generated PKCS12 release signing key (configure ANDROID_KEYSTORE_BASE64 secret for a persistent upload key)." >> "$GITHUB_STEP_SUMMARY"
           fi
+      - name: Test Android core contracts
+        shell: bash
+        run: |
+          set -o pipefail
+          gradle -p platforms/android testDebugUnitTest --tests io.github.jaimegaming.wave.ContractsTest --console=plain 2>&1 | tee android-build.log
       - name: Test, lint and assemble signed Android APK
         shell: bash
         run: |
@@ -101,7 +118,7 @@ jobs:
             tail -n 100 android-build.log >> "$GITHUB_STEP_SUMMARY"
             while IFS= read -r line; do
               echo "::error::$line"
-            done < <(grep -E '^e: |^Error: |^/.*: Error: |[Ff][Aa][Ii][Ll][Ee][Dd]|expected:' android-build.log || true)
+            done < <(grep -E '^e: |^Error: |^/.*: Error: |[Ff][Aa][Ii][Ll][Ee][Dd]|expected:|Could not |Unable to |Connection |timed out|Caused by:' android-build.log || true)
           fi
       - uses: actions/upload-artifact@v4
         if: failure()
@@ -163,8 +180,8 @@ jobs:
         run: |
           dotnet run --project platforms/windows/Wave.Contracts.Tests -c Release 2>&1 | Tee-Object -FilePath contracts.log
           if ($LASTEXITCODE -ne 0) {
-            Get-Content contracts.log | Select-String -Pattern 'Unhandled exception|^PASS ' -Context 0,2 |
-              ForEach-Object { Write-Host "::error::$($_.Line)" }
+            Get-Content contracts.log | Select-Object -Last 30 |
+              ForEach-Object { Write-Host "::error::$($_ -replace '%', '%25')" }
             exit 1
           }
       - run: dotnet build platforms/windows/Wave.Windows/Wave.Windows.csproj -c Release
@@ -201,39 +218,14 @@ jobs:
           if ($files.Count -ne 1 -or $files[0].Name -ne 'Wave.exe') {
             throw "Expected a single Wave.exe deliverable; found: $($files.Name -join ', ')"
           }
-      - name: Sign single-file Wave.exe
+      - name: Record Windows package details
         shell: pwsh
-        env:
-          WINDOWS_SIGNING_CERT_BASE64: ${{ secrets.WINDOWS_SIGNING_CERT_BASE64 }}
-          WINDOWS_SIGNING_CERT_PASSWORD: ${{ secrets.WINDOWS_SIGNING_CERT_PASSWORD }}
-          WINDOWS_TIMESTAMP_URL: ${{ secrets.WINDOWS_TIMESTAMP_URL }}
-          RELEASE_TAG: ${{ inputs.tag }}
         run: |
           $ErrorActionPreference = 'Stop'
           $exe = (Resolve-Path artifacts/windows/Wave.exe).Path
-          if (-not [string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_CERT_BASE64)) {
-            $pfxPath = Join-Path $env:RUNNER_TEMP 'wave-codesign.pfx'
-            [System.IO.File]::WriteAllBytes($pfxPath, [System.Convert]::FromBase64String($env:WINDOWS_SIGNING_CERT_BASE64))
-            $password = ConvertTo-SecureString -String $env:WINDOWS_SIGNING_CERT_PASSWORD -Force -AsPlainText
-            $cert = Import-PfxCertificate -FilePath $pfxPath -CertStoreLocation Cert:\CurrentUser\My -Password $password
-            $timestamp = if ([string]::IsNullOrWhiteSpace($env:WINDOWS_TIMESTAMP_URL)) { 'https://timestamp.digicert.com' } else { $env:WINDOWS_TIMESTAMP_URL }
-            & platforms/windows/scripts/Sign-Release.ps1 -ExecutablePath $exe -CertificateThumbprint $cert.Thumbprint -TimestampServer $timestamp
-            Remove-Item $pfxPath -Force -ErrorAction SilentlyContinue
-            "Windows signing: Authenticode SHA-256 with trusted repository certificate." | Add-Content $env:GITHUB_STEP_SUMMARY
-          } else {
-            if (-not [string]::IsNullOrWhiteSpace($env:RELEASE_TAG)) {
-              throw 'A trusted Windows signing certificate is required for release publication.'
-            }
-            $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=Wave, O=Jaime Gaming" -KeyAlgorithm RSA -KeyLength 4096 -HashAlgorithm SHA256 -CertStoreLocation Cert:\CurrentUser\My -NotAfter (Get-Date).AddYears(3)
-            $sig = Set-AuthenticodeSignature -FilePath $exe -Certificate $cert -HashAlgorithm SHA256
-            if ($null -eq $sig.SignerCertificate -or $sig.Status -eq 'HashMismatch') {
-              throw "Wave.exe Authenticode signing failed: $($sig.Status)"
-            }
-            "Windows signing: Authenticode SHA-256 signed (configure WINDOWS_SIGNING_CERT_BASE64 and WINDOWS_SIGNING_CERT_PASSWORD secrets for publicly trusted SmartScreen signing)." | Add-Content $env:GITHUB_STEP_SUMMARY
-          }
           $hash = (Get-FileHash $exe -Algorithm SHA256).Hash.ToLower()
-          "### Windows package`n- File: ``Wave.exe`` (signed single-file executable)`n- SHA-256: ``$hash``" | Add-Content $env:GITHUB_STEP_SUMMARY
-      - name: Scan signed Wave.exe when Defender is available
+          "### Windows package`n- File: ``Wave.exe`` (unsigned single-file executable)`n- SHA-256: ``$hash``" | Add-Content $env:GITHUB_STEP_SUMMARY
+      - name: Scan Wave.exe when Defender is available
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -254,7 +246,7 @@ jobs:
         with:
           name: wave-windows-exe
           path: artifacts/windows/Wave.exe
-      - name: Attach signed Wave.exe to release
+      - name: Attach Wave.exe to release
         if: inputs.tag != ''
         env:
           GH_TOKEN: ${{ github.token }}
@@ -263,3 +255,100 @@ jobs:
         run: |
           gh release upload "$env:RELEASE_TAG" artifacts/windows/Wave.exe --clobber
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+  ios-captures:
+    runs-on: macos-26
+    # Like Windows and Android, these are photographs of the running native
+    # client on a seeded library. The job publishes only PNGs to the branch;
+    # no signed device build or distribution package is produced.
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.tag || github.sha }}
+          persist-credentials: ${{ !inputs.tag }}
+      - name: Select Xcode 26
+        shell: bash
+        run: |
+          set -euo pipefail
+          XCODE=$(python3 -c 'from pathlib import Path; import re; apps=[p for p in Path("/Applications").glob("Xcode_26*.app") if (p/"Contents/Developer").is_dir()]; key=lambda p: tuple(map(int, re.search(r"Xcode_([\d.]+)\.app", p.name).group(1).split("."))) if re.search(r"Xcode_([\d.]+)\.app", p.name) else (0,); print(max(apps, key=key)/"Contents/Developer" if apps else "", end="")')
+          test -n "$XCODE"
+          sudo xcode-select -s "$XCODE"
+          xcodebuild -version
+      - name: Capture the SwiftUI app on a simulator
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Keep useful diagnostics in the job annotations when log storage is unavailable.
+          LOG="$RUNNER_TEMP/wave-ios-capture.log"
+          exec 3>&1 4>&2
+          exec > >(tee "$LOG") 2>&1
+          tee_pid=$!
+          report_capture_failure() {
+            status=$?
+            exec 1>&3 2>&4
+            wait "$tee_pid" || true
+            if [[ $status -ne 0 ]]; then
+              recent=$(tail -30 "$LOG" || true)
+              echo "::error::iOS capture failed; the last output lines follow."
+              while IFS= read -r line; do
+                echo "::error::${line//'%'/'%25'}"
+              done <<< "$recent"
+            fi
+          }
+          trap report_capture_failure EXIT
+          DEVICE=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin).get("devices",{}); found=[device for runtime,devices in d.items() if "iOS" in runtime for device in devices if device.get("isAvailable") and "iPhone" in device.get("name","")]; print(found[0]["udid"] if found else "", end="")')
+          if [[ -z "$DEVICE" ]]; then
+            RUNTIME=$(xcrun simctl list runtimes -j | python3 -c 'import json,sys; r=json.load(sys.stdin).get("runtimes",[]); ios=[x for x in r if x.get("isAvailable") and (x.get("platform")=="iOS" or "iOS" in x.get("identifier",""))]; print(ios[0]["identifier"] if ios else "", end="")')
+            TYPE=$(xcrun simctl list devicetypes -j | python3 -c 'import json,sys; d=json.load(sys.stdin).get("devicetypes",[]); phones=[x for x in d if "iPhone" in x.get("name","")]; best=next((x for x in phones if "iPhone 16 Pro" in x.get("name","")), phones[0] if phones else None); print(best["identifier"] if best else "", end="")')
+            test -n "$RUNTIME" && test -n "$TYPE"
+            DEVICE=$(xcrun simctl create 'Wave Capture' "$TYPE" "$RUNTIME")
+          fi
+          xcrun simctl boot "$DEVICE" || true
+          xcrun simctl bootstatus "$DEVICE" -b
+          DERIVED="$RUNNER_TEMP/WaveCaptureDerivedData"
+          xcodebuild \
+            -project platforms/ios/Wave.xcodeproj \
+            -scheme Wave \
+            -destination "platform=iOS Simulator,id=$DEVICE,arch=arm64" \
+            -derivedDataPath "$DERIVED" \
+            ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO build
+          APP=$(find "$DERIVED/Build/Products" -maxdepth 3 -type d -name Wave.app -print -quit)
+          test -n "$APP" && test -f "$APP/Info.plist"
+          BUNDLE=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")
+          test -n "$BUNDLE"
+          xcrun simctl install "$DEVICE" "$APP"
+          mkdir -p artifacts/ios-ui
+          swiftc scripts/validate-ios-capture.swift -o "$RUNNER_TEMP/validate-ios-capture"
+          "$RUNNER_TEMP/validate-ios-capture" --self-test
+          for page in home library search remix settings now-playing; do
+            # Launch with an isolated in-memory fixture. Opening a URL can show
+            # an iOS confirmation dialog instead of navigating the app.
+            xcrun simctl terminate "$DEVICE" "$BUNDLE" 2>/dev/null || true
+            SIMCTL_CHILD_WAVE_CAPTURE_PAGE="$page" xcrun simctl launch "$DEVICE" "$BUNDLE"
+            # A successful simctl screenshot can still be the white launch screen.
+            # Retry briefly and fail rather than publishing an obviously blank page.
+            shot="artifacts/ios-ui/$page.png"
+            for attempt in {1..8}; do
+              sleep 5
+              rm -f "$shot"
+              xcrun simctl io "$DEVICE" screenshot "$shot"
+              if "$RUNNER_TEMP/validate-ios-capture" "$shot"; then break; fi
+              echo "Waiting for $page to render (attempt $attempt)"
+            done
+            "$RUNNER_TEMP/validate-ios-capture" "$shot"
+          done
+          for shot in artifacts/ios-ui/*.png; do
+            test -s "$shot"
+            sips -g pixelWidth -g pixelHeight "$shot" > /dev/null
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: wave-ios-ui
+          path: artifacts/ios-ui/
+      - name: Publish the iOS screenshots
+        if: github.event_name == 'push' && success()
+        shell: bash
+        run: bash scripts/publish-native-screenshots.sh artifacts/ios-ui ios- platforms/ios

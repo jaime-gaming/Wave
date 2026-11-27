@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, Camera, Check, Copy, Link2, QrCode, RotateCcw, Trash2 } from './Glyphs';
 import { motion } from 'motion/react';
 import { useWaveMotion } from '../ui/motion';
@@ -28,19 +28,6 @@ const failureText = (reason: string) =>
     transport: 'The connection closed. Nothing was lost. Start again when you are ready.',
   })[reason] ?? 'The link failed. Nothing was changed.';
 
-/**
- * Devices.
- *
- * The QR code is the fast way in: this device shows one, or it reads one, and two
- * scans link them. That is the whole of the happy path, because a pairing that
- * takes a sentence to explain is a pairing people do not finish.
- *
- * There are two doors beside it, both for the cases where a camera cannot help:
- * a link to open, and a code to paste. Pasting matters most between two computers
- * — neither has a camera pointed at anything — and it is also what makes the
- * format usable by every other way of running Wave, since a pairing code is just
- * text either way.
- */
 export function DevicesPage({
   tracks,
   onAddLoaned,
@@ -53,13 +40,13 @@ export function DevicesPage({
   const animation = useWaveMotion();
   const [scanning, setScanning] = useState<null | 'invite' | 'reply'>(null);
   const [copied, setCopied] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirming, setConfirming] = useState<string | null>(null);
-  /** A code someone pasted, and whether it was understood. */
+
   const [pasted, setPasted] = useState('');
   const [pasteError, setPasteError] = useState(false);
-  // A `#wave-pair=` address that carries nothing is answered as soon as the page
-  // opens, without an effect setting state on mount.
+
   const [loaned, setLoaned] = useState<{ text: string; failed: boolean } | null>(() => {
     const address = location.hash || location.search;
     return /wave-pair=/u.test(address) && !readPairingLink(address)
@@ -68,9 +55,6 @@ export function DevicesPage({
   });
   const entries = useMemo(() => devices.peerLibrary?.entries ?? [], [devices.peerLibrary]);
 
-  // A borrowed song kept is a small, slow thing to read back: a line that says
-  // what happened, and goes away by itself. Before this, the button either
-  // worked in silence or did nothing at all.
   const keepLoan = async (loanId: string, title: string | undefined) => {
     const blob = await getLoanedAudio(loanId);
     if (!blob) {
@@ -93,25 +77,30 @@ export function DevicesPage({
     return () => clearTimeout(timer);
   }, [loaned]);
 
-  // Opening a `#wave-pair=` link on this device joins straight away — once, not
-  // on every render, and with the address cleaned so a refresh does not retry.
-  const joined = useRef(false);
+  const [incoming, setIncoming] = useState(() => readPairingLink(location.hash || location.search));
   useEffect(() => {
-    if (joined.current) return;
-    const payload = readPairingLink(location.hash || location.search);
-    if (!payload) return;
-    joined.current = true;
-    history.replaceState(null, '', location.pathname);
-    void devices.join(payload);
-  }, [devices]);
+    if (incoming) history.replaceState(null, '', location.pathname);
+  }, [incoming]);
 
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(devices.link);
+      setCopyFailed(false);
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
     } catch {
       setCopied(false);
+      setCopyFailed(true);
+    }
+  };
+
+  const share = async () => {
+    if (!navigator.share) return copy();
+    try {
+      await navigator.share({ title: 'Wave', url: devices.link });
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') return;
+      await copy();
     }
   };
 
@@ -128,13 +117,6 @@ export function DevicesPage({
     void (scanning === 'reply' ? devices.acceptReply(value) : devices.join(value));
   };
 
-  /**
-   * A code typed or pasted instead of scanned.
-   *
-   * The answer decides which half of the handshake it was: a fresh invite starts
-   * the exchange, a reply finishes it. Accepting both here means the person does
-   * not have to know which one they were given.
-   */
   const submitPaste = () => {
     const value = pasted.trim();
     if (!value) return;
@@ -146,13 +128,9 @@ export function DevicesPage({
     }
     setPasted('');
     setPasteError(false);
-    void (async () => {
-      if (asLink) return devices.join(asLink);
-      // A reply only exists while this device is waiting for one; anything else
-      // is a fresh invitation.
-      if (devices.stage === 'show-code') return devices.acceptReply(asCode!);
-      return devices.join(asCode!);
-    })();
+
+    const payload = asLink ?? asCode!;
+    void (devices.stage === 'show-code' ? devices.acceptReply(payload) : devices.join(payload));
   };
 
   return (
@@ -163,6 +141,34 @@ export function DevicesPage({
         )}
       </p>
 
+      {incoming && (
+        <section className="devices-card devices-confirm" aria-label={t('Incoming device link')}>
+          <strong>{t('Connect this device?')}</strong>
+          <p>
+            {t(
+              'Only continue if you trust the person who shared this link. You will still need to compare the six digits on both devices.',
+            )}
+          </p>
+          <div className="devices-actions">
+            <button
+              className="primary-button"
+              onClick={() => {
+                const payload = incoming;
+                setIncoming(null);
+                void devices.join(payload);
+              }}
+            >
+              {t('Continue')}
+            </button>
+            <button className="text-button" onClick={() => setIncoming(null)}>
+              {t('Cancel')}
+            </button>
+          </div>
+        </section>
+      )}
+      {devices.busy && (
+        <p role="status">{t('Preparing a secure connection and gathering network addresses…')}</p>
+      )}
       {devices.confirmCode && (
         <motion.section
           className="devices-card devices-confirm"
@@ -192,7 +198,7 @@ export function DevicesPage({
         </motion.section>
       )}
 
-      {devices.stage === 'idle' && (
+      {devices.stage === 'idle' && !incoming && (
         <div className="devices-grid">
           <section className="devices-card">
             <h3>
@@ -225,7 +231,7 @@ export function DevicesPage({
         </div>
       )}
 
-      {devices.stage === 'idle' && (
+      {(devices.stage === 'idle' || devices.stage === 'show-code') && (
         <section className="devices-card devices-paste">
           <h3>
             <Link2 size={18} aria-hidden="true" /> {t('Paste a code')}
@@ -283,7 +289,23 @@ export function DevicesPage({
               : t('When it has read this, the two devices will be linked.')}
           </p>
           <img src={devices.qr} alt={t('Wave pairing code')} className="devices-qr-image" />
+          <label className="devices-share-link">
+            <span>{t('Pairing link')}</span>
+            <input
+              readOnly
+              value={devices.link}
+              onFocus={(event) => event.currentTarget.select()}
+            />
+          </label>
+          {copyFailed && (
+            <p className="devices-error" role="alert">
+              {t('Could not copy the link. Select it above and copy it yourself.')}
+            </p>
+          )}
           <div className="devices-actions">
+            <button className="tonal-button" onClick={() => void share()}>
+              <Link2 size={16} /> {t('Share link')}
+            </button>
             <button className="tonal-button" onClick={() => void copy()}>
               <Copy size={16} /> {copied ? t('Link copied') : t('Copy link')}
             </button>
@@ -337,8 +359,25 @@ export function DevicesPage({
           {!entries.length && <p className="devices-note">{t('Waiting for its library…')}</p>}
           {!!entries.length && (
             <>
+              <p className="devices-note">
+                {t(
+                  'Bring songs while both devices are connected. The copies stay here even when the other device is off.',
+                )}
+              </p>
               <div className="devices-list-head">
                 <span>{t('{count} songs on the other device', { count: entries.length })}</span>
+                <button
+                  className="text-button"
+                  onClick={() =>
+                    setSelected(
+                      selected.size === entries.length
+                        ? new Set()
+                        : new Set(entries.map((entry) => entry.trackId)),
+                    )
+                  }
+                >
+                  {selected.size === entries.length ? t('Clear selection') : t('Select all')}
+                </button>
                 <button
                   className="primary-button"
                   disabled={!selected.size}
@@ -439,6 +478,11 @@ export function DevicesPage({
 
       <section className="devices-card">
         <h3>{t('Borrowed songs')}</h3>
+        <p className="devices-note">
+          {t(
+            'These copies are available here even when the other device is off. Add them to your library to play them.',
+          )}
+        </p>
         <p className="devices-note">
           {t(
             '{used} of {capacity} used. Nothing here is ever removed automatically: a song that does not fit is refused, and you decide what to hand back.',

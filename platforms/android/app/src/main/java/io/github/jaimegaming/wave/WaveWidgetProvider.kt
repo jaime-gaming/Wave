@@ -18,11 +18,11 @@ import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.widget.RemoteViews
 
-/**
- * Rich resizable home-screen widget displaying the current song's embedded
- * artwork, title, artist/album, and full playback controls (previous, play/pause,
- * next). Stays synchronized automatically on every playback state or song change.
- */
+
+
+
+
+
 class WaveWidgetProvider : AppWidgetProvider() {
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
         val views = build(context)

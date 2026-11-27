@@ -33,7 +33,7 @@ describe('persistent playlists and edits', () => {
     await old.put('tracks', makeTrack({ favorite: true }));
     old.close();
     const db = await openLibrary();
-    // Version 4 adds listening history; the rows below predate it.
+
     expect(db.version).toBe(LIBRARY_VERSION);
     expect(db.objectStoreNames.contains('plays')).toBe(true);
     expect(db.objectStoreNames.contains('playlists')).toBe(true);

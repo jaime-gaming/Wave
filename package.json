@@ -1,6 +1,6 @@
 {
   "name": "wave",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -14,12 +14,12 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "release:check": "node scripts/check-release.mjs",
-    "test:release": "node --test scripts/check-release.test.mjs scripts/native-release.test.mjs scripts/app-surface.test.mjs",
+    "test:release": "node --test scripts/check-release.test.mjs scripts/native-release.test.mjs scripts/app-surface.test.mjs scripts/shell.test.mjs scripts/ios-release.test.mjs scripts/responsive-layout.test.mjs scripts/documentation.test.mjs",
     "build:i18n": "node scripts/build-i18n.mjs",
     "capture:docs": "node --experimental-strip-types scripts/capture-docs.ts",
     "dev:worker": "wrangler dev --ip 0.0.0.0",
     "deploy:check": "wrangler deploy --dry-run",
-    "test:smoke": "playwright test tests/quality-021.spec.ts tests/player-actions.spec.ts tests/settings-motion.spec.ts tests/motion-polish.spec.ts tests/mobile-ergonomics.spec.ts tests/release-candidate.spec.ts --workers=1"
+    "test:smoke": "playwright test tests/quality-021.spec.ts tests/player-actions.spec.ts tests/settings-motion.spec.ts tests/settings-recovery.spec.ts tests/home-return.spec.ts tests/motion-polish.spec.ts tests/mobile-ergonomics.spec.ts tests/device-link.spec.ts tests/privacy-pairing-polish.spec.ts tests/release-candidate.spec.ts tests/backup-v2.spec.ts --workers=1"
   },
   "dependencies": {
     "@fontsource-variable/nunito-sans": "^5.3.0",

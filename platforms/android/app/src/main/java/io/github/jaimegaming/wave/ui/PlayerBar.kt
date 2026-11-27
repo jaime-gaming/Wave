@@ -31,12 +31,12 @@ import androidx.compose.ui.unit.dp
 import io.github.jaimegaming.wave.Player
 import io.github.jaimegaming.wave.Song
 
-/** A compact bar that stays visible above the four navigation destinations. */
+
 @Composable
 fun MiniPlayer(player: Player, song: Song, onOpen: () -> Unit, onQueue: () -> Unit) {
     val duration = song.duration.coerceAtLeast(1.0)
-    // The line follows the song rather than stepping with the clock: the position
-    // arrives a few times a second, and a bar that jumps in steps looks broken.
+
+
     val fraction by animateFloatAsState(
         targetValue = (player.time / duration).coerceIn(0.0, 1.0).toFloat(),
         animationSpec = tween(durationMillis = if (waveMotionEnabled()) 260 else 0, easing = LinearEasing),
@@ -96,7 +96,7 @@ fun MiniPlayer(player: Player, song: Song, onOpen: () -> Unit, onQueue: () -> Un
     }
 }
 
-/** The same previous/play/next transport in the full player. */
+
 @Composable
 fun Transport(player: Player) {
     Row(
@@ -123,7 +123,7 @@ fun Transport(player: Player) {
     }
 }
 
-/** Minutes and seconds, as a clock reads them. */
+
 fun clockTime(seconds: Double): String {
     if (!seconds.isFinite() || seconds <= 0) return "0:00"
     val total = seconds.toInt()

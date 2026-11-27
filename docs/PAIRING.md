@@ -1,62 +1,19 @@
-# Pairing, for any platform
+# Device linking protocol
 
-Wave's pairing is deliberately the smallest thing that can link two devices that have never met.
-It is written down here because it has to be the same on every platform: a phone running Android,
-a desktop running Windows and a tab running the web client must all be able to link to each other,
-and none of them may need an account, a server or a shared secret.
+The **web client** implements this protocol. Android, iOS and Windows native libraries do **not** yet implement it; opening the web client on those devices links browser libraries, not the installed apps' private libraries. Do not describe this as native synchronization. Native interoperability requires a WebRTC transport, an equivalent cryptographic state machine, explicit consent and a bounded file import/export adapter for each native library, plus interoperability and real-device testing.
 
-The web client is the reference implementation: `src/sync/transport.ts`, `src/sync/signal.ts`,
-`src/sync/pairing.ts`, `src/sync/protocol.ts`. Read them in that order.
+## Version 2
 
-## The shape of it
+Version 2 replaces the unsafe version 1 session protocol. Both peers must run the updated client; version 1 is rejected rather than silently downgraded. Previously remembered version-1 device keys must be compared again once; only version-2-confirmed keys can skip the comparison on later connections. Every connection uses fresh nonces and proves possession of the corresponding private key before reaching `paired`. If an older browser cannot connect, update/reload both clients. This protocol has not had an independent security audit.
 
-1. **Transport.** A WebRTC data channel. Offers, answers and ICE candidates are exchanged **by
-   hand**, as text, because there is no signalling server to relay them.
-2. **Keys.** Each device has an ephemeral ECDH P-256 key pair for the session. The public keys
-   travel inside the handshake text.
-3. **Secret.** Both sides derive one AES-GCM 256 key with HKDF-SHA-256, from the shared secret and
-   the fixed info string `wave-sync-v1 aes-gcm`. Every frame after that is encrypted with it.
-4. **Confirmation.** Both devices show the same six digits, derived from the same material with
-   the info string `wave-sync-v1 sas`. A person compares them. This is what stops an active relay
-   from substituting its own key: it cannot produce the same six digits.
-5. **Frames.** UTF-8 JSON, version `1`, one frame per message on the channel.
+1. Manually exchange a WebRTC offer and answer, as a QR or copyable link. The `wave1.d.`/`wave1.p.` prefix is the **signalling envelope format**, not the session protocol version. It contains JSON `{mode, description, candidates}`; the actual hello is sent over the data channel. A signal is limited to 24,000 characters and decompression is bounded. ICE gathering is limited to eight seconds; pairing expires after two minutes. STUN is used; there is no TURN relay, so some networks cannot connect.
+2. Each device stores a stable P-256 ECDH identity. Over the data channel it sends a version-2 `hello` with the device id, name, platform, raw public key as base64url, and a fresh 16-byte base64url session nonce.
+3. ECDH derives 256 bits. HKDF-SHA-256 uses info `wave-sync-v2 aes-gcm` and a salt formed by concatenating the two `(public key || nonce)` byte strings in lexicographical order. It produces a fresh AES-256-GCM session key. The six-digit SAS is the first 24 bits of SHA-256 of UTF-8 `wave-sync-v2 sas` followed by the two raw public keys in lexicographical order, modulo one million, zero padded. People must compare these digits when first pairing.
+4. Confirmations are encrypted and authenticated, proving the sender has the session key. Other application messages are accepted only after both confirmations. The GCM additional authenticated data is UTF-8 `wave-sync-v2 aes-gcm:<sender role>:<sequence>`; roles are `host` and `guest`. Every sealed message has a random 12-byte IV and monotonically increasing integer sequence. This binds direction and sequence to the ciphertext and prevents an old session's frames from being replayed into a new one. Plain application frames and plaintext confirmations are rejected.
+5. Once paired, each side can exchange a paginated library index. A request is for selected tracks only; transfer headers must match an outstanding request. Original audio bytes are sent in 24 KiB chunks, subject to channel backpressure. The receiver checks size and SHA-256 before storing a copy. There is no account, cloud music library or automatic upload. A linked peer can request tracks advertised by the other peer while the connection is active.
 
-## The text that goes between devices
+Implementation: `src/sync/transport.ts`, `signal.ts`, `pairing.ts`, `session.ts`, `protocol.ts`, `link.ts`. Frame limits and exact validation live in those files and their tests. Bluetooth-like discovery, a relay/TURN service and automatic reconnection are not provided.
 
-Two kinds of text exist, and they are both plain strings a person can copy and paste — which is
-the whole point, since a camera is not always available and a desktop has none.
+## Native work still required
 
-- **Invite** — `<origin>/#wave-pair=wave1.d.<base64url>` or the bare `wave1.…` payload.
-  `d` means the payload is deflated before base64, `p` means plain. The payload is JSON:
-  `{ deviceId, name, platform, publicKey, signal }`, where `signal` is the WebRTC offer with its
-  gathered candidates.
-- **Reply** — the same `wave1.…` format, carrying the answer and the answering device's public
-  key.
-
-Limits: 24 000 characters per code, eight seconds of candidate gathering, two minutes before an
-invite expires.
-
-## What a new platform has to do
-
-To be linkable, a client needs exactly five things:
-
-1. **Show** an invite: create the key pair, gather a WebRTC offer, put it in `wave1.d.…`, render
-   it as a QR code _and_ offer it as text.
-2. **Read** an invite, either by scanning the QR, opening the link, or pasting the text.
-3. **Answer** it: build the answer, show the same six digits, let the person confirm.
-4. **Speak** the frame protocol (`hi`/`hello`, `pair-confirm`, `library-index`, `loan-…`,
-   `transfer-…`), encrypted with the derived key.
-5. **Remember** the peer's device id and public key, so the next session skips the six digits.
-
-Anything that can open a WebRTC data channel can be a peer. That includes a WebView: a native app
-may host `wave.jaime-gaming.com/#devices` and hand the received bytes to its own library, which is
-the smallest way for Android and Windows to join the network without porting the cryptography to
-two more languages.
-
-## Non-goals
-
-- No accounts, no relay, no cloud library.
-- No audio is uploaded anywhere: what moves between two linked devices is the original file, once,
-  directly, with its SHA-256 checked at the end.
-- No downgrade: a peer that reports a protocol version the other side does not know is refused with
-  `unsupported-version` and nothing is written.
+Native implementations must use precisely the v2 signalling, roles, nonce, key derivation, AAD, sequence and consent rules above. They also need storage limits, supported audio types, user-visible import, cancellation and cleanup, and explicit handling of offline, backgrounded, interrupted and hostile peers. A WebView on the hosted site alone is not a native library bridge. It must never receive unrestricted native file access or an exposed arbitrary JavaScript bridge. Do not ship a platform as linked until it has been tested with actual web ↔ Android, web ↔ iOS, and native ↔ native pairs, including failure and re-pairing cases.

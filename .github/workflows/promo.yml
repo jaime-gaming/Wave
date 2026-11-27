@@ -174,8 +174,8 @@ jobs:
         run: |
           set -euo pipefail
           cp .cache/promo-v2/promo-master.mp4 docs/media/wave-promo.mp4
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git config user.name 'jaime-gaming'
+          git config user.email '250595486+jaime-gaming@users.noreply.github.com'
           git add docs/media/wave-promo.mp4
           if git diff --cached --quiet; then
             echo "The film is unchanged."

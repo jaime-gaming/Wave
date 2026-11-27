@@ -12,13 +12,13 @@ public partial class MainWindow
     private void ApplyTheme()
     {
         App.ApplyBrushes(preferences.Theme == "light");
-        // A DynamicResource on the window is resolved once and does not follow a
-        // dictionary that had to be rebuilt, which left a light window with a dark
-        // band behind the rail. Reading the palette here is immediate and exact.
+
+
+
         Background = (Brush)Application.Current.Resources["BackgroundBrush"];
         Foreground = (Brush)Application.Current.Resources["InkBrush"];
-        // The rail sits on the window's own colour, so the root panel takes it too
-        // rather than waiting on a resource that may still hold the old palette.
+
+
         if (Content is Panel root) root.Background = Background;
         FontSize = preferences.LargerText ? 18 : 15;
     }
@@ -146,8 +146,8 @@ public partial class MainWindow
                 var themes = new WrapPanel();
                 foreach (string theme in new[] { "dark", "light" }) themes.Children.Add(ActionButton(Localization.T(theme == "dark" ? "Dark" : "Light"), () => { preferences = preferences with { Theme = theme }; preferencesDirty = true; ApplyTheme(); SaveSession(); }));
                 SettingsBody.Children.Add(themes);
-                // Sistema · English · Español: follow Windows, or pin one language;
-                // the pin is remembered in the preferences file, like every choice here.
+
+
                 var languages = new WrapPanel();
                 foreach (string option in new[] { "system", "en", "es" }) languages.Children.Add(ActionButton(option == "system" ? Localization.T("System") : option == "en" ? "English" : "Español", () => SetLanguage(option)));
                 SettingsBody.Children.Add(languages);
@@ -212,7 +212,7 @@ public partial class MainWindow
                 }
                 break;
             case "About":
-                SettingsBody.Children.Add(Label("Wave 0.2.2", 23));
+                SettingsBody.Children.Add(Label("Wave 0.3.0", 23));
                 SettingsBody.Children.Add(Label(Localization.T("Your music. Your collection. No account required.")));
                 SettingsBody.Children.Add(ActionButton(Localization.T("Source code"), () => Process.Start(new ProcessStartInfo("https://github.com/jaime-gaming/Wave") { UseShellExecute = true })));
                 SettingsBody.Children.Add(ActionButton(Localization.T("Wave on the web · link devices"), () => Process.Start(new ProcessStartInfo("https://wave.jaime-gaming.com/Settings") { UseShellExecute = true })));

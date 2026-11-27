@@ -8,6 +8,7 @@ public partial class MainWindow
 {
     private static string AlbumKey(Song song) => song.Artist + "\u001f" + song.Album;
     private static TextBlock Label(string text, double size = 15) => new() { Text = text, FontSize = size, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(2, 6, 2, 6) };
+    private static string SongCount(int count) => Localization.T(count == 1 ? "{count} song" : "{count} songs", new Dictionary<string, string> { ["count"] = count.ToString() });
     private Button ActionButton(string text, Action action)
     {
         var button = new Button { Content = text };
@@ -26,8 +27,8 @@ public partial class MainWindow
             CollectionHeader.Children.Add(searchBox);
             CollectionHeader.Children.Add(Label(Localization.T("Search your music"), 22));
         } else {
-            // One row that scrolls sideways, as the site does, rather than a row
-            // that wraps: a wrapped tab loses its place in the order.
+
+
             var strip = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 8) };
             var tabs = new ScrollViewer {
                 Content = strip,
@@ -60,14 +61,16 @@ public partial class MainWindow
         if (page == "Playlists") return NativeCollections.Resolve(playlists.Find(p => p.Id == collection)?.TrackIds ?? [], tracks);
         if (page == "Daily mix") return DailyGroups().FirstOrDefault(g => g.Id == collection)?.Songs ?? [];
         if (page == "Remix") return ListeningNow().Recent;
-        // Ranked, not filtered: the song whose title answers the words comes first,
-        // rather than whichever one was imported first.
+
+
         if (page == "Search") return Search.Songs(tracks, searchQuery);
         return page == "Home" ? tracks.TakeLast(6).Reverse().ToList() : tracks;
     }
     private void UpdateSongs()
     {
-        visible = SelectedSongs(); Songs.ItemsSource = visible;
+        var selected = SelectedSongs();
+        visible = selected;
+        Songs.ItemsSource = visible;
         SearchMatches();
         Songs.Visibility = !WholePage && visible.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         var old = CollectionHeader.Children.OfType<TextBlock>().FirstOrDefault(t => Equals(t.Tag, "empty"));
@@ -77,14 +80,14 @@ public partial class MainWindow
             empty.Tag = "empty"; CollectionHeader.Children.Add(empty);
         }
     }
-    /// <summary>
-    /// Where else a search found something.
-    ///
-    /// The site answers a search with the artists, albums and playlists whose
-    /// names match, not only with songs — otherwise typing an album's name is a
-    /// dead end on a page that plainly holds it. The block is rebuilt on every
-    /// keystroke and removed when the box is empty.
-    /// </summary>
+
+
+
+
+
+
+
+
     private void SearchMatches()
     {
         if (page != "Search") return;
@@ -103,14 +106,14 @@ public partial class MainWindow
             foreach (var row in rows) panel.Children.Add(MatchRow(title == "Artists" ? "artist" : title == "Albums" ? "disc" : "queue", row.Name, row.Detail, row.Open));
         }
         Group("Artists", Search.Names(tracks.GroupBy(track => track.Artist), searchQuery, group => group.Key)
-            .Select(group => (group.Key, $"{group.Count()} songs", (Action)(() => ShowPage("Artists", group.Key)))));
+            .Select(group => (group.Key, SongCount(group.Count()), (Action)(() => ShowPage("Artists", group.Key)))));
         Group("Albums", Search.Names(tracks.GroupBy(AlbumKey), searchQuery, group => group.First().Album, group => group.First().Artist)
-            .Select(group => (group.First().Album, $"{group.First().Artist} · {group.Count()} songs", (Action)(() => ShowPage("Albums", group.Key)))));
+            .Select(group => (group.First().Album, $"{group.First().Artist} · {SongCount(group.Count())}", (Action)(() => ShowPage("Albums", group.Key)))));
         Group("Playlists", Search.Names(playlists, searchQuery, list => list.Name, list => list.Description)
-            .Select(list => (list.Name, $"{list.TrackIds.Count} songs", (Action)(() => ShowPage("Playlists", list.Id)))));
+            .Select(list => (list.Name, SongCount(list.TrackIds.Count), (Action)(() => ShowPage("Playlists", list.Id)))));
         if (panel.Children.Count > 0) CollectionHeader.Children.Add(panel);
     }
-    /// <summary>A named match under a search, opening the collection it belongs to.</summary>
+
     private Button MatchRow(string icon, string title, string detail, Action open)
     {
         var body = new Grid();
@@ -132,16 +135,20 @@ public partial class MainWindow
         button.Click += (_, _) => Safe(open);
         return button;
     }
-    /// <summary>
-    /// Home, laid out the way the browser lays it out: one band of numbers, then
-    /// the songs and mixes the week has to offer, then what came in last. The page
-    /// scrolls as one thing, so there is never a second scrollbar beside the first.
-    /// </summary>
+
+
+
+
+
     private void RenderHome()
     {
         CollectionHeader.Children.Add(SectionHeading(Localization.T("Your collection"), AddMusicButton()));
 
         var shortcuts = new UniformGrid { Columns = 5, Margin = new Thickness(0, 0, 0, 4) };
+        shortcuts.SizeChanged += (_, e) => {
+            int columns = e.NewSize.Width < 480 ? 2 : e.NewSize.Width < 700 ? 3 : 5;
+            if (shortcuts.Columns != columns) shortcuts.Columns = columns;
+        };
         var collection = new[] {
             ("Library", "Songs", tracks.Count, "library"),
             ("Albums", "Albums", tracks.Select(AlbumKey).Distinct().Count(), "disc"),
@@ -203,12 +210,12 @@ public partial class MainWindow
             foreach (var song in recent) CollectionHeader.Children.Add(SongRow(song, () => PlayCollection(recent, song.Id)));
         }
     }
-    /// <summary>
-    /// A view tab, built the way the browser builds it: a wide rounded pill with
-    /// its own count beside the name, filled with the accent when it is the view
-    /// you are looking at, and a short bar under it so the chosen one reads from
-    /// across the room rather than by its tint alone.
-    /// </summary>
+
+
+
+
+
+
     private FrameworkElement Pill(string text, bool active, Action action, int? count = null)
     {
         var words = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
@@ -218,7 +225,7 @@ public partial class MainWindow
             VerticalAlignment = VerticalAlignment.Center,
             Foreground = (Brush)Application.Current.Resources[active ? "OnAccentBrush" : "MutedBrush"],
         });
-        // The words take the pill's own colour, so the count follows the fill.
+
         if (active) foreach (var block in words.Children.OfType<TextBlock>()) block.Foreground = (Brush)Application.Current.Resources["OnAccentBrush"];
         var button = new Button {
             Content = words,
@@ -240,7 +247,7 @@ public partial class MainWindow
         column.Children.Add(marker);
         return column;
     }
-    /// <summary>A way back that reads as a line of text, not as a button in the row.</summary>
+
     private Button BackLink(string destination)
     {
         var button = new Button { Style = (Style)FindResource("TextButton"), Foreground = (Brush)Application.Current.Resources["MutedBrush"], Margin = new Thickness(4, 2, 4, 10), Padding = new Thickness(2, 4, 6, 4) };
@@ -248,7 +255,7 @@ public partial class MainWindow
         button.Click += (_, _) => Safe(() => ShowPage(destination));
         return button;
     }
-    /// <summary>A section heading with, optionally, the one action that belongs to it.</summary>
+
     private FrameworkElement SectionHeading(string text, UIElement? trailing = null)
     {
         var row = new DockPanel { Tag = "section-heading", Margin = new Thickness(2, 18, 2, 10) };
@@ -275,7 +282,7 @@ public partial class MainWindow
         button.Click += (_, _) => Safe(action);
         return button;
     }
-    /// <summary>One collection number: a small icon, the count, and what it counts.</summary>
+
     private Button Shortcut(string icon, int count, string label, string destination, bool first)
     {
         var body = new Grid();
@@ -286,7 +293,7 @@ public partial class MainWindow
         body.Children.Add(Iconography.Draw(icon, 18, 1.7, (Brush)Application.Current.Resources["AccentBrush"]));
         var number = new TextBlock { Text = count.ToString(), FontSize = 24, FontWeight = FontWeights.Bold, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0) };
         Grid.SetColumn(number, 1); body.Children.Add(number);
-        var name = new TextBlock { Text = label, FontSize = 13, Foreground = (Brush)Application.Current.Resources["MutedBrush"], Margin = new Thickness(0, 14, 0, 0) };
+        var name = new TextBlock { Text = label, FontSize = 13, TextWrapping = TextWrapping.Wrap, Foreground = (Brush)Application.Current.Resources["MutedBrush"], Margin = new Thickness(0, 14, 0, 0) };
         Grid.SetRow(name, 1); Grid.SetColumn(name, 0); Grid.SetColumnSpan(name, 2); body.Children.Add(name);
         var button = new Button {
             Content = body,
@@ -296,10 +303,11 @@ public partial class MainWindow
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
             Background = (Brush)Application.Current.Resources[first ? "AccentTonalBrush" : "TonalBrush"],
         };
+        System.Windows.Automation.AutomationProperties.SetName(button, $"{label}, {count}");
         button.Click += (_, _) => Safe(() => ShowPage(destination));
         return button;
     }
-    /// <summary>A daily mix as a row: what it is, what it sounds like, and a way in.</summary>
+
     private Button MixRow(string title, string genre, string? artwork, Action action)
     {
         var row = new Grid { Margin = new Thickness(4, 2, 4, 2) };
@@ -326,11 +334,11 @@ public partial class MainWindow
         button.Click += (_, _) => Safe(action);
         return button;
     }
-    /// <summary>
-    /// A song as a row you can play. The rank and the play count are optional: the
-    /// Remix list numbers its rows and says how often each was heard, the library
-    /// list leaves both out.
-    /// </summary>
+
+
+
+
+
     private Button SongRow(Song song, Action action, int rank = 0, int plays = 0)
     {
         var row = new Grid();
@@ -372,12 +380,12 @@ public partial class MainWindow
         button.Click += (_, _) => Safe(action);
         return button;
     }
-    /// <summary>A shelf card: square artwork, its name, whose it is.</summary>
+
     private Button Card(string title, string subtitle, string? artwork, Action action)
     {
         var body = new StackPanel { Width = 140 };
-        // A hairline around the sleeve: on a dark page a solid cover needs an edge,
-        // and on a light one it needs the same edge the other way round.
+
+
         var art = new Border {
             Width = 140, Height = 140, CornerRadius = new CornerRadius(18),
             Background = ArtworkBrush(artwork),
@@ -413,8 +421,8 @@ public partial class MainWindow
         string title = page == "Albums" ? songs.FirstOrDefault()?.Album ?? "Album" : playlist?.Name ?? collection ?? page;
         if (page == "Daily mix") title = DailyGroups().Find(g => g.Id == collection)?.Label ?? "Daily mix";
         Heading.Text = title;
-        // The banner already says the name; repeating it here would be the same
-        // word twice in one screen, so the card starts with what the list is.
+
+
         var counts = Label($"{NativeCollections.Count(songs.Count, "song")} · {Clock(songs.Sum(s => s.Duration))}", 14);
         counts.SetResourceReference(TextBlock.ForegroundProperty, "MutedBrush");
         CollectionHeader.Children.Add(counts);
@@ -428,24 +436,25 @@ public partial class MainWindow
         shuffle.Content = Iconography.With("shuffle", Localization.T("Shuffle"), 16, 8);
         shuffle.Click += (_, _) => Safe(() => { var shuffled = songs.OrderBy(_ => Random.Shared.Next()).ToList(); if (shuffled.Count > 0) PlayCollection(shuffled, shuffled[0].Id); });
         actions.Children.Add(shuffle);
-        if (page == "Daily mix") actions.Children.Add(ActionButton(Localization.T("Save as playlist"), () => { var saved = new NativePlaylist(Guid.NewGuid().ToString(), $"Daily mix · {title}", "Saved from your local daily selection.", songs.Select(s => s.Id).ToList()); SavePlaylists(playlists.Append(saved).ToList()); ShowPage("Playlists", saved.Id); }));
+        if (page == "Daily mix") actions.Children.Add(ActionButton(Localization.T("Save as playlist"), () => { var day = DateTime.Now.ToString("dd/MM/yyyy", System.Globalization.CultureInfo.InvariantCulture); string MixName(int n) { if (n == 1) return $"{day}'s Daily Mix"; var suffix = n % 100 is >= 11 and <= 13 ? "th" : (n % 10) switch { 1 => "st", 2 => "nd", 3 => "rd", _ => "th" }; return $"{day}'s {n}{suffix} Daily Mix"; } var names = playlists.Select(p => p.Name).ToHashSet(StringComparer.OrdinalIgnoreCase); var index = 1; while (names.Contains(MixName(index))) index++; var saved = new NativePlaylist(Guid.NewGuid().ToString(), MixName(index), "Saved from your local daily selection.", songs.Select(s => s.Id).ToList()); SavePlaylists(playlists.Append(saved).ToList()); ShowPage("Playlists", saved.Id); }));
         if (playlist != null) {
             actions.Children.Add(ActionButton(Localization.T("Add songs"), () => PickPlaylistSongs(playlist)));
             actions.Children.Add(ActionButton(Localization.T("Edit playlist"), () => EditPlaylist(playlist)));
-            // (Delete stays at the end of the row, apart from the actions that build.)
+
             actions.Children.Add(ActionButton(Localization.T("Delete playlist"), () => { if (MessageBox.Show(this, Localization.T("Delete this playlist? Your songs will remain in your library."), "Wave", MessageBoxButton.YesNo) == MessageBoxResult.Yes) Safe(() => { SavePlaylists(playlists.Where(p => p.Id != playlist.Id).ToList()); ShowPage("Playlists"); }); }));
         }
         CollectionHeader.Children.Add(actions);
     }
-    /// <summary>
-    /// The week on one page, in the order the browser puts it: the figure with the
-    /// sleeve of the song that earned it, the week as seven bars, three facts as a
-    /// line of type, then the list it earns. No cards, nothing to read twice.
-    /// </summary>
+
+
+
+
+
     private void RenderRemix()
     {
         long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        var periodStrip = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 10) };
+        var layout = RemixLayout;
+        var periodStrip = new WrapPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, layout.Gap * .6) };
         foreach (var (id, label) in new[] { ("weekly", "Weekly"), ("monthly", "Monthly"), ("yearly", "Yearly") })
         {
             periodStrip.Children.Add(Pill(Localization.T(label), remixPeriod == id, () => { remixPeriod = id; Refresh(); }));
@@ -464,7 +473,7 @@ public partial class MainWindow
             "yearly" => Listening.YearRange(recap.Start),
             _ => Listening.WeekRange(recap.Start, recap.End),
         };
-        var head = new Grid { Margin = new Thickness(2, 4, 2, 10) };
+        var head = new Grid { Margin = new Thickness(2, 4, 2, layout.Gap * .6), HorizontalAlignment = HorizontalAlignment.Stretch };
         head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         head.Children.Add(Label(rangeLabel, 13));
@@ -488,12 +497,12 @@ public partial class MainWindow
             return;
         }
 
-        // The figure and the sleeve, side by side, as on the web page.
-        var lede = new Grid { Margin = new Thickness(2, 2, 2, 6) };
+
+        var lede = new Grid { Margin = new Thickness(2, 2, 2, layout.Gap * .4), HorizontalAlignment = HorizontalAlignment.Stretch };
         lede.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         lede.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var copy = new StackPanel { VerticalAlignment = VerticalAlignment.Bottom };
-        var figure = Label(Listening.Time(recap.Seconds), 44);
+        var figure = Label(Listening.Time(recap.Seconds), layout.HeroSize);
         figure.Foreground = (Brush)Application.Current.Resources["AccentBrush"];
         figure.Margin = new Thickness(2, 0, 2, 2);
         copy.Children.Add(figure);
@@ -507,7 +516,7 @@ public partial class MainWindow
         lede.Children.Add(copy);
         var top = recap.TopSongs.FirstOrDefault();
         var sleeve = new StackPanel { VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(20, 0, 2, 2) };
-        var cover = new Border { Width = 116, Height = 116, CornerRadius = new CornerRadius(18), Background = ArtworkBrush(top.Song?.Artwork) };
+        var cover = new Border { Width = layout.CoverSize, Height = layout.CoverSize, CornerRadius = new CornerRadius(Math.Max(12, layout.CoverSize * .16)), Background = ArtworkBrush(top.Song?.Artwork) };
         if (top.Song?.Artwork == null) cover.Child = Iconography.Draw("song", 40, brush: (Brush)Application.Current.Resources["AccentBrush"]);
         sleeve.Children.Add(cover);
         var caption = Label(Localization.T("Most played").ToUpperInvariant(), 11);
@@ -521,8 +530,8 @@ public partial class MainWindow
 
         if (recap.Days.Count > 0) CollectionHeader.Children.Add(WeekChart(recap.Days));
 
-        // Genre, the hour and the artist that carried the week: one line.
-        var note = new WrapPanel { Margin = new Thickness(2, 2, 2, 12) };
+
+        var note = new WrapPanel { Margin = new Thickness(2, 2, 2, layout.Gap), HorizontalAlignment = HorizontalAlignment.Stretch };
         void Fact(string text) {
             var block = Label(text, 13);
             block.SetResourceReference(TextBlock.ForegroundProperty, "MutedBrush");
@@ -538,11 +547,11 @@ public partial class MainWindow
         CollectionHeader.Children.Add(note);
 
         if (recap.Songs.Count > 0) {
-            var mixHead = new Grid { Margin = new Thickness(2, 10, 2, 4) };
+            var mixHead = new Grid { Margin = new Thickness(2, layout.Gap * .6, 2, layout.Gap * .3), HorizontalAlignment = HorizontalAlignment.Stretch };
             mixHead.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             mixHead.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             var words = new StackPanel();
-            words.Children.Add(Label(Localization.T("Your Remix"), 21));
+            words.Children.Add(Label(Localization.T("Your Remix"), layout.TitleSize));
             var sub = Label($"{NativeCollections.Count(recap.Songs.Count, "song")} {Localization.T("you played this week.")}", 13);
             sub.SetResourceReference(TextBlock.ForegroundProperty, "MutedBrush");
             words.Children.Add(sub);
@@ -571,7 +580,7 @@ public partial class MainWindow
         }
 
         if (recap.TopArtists.Count > 0) {
-            // Quiet chips rather than a leaderboard, as on the web page.
+
             var people = new WrapPanel { Margin = new Thickness(2, 14, 2, 8) };
             foreach (var (artist, count) in recap.TopArtists.Take(6)) {
                 var chip = new Button {
@@ -591,7 +600,7 @@ public partial class MainWindow
             CollectionHeader.Children.Add(people);
         }
 
-        // The weeks before this one, so the page is a record and not a snapshot.
+
         var earlier = Listening.Recaps(plays, tracks, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()).Skip(1).ToList();
         if (earlier.Count > 0) {
             var past = new StackPanel { Margin = new Thickness(2, 16, 2, 4) };
@@ -626,11 +635,11 @@ public partial class MainWindow
         foot.Margin = new Thickness(2, 8, 2, 4);
         CollectionHeader.Children.Add(foot);
     }
-    /// <summary>
-    /// The week as seven bars, the same chart the web page draws: one column
-    /// per day, height in proportion to the day's minutes, quiet days keeping a
-    /// stub so the week never changes width.
-    /// </summary>
+
+
+
+
+
     private UIElement WeekChart(List<DaySlice> days)
     {
         int peak = Math.Max(1, days.Max(day => day.Seconds));
@@ -646,8 +655,8 @@ public partial class MainWindow
                 Width = 30,
                 Height = 96 * share,
                 CornerRadius = new CornerRadius(9, 9, 0, 0),
-                // Today is the one coloured bar; the rest are the page's quiet
-                // surface, as on the web page.
+
+
                 Background = day.Equals(days[^1]) ? accent : quiet,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Bottom,
@@ -660,8 +669,8 @@ public partial class MainWindow
                 HorizontalAlignment = HorizontalAlignment.Center,
             });
         }
-        // The quiet line under the bars names the day that carried the week, the
-        // way the browser does, instead of titling a chart.
+
+
         var busiest = days.OrderByDescending(day => day.Seconds).First();
         var caption = Label(busiest.Seconds > 0
             ? Localization.T("Most on {day}, {time}", new Dictionary<string, string> { ["day"] = DateTimeOffset.FromUnixTimeMilliseconds(busiest.At).LocalDateTime.ToString("dddd", System.Globalization.CultureInfo.CurrentCulture), ["time"] = Listening.Time(busiest.Seconds) })
@@ -678,7 +687,7 @@ public partial class MainWindow
     {
         var today = DateOnly.FromDateTime(DateTime.Today);
         string dayKey = today.ToString("yyyy-MM-dd");
-        string signature = $"{tracks.Count}:{string.Join(",", tracks.Select(s => s.Id).OrderBy(id => id, StringComparer.Ordinal).Take(48))}";
+        string signature = $"v3:{tracks.Count}:{string.Join(",", tracks.Select(s => s.Id).OrderBy(id => id, StringComparer.Ordinal).Take(48))}";
         var byId = tracks.ToDictionary(s => s.Id, StringComparer.Ordinal);
         try
         {
@@ -697,7 +706,7 @@ public partial class MainWindow
                 if (hydrated.Count > 0) return hydrated;
             }
         }
-        catch { /* Rebuild cleanly if cache file is unreadable. */ }
+        catch {                                                    }
         if (importingFiles) return [];
         var built = NativeCollections.DailyMixes(tracks, today);
         if (built.Count > 0)
@@ -714,7 +723,7 @@ public partial class MainWindow
                         (mix.Covers ?? mix.Songs.Take(3).ToList()).Select(s => s.Id).ToList())).ToList());
                 NativeCollections.Save(repository.Folder, "daily-mixes.json", store);
             }
-            catch { /* Never block Home on cache write failure. */ }
+            catch {                                                }
         }
         return built;
     }

@@ -12,12 +12,11 @@ const cue = {
 
 it('shows the cover that is playing, breathing, and nothing else', () => {
   const { container } = render(<MixCueVisual cue={cue} artworkClassName="stage-artwork" />);
-  // One sleeve, not two halves and not the next one peeking through: the split
-  // read as a glitch next to the word.
+
   expect(container.querySelectorAll('.mix-cue-cover .stage-artwork')).toHaveLength(1);
   expect(container.querySelector('.mix-cue-half')).toBeNull();
   expect(container.querySelector('.mix-cue-next')).toBeNull();
-  // The light is in the word now, so nothing crosses the cover.
+
   expect(container.querySelector('.mix-cue-sheen')).toBeNull();
   const root = container.querySelector<HTMLElement>('.mix-cue')!;
   expect(root.style.getPropertyValue('--cue-progress')).toBe('0.5');
@@ -42,8 +41,7 @@ it('says what is happening once, in words, for a screen reader', () => {
 
 it('is one word and nothing else: no bars, no spinner, no rule beside it', () => {
   const { container } = render(<MixCueLabel cue={cue} />);
-  // The animated bars, the sweeping line and the tracked-out capitals were
-  // three ideas for one three-second note; the word carries it alone.
+
   expect(container.querySelector('.mix-cue-waves')).toBeNull();
   expect(container.querySelector('.mix-cue-scan')).toBeNull();
   expect(container.querySelector('.mix-cue-line')).toBeNull();

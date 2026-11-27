@@ -6,20 +6,6 @@ import { identicalBytes, verifyCopy, wrapWav24 } from './integrity';
 import { clearSyncStore, commitLoan, getLoanedBytes, getLoans, getSyncUsage } from './store';
 import { DEFAULT_LOAN_POLICY } from './loan';
 
-/**
- * Waits for queued delivery and the asynchronous seal/open calls. Several short
- * ticks rather than one: under a full parallel run the crypto promises can take
- * longer than a single macrotask, which made this suite flaky.
- */
-/**
- * Whether a sealed payload still carries the audio's own bytes.
- *
- * The frames are sealed and then base64-encoded, and in base64 a four-letter
- * coincidence like `RIFF` turns up often enough over a megabyte of text that a
- * plain substring search fails about a third of the time. Decoding first makes
- * the search what it was meant to be: four specific bytes, not four specific
- * characters.
- */
 const carriesAudio = (payload: string) => {
   for (const run of payload.match(/[A-Za-z0-9+/]{32,}/g) ?? []) {
     let decoded: string;
@@ -37,7 +23,6 @@ const settle = async () => {
   for (let i = 0; i < 6; i += 1) await new Promise((resolve) => setTimeout(resolve, 10));
 };
 
-/** Purchases a WAV fixture and drives it through the real transfer path. */
 async function loanFixture(fixture: Uint8Array, capacityBytes = 40 * 1024 * 1024) {
   const sha256 = await sha256Hex(fixture);
   const meta = planTransfer('loan-wav', 'track-wav', fixture.byteLength, sha256, 48 * 1024);
@@ -63,13 +48,11 @@ describe('a loan never degrades the audio', () => {
     const original = wrapWav24(48000, 24, 2, 3);
     const { bytes, sha256 } = await loanFixture(original);
 
-    // Byte-for-byte after the transfer…
     expect(identicalBytes(original, bytes)).toBe(true);
     expect(await verifyCopy(bytes, { size: original.byteLength, sha256 })).toMatchObject({
       ok: true,
     });
 
-    // …and byte-for-byte after it is written to the loan store and read back.
     await commitLoan(
       { loanId: 'loan-wav', trackId: 'track-wav', deviceId: 'phone', size: original.byteLength },
       bytes,
@@ -130,7 +113,7 @@ describe('sync sessions carry audio without leaking it', () => {
     const guestIdentity = await createIdentity(undefined, 'Phone');
     const guestReceived: unknown[] = [];
     const frames: string[] = [];
-    // A holder avoids declaring two sessions that reference each other.
+
     const peers: { host?: PairingSession; guest?: PairingSession } = {};
 
     peers.host = new PairingSession({
@@ -174,7 +157,6 @@ describe('sync sessions carry audio without leaking it', () => {
     expect(guestReceived).toHaveLength(pages.length);
     expect(guestReceived.at(-1)).toMatchObject({ complete: true });
 
-    // Nothing readable leaves the device: audio bytes are never in a frame.
     expect(frames.filter(carriesAudio)).toEqual([]);
     const audio = wrapWav24(44100, 24, 1, 1);
     const digest = await sha256Hex(audio);

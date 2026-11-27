@@ -1,172 +1,282 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Check, CircleDashed, FileUp, ListMusic, Upload, X } from './Glyphs';
-import { motion } from 'motion/react';
+import { ArrowLeft, Check, FileUp, ListMusic, Upload } from './Glyphs';
 import { Modal } from './Modal';
 import { isLink, parsePlaylistText, type ParsedList } from '../domain/importFile';
 import { parseImportLink } from '../domain/linkImport';
+import { parseYouTubeLink, youtubeThumbnailUrl } from '../domain/youtube';
+import { suggestedPlaylistName } from '../domain/playlistImport';
+import { findPlaylistVideos, type YouTubeProposal } from '../services/playlistYouTube';
 import {
-  DEFAULT_MATCH_OPTIONS,
-  matchEntries,
-  suggestedPlaylistName,
-  type ImportReport,
-  type MatchCandidate,
-} from '../domain/playlistImport';
+  fetchVideoMeta,
+  fetchYouTubePlaylist,
+  type YouTubeCatalogResult,
+} from '../services/videoMeta';
 import type { Track } from '../domain/types';
-import { useWaveMotion } from '../ui/motion';
-
 import { useT } from '../i18n';
-/**
- * Bringing playlists over from another app.
- *
- * Everything is shown before anything is written: how many songs matched, which
- * ones are uncertain and which ones Wave simply does not have. Only the accepted
- * matches become a playlist, and the songs already in the library are never
- * moved, renamed or removed.
- */
+
 export function MigrationSheet({
-  tracks,
   onSave,
+  onAddVideo,
   onClose,
 }: {
   tracks: Track[];
   onSave: (name: string, trackIds: string[]) => Promise<boolean>;
+  onAddVideo: (video: YouTubeCatalogResult) => Promise<Track | null>;
   onClose: () => void;
 }) {
   const t = useT();
   const [text, setText] = useState('');
   const [list, setList] = useState<ParsedList | null>(null);
-  const [report, setReport] = useState<ImportReport | null>(null);
+  const [proposals, setProposals] = useState<YouTubeProposal[] | null>(null);
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [reading, setReading] = useState(false);
+  const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [fromUrl, setFromUrl] = useState(false);
-  const request = useRef(0);
   const [saved, setSaved] = useState(false);
+  const [savedCount, setSavedCount] = useState(0);
+  const [editingMatch, setEditingMatch] = useState<number | null>(null);
+  const [matchLink, setMatchLink] = useState('');
+  const [matchError, setMatchError] = useState('');
+  const [replacing, setReplacing] = useState(false);
+  const matchRequest = useRef<AbortController | null>(null);
   const file = useRef<HTMLInputElement>(null);
-  const motionProps = useWaveMotion();
-
+  const request = useRef<AbortController | null>(null);
+  const saveLock = useRef(false);
+  const fileRequest = useRef(0);
   useEffect(
     () => () => {
-      request.current++;
+      request.current?.abort();
+      matchRequest.current?.abort();
+      fileRequest.current++;
     },
     [],
   );
 
-  const candidates: MatchCandidate[] = tracks.map((track) => ({
-    id: track.id,
-    title: track.title,
-    artist: track.artist,
-    album: track.album,
-    duration: track.duration,
-  }));
-
-  /** Reads whatever was pasted or chosen, and stages the proposal. */
   const inspect = async (raw: string, fromFile?: string) => {
-    const attempt = ++request.current;
-    setFromUrl(false);
+    request.current?.abort();
+    const controller = new AbortController();
+    request.current = controller;
     setError('');
     setSaved(false);
-    if (isLink(raw)) {
-      const link = parseImportLink(raw);
-      if (!link.ok) {
-        setError(link.message);
-        return;
-      }
-      setReading(true);
-      try {
-        const response = await fetch('/api/import-playlist', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: raw.trim() }),
-          signal: AbortSignal.timeout(12_000),
-        });
-        const payload = await response.json();
-        if (attempt !== request.current) return;
-        if (!response.ok || typeof payload.text !== 'string') throw new Error('unavailable');
-        raw = payload.text;
+    setFromUrl(false);
+    setReading(true);
+    setProgress({ done: 0, total: 0 });
+    try {
+      let parsed: ParsedList;
+      let direct: YouTubeProposal[] | undefined;
+      if (isLink(raw)) {
+        const link = parseImportLink(raw);
+        if (!link.ok) {
+          setError(t(link.message));
+          return;
+        }
+        if (
+          link.target.provider === 'youtube' &&
+          (link.target.playlistId || link.target.kind === 'playlist')
+        ) {
+          const playlist = await fetchYouTubePlaylist(link.target.playlistId || link.target.id, {
+            signal: controller.signal,
+          });
+          if (!playlist?.videos.length) throw new Error('link');
+          parsed = {
+            source: 'text',
+            name: playlist.title,
+            entries: playlist.videos.map((video, index) => ({
+              id: `youtube-${index}`,
+              title: video.title,
+              artist: video.artist,
+              duration: video.duration,
+            })),
+            skipped: 0,
+            truncated: false,
+          };
+          direct = playlist.videos.map((video, index) => ({
+            entry: parsed.entries[index],
+            video: { ...video, rawTitle: video.title, author: video.artist },
+            score: 1,
+            accepted: true,
+          }));
+        } else {
+          const response = await fetch('/api/import-playlist', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: raw.trim() }),
+            signal: AbortSignal.any([controller.signal, AbortSignal.timeout(12_000)]),
+          });
+          const payload = await response.json();
+          if (!response.ok || typeof payload.text !== 'string') throw new Error('link');
+          parsed = parsePlaylistText(payload.text);
+          if (payload.partial === true) parsed.truncated = true;
+        }
         setFromUrl(true);
-      } catch {
-        if (attempt === request.current)
-          setError(t('The public link could not be read. Try an exported playlist file instead.'));
+      } else parsed = parsePlaylistText(raw);
+      if (controller.signal.aborted) return;
+      if (!parsed.entries.length) {
+        setError(t('That text did not contain any songs Wave could read.'));
         return;
-      } finally {
-        if (attempt === request.current) setReading(false);
       }
+      setProgress({ done: 0, total: parsed.entries.length });
+      const result =
+        direct ??
+        (await findPlaylistVideos(parsed.entries, {
+          signal: controller.signal,
+          onProgress: (done, total) => setProgress({ done, total }),
+        }));
+      if (controller.signal.aborted) return;
+      setList(parsed);
+      setProposals(result);
+      setName(parsed.name ?? suggestedPlaylistName(fromFile, 'the other app'));
+      window.dispatchEvent(new CustomEvent('wave:feature-used', { detail: 'Playlist import' }));
+    } catch {
+      if (!controller.signal.aborted)
+        setError(t('The public link could not be read. Try an exported playlist file instead.'));
+    } finally {
+      if (!controller.signal.aborted) setReading(false);
     }
-    const parsed = parsePlaylistText(raw);
-    if (!parsed.entries.length) {
-      setError(
-        parsed.skipped
-          ? t('That text did not contain any songs Wave could read.')
-          : t('Paste a playlist, or choose the file your other app exported.'),
-      );
-      return;
-    }
-    const result = matchEntries(parsed.entries, candidates, DEFAULT_MATCH_OPTIONS);
-    setList(parsed);
-    setReport(result);
-    setName(parsed.name ?? suggestedPlaylistName(fromFile, 'the other app'));
-    window.dispatchEvent(new CustomEvent('wave:feature-used', { detail: 'Playlist import' }));
   };
 
-  const status = (value: 'matched' | 'ambiguous' | 'missing') =>
-    value === 'matched' ? (
-      <Check size={15} aria-hidden="true" />
-    ) : value === 'ambiguous' ? (
-      <CircleDashed size={15} aria-hidden="true" />
-    ) : (
-      <X size={15} aria-hidden="true" />
-    );
+  const closeMatchEditor = () => {
+    matchRequest.current?.abort();
+    setEditingMatch(null);
+    setReplacing(false);
+    setMatchError('');
+  };
+  const replaceMatch = async (index: number) => {
+    const parsed = parseYouTubeLink(matchLink);
+    if (!parsed || parsed.kind !== 'video') {
+      setMatchError(t('Paste a valid YouTube video link.'));
+      return;
+    }
+    const controller = new AbortController();
+    matchRequest.current?.abort();
+    matchRequest.current = controller;
+    setReplacing(true);
+    setMatchError('');
+    try {
+      const meta = await fetchVideoMeta(parsed.videoId, { signal: controller.signal });
+      if (controller.signal.aborted) return;
+      if (!meta) {
+        setMatchError(t('That video could not be read. Check the link and try again.'));
+        return;
+      }
+      const video: YouTubeCatalogResult = {
+        ...meta,
+        videoId: parsed.videoId,
+        thumbnail: meta.thumbnail || youtubeThumbnailUrl(parsed.videoId),
+      };
+      setProposals(
+        (current) =>
+          current?.map((row, at) =>
+            at === index ? { ...row, video, score: 1, accepted: true } : row,
+          ) ?? null,
+      );
+      setEditingMatch(null);
+    } catch {
+      if (!controller.signal.aborted)
+        setMatchError(t('That video could not be read. Check the link and try again.'));
+    } finally {
+      if (!controller.signal.aborted) setReplacing(false);
+    }
+  };
 
+  const selected = proposals?.filter((item) => item.accepted && item.video) ?? [];
   const confirm = async () => {
-    if (!report || saving) return;
+    if (!selected.length || saveLock.current || editingMatch !== null) return;
+    saveLock.current = true;
     setSaving(true);
     setError('');
-    const created = await onSave(name.trim() || t('Imported playlist'), report.trackIds);
-    if (created) setSaved(true);
-    else setError(t('That playlist could not be saved. Nothing was changed.'));
-    setSaving(false);
+    setProgress({ done: 0, total: selected.length });
+    const ids: string[] = [];
+    const byVideo = new Map<string, string>();
+    let savingPlaylist = false;
+    try {
+      for (const item of selected) {
+        const video = item.video!;
+        let id = byVideo.get(video.videoId);
+        if (!id) {
+          const added = await onAddVideo(video);
+          if (!added) throw new Error('track');
+          id = added.id;
+          byVideo.set(video.videoId, id);
+        }
+        ids.push(id);
+        setProgress({ done: ids.length, total: selected.length });
+      }
+      const unique = [...new Set(ids)];
+      savingPlaylist = true;
+      const created = await onSave(name.trim() || t('Imported playlist'), unique);
+      if (!created) throw new Error('playlist');
+      setSavedCount(unique.length);
+      setSaved(true);
+    } catch (cause) {
+      setError(
+        savingPlaylist || (cause instanceof Error && cause.message === 'playlist')
+          ? t('The playlist could not be saved. The songs already added remain in your library.')
+          : t(
+              'Some songs could not be saved. The songs already added remain in your library; please try again.',
+            ),
+      );
+    } finally {
+      saveLock.current = false;
+      setSaving(false);
+    }
   };
 
   return (
-    <Modal title={t('Bring your playlists over')} className="migration-sheet" onClose={onClose}>
+    <Modal
+      title={t('Bring your playlists over')}
+      className="migration-sheet"
+      closeDisabled={saving}
+      onClose={onClose}
+    >
       {saved ? (
         <div className="migration-done">
           <Check size={28} aria-hidden="true" />
-          <h3>{name.trim() || t('Your playlist')} is here</h3>
-          <p>
-            {report?.matchedCount} {report?.matchedCount === 1 ? 'song is' : 'songs are'} in your
-            library now, in the list&apos;s order.
-          </p>
+          <h3>{t('Your playlist is ready')}</h3>
+          <p>{t('{count} songs were added to the playlist.', { count: savedCount })}</p>
           <button className="filled-button" onClick={onClose}>
             {t('Back to playlists')}
           </button>
         </div>
-      ) : !report || !list ? (
+      ) : !proposals || !list ? (
         <div className="migration-input">
           <p className="modal-description">
-            {t('Paste a public Spotify or YouTube link, a song list, or choose an exported file.')}
+            {t(
+              'Paste a public Spotify, YouTube or Deezer link, a song list, or choose an exported file.',
+            )}
+          </p>
+          <p className="migration-hint">
+            {t(
+              'Wave searches YouTube for these songs. Titles and artists are sent for this search; audio is not downloaded.',
+            )}
           </p>
           <label className="form-field">
-            Playlist, song list or link
+            {t('Playlist, song list or link')}
             <textarea
               rows={5}
+              disabled={reading}
               value={text}
-              placeholder={
-                '#EXTM3U\n#EXTINF:214,Nils Frahm - Says\n\nor\n\nArtist - Title, one per line'
-              }
+              placeholder={'Artist - Title\nArtist - Another song'}
               onChange={(event) => setText(event.target.value)}
             />
           </label>
+          {reading && (
+            <p role="status">
+              {progress.total
+                ? t('Searching for songs… {done} of {total}', progress)
+                : t('Reading public link…')}
+            </p>
+          )}
           <div className="migration-actions">
             <button
               className="filled-button"
               disabled={reading || !text.trim()}
-              onClick={() => inspect(text, 'pasted list')}
+              onClick={() => void inspect(text, 'pasted list')}
             >
               <ListMusic size={18} aria-hidden="true" />
-              {reading ? t('Reading public link…') : t('Read this list')}
+              {t('Read this list')}
             </button>
             <button
               className="tonal-button"
@@ -174,7 +284,7 @@ export function MigrationSheet({
               onClick={() => file.current?.click()}
             >
               <FileUp size={18} aria-hidden="true" />
-              Choose a file
+              {t('Choose a file')}
             </button>
             <input
               ref={file}
@@ -185,21 +295,29 @@ export function MigrationSheet({
                 const chosen = event.target.files?.[0];
                 event.target.value = '';
                 if (!chosen) return;
-                // A playlist file is text, and small; anything else is refused
-                // rather than read into memory.
                 if (chosen.size > 8_000_000) {
                   setError(t('That file is too large to be a playlist.'));
                   return;
                 }
-                const content = await chosen.text();
-                setText(content);
-                inspect(content, chosen.name.replace(/\.[a-z0-9]+$/iu, ''));
+                const token = ++fileRequest.current;
+                setReading(true);
+                setError('');
+                try {
+                  const content = await chosen.text();
+                  if (token !== fileRequest.current) return;
+                  setText(content);
+                  void inspect(content, chosen.name.replace(/\.[a-z0-9]+$/iu, ''));
+                } catch {
+                  if (token !== fileRequest.current) return;
+                  setReading(false);
+                  setError(t('That file could not be read. Please try another file.'));
+                }
               }}
             />
           </div>
           <p className="migration-hint">
             {t(
-              'Reading a playlist link fetches only its public track list. Your audio and library stay private on this device. Private playlists need a file export.',
+              'Private playlists need an exported file. Some providers only show part of a public list.',
             )}
           </p>
         </div>
@@ -212,72 +330,155 @@ export function MigrationSheet({
               )}
             </p>
           )}
-          <div className="migration-summary">
-            <div>
-              <strong>
-                {report.matchedCount} of {report.matches.length}
-              </strong>
-              <span>songs are already here</span>
-            </div>
-            <ul>
-              <li className="matched">
-                {status('matched')} {report.matchedCount} matched
-              </li>
-              <li className="ambiguous">
-                {status('ambiguous')} {report.ambiguousCount} to check
-              </li>
-              <li className="missing">
-                {status('missing')} {report.missingCount} not in your library
-              </li>
-            </ul>
-          </div>
+          {(list.truncated || list.skipped > 0) && (
+            <p className="migration-hint">
+              {t('Some entries could not be read or exceeded the import limit.')}
+            </p>
+          )}
+          <p>
+            {t('{selected} of {total} songs ready', {
+              selected: selected.length,
+              total: proposals.length,
+            })}
+          </p>
+          <p className="migration-hint">
+            {t(
+              'Check uncertain matches before including them. Unavailable songs are left out. Repeated songs are added once.',
+            )}
+          </p>
           <label className="form-field">
-            Name for the new playlist
-            <input value={name} onChange={(event) => setName(event.target.value)} />
+            {t('Name for the new playlist')}
+            <input
+              value={name}
+              disabled={saving}
+              onChange={(event) => setName(event.target.value)}
+            />
           </label>
-          <motion.ul
-            className="migration-rows"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={motionProps.reveal}
-          >
-            {report.matches.slice(0, 60).map((match) => (
-              <li key={match.entry.id} className={match.status}>
-                {status(match.status)}
+          <ul className="migration-rows">
+            {proposals.map((item, index) => (
+              <li key={item.entry.id} className={item.accepted ? 'matched' : 'missing'}>
+                {item.video ? (
+                  <input
+                    type="checkbox"
+                    disabled={saving}
+                    aria-label={t('Include {title}', { title: item.entry.title })}
+                    checked={item.accepted}
+                    onChange={(event) =>
+                      setProposals(
+                        (current) =>
+                          current?.map((row, at) =>
+                            at === index ? { ...row, accepted: event.target.checked } : row,
+                          ) ?? null,
+                      )
+                    }
+                  />
+                ) : (
+                  <span aria-hidden="true">–</span>
+                )}
                 <span>
-                  <strong>{match.entry.title}</strong>
+                  <strong>{item.entry.title}</strong>
                   <small>
-                    {match.entry.artist || t('Unknown artist')}
-                    {match.status === 'matched' && match.trackId
-                      ? ` · ${tracks.find((track) => track.id === match.trackId)?.title ?? ''}`
-                      : match.status === 'ambiguous'
-                        ? ' · closest song needs a listen'
-                        : ' · not in your library'}
+                    {item.entry.artist || t('Unknown artist')} ·{' '}
+                    {item.video
+                      ? `${item.video.artist} — ${item.video.title}${item.score < 0.82 ? ` · ${t('Check this match')}` : ''}`
+                      : t('No suitable YouTube match found')}
                   </small>
+                  <span className="migration-match-actions">
+                    {item.video && (
+                      <a
+                        className="migration-review-link"
+                        href={`https://www.youtube.com/watch?v=${item.video.videoId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={t('Open {title} on YouTube', { title: item.entry.title })}
+                      >
+                        {t('Open on YouTube')}
+                      </a>
+                    )}
+                    {editingMatch !== index && (
+                      <button
+                        type="button"
+                        className="text-button migration-change-match"
+                        disabled={saving || replacing}
+                        aria-label={t('Change match for {title}', { title: item.entry.title })}
+                        onClick={() => {
+                          closeMatchEditor();
+                          setMatchLink('');
+                          setEditingMatch(index);
+                        }}
+                      >
+                        {t('Change match')}
+                      </button>
+                    )}
+                  </span>
+                  {editingMatch === index ? (
+                    <span className="migration-match-editor">
+                      <label className="form-field">
+                        {t('YouTube video link for {title}', { title: item.entry.title })}
+                        <input
+                          value={matchLink}
+                          disabled={replacing || saving}
+                          onChange={(event) => {
+                            setMatchLink(event.target.value);
+                            setMatchError('');
+                          }}
+                        />
+                      </label>
+                      {matchError && (
+                        <span className="form-error" role="alert">
+                          {matchError}
+                        </span>
+                      )}
+                      <span className="migration-actions">
+                        <button
+                          type="button"
+                          className="tonal-button"
+                          disabled={replacing || saving}
+                          onClick={() => void replaceMatch(index)}
+                        >
+                          {replacing ? t('Reading public link…') : t('Use this video')}
+                        </button>
+                        <button
+                          type="button"
+                          className="text-button"
+                          disabled={saving}
+                          onClick={closeMatchEditor}
+                        >
+                          {t('Cancel')}
+                        </button>
+                      </span>
+                    </span>
+                  ) : null}
                 </span>
               </li>
             ))}
-          </motion.ul>
-          {report.matches.length > 60 && (
-            <p className="migration-hint">
-              Showing the first 60 of {report.matches.length}. All matched songs will be added.
+          </ul>
+          {saving && (
+            <p className="migration-hint" role="status">
+              {t('Saving songs… {done} of {total}', progress)}
             </p>
           )}
-          {!!report.missingCount && (
-            <p className="migration-hint">{t('Songs you do not have yet are left out.')}</p>
-          )}
           <div className="migration-actions">
-            <button className="tonal-button" onClick={() => setReport(null)} disabled={saving}>
+            <button
+              className="tonal-button"
+              onClick={() => {
+                setError('');
+                setProposals(null);
+              }}
+              disabled={saving}
+            >
               <ArrowLeft size={18} aria-hidden="true" />
               {t('Back')}
             </button>
             <button
               className="filled-button"
-              disabled={saving || !report.trackIds.length}
+              disabled={saving || replacing || editingMatch !== null || !selected.length}
               onClick={() => void confirm()}
             >
               <Upload size={18} aria-hidden="true" />
-              {saving ? t('Saving…') : `Create playlist with ${report.trackIds.length}`}
+              {saving
+                ? t('Saving…')
+                : t('Create playlist with {count}', { count: selected.length })}
             </button>
           </div>
         </div>

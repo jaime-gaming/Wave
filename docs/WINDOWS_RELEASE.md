@@ -1,6 +1,6 @@
 # Windows release preparation · 0.2.2
 
-Prepared **16 November 2026**. Wave for Windows ships as a **single signed executable (`Wave.exe`)** with zero ZIP extraction, loose DLL sprawl, or technical sidecars exposed to listeners.
+Prepared **16 November 2026**. This document describes the release pipeline for an unsigned single-file build; it is not proof that a new build has been published. As of 19 November 2026, the latest public Windows asset is an older unsigned ZIP from v0.2.1. The v0.2.2 release has an Android APK but no Windows asset.
 
 ## What's verified in 0.2.2
 
@@ -12,20 +12,18 @@ Prepared **16 November 2026**. Wave for Windows ships as a **single signed execu
 - Builds a self-contained single-file .NET 10 / WPF executable (`Wave.exe`) with `<PublishSingleFile>true</PublishSingleFile>`, `<IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>`, `<IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>`, `<EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>`, `<DebugType>none</DebugType>`, and `<DebugSymbols>false</DebugSymbols>` in Release. Listeners double-click one file — no installer, no ZIP extraction, no .NET runtime install, and no extra files beside it.
 - Uses the existing `asInvoker` manifest: no administrator permission request, service installation, antivirus exclusions or protection changes.
 - Sets version, product, publisher and description metadata; enables deterministic compilation.
-- Runs contracts, WPF UI smoke, single-file publish, Authenticode signing and a Defender scan when active Defender is present on the runner. The SHA-256 hash and scan summary are recorded in the GitHub Actions job summary for maintainers rather than cluttering the user-facing release assets.
+- Runs contracts, WPF UI smoke, single-file publish and a Defender scan when active Defender is present on the runner. The SHA-256 hash and scan summary are recorded in the GitHub Actions job summary for maintainers rather than cluttering the user-facing release assets.
 
-## Signing
+## Windows signing and publication
 
-The CI workflow (`.github/workflows/native.yml`) Authenticode-signs `Wave.exe` with SHA-256 on every build:
+The workflow does **not** sign `Wave.exe` and does not require a Windows certificate or Windows signing secrets. It records the SHA-256 hash and uploads the executable as a CI artifact. When called for a release tag, it attaches the same executable to that release after the checks pass. Android signing remains unchanged.
 
-- **Production / publicly trusted signing**: configure repository secrets `WINDOWS_SIGNING_CERT_BASE64`, `WINDOWS_SIGNING_CERT_PASSWORD`, and optional `WINDOWS_TIMESTAMP_URL` (defaults to `https://timestamp.digicert.com`). The workflow imports the PFX certificate into `Cert:\CurrentUser\My`, runs `platforms/windows/scripts/Sign-Release.ps1` with an HTTPS RFC 3161 timestamp, verifies `Valid` status, and deletes the temporary PFX immediately.
-- **Branch-only fallback CI signing**: when no repository certificate secret is configured, CI generates a 4096-bit RSA Authenticode code-signing certificate and signs `Wave.exe` with SHA-256 for test artifacts. This certificate is not publicly trusted. Tagged release builds fail without a configured signing certificate; a signature alone does not guarantee SmartScreen reputation.
+The executable is unsigned, so Windows SmartScreen or antivirus software may show a warning. A Defender scan is only a snapshot and does not establish publisher identity or guarantee that other security software will accept the file. Do not disable security protections to use Wave.
 
-Manual signing on a release workstation uses the same script directly on `Wave.exe`:
+Updating this workflow alone does not publish or replace an existing release. The release workflow validates the tagged source and requires the tag to be on `main`; then it runs the native build and uploads its assets. Review the checks and the release before publication.
 
-```powershell
-./platforms/windows/scripts/Sign-Release.ps1 `
-  -ExecutablePath ./artifacts/windows/Wave.exe `
-  -CertificateThumbprint YOUR_PUBLIC_CERTIFICATE_THUMBPRINT `
-  -TimestampServer https://YOUR_CERTIFICATE_PROVIDER_TIMESTAMP_SERVICE
-```
+## Release Assets troubleshooting
+
+The recent `Release assets` run 45074936015 completed validation and Android, then failed in Windows at the old **Sign single-file Wave.exe** step. The updated workflow on this branch removes that signing step; it does not require a Windows certificate. The existing v0.2.2 release still has only `Wave.apk`, so nothing has yet fixed its public Windows download.
+
+To publish these changes, merge the reviewed branch into `main`, create a new version tag and corresponding GitHub release from that merged commit, and let **Release assets** run (or dispatch it for that existing release tag). The workflow validates that the tagged source is on `main` before building. Check both Android and Windows jobs and the release assets afterwards. A rerun for an older tag builds the **old tagged source**, not this branch; do not present it as a build containing these changes. Android needs the same persistent signing key as earlier installs; the latest inspected Android release job succeeded, but this does not verify future secret availability. Windows is unsigned and may trigger SmartScreen. iOS does not currently produce a signed IPA.

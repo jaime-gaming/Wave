@@ -17,7 +17,6 @@ import {
 
 const SAMPLE_RATE = 11025;
 
-/** Clicks every `beat` seconds plus a low sine body, i.e. a metronome groove. */
 function groove(
   bpm: number,
   seconds: number,
@@ -27,7 +26,7 @@ function groove(
   const beat = 60 / bpm;
   for (let index = 0; index < samples.length; index++) {
     const time = index / SAMPLE_RATE;
-    // Continuous low body so silence detection has something to find.
+
     samples[index] = 0.12 * Math.sin(2 * Math.PI * 60 * time);
     const sinceBeat = (time - (options.startAt ?? 0)) % beat;
     if (sinceBeat >= 0 && sinceBeat < 0.012)
@@ -138,13 +137,13 @@ describe('structure', () => {
     const frames = Array.from({ length: Math.round(seconds / frameSeconds) }, (_, index) => {
       const time = index * frameSeconds;
       const music = time >= 3 && time < 17;
-      // A needle drop at the head, a crackle inside the lead-in, and one at the tail.
+
       const click = Math.abs(time - 0.15) < 0.001 || Math.abs(time - 6.05) < 0.001;
       const rms = music ? 0.25 : click ? 0.5 : 0.0004;
       return { rms, bands: { bass: 0, low: 0, mid: 0, high: 0 }, brightness: 0 };
     });
     const bounds = silenceBounds(frames, frameSeconds);
-    // Three seconds of lead-in, three of tail — not "wherever the click was".
+
     expect(bounds.start).toBeCloseTo(3, 1);
     expect(bounds.end).toBeCloseTo(17, 1);
   });

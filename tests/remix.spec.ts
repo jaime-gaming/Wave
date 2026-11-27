@@ -1,8 +1,6 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/returning-user';
 import { wav } from './helpers/audio';
 
-// Remix counts plays this device wrote down. The page is a week, not a dashboard:
-// one card, the songs played most, and a way to keep the list.
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('wave-mix-v2', 'false');
@@ -19,11 +17,9 @@ test.beforeEach(async ({ page }) => {
   });
   await page.route('https://lrclib.net/api/**', (r) => r.fulfill({ status: 404, body: '{}' }));
   await page.goto('/');
-  // Storage initialization disables importing; do not dispatch a file change while it is disabled.
+
   await expect(page.getByLabel('Import audio files')).toBeEnabled();
   await page.getByLabel('Import audio files').setInputFiles(
-    // Eight seconds each, so half of one — the play threshold — is five
-    // seconds of real playing rather than half a minute of waiting.
     ['Alpha', 'Beta'].map((title) => ({
       name: `${title}.wav`,
       mimeType: 'audio/wav',
@@ -33,7 +29,6 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByRole('status')).toContainText('2 tracks added');
 });
 
-/** Paused at a point past the play threshold, so the play is already written. */
 async function hear(page: import('@playwright/test').Page, title: string) {
   await page.getByRole('button', { name: `Play ${title} by Wave Tests` }).click();
   await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
@@ -46,8 +41,7 @@ async function hear(page: import('@playwright/test').Page, title: string) {
       ),
     )
     .toBe(true);
-  // The threshold is five sampled seconds. Allow another full sample before pausing;
-  // a media clock at 5.5 seconds can still have fewer than five sampled seconds.
+
   await expect
     .poll(
       () =>
@@ -70,7 +64,7 @@ test('Remix shows the week, plays its list and keeps the list as a playlist', as
   await expect(week).toBeVisible();
   await expect(week).toContainText('1 play');
   await expect(week).toContainText('1 song');
-  // No bar chart, no recent list: a week is glanced at.
+
   await expect(page.locator('.remix-page svg.recharts-surface')).toHaveCount(0);
   await expect(page.getByRole('list', { name: /recent/i })).toHaveCount(0);
 
@@ -79,10 +73,10 @@ test('Remix shows the week, plays its list and keeps the list as a playlist', as
   await expect(remix).toContainText('Alpha');
 
   await remix.getByRole('button', { name: 'Save as playlist' }).click();
-  // Saving opens the new playlist: it is an ordinary one from here on.
+
   await expect(page.getByRole('heading', { name: /^Remix ·/ }).first()).toBeVisible();
   await expect(page.getByRole('listitem').filter({ hasText: 'Alpha' }).first()).toBeVisible();
-  // The history is untouched by saving.
+
   await page.getByRole('button', { name: 'Remix', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Your Remix' })).toBeVisible();
 });

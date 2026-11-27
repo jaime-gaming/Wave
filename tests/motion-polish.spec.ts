@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/returning-user';
 for (const touch of [false, true]) {
   test.describe(`input capability: touch=${touch}`, () => {
     test.use({ hasTouch: touch });

@@ -6,9 +6,9 @@ export interface VideoMeta {
   artist: string;
   rawTitle: string;
   author: string;
-  /** Seconds, or 0 when the answering provider does not report a length. */
+
   duration: number;
-  /** Thumbnail URL when available. */
+
   thumbnail?: string;
 }
 
@@ -28,24 +28,18 @@ export interface YouTubePlaylistMeta {
 
 export interface VideoMetaOptions {
   signal?: AbortSignal;
-  /** Milliseconds allowed per provider before trying the next one. */
+
   timeoutMs?: number;
-  /** Total milliseconds allowed across the whole chain. */
+
   budgetMs?: number;
-  /** Injectable for tests; defaults to the global `fetch`. */
+
   fetcher?: typeof fetch;
-  /** Override whether Wave's same-origin `/api/youtube-meta` endpoint is tried first. */
+
   useWorker?: boolean;
 }
 
 export const VIDEO_META_TIMEOUT_MS = 2_500;
-/**
- * Ceiling on the whole fallback chain.
- *
- * Adding a song waits on this before the track appears, so a user whose network
- * blocks third-party hosts should see the song appear in under five seconds
- * rather than stare at a spinner while every fallback times out in turn.
- */
+
 export const VIDEO_META_BUDGET_MS = 5_000;
 
 interface Provider {
@@ -84,14 +78,6 @@ function readInvidious(body: unknown) {
   return { rawTitle, author: text(record.author), duration: seconds(record.lengthSeconds) };
 }
 
-/**
- * Public metadata endpoints, ordered from canonical to community mirror.
- *
- * Every URL is constructed from a validated 11-character video ID; nothing else
- * leaves the device. YouTube's oEmbed is tried first and usually replies in one
- * round trip, `noembed.com` fills in when YouTube withholds CORS headers, and
- * Piped / Invidious mirrors also report the video length.
- */
 export const VIDEO_META_PROVIDERS: readonly Provider[] = [
   {
     name: 'youtube-oembed',
@@ -164,8 +150,7 @@ async function fetchJsonWithTimeout(
 
 function canUseWorkerEndpoint(options: VideoMetaOptions): boolean {
   if (typeof options.useWorker === 'boolean') return options.useWorker;
-  // When a test injects a custom fetcher, stick strictly to VIDEO_META_PROVIDERS
-  // so unit tests verify the direct provider chain deterministically.
+
   if (options.fetcher) return false;
   if (typeof window === 'undefined') return false;
   return window.location.protocol === 'http:' || window.location.protocol === 'https:';
@@ -190,15 +175,6 @@ function toVideoMeta(
   };
 }
 
-/**
- * Looks up a YouTube video's title, artist, channel and (when available) length.
- * Tries Wave's same-origin `/api/youtube-meta` Worker endpoint first in the browser
- * (zero CORS issues, official YouTube oEmbed + exact duration), then falls through
- * public metadata providers.
- *
- * Returns `null` when every provider is unreachable or blocked; callers fall back
- * gracefully rather than refusing to add the song.
- */
 export async function fetchVideoMeta(
   videoId: string,
   options: VideoMetaOptions = {},
@@ -209,7 +185,6 @@ export async function fetchVideoMeta(
   const timeoutMs = options.timeoutMs ?? VIDEO_META_TIMEOUT_MS;
   const deadline = performance.now() + (options.budgetMs ?? VIDEO_META_BUDGET_MS);
 
-  // 1. Same-origin Wave Worker endpoint (100% CORS-free, official YouTube oEmbed + watch duration)
   if (canUseWorkerEndpoint(options)) {
     const remaining = deadline - performance.now();
     if (remaining > 0) {
@@ -241,7 +216,6 @@ export async function fetchVideoMeta(
     }
   }
 
-  // 2. Direct public fallback providers
   for (const provider of VIDEO_META_PROVIDERS) {
     if (options.signal?.aborted) return null;
     const remaining = deadline - performance.now();
@@ -290,11 +264,6 @@ function normalizePlaylistEntries(raw: unknown[]): PlaylistVideoEntry[] {
   return out;
 }
 
-/**
- * Fetches all public videos in a YouTube playlist.
- * Uses Wave's same-origin `/api/youtube-playlist` Worker endpoint first, then falls
- * back to Piped and Invidious public playlist APIs when hosted statically.
- */
 export async function fetchYouTubePlaylist(
   playlistId: string,
   options: VideoMetaOptions = {},
@@ -304,7 +273,6 @@ export async function fetchYouTubePlaylist(
   const fetcher = options.fetcher ?? fetch;
   const timeoutMs = options.timeoutMs ?? 8_000;
 
-  // 1. Same-origin Wave Worker endpoint
   if (canUseWorkerEndpoint(options)) {
     const body = await fetchJsonWithTimeout(
       fetcher,
@@ -332,7 +300,6 @@ export async function fetchYouTubePlaylist(
     }
   }
 
-  // 2. Fallback Piped & Invidious playlist APIs
   const fallbacks: Array<{
     url: string;
     read: (body: unknown) => { title: string; items: unknown[] } | null;
@@ -457,12 +424,6 @@ const FAST_SEARCH_MIRRORS: ReadonlyArray<{
   },
 ];
 
-/**
- * Fast YouTube catalogue search for the unified Add Music input.
- * Uses an in-memory session cache, tries Wave's `/api/youtube-search` endpoint
- * first, and falls back to racing public search mirrors in parallel so results
- * arrive rapidly from any environment.
- */
 export async function searchYouTubeCatalog(
   rawQuery: string,
   options: VideoMetaOptions & { limit?: number } = {},

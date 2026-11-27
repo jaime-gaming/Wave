@@ -16,15 +16,10 @@ import type { Track } from '../domain/types';
 import { Artwork } from './Artwork';
 import { useT } from '../i18n';
 
-/**
- * Completed Daily Mixes cached in memory AND persisted in localStorage per
- * `(day, catalogSignature)` so once today's mixes exist they render instantly
- * on every visit without waiting, flickering, or rotating their cover sleeves.
- */
 const completedMixCache = new Map<string, DailyMix[]>();
 const MAX_CACHED_SETS = 4;
-const STORAGE_KEY = 'wave-daily-mixes-v2';
-/** Safety bound so a malformed local file can never hold up Daily Mix delivery. */
+const STORAGE_KEY = 'wave-daily-mixes-v3';
+
 const ANALYSIS_DEADLINE_MS = 6_000;
 
 interface StoredMixSnapshot {
@@ -82,15 +77,9 @@ function cacheCompleted(key: string, day: string, mixes: DailyMix[]) {
       })),
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-  } catch {
-    /* Private browsing or full storage keeps the in-memory cache working. */
-  }
+  } catch {}
 }
 
-/**
- * Synchronously restores today's previously saved Daily Mixes so already-created
- * mixes appear instantaneously without re-analyzing or flashing a skeleton.
- */
 function readPersistedMixes(signature: string, day: string, tracks: Track[]): DailyMix[] | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -128,10 +117,6 @@ function readPersistedMixes(signature: string, day: string, tracks: Track[]): Da
   }
 }
 
-/**
- * Returns local tracks belonging to today's candidate mixes that still need audio
- * analysis before the finished mixes can be delivered.
- */
 function pendingAnalysisTracks(tracks: Track[], day: string, favouriteArtists: string[]): Track[] {
   if (typeof OfflineAudioContext === 'undefined') return [];
   const preview = dailyMixes(tracks, day, collectFeatures(tracks), favouriteArtists);
@@ -193,13 +178,11 @@ export const DailyMixes = memo(function DailyMixes({
     favRef.current = listening?.topArtists.map((artist) => artist.artist) ?? [];
   });
 
-  // Synchronously restore already-created mixes for today so they render instantly.
   const persisted = useMemo(() => {
     if (!tracks.length) return null;
     return completedMixCache.get(signature) ?? readPersistedMixes(signature, day, tracks);
   }, [signature, day, tracks]);
 
-  // Check whether today's mixes still require first-time local audio analysis.
   const needsAsyncBuild = useMemo(() => {
     if (loading || busy || tracks.length < MIN_DAILY_MIX_TRACKS) return false;
     if (persisted) return false;
@@ -207,12 +190,10 @@ export const DailyMixes = memo(function DailyMixes({
       pendingAnalysisTracks(tracks, day, listening?.topArtists.map((artist) => artist.artist) ?? [])
         .length > 0
     );
-    // Intentionally keyed on structural `signature` and readiness flags, NOT live playback updates.
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signature, loading, busy, persisted]);
 
-  // Finish measuring candidate local songs BEFORE delivering a Daily Mix, then save
-  // the finished mixes to localStorage so future visits show them immediately.
   useEffect(() => {
     if (loading || busy || tracksRef.current.length < MIN_DAILY_MIX_TRACKS) return;
     if (completedMixCache.has(signature)) return;
@@ -230,9 +211,7 @@ export const DailyMixes = memo(function DailyMixes({
         if (track.blob) {
           try {
             await analyzeTrack(track.blob);
-          } catch {
-            // Skip unreadable files so they never block delivery.
-          }
+          } catch {}
         }
       }
       if (cancelled) return;
@@ -260,8 +239,7 @@ export const DailyMixes = memo(function DailyMixes({
       );
       cacheCompleted(signature, day, resolved);
     }
-    // Hydrate latest track objects (e.g. if title/artwork edited) while keeping
-    // the exact same locked track order and locked cover trio for the whole day.
+
     const byId = new Map(tracks.map((track) => [track.id, track]));
     return resolved.map((mix) => {
       const hydratedTracks = mix.tracks.map((track) => byId.get(track.id) ?? track);
@@ -274,8 +252,7 @@ export const DailyMixes = memo(function DailyMixes({
         covers: lockedCovers,
       };
     });
-    // `readyKey` publishes when the one-time async build completes; live listening
-    // changes intentionally do not reshuffle already-delivered Daily Mixes.
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signature, day, loading, busy, needsAsyncBuild, readyKey, tracks, persisted]);
 
@@ -336,7 +313,10 @@ export const DailyMixes = memo(function DailyMixes({
             transition={animation.expressive}
             whileHover={animation.hoverEnabled ? { y: -2 } : undefined}
             whileTap={animation.enabled ? { scale: 0.99 } : undefined}
-            aria-label={`Open Daily mix ${index + 1}: ${mix.label}`}
+            aria-label={t('Open Daily mix {number}: {label}', {
+              number: index + 1,
+              label: mix.label,
+            })}
             onClick={() => onOpen(mix, index + 1)}
           >
             <span className="daily-mix-sleeves" aria-hidden="true">
@@ -345,9 +325,12 @@ export const DailyMixes = memo(function DailyMixes({
               ))}
             </span>
             <span className="daily-mix-copy">
-              <strong>Daily mix {index + 1}</strong>
+              <strong>{t('Daily mix {number}', { number: index + 1 })}</strong>
               <span title={mix.label}>{mix.label}</span>
-              <small>{mix.tracks.length} songs · Made for today</small>
+              <small>
+                {mix.tracks.length} {t(mix.tracks.length === 1 ? 'song' : 'songs')} ·{' '}
+                {t('Made for today')}
+              </small>
             </span>
             <ArrowUpRight size={20} aria-hidden="true" />
           </motion.button>

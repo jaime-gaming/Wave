@@ -94,3 +94,38 @@ describe('local twin and playback target', () => {
     expect(resolvePlayable(undefined, [file])).toBeUndefined();
   });
 });
+
+describe('combining a YouTube row with a local file', () => {
+  it('only combines one exact, compatible recording and preserves its identity', async () => {
+    const { youtubeMergeTarget, mergeYouTubeWithFile } = await import('./youtubeTrack');
+    const online = {
+      ...youtubeTrack(
+        { videoId: 'dQw4w9WgXcQ', title: 'Midnight City', artist: 'M83', duration: 244 },
+        'yt-1',
+      ),
+      favorite: true,
+    };
+    const local = makeTrack({
+      id: 'file',
+      title: 'Midnight City',
+      artist: 'M83',
+      duration: 243,
+      blob: new Blob(['music']),
+      contentHash: 'hash',
+    });
+    expect(youtubeMergeTarget(local, [online])).toEqual(online);
+    expect(mergeYouTubeWithFile(online, local)).toMatchObject({
+      id: 'yt-1',
+      videoId: online.videoId,
+      source: 'local',
+      favorite: true,
+      blob: local.blob,
+      contentHash: 'hash',
+    });
+    expect(youtubeMergeTarget({ ...local, duration: 300 }, [online])).toBeUndefined();
+    expect(
+      youtubeMergeTarget({ ...local, title: 'Midnight City (Live)' }, [online]),
+    ).toBeUndefined();
+    expect(youtubeMergeTarget(local, [online, { ...online, id: 'yt-2' }])).toBeUndefined();
+  });
+});

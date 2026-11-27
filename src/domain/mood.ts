@@ -2,33 +2,18 @@ import type { TrackAnalysis } from '../audio/dsp';
 import { canonical } from './lyricsMatch';
 import type { Track } from './types';
 
-/**
- * Local-only musical mood & song-theme engine.
- *
- * Understands what a song feels like and what it is about using strictly
- * on-device signals:
- *   1. Audio DSP measurements (tempo, spectral balance, dynamic energy, vocal density)
- *   2. Genre taxonomy (English & Spanish styles)
- *   3. Title, album and saved lyrics lexical cues (English & Spanish)
- *
- * Nothing ever leaves the device. The resulting mood vector powers both
- * automatic Home recommendations and mood-aware Autoplay, as well as varied
- * Daily Mix grouping when genre tags are sparse.
- */
-
 export type MoodLabel =
   'chill' | 'focus' | 'energetic' | 'upbeat' | 'melancholic' | 'night' | 'intense';
 
 export interface MoodVector {
-  /** 0 = calm/gentle, 1 = high-energy/driving */
   energy: number;
-  /** 0 = melancholic/dark/somber, 1 = bright/joyful/uplifting */
+
   valence: number;
-  /** 0 = soft/delicate, 1 = heavy/punchy/percussive */
+
   intensity: number;
-  /** 0 = anthemic/social, 1 = intimate/atmospheric/instrumental */
+
   intimacy: number;
-  /** 0 = slow (~60 BPM), 1 = fast (~175 BPM) */
+
   tempo: number;
 }
 
@@ -36,9 +21,9 @@ export interface SongMood {
   primary: MoodLabel;
   secondary?: MoodLabel;
   vector: MoodVector;
-  /** 0..1 strength of evidence behind the profile. */
+
   confidence: number;
-  /** Detected thematic cues (e.g. 'night', 'reflection', 'dance', 'calm'). */
+
   themes: string[];
 }
 
@@ -48,37 +33,24 @@ export interface ListenerMood {
   primary: MoodLabel;
   vector: MoodVector;
   confidence: number;
-  /** Session energy/tempo trajectory detected from recent listening flow. */
+
   momentum?: MoodMomentum;
 }
 
-/**
- * Behavioral listening signal for one play or active session.
- * Captures how long the listener stayed with a song rather than treating a
- * 3-second skip the same as a full listen.
- */
 export interface ListeningSignal {
   trackId: string;
-  /** Actual seconds listened so far (or before switching). */
+
   seconds: number;
-  /** Song duration in seconds when known. */
+
   duration?: number;
-  /** True when the listener reached the end of the track. */
+
   completed?: boolean;
-  /** True when the listener intentionally restarted or looped this song. */
+
   replayed?: boolean;
-  /** Epoch ms when the play started. */
+
   at?: number;
 }
 
-/**
- * Converts listening dwell time into a signed engagement weight:
- *  - Quick skip (< 12s and < 20% heard, not completed) -> negative weight (-0.42..-0.12),
- *    gently steering away from that track's mood.
- *  - Exploratory listening (12..25s) -> small tentative positive weight (0.12..0.38).
- *  - Settled listening (>= 25s or >= 35% heard) -> strong positive mood anchor (0.5..1.15).
- *  - Full listen / completion (>= 85% or completed) -> strongest anchor (1.35).
- */
 export function dwellEngagement(seconds: number, duration = 0, completed = false): number {
   const heard = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
   const len = Number.isFinite(duration) && duration > 0 ? duration : 0;
@@ -90,31 +62,27 @@ export function dwellEngagement(seconds: number, duration = 0, completed = false
     return 0.55 + progress * 0.65;
   }
   if (heard >= 12 || (len > 0 && ratio >= 0.2)) {
-    return 0.12 + ((heard - 12) / 13) * 0.28;
+    return 0.12 + clamp((heard - 12) / 13) * 0.28;
   }
-  // Short skip (< 12s): stronger negative cue when the listener left within a few seconds.
+
   if (heard >= 1.5) {
     return -(0.42 - (heard / 12) * 0.28);
   }
   return 0;
 }
 
-/** Subtle local time-of-day prior that fades away as soon as real listening arrives. */
 function timeOfDayPrior(now: number): MoodVector {
   const hour = new Date(now).getHours();
   if (hour >= 22 || hour < 5) {
-    // Late night: calmer, more atmospheric & intimate.
     return { energy: 0.38, valence: 0.4, intensity: 0.36, intimacy: 0.74, tempo: 0.44 };
   }
   if (hour >= 6 && hour < 11) {
-    // Morning: slightly brighter & steadier.
     return { energy: 0.56, valence: 0.64, intensity: 0.46, intimacy: 0.48, tempo: 0.54 };
   }
   if (hour >= 11 && hour < 17) {
-    // Midday / afternoon: focused & balanced.
     return { energy: 0.54, valence: 0.56, intensity: 0.48, intimacy: 0.52, tempo: 0.52 };
   }
-  // Evening: warm & moderately energetic.
+
   return { energy: 0.58, valence: 0.54, intensity: 0.52, intimacy: 0.54, tempo: 0.54 };
 }
 
@@ -336,9 +304,7 @@ function moodDistance(a: MoodVector, b: MoodVector): number {
   return Math.sqrt(de * de + dv * dv + di * di + dn * dn + dt * dt);
 }
 
-/** 0..1 similarity between two mood vectors (1 = identical vibe). */
 export function moodSimilarity(a: MoodVector, b: MoodVector): number {
-  // Maximum possible weighted Euclidean distance is sqrt(1.25^2 + 1.15^2 + 1 + 0.95^2 + 0.85^2) ≈ 2.347
   const maxDist = 2.347;
   return clamp(1 - moodDistance(a, b) / maxDist, 0, 1);
 }
@@ -356,10 +322,6 @@ function classifyVector(vector: MoodVector): { primary: MoodLabel; secondary?: M
   };
 }
 
-/**
- * Computes a deterministic, 100% local mood & theme profile for a single track.
- * Combines audio DSP features (when available), genres, and title/album/lyrics semantics.
- */
 export function analyzeSongMood(track: Track, analysis?: TrackAnalysis): SongMood {
   let energySum = 0.5 * 0.35;
   let valenceSum = 0.5 * 0.35;
@@ -381,7 +343,6 @@ export function analyzeSongMood(track: Track, analysis?: TrackAnalysis): SongMoo
     evidence += weight;
   };
 
-  // 1. Genre signals (strong prior for musical context).
   if (track.genres?.length) {
     let matched = 0;
     for (const rawGenre of track.genres) {
@@ -399,7 +360,6 @@ export function analyzeSongMood(track: Track, analysis?: TrackAnalysis): SongMoo
     if (matched > 0) evidence += 0.2;
   }
 
-  // 2. Audio DSP signals (objective sonic fingerprint).
   if (analysis) {
     const hasBpm = analysis.beats.confidence >= 0.3 && analysis.beats.bpm >= 50;
     const tempoNorm = hasBpm ? clamp((analysis.beats.bpm - 60) / 115) : 0.5;
@@ -417,8 +377,7 @@ export function analyzeSongMood(track: Track, analysis?: TrackAnalysis): SongMoo
 
     const dspEnergy = clamp(meanBody * 0.45 + peakNorm * 0.3 + tempoNorm * 0.25);
     const dspIntensity = clamp(bass * 0.95 + peakNorm * 0.4 + (hasBpm ? tempoNorm * 0.25 : 0.1));
-    // Musical key mode (major vs minor) is one of the strongest local psychoacoustic
-    // correlates of valence and intimacy — weighted strictly by Krumhansl confidence.
+
     const keyConf = analysis.key?.confidence ?? 0;
     const keyValenceShift =
       analysis.key && keyConf >= 0.22
@@ -428,7 +387,7 @@ export function analyzeSongMood(track: Track, analysis?: TrackAnalysis): SongMoo
       analysis.key && analysis.key.mode === 'minor' && keyConf >= 0.22
         ? 0.08 * clamp(keyConf * 1.4)
         : 0;
-    // Dynamic range across sections: big quiet/loud arcs feel atmospheric & intimate.
+
     const segLevels = analysis.segments.map((s) => s.level);
     const dynamicRange =
       segLevels.length >= 2 ? Math.max(...segLevels) - Math.min(...segLevels) : 0;
@@ -463,7 +422,6 @@ export function analyzeSongMood(track: Track, analysis?: TrackAnalysis): SongMoo
     );
   }
 
-  // 3. Semantic cues from title, album and saved lyrics (what the song is about).
   const metaText = `${track.title ?? ''} ${track.album ?? ''}`
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/gu, '');
@@ -490,7 +448,6 @@ export function analyzeSongMood(track: Track, analysis?: TrackAnalysis): SongMoo
     lexicalHits++;
   }
 
-  // 4. Subtle duration contour (long atmospheric journeys vs short punchy cuts).
   if (track.duration > 390) {
     delta.intimacy += 0.06;
     delta.energy -= 0.04;
@@ -518,12 +475,6 @@ export function analyzeSongMood(track: Track, analysis?: TrackAnalysis): SongMoo
   };
 }
 
-/**
- * Learns the listener's own personal circadian preference strictly from on-device
- * past plays around the same local hour of day (±2.5 hours, from earlier sessions).
- * Never touches the network — falls back cleanly to the generic clock prior when
- * personal history is thin.
- */
 function personalCircadianPrior(
   byId: Map<string, Track>,
   signals: ListeningSignal[] | undefined,
@@ -541,7 +492,7 @@ function personalCircadianPrior(
   let weight = 0;
   for (const sig of signals) {
     if (!sig.at) continue;
-    // Only use past sessions (> 4 hours earlier) so current session isn't double-counted.
+
     if (now - sig.at < 4 * 3_600_000) continue;
     const track = byId.get(sig.trackId);
     if (!track) continue;
@@ -572,11 +523,6 @@ function personalCircadianPrior(
   };
 }
 
-/**
- * Infers the listener's current automatic listening mood from actual listening
- * dwell time, completions, replays, quick-skip pivots, session momentum, and
- * personal on-device time-of-day habits. 100% local, zero third-party sharing.
- */
 export function inferListeningMood(
   tracks: Track[],
   recentIds: string[],
@@ -591,8 +537,6 @@ export function inferListeningMood(
   let consecutiveSkips = 0;
 
   if (signals && signals.length > 0) {
-    // Most recent signals first; decay across the latest 14 behavioral samples
-    // and also by wall-clock age so a session from yesterday fades gently.
     const recentSignals = signals.slice(-14).reverse();
     const recencyWeights = [
       2.2, 1.62, 1.25, 0.96, 0.76, 0.6, 0.48, 0.38, 0.3, 0.23, 0.18, 0.14, 0.11, 0.09,
@@ -621,7 +565,7 @@ export function inferListeningMood(
         const artistKey = canonical(track.artist);
         const artistCount = artistKey ? (artistLocks.get(artistKey) ?? 0) + 1 : 0;
         if (artistKey) artistLocks.set(artistKey, artistCount);
-        // Intentional replays or multi-track artist focus signal strong mood lock.
+
         const replayBoost = sig.replayed ? 1.28 : 1;
         const artistBoost = artistCount >= 2 ? 1.14 : 1;
         const repeatFactor = seen === 0 ? 1 : sig.replayed ? 0.82 : 0.55;
@@ -638,7 +582,6 @@ export function inferListeningMood(
     }
   }
 
-  // Fallback / supplement from current track & recent IDs when dwell signals are sparse.
   if (positiveItems.length === 0) {
     const seen = new Set<string>();
     if (current) {
@@ -650,11 +593,13 @@ export function inferListeningMood(
       });
       seen.add(current.id);
     }
+
+    const skipped = new Set(negativeItems.map((item) => item.track.id));
     const weights = [1.4, 1.0, 0.72, 0.52, 0.38, 0.26];
     let idx = 0;
     for (let i = recentIds.length - 1; i >= 0 && idx < weights.length; i--) {
       const id = recentIds[i];
-      if (seen.has(id)) continue;
+      if (seen.has(id) || skipped.has(id)) continue;
       const track = byId.get(id);
       if (!track) continue;
       seen.add(id);
@@ -666,8 +611,6 @@ export function inferListeningMood(
       });
     }
   } else if (current && !signals?.some((s) => s.trackId === current.id)) {
-    // Track just started and hasn't accumulated dwell yet: give it a modest nudge
-    // so the mood transitions smoothly once the listener stays with it.
     positiveItems.push({
       track: current,
       mood: analyzeSongMood(current, analysisLookup?.(current)),
@@ -676,10 +619,8 @@ export function inferListeningMood(
     });
   }
 
-  if (!positiveItems.length && !negativeItems.length) return undefined;
+  if (!positiveItems.length) return undefined;
 
-  // Blend in the listener's own personal circadian habit prior (weight 0.28),
-  // receding gracefully as real in-session listening evidence grows.
   const prior = personalCircadianPrior(byId, signals, now, analysisLookup);
   const priorWeight = 0.28;
   let energy = prior.energy * priorWeight;
@@ -692,8 +633,6 @@ export function inferListeningMood(
   let evidenceWeight = 0;
 
   for (const item of positiveItems) {
-    // If the user just skipped 2+ tracks in a row, dampen older stale anchors
-    // so Wave pivots quickly toward their new direction.
     const pivotScale = consecutiveSkips >= 2 && item.order >= 1 ? 0.65 : 1;
     const effective = item.weight * pivotScale * (0.45 + 0.55 * item.mood.confidence);
     energy += item.mood.vector.energy * effective;
@@ -714,12 +653,11 @@ export function inferListeningMood(
   let vecIntimacy = intimacy / weightTotal;
   let vecTempo = tempo / weightTotal;
 
-  // Detect session energy/tempo trajectory (rising vs winding-down) when we have
-  // at least 4 engaged anchors in order, and gently project along the arc.
   let momentum: MoodMomentum = 'steady';
   if (positiveItems.length >= 4) {
-    const newest = positiveItems.slice(0, 2);
-    const earlier = positiveItems.slice(2, 5);
+    const ordered = [...positiveItems].sort((a, b) => a.order - b.order);
+    const newest = ordered.slice(0, 2);
+    const earlier = ordered.slice(2, 5);
     const avg = (list: typeof positiveItems, pick: (m: MoodVector) => number) =>
       list.reduce((s, item) => s + pick(item.mood.vector), 0) / list.length;
     const energyDelta = avg(newest, (m) => m.energy) - avg(earlier, (m) => m.energy);
@@ -737,17 +675,25 @@ export function inferListeningMood(
     }
   }
 
-  // Apply repulsion from quick-skipped tracks — stronger when the user skips
-  // multiple songs in a row to actively pivot out of a mood.
   const skipCap = consecutiveSkips >= 2 ? 0.34 : 0.22;
   const skipGain = consecutiveSkips >= 2 ? 0.32 : 0.24;
-  for (const item of negativeItems) {
-    const push = Math.min(skipCap, item.weight * skipGain * (0.4 + 0.6 * item.mood.confidence));
-    vecEnergy += (vecEnergy - item.mood.vector.energy) * push;
-    vecValence += (vecValence - item.mood.vector.valence) * push;
-    vecIntensity += (vecIntensity - item.mood.vector.intensity) * push;
-    vecIntimacy += (vecIntimacy - item.mood.vector.intimacy) * push;
-    vecTempo += (vecTempo - item.mood.vector.tempo) * push;
+  const skipWeights = negativeItems.map(
+    (item) => item.weight * skipGain * (0.4 + 0.6 * item.mood.confidence),
+  );
+  const totalPush = skipWeights.reduce((sum, value) => sum + value, 0);
+
+  if (totalPush > 0) {
+    const push = Math.min(skipCap, totalPush);
+    const skippedMean = (pick: (v: MoodVector) => number) =>
+      negativeItems.reduce(
+        (sum, item, index) => sum + pick(item.mood.vector) * skipWeights[index],
+        0,
+      ) / totalPush;
+    vecEnergy += (vecEnergy - skippedMean((v) => v.energy)) * push;
+    vecValence += (vecValence - skippedMean((v) => v.valence)) * push;
+    vecIntensity += (vecIntensity - skippedMean((v) => v.intensity)) * push;
+    vecIntimacy += (vecIntimacy - skippedMean((v) => v.intimacy)) * push;
+    vecTempo += (vecTempo - skippedMean((v) => v.tempo)) * push;
   }
 
   const vector: MoodVector = {
@@ -768,7 +714,6 @@ export function inferListeningMood(
   };
 }
 
-/** Human-readable label for a mood category (used cleanly in Daily Mixes / descriptors). */
 export const MOOD_DISPLAY: Record<MoodLabel, string> = {
   chill: 'Chill',
   focus: 'Focus',

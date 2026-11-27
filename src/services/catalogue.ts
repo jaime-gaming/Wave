@@ -1,17 +1,5 @@
 import type { CatalogueRelease } from '../domain/catalogue';
 
-/**
- * Asking a public catalogue what a file probably is.
- *
- * The provider is Apple's iTunes Search API: it answers without a key, allows
- * cross-origin requests, and returns title, artist, album, year, genre, running
- * time and a cover for the same recording. Wave sends the artist and title it
- * already has and nothing else — no audio, no identifiers, no account — and the
- * answer is used to *fill gaps*, never to correct a tag the listener set.
- *
- * A failed or slow lookup is not an error the interface needs to explain: the
- * song simply stays as complete as it already was.
- */
 export const CATALOGUE_ROOT = 'https://itunes.apple.com';
 export const CATALOGUE_TIMEOUT_MS = 7_000;
 export const CATALOGUE_RESULT_LIMIT = 8;
@@ -30,7 +18,6 @@ interface ItunesTrack {
 
 const text = (value: unknown): string => (typeof value === 'string' ? value.trim() : '');
 
-/** A positive whole number from a provider, or nothing: no zeroes, no strings. */
 function number(value: unknown, key: 'trackNumber' | 'discNumber'): Partial<CatalogueRelease> {
   const parsed = typeof value === 'number' ? value : Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? { [key]: Math.round(parsed) } : {};
@@ -39,13 +26,12 @@ function number(value: unknown, key: 'trackNumber' | 'discNumber'): Partial<Cata
 function year(value: unknown): number | undefined {
   const raw = text(value);
   if (!raw) return undefined;
-  // iTunes dates are ISO strings; MusicBrainz-style years also pass through here.
+
   const match = raw.match(/^(\d{4})/u);
   const parsed = match ? Number(match[1]) : Number(raw);
   return Number.isFinite(parsed) && parsed > 1000 ? parsed : undefined;
 }
 
-/** `100x100bb.jpg` is the thumbnail; `600x600bb.jpg` is the sleeve. */
 function cover(value: unknown): string | undefined {
   const url = text(value);
   if (!url.startsWith('https://')) return undefined;
@@ -82,7 +68,6 @@ export function parseCatalogueResults(payload: unknown): CatalogueRelease[] {
   return releases;
 }
 
-/** One question, bounded in time, answering an empty list when anything goes wrong. */
 export async function searchCatalogue(
   term: string,
   options: { signal?: AbortSignal; country?: string } = {},
@@ -95,8 +80,6 @@ export async function searchCatalogue(
   if (options.signal?.aborted) abort();
   const timer = setTimeout(abort, CATALOGUE_TIMEOUT_MS);
   try {
-    // `country` is the storefront, and it is the listener's own where the
-    // browser says so: a Spanish release and its American edition differ.
     const country = (options.country ?? 'US').toUpperCase().slice(0, 2);
     const url = `${CATALOGUE_ROOT}/search?${new URLSearchParams({
       term: query,
@@ -123,7 +106,6 @@ export async function searchCatalogue(
   }
 }
 
-/** Fetches a cover and hands it over as a `File`, ready for `readArtwork`. */
 export async function downloadCover(url: string, signal?: AbortSignal): Promise<File | undefined> {
   if (!url.startsWith('https://')) return undefined;
   try {
@@ -145,7 +127,6 @@ export async function downloadCover(url: string, signal?: AbortSignal): Promise<
   }
 }
 
-/** The listener's storefront, when the browser is willing to say. */
 export function preferredCountry(locale = globalThis.navigator?.language): string {
   const region = (locale ?? '').split('-')[1];
   return /^[A-Za-z]{2}$/u.test(region ?? '') ? region!.toUpperCase() : 'US';

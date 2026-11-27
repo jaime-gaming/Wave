@@ -191,10 +191,10 @@ it('keeps the interface still while the song plays', async () => {
     return usePlayer([track]);
   });
   act(() => result.current.play([track], track.id));
-  // Let the first duration report and the first position land.
+
   await new Promise((resolve) => setTimeout(resolve, 200));
   const settled = renders;
-  // Ten more ticks of the engine: the position keeps moving, the tree does not.
+
   for (let step = 1; step <= 6; step++) {
     element.currentTime = 5 + step * 0.5;
     element.dispatchEvent(new Event('timeupdate'));
@@ -257,4 +257,59 @@ it('pauses native playback immediately when an editor takes audio ownership', as
   act(() => result.current.pauseForPreview());
   expect(pause).toHaveBeenCalled();
   expect(result.current.state.playing).toBe(false);
+});
+
+it('plays YouTube songs to the end without starting a Mix handover', async () => {
+  const first = makeTrack({
+    id: 'yt-a',
+    source: 'youtube',
+    videoId: 'dQw4w9WgXcQ',
+    blob: undefined,
+    duration: 20,
+  });
+  const second = makeTrack({
+    id: 'yt-b',
+    source: 'youtube',
+    videoId: '9bZkp7q19f0',
+    blob: undefined,
+    duration: 20,
+  });
+  const { result, unmount } = renderHook(() => usePlayer([first, second]));
+  act(() => result.current.setMixEnabled(true));
+  act(() => result.current.play([first, second], first.id));
+  act(() => {
+    result.current.youTube?.onDuration(20);
+    result.current.youTube?.onTime(19);
+  });
+  await new Promise((resolve) => setTimeout(resolve, 400));
+  expect(result.current.current?.id).toBe(first.id);
+  expect(result.current.stageYouTubePlayers.map((item) => item.track.id)).toEqual([first.id]);
+  act(() => result.current.youTube?.onEnded());
+  expect(result.current.current?.id).toBe(second.id);
+  expect(result.current.stageYouTubePlayers.map((item) => item.track.id)).toEqual([second.id]);
+  unmount();
+});
+
+it('does not cue or start Mix from a local song into a YouTube embed', async () => {
+  const local = makeTrack({ id: 'local' });
+  const online = makeTrack({
+    id: 'yt',
+    source: 'youtube',
+    videoId: 'dQw4w9WgXcQ',
+    blob: undefined,
+  });
+  const { result, unmount } = renderHook(() => usePlayer([local, online]));
+  act(() => result.current.setMixEnabled(true));
+  act(() => result.current.play([local, online], local.id));
+  act(() => {
+    element.currentTime = 19;
+    element.dispatchEvent(new Event('timeupdate'));
+  });
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  expect(result.current.current?.id).toBe(local.id);
+  expect(result.current.stageYouTubePlayers).toHaveLength(0);
+  expect(result.current.mixCue.get()).toBeNull();
+  act(() => element.dispatchEvent(new Event('ended')));
+  expect(result.current.current?.id).toBe(online.id);
+  unmount();
 });

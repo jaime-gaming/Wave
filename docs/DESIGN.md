@@ -157,11 +157,9 @@ Manual artist profiles store separately processed raster artwork. `useCustomizat
 
 ## Mix, as a mix
 
-Mix is one switch and nothing else. There is no overlap length, no style selector and no readout: the planner picks the bar count from the outgoing tempo so the blend lasts about twenty seconds — fewer bars when the two tempos would drift apart — cues the new song on the first bar that is already sounding, and decides the bass swap per pair of songs. Neither record is ever sped up or slowed down. The interface never explains any of that. A mix is not a preference between two fades; it is a decision made while the songs are playing.
+Mix is one switch and nothing else. There is no overlap length or style selector. Automatic handovers favor complete recordings and continuous fades over skipping intros or cutting endings to force a beat match. Neither record is sped up or slowed down. Real recordings and devices still need listening tests.
 
-The same rule applies to every panel: the interface shows what can be played, chosen or changed, not how it works. No BPM, no basis lines, no provider notes, no captions under controls. The one exception is the warning that the optional word-level lyric sources are unofficial, because that is information the person choosing needs.
-
-Nothing in the interface promises more than the engine does. When the analysis has no trusted grid the overlap is still staged, still gets the low-end swap and the filter, and is timed like the planned one. No song is stretched in either case: the two records meet on the bar and the overlap is cut to as long as their pulses can share a room, which is why a wide tempo gap gets a short blend rather than a wobbly one.
+The interface shows what can be played, chosen or changed, not implementation details. Disclosures remain where a choice affects privacy, such as optional lyrics sources.
 
 ## A mix is announced
 
@@ -337,7 +335,7 @@ Lyric-clock rendering is limited to about 30 updates per second; unchanged neigh
 
 `wave-mix-v2` is the single automatic Mix switch, enabled for fresh installations; legacy disabled overlap preferences remain disabled. There is no duration slider or classic/staged mode selector. `mixGains` applies a smooth staged phase to complementary sine/cosine gains: entrance, central overlap and tail release. The public Mix path always uses the staged phase. The mode is captured at overlap start so changing the setting cannot jump an existing fade's gains.
 
-`sourceEnvelope` shares one bounded decode Promise per original Blob with visual fallback (24 MiB / 20 minutes). `amplitudeEnvelope` includes all decoded samples so a periodic tone cannot alias into apparent silence. `mixCues` considers only very low source RMS, recordings at least eight seconds long, skips at most four seconds of leading/trailing silence with safety margins, and requires at least 350 ms of savings. Missing/unsupported analysis keeps 0–duration. The active source's effective tail controls handover timing; incoming progress subtracts its cue, while lyrics, seeking and session positions continue using the original recording clock. No output audio graph, tempo/pitch modification, beat matching or Blob rewrite is introduced.
+`sourceEnvelope` shares one bounded decode Promise per original Blob with visual fallback (24 MiB / 20 minutes). `amplitudeEnvelope` includes all decoded samples so a periodic tone cannot alias into apparent silence. `mixCues` considers only very low source RMS, recordings at least eight seconds long, skips at most four seconds of leading/trailing silence with safety margins, and requires at least 350 ms of savings. Missing/unsupported analysis keeps 0–duration. Estimated silence does not automatically shorten playback; explicit listener trims remain authoritative. Lyrics, seeking and session positions use the original recording clock. No output audio graph, tempo/pitch modification, beat matching or Blob rewrite is introduced.
 
 The queue reducer validates permutations, preserves selected ID and play intent, writes the new `orderedQueue` and exits shuffle. `QueuePanel` uses a controlled Motion reorder group plus non-drag alternatives. Existing session persistence saves the result. A target guard rejects a pending handover if queue edits changed its destination.
 

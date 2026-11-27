@@ -12,8 +12,8 @@ export function feedbackEligible(record: RecordState, now: number, chance: numbe
   return (
     !record.disabled &&
     now >= record.nextAt &&
-    now - record.firstSeen >= 7 * DAY &&
-    record.uses >= 12 &&
-    chance < 0.02
+    now - record.firstSeen >= 3 * DAY &&
+    record.uses >= 6 &&
+    chance < 0.15
   );
 }

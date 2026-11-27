@@ -41,7 +41,8 @@ describe('the language the app speaks', () => {
     expect(translate('en', 'Add music')).toBe('Add music');
     expect(translate('es', 'Add music')).toBe('Añadir música');
     expect(translate('es', 'A sentence nobody translated')).toBe('A sentence nobody translated');
-    expect(translate('es', '{count} songs', { count: 3 })).toBe('3 songs');
+    expect(translate('es', '{count} unlisted things', { count: 3 })).toBe('3 unlisted things');
+    expect(translate('es', '{count} songs', { count: 3 })).toBe('3 canciones');
   });
 
   it('opens in the device language and remembers a choice without announcing it', () => {

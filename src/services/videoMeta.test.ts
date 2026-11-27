@@ -8,7 +8,6 @@ import {
 
 const ID = 'dQw4w9WgXcQ';
 
-/** Replies per host, then fails the way a CORS-blocked browser fetch does. */
 function fetcherReplies(replies: Record<string, () => Promise<unknown> | unknown>) {
   return vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
     const url = String(input);
@@ -102,13 +101,11 @@ describe('video metadata', () => {
         budgetMs: 30,
       }),
     ).resolves.toBeNull();
-    // One hanging provider uses the whole budget; the rest are never tried.
+
     expect(hanging).toHaveBeenCalledTimes(1);
   });
 
   it('keeps trying after a provider answers "not found"', async () => {
-    // The budget ends a chain only when a provider runs out of time on it. A
-    // provider that answers quickly with nothing usable is just a miss.
     const fetcher = fetcherReplies({
       'www.youtube.com': () => ({ error: 'not found' }),
       'noembed.com': () => ({ title: 'Burial - Archangel' }),

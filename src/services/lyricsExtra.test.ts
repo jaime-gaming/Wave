@@ -159,3 +159,31 @@ it('tries the next matching upload when the first has no word timings', async ()
   });
   expect((await fetchWordLyrics(track, { fetcher }))?.providerId).toBe('222');
 });
+
+it('keeps identical provider ids separate when processing worker results', async () => {
+  const fetcher = responder({
+    '/api/word-lyrics': {
+      results: [
+        {
+          provider: 'netease',
+          id: 'same',
+          title: track.title,
+          artist: track.artist,
+          duration: track.duration,
+          yrc: netEaseLyric.yrc.lyric,
+        },
+        {
+          provider: 'kugou',
+          id: 'same',
+          title: track.title,
+          artist: track.artist,
+          duration: track.duration,
+          krc: 'not a lyric',
+        },
+      ],
+    },
+  });
+  const result = await fetchWordLyrics(track, { fetcher, useWorker: true });
+  expect(result?.provider).toBe('netease');
+  expect(result?.providerId).toBe('same');
+});

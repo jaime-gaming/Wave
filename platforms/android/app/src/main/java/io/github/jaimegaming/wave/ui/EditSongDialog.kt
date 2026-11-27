@@ -18,13 +18,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.github.jaimegaming.wave.Song
 
-/**
- * Editing a song, on a phone.
- *
- * Four fields and nothing else: the title, the two names it is filed under, and
- * the lyric. The id, the file and its path are never touched, so correcting a
- * spelling cannot lose the song.
- */
+
+
+
+
+
+
+
 @Composable
 fun EditSongDialog(song: Song, onDismiss: () -> Unit, onSave: (Song) -> Unit) {
     var title by remember(song.id) { mutableStateOf(song.title) }
@@ -86,8 +86,8 @@ fun EditSongDialog(song: Song, onDismiss: () -> Unit, onSave: (Song) -> Unit) {
                             artist = artist.trim().ifBlank { "Unknown artist" },
                             album = album.trim().ifBlank { "Unknown album" },
                             lyrics = lyrics,
-                            // A lyric typed here is the listener's own: never look
-                            // over it again.
+
+
                             checkedAt = 0,
                         ),
                     )

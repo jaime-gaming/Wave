@@ -31,12 +31,12 @@ describe('roles that were filed in the wrong place', () => {
       artwork: 'x',
       fileName: 'Nils Frahm - Says.mp3',
     };
-    // The file name says artist first, and the tags say it the other way round.
+
     expect(metadataIssues({ ...swapped, title: 'Nils Frahm', artist: 'Says' })).toContain('roles');
     expect(
       describeIssues(metadataIssues({ ...swapped, title: 'Nils Frahm', artist: 'Says' })),
     ).toContain('look swapped');
-    // In the right order it is simply a correct song.
+
     expect(metadataIssues(swapped)).not.toContain('roles');
   });
 

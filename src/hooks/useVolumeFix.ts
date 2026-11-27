@@ -9,7 +9,6 @@ function needsMeasurement(track: Track, doneThisSession: Set<string>): boolean {
   return (track.volumeFix.algorithmVersion ?? 1) < VOLUME_FIX_VERSION;
 }
 
-/** One local scan at a time, owned by the app rather than the Settings page. */
 export function useVolumeFix(
   tracks: Track[],
   enabled: boolean,

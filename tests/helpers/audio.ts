@@ -6,7 +6,7 @@ export function wav(
   artist = 'Wave Tests',
   album = 'First light',
   genre?: string,
-  /** Seconds of true silence before and after the tone, for the edge cases. */
+
   silence = 0,
 ) {
   const bytesPerSample = bitsPerSample / 8;

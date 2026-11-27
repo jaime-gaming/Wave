@@ -13,39 +13,25 @@ import type { ListeningSignal } from '../domain/mood';
 import type { Track } from '../domain/types';
 import { clearPlays, getPlays, savePlay } from '../data/listening';
 
-/** How often the listened seconds are sampled while a song plays. */
 const SAMPLE_MS = 1_000;
-/** A jump bigger than this is a seek or a stall, not listening. */
+
 const MAX_STEP_SECONDS = 2.5;
-/** Dwell checkpoints that update the automatic listening mood without ticking every second. */
+
 const MOOD_DWELL_STAGES = [15, 30, 75];
 
 interface Session {
   trackId: string;
   startedAt: number;
   seconds: number;
-  /** Duration belongs to this playback, even if the next song is shorter. */
+
   duration: number;
-  /** Last position read from the player, so a seek does not count as listening. */
+
   last: number | null;
   completed: boolean;
-  /** Last dwell milestone already emitted to mood detection. */
+
   moodStage: number;
 }
 
-/**
- * Records what was actually listened to.
- *
- * The song's own clock is the source: every second the position is sampled and
- * the difference is added, which means pausing, buffering and seeking do not
- * inflate the total the way a wall-clock timer would. The play is written once,
- * when it has passed the threshold in `domain/listening`, so skipping through a
- * queue leaves no trace behind it.
- *
- * Nothing is stored for a song that never got that far, and the history is only
- * ever appended to here. Reading it back is the summary below, computed from the
- * same rows the page displays.
- */
 export function useListeningHistory({
   track,
   playing,
@@ -62,10 +48,10 @@ export function useListeningHistory({
   repeatSerial?: number;
 }) {
   const [plays, setPlays] = useState<PlayEvent[]>([]);
-  /** Short-term behavioral cues (active dwell milestones + quick skips) for live mood detection. */
+
   const [liveSignals, setLiveSignals] = useState<ListeningSignal[]>([]);
   const [loaded, setLoaded] = useState(false);
-  /** The summary is dated when the rows change, not on every render. */
+
   const [today, setToday] = useState(() => new Date().setHours(0, 0, 0, 0));
   const session = useRef<Session | null>(null);
   const sessionSerial = useRef(repeatSerial);
@@ -96,7 +82,6 @@ export function useListeningHistory({
     };
   }, []);
 
-  /** Writes the session if it deserves a row, and records behavioral dwell/skip mood cues. */
   const settle = useCallback((current: Session | null) => {
     if (!current) return;
     const heard = Math.round(current.seconds);
@@ -119,7 +104,6 @@ export function useListeningHistory({
     writes.current = writes.current.then(() => savePlay(play)).catch(() => undefined);
   }, []);
 
-  // A pause preserves this playback; resuming must not create another play.
   useEffect(() => {
     const previous = session.current;
     const changed =
@@ -154,7 +138,6 @@ export function useListeningHistory({
     }
   }, [playing, track, repeatSerial, settle]);
 
-  // Sampling stops when nothing is playing, so a paused tab costs nothing.
   useEffect(() => {
     if (!playing || !track) return;
     const timer = setInterval(() => {
@@ -167,13 +150,10 @@ export function useListeningHistory({
         if (step > 0 && step <= MAX_STEP_SECONDS) current.seconds += step;
       }
       current.last = position;
-      // Within a second of the end is the end: the song played through, and
-      // that is what separates it from one that was skipped away.
+
       const length = current.duration || track.duration || 0;
       if (length > 0 && position >= length - 1) current.completed = true;
 
-      // Update live mood signal at deliberate dwell milestones (15s, 30s, 75s)
-      // so mood responds once the listener actually stays with a song.
       const nextThreshold = MOOD_DWELL_STAGES[current.moodStage];
       if (nextThreshold !== undefined && current.seconds >= nextThreshold) {
         current.moodStage++;
@@ -204,7 +184,6 @@ export function useListeningHistory({
   }, []);
 
   useEffect(() => {
-    // A page left open overnight would otherwise keep yesterday's "this week".
     const timer = setInterval(() => setToday(new Date().setHours(0, 0, 0, 0)), 60_000);
     return () => clearInterval(timer);
   }, []);
@@ -212,14 +191,12 @@ export function useListeningHistory({
     () => listeningSummary(plays, tracks, Math.max(today, 0)),
     [plays, tracks, today],
   );
-  // The week and its Remix list are built here, where both the plays and the
-  // library are at hand, and dated like the summary.
+
   const recap = useMemo(
     () => weeklyRecap(plays, tracks, Math.max(today, 0)),
     [plays, tracks, today],
   );
-  // Up to a year, newest first: Remix keeps the weeks before this one instead of
-  // forgetting them every Monday.
+
   const history = useMemo(
     () => weeklyRecaps(plays, tracks, Math.max(today, 0), 52),
     [plays, tracks, today],
@@ -234,8 +211,7 @@ export function useListeningHistory({
   );
   const moodSignals = useMemo<ListeningSignal[]>(() => {
     const byId = new Map(tracks.map((item) => [item.id, item]));
-    // Keep up to 48 local persisted plays so the mood engine can learn personal
-    // circadian listening habits strictly on-device alongside live session dwell.
+
     const recentPersisted = plays.slice(-48);
     const persisted = recentPersisted.map((play, idx) => ({
       trackId: play.trackId,

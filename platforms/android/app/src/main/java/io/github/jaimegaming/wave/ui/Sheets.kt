@@ -37,7 +37,7 @@ import androidx.compose.ui.unit.sp
 import io.github.jaimegaming.wave.Playlist
 import io.github.jaimegaming.wave.Song
 
-/** One row of a sheet: a verb, and what it does. */
+
 @Composable
 private fun SheetAction(label: String, detail: String? = null, dim: Boolean = false, onClick: () -> Unit) {
     Row(
@@ -86,14 +86,14 @@ private fun Sheet(title: String, onDismiss: () -> Unit, content: @Composable Col
     }
 }
 
-/**
- * The three places music can come from.
- *
- * The choice is explicit and stays explicit: the file picker takes anything the
- * phone offers, "this device's music" reads what the system already indexes, and a
- * folder brings a whole tree in at once. Nothing is downloaded, and nothing is
- * read without one of these taps.
- */
+
+
+
+
+
+
+
+
 @Composable
 fun AddMusicSheet(
     open: Boolean,
@@ -131,7 +131,7 @@ fun AddMusicSheet(
     }
 }
 
-/** Everything that can be done to a song, in one place, without leaving the list. */
+
 @Composable
 fun SongOptionsSheet(state: WaveState, onQueue: () -> Unit) {
     val song = state.options ?: return
@@ -187,7 +187,7 @@ fun SongOptionsSheet(state: WaveState, onQueue: () -> Unit) {
     }
 }
 
-/** Adding to a playlist, or starting one with this song already in it. */
+
 @Composable
 fun AddToPlaylistSheet(state: WaveState) {
     val song = state.addToPlaylist ?: return
@@ -215,7 +215,7 @@ fun AddToPlaylistSheet(state: WaveState) {
     }
 }
 
-/** The queue: what plays next, and what can be dropped from it. */
+
 @Composable
 fun QueueSheet(state: WaveState, onDismiss: () -> Unit) {
     val queue = state.player.queue

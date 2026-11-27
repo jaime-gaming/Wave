@@ -1,34 +1,11 @@
 import { searchText } from './musicIdentity';
 import type { Track } from './types';
 
-/**
- * Search, ordered by how well it matched.
- *
- * Filtering already worked; the list it produced did not. `filterTracks` keeps
- * library order, so typing "nig" put *Tonight* above *Nightcall* because that
- * song happened to be imported first. Ranking fixes the only thing a search has
- * to get right: the thing you meant is at the top.
- *
- * The ladder is deliberately plain and explainable — exact title, then a title
- * that starts with what you typed, then a word in the title, then the artist,
- * then the album, then anything else that contains every word. Ties keep
- * library order, so the list does not shuffle between keystrokes.
- */
 export type MatchKind =
-  'exact' | 'prefix' | 'word' | 'letters' | 'artist' | 'album' | 'other' | 'near';
+  'exact' | 'prefix' | 'word' | 'combined' | 'letters' | 'artist' | 'album' | 'other' | 'near';
 
 const WORD = /\s+/u;
 
-/**
- * One typo is still the song you meant.
- *
- * A search that returns nothing because a letter landed in the wrong place is
- * read as the library not having the song, which is the worst thing a search can
- * say. Every word of the query is allowed to be one letter away from a word of
- * the text — typed too quickly, spelled the way it sounds, or with two letters
- * the wrong way round. This sits at the bottom of the ladder: a near hit never
- * outranks something that actually contains what was typed.
- */
 function oneEditApart(a: string, b: string) {
   if (a === b) return true;
   const [longer, shorter] = a.length >= b.length ? [a, b] : [b, a];
@@ -45,28 +22,48 @@ function oneEditApart(a: string, b: string) {
   return longer.slice(at + 1) === shorter.slice(at);
 }
 
-/**
- * Every word of the query accounted for: either the text already has it, or it is
- * a word of at least six letters one letter away. The floor is what keeps the
- * tolerance from swallowing the library — *light* and *night* are one letter
- * apart and have nothing to do with each other.
- */
+function matchDistinct(
+  words: string[],
+  parts: string[],
+  matches: (word: string, part: string, partIndex: number) => boolean,
+): boolean {
+  if (!parts.length || parts.length > words.length || parts.length > 32) return false;
+  const assigned = new Array<number>(words.length).fill(-1);
+  const assign = (index: number, visited: boolean[]): boolean => {
+    for (let i = 0; i < words.length; i++) {
+      if (visited[i] || !matches(words[i], parts[index], index)) continue;
+      visited[i] = true;
+      if (assigned[i] < 0 || assign(assigned[i], visited)) {
+        assigned[i] = index;
+        return true;
+      }
+    }
+    return false;
+  };
+  return parts.every((_, index) => assign(index, new Array<boolean>(words.length).fill(false)));
+}
+
 function nearWords(haystack: string, query: string) {
   const parts = query.split(WORD).filter(Boolean);
-  if (!parts.length) return false;
   const words = haystack.split(WORD).filter(Boolean);
-  let forgiven = 0;
-  for (const part of parts) {
-    if (words.some((word) => word === part || word.startsWith(part))) continue;
-    if (part.length < 6 || !words.some((word) => oneEditApart(word, part))) return false;
-    forgiven++;
-  }
-  return forgiven > 0;
+
+  return parts.some(
+    (part, typoIndex) =>
+      part.length >= 6 &&
+      matchDistinct(words, parts, (word, value, index) =>
+        index === typoIndex
+          ? word !== value && !word.startsWith(value) && oneEditApart(word, value)
+          : word.startsWith(value),
+      ),
+  );
 }
 
 function containsWords(haystack: string, query: string) {
-  const parts = query.split(WORD).filter(Boolean);
-  return parts.length > 0 && parts.every((part) => haystack.includes(part));
+  return matchDistinct(
+    haystack.split(WORD).filter(Boolean),
+    query.split(WORD).filter(Boolean),
+    (word, part) => word.includes(part),
+  );
 }
 
 function startsWithWord(haystack: string, query: string) {
@@ -75,22 +72,21 @@ function startsWithWord(haystack: string, query: string) {
   return haystack.split(WORD).some((word) => word.startsWith(query));
 }
 
-/** Every word of the query beginning a word of the text: "city mid" finds *Midnight City*. */
 function everyWordStarts(haystack: string, query: string) {
-  const parts = query.split(WORD).filter(Boolean);
-  if (parts.length === 0) return false;
-  const words = haystack.split(WORD);
-  return parts.every((part) => words.some((word) => word.startsWith(part)));
+  return matchDistinct(
+    haystack.split(WORD).filter(Boolean),
+    query.split(WORD).filter(Boolean),
+    (word, part) => word.startsWith(part),
+  );
 }
 
-/** How well one song answers one query, and whether it answers at all. */
 export function rankMatch(track: Track, rawQuery: string): MatchKind | null {
   return normalizedMatch(track, searchText(rawQuery));
 }
-// Immutable Track objects invalidate this weak index naturally after metadata edits.
+
 const index = new WeakMap<
   Track,
-  { title: string; artist: string; album: string; haystack: string }
+  { title: string; artist: string; album: string; haystack: string; filename: string }
 >();
 function fields(track: Track) {
   let cached = index.get(track);
@@ -100,8 +96,9 @@ function fields(track: Track) {
       artist: searchText(track.artist),
       album: searchText(track.album),
       haystack: searchText(
-        `${track.title} ${track.artist} ${track.album} ${track.fileName} ${(track.genres ?? []).join(' ')} ${track.year ?? ''}`,
+        `${track.title} ${track.artist} ${track.album} ${(track.genres ?? []).join(' ')} ${track.year ?? ''}`,
       ),
+      filename: searchText(track.fileName),
     };
     index.set(track, cached);
   }
@@ -109,14 +106,22 @@ function fields(track: Track) {
 }
 function normalizedMatch(track: Track, query: string): MatchKind | null {
   if (!query) return 'other';
-  const { title, artist, album, haystack } = fields(track);
-  if (!containsWords(haystack, query)) return nearWords(haystack, query) ? 'near' : null;
+  const { title, artist, album, haystack, filename } = fields(track);
+
+  if (!containsWords(haystack, query) && !containsWords(filename, query))
+    return nearWords(haystack, query) || nearWords(filename, query) ? 'near' : null;
   if (title === query) return 'exact';
   if (title.startsWith(query)) return 'prefix';
-  // Every word of the query beginning a word of the title is a real answer —
-  // "city mid" for *Midnight City*, "night" for *Nightcall* — while the same
-  // letters buried inside a word are not, and rank below who made the song.
+
   if (everyWordStarts(title, query)) return 'word';
+  const parts = query.split(WORD).filter(Boolean);
+  if (
+    parts.length > 1 &&
+    containsWords(`${title} ${artist}`, query) &&
+    parts.some((part) => title.includes(part)) &&
+    parts.some((part) => artist.includes(part))
+  )
+    return 'combined';
   if (title.includes(query)) return 'letters';
   if (artist === query || startsWithWord(artist, query) || everyWordStarts(artist, query))
     return 'artist';
@@ -132,17 +137,14 @@ const WEIGHT: Record<MatchKind, number> = {
   exact: 0,
   prefix: 1,
   word: 2,
-  letters: 3,
-  artist: 4,
-  album: 5,
-  other: 6,
-  near: 7,
+  combined: 3,
+  letters: 4,
+  artist: 5,
+  album: 6,
+  other: 7,
+  near: 8,
 };
 
-/**
- * Matching songs, best first. `limit` keeps a live search from sorting a
- * ten-thousand-song library on every keystroke.
- */
 export function rankTracks(tracks: Track[], query: string, limit = Infinity): Track[] {
   const needle = searchText(query);
   const count =
@@ -153,7 +155,7 @@ export function rankTracks(tracks: Track[], query: string, limit = Infinity): Tr
         : 0;
   if (!needle) return limit === Infinity ? tracks : tracks.slice(0, count);
   if (!count) return [];
-  // Stable buckets avoid sorting the entire library on every keystroke.
+
   const buckets: Track[][] = Array.from({ length: Object.keys(WEIGHT).length }, () => []);
   for (const track of tracks) {
     const kind = normalizedMatch(track, needle);
@@ -162,17 +164,6 @@ export function rankTracks(tracks: Track[], query: string, limit = Infinity): Tr
   return buckets.flat().slice(0, count);
 }
 
-/**
- * The same ladder for the things that are only a name: artists, albums and
- * playlists.
- *
- * They used to be filtered and left in whatever order the library happened to
- * hold, so typing an artist's name surfaced three of their albums before the
- * artist themselves. Now the name you typed comes first, a name that starts with
- * it next, then a name with that word in it, then anything that merely contains
- * the letters — and a shorter name wins a tie, because *Night* is a closer answer
- * to "night" than *Nightcall (Deluxe)*.
- */
 export function rankNames<T>(
   items: T[],
   query: string,
@@ -186,12 +177,10 @@ export function rankNames<T>(
     const name = searchText(nameOf(item));
     const detail = detailOf ? searchText(detailOf(item)) : '';
     const haystack = `${name} ${detail}`;
-    // A name one letter away from what was typed is still that name; it sorts
-    // under everything that was actually spelled that way.
-    const near = !needle.split(WORD).every((part) => haystack.includes(part))
-      ? nearWords(haystack, needle)
-      : false;
-    if (!needle.split(WORD).every((part) => haystack.includes(part)) && !near) continue;
+
+    const direct = containsWords(haystack, needle);
+    const near = !direct && nearWords(haystack, needle);
+    if (!direct && !near) continue;
     const weight = near
       ? 5
       : name === needle
@@ -209,13 +198,6 @@ export function rankNames<T>(
   return scored.map((entry) => entry.item);
 }
 
-/**
- * Recent searches, kept locally.
- *
- * A search is a small piece of intent, and retyping it is the most annoying
- * part of a library app. Five entries, no timestamps beyond order, and a plain
- * way to forget them.
- */
 export const RECENT_SEARCHES_KEY = 'wave-recent-searches-v1';
 export const MAX_RECENT_SEARCHES = 5;
 
@@ -246,7 +228,7 @@ export function loadRecentSearches(store: Storage | null = storage()): string[] 
 export function rememberSearch(query: string, store: Storage | null = storage()): string[] {
   const value = query.trim().slice(0, 80);
   if (!value) return loadRecentSearches(store);
-  // Ignore a one-letter search: it says nothing about what you were looking for.
+
   if (searchText(value).length < 2) return loadRecentSearches(store);
   const next = [
     value,
@@ -254,16 +236,12 @@ export function rememberSearch(query: string, store: Storage | null = storage())
   ].slice(0, MAX_RECENT_SEARCHES);
   try {
     store?.setItem(RECENT_SEARCHES_KEY, JSON.stringify(next));
-  } catch {
-    // Storage is full or unavailable; the session still searches.
-  }
+  } catch {}
   return next;
 }
 
 export function clearRecentSearches(store: Storage | null = storage()): void {
   try {
     store?.removeItem(RECENT_SEARCHES_KEY);
-  } catch {
-    // Nothing to clear.
-  }
+  } catch {}
 }

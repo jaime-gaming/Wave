@@ -1,24 +1,11 @@
 import type { LyricLine } from './lyrics';
 
-/**
- * Word-by-word lyric timing.
- *
- * Two sources, never confused:
- * - `provider`: the file or provider supplied real word timestamps (enhanced
- *   LRC `<mm:ss.xx>` inside a line, or millisecond SYLT). Those are exact.
- * - `derived`: the line only has a start/end, so Wave distributes the word times
- *   across it by syllable count with punctuation pauses. It is an estimate, it is
- *   labelled as one in the interface, and it is deterministic so a line never
- *   jumps between renders.
- *
- * Nothing here changes stored lyrics or audio; it only computes display timing.
- */
 export interface KaraokeWord {
   text: string;
   start: number;
   end: number;
   source: 'provider' | 'derived';
-  /** Trailing pause weight applied after this word (punctuation). */
+
   pauseAfter: number;
 }
 
@@ -37,11 +24,6 @@ const PAUSE_WEIGHTS: Record<string, number> = {
   '-': 1.8,
 };
 
-/**
- * Rough syllable count used only to distribute durations, not to display.
- * Vowel groups approximate singing syllables; a silent final "e" is discounted
- * so "love" is not treated as two syllables.
- */
 export function syllableWeight(text: string): number {
   const letters = text.replace(/[^\p{L}]/gu, '');
   if (!letters) return 1;
@@ -65,11 +47,6 @@ interface Token {
   pause: number;
 }
 
-/**
- * Splits a line into words while preserving every character of the original:
- * leading spaces stay with the following word and trailing spaces with the last
- * one, so concatenating `leading + text + trailing` rebuilds the input exactly.
- */
 export function splitWords(text: string): Token[] {
   const tokens: Token[] = [];
   let pending = '';
@@ -93,11 +70,6 @@ export function splitWords(text: string): Token[] {
   return tokens;
 }
 
-/**
- * Distributes `[start, end)` across the words of a line. Words receive time in
- * proportion to syllables, plus a share of their trailing pause, so the highlight
- * lands on the beat of the next word instead of drifting ahead.
- */
 export function deriveWordTimings(text: string, start: number, end: number): KaraokeWord[] {
   const tokens = splitWords(text);
   if (!tokens.length) return [];
@@ -123,10 +95,6 @@ export function deriveWordTimings(text: string, start: number, end: number): Kar
   });
 }
 
-/**
- * Word timing for a line. Provider timestamps win; every other synced line is
- * derived once so the interface can highlight word by word.
- */
 export function karaokeWords(
   line: LyricLine,
   nextLineTime?: number,
@@ -163,7 +131,7 @@ export function karaokeWords(
       };
     });
   }
-  // A long instrumental gap is not a twenty-second sustained final syllable.
+
   const naturalEnd =
     line.time + Math.max(1, splitWords(line.text).reduce((n, token) => n + token.weight, 0) * 0.38);
   const boundary = nextLineTime ?? fallbackEnd;
@@ -176,7 +144,6 @@ export function karaokeWords(
   return deriveWordTimings(line.text, line.time, end);
 }
 
-/** 0–1 progress inside one word; `1` once the word is over. */
 export function wordProgress(word: KaraokeWord, clock: number): number {
   if (!Number.isFinite(clock)) return 0;
   if (clock <= word.start) return 0;
@@ -200,7 +167,6 @@ export function activeWordIndex(words: KaraokeWord[], clock: number): number {
   return result;
 }
 
-/** True when every word carries real provider timestamps. */
 export function hasProviderWordTiming(words: KaraokeWord[]): boolean {
   return words.length > 0 && words.every((word) => word.source === 'provider');
 }

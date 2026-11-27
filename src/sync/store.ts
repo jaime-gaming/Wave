@@ -16,27 +16,18 @@ import {
 import type { Platform } from './protocol';
 import { verifyCopy } from './integrity';
 
-/**
- * Sync persistence lives in its own database so the music library schema and
- * its migration path stay untouched. Borrowed audio is always paired with its
- * loan record in the same transaction: a record without bytes is never playable,
- * and bytes without a record are never orphaned.
- */
 export interface SyncDevice {
   deviceId: string;
   name: string;
   platform: Platform;
   pairedAt: number;
   lastSeenAt: number;
-  /** Base64url of the peer's public key, so it can be recognised next time. */
+
+  protocolVersion?: number;
+
   publicKey?: string;
 }
 
-/**
- * Audio is stored as verified bytes rather than a Blob: the transfer already
- * produced a checked byte array, and ArrayBuffer cloning is reliable in every
- * IndexedDB implementation. A Blob is rebuilt on read for playback.
- */
 export interface StoredAudio {
   loanId: string;
   bytes: ArrayBuffer;
@@ -80,8 +71,6 @@ export async function saveDevice(device: SyncDevice): Promise<SyncDevice> {
   if (!device.deviceId || !device.name.trim()) throw new Error('Invalid device.');
   const db = await openSyncStore();
   try {
-    // A device that comes back keeps the day it was first paired: re-linking is
-    // not the same event as meeting, and the page says so.
     const previous = await db.get('devices', device.deviceId);
     const stored: SyncDevice = {
       ...previous,
@@ -140,7 +129,6 @@ export async function getLoanedAudio(loanId: string): Promise<Blob | undefined> 
   }
 }
 
-/** Exact stored bytes, used to verify a loan before playing it. */
 export async function getLoanedBytes(loanId: string): Promise<Uint8Array | undefined> {
   const db = await openSyncStore();
   try {
@@ -166,10 +154,6 @@ export async function getSyncUsage(policy: LoanPolicy = DEFAULT_LOAN_POLICY): Pr
   };
 }
 
-/**
- * Commits a verified loan and its audio atomically, evicting the least recently
- * used unpinned loans only if the new file would not otherwise fit.
- */
 export async function commitLoan(
   request: LoanRequest,
   audio: Uint8Array,
@@ -181,8 +165,7 @@ export async function commitLoan(
   validatePolicy(policy);
   if (audio.byteLength !== request.size)
     throw new Error('The received file does not match the announced size.');
-  // Defence in depth: the caller has already verified the digest, but nothing
-  // unverified may ever be written as a playable loan.
+
   if (expectedSha256 !== undefined) {
     const check = await verifyCopy(audio, { size: request.size, sha256: expectedSha256 });
     if (!check.ok) throw new Error(check.detail);
@@ -191,7 +174,6 @@ export async function commitLoan(
   try {
     const tx = db.transaction(['loans', 'audio'], 'readwrite');
     try {
-      // Read inside the transaction so two concurrent commits cannot overbook.
       const current = await tx.objectStore('loans').getAll();
       const result = grantLoans(current, [request], policy, now);
       if (!result.granted.length)
@@ -208,7 +190,7 @@ export async function commitLoan(
         await tx.objectStore('loans').put(loan);
         await tx.objectStore('audio').put({
           loanId: loan.loanId,
-          // Copy into a standalone buffer: the transfer array may be a view.
+
           bytes: audio.slice().buffer as ArrayBuffer,
           type: type.slice(0, 100),
         });
@@ -218,9 +200,7 @@ export async function commitLoan(
     } catch (error) {
       try {
         tx.abort();
-      } catch {
-        // The transaction may already be aborted by IndexedDB.
-      }
+      } catch {}
       await tx.done.catch(() => undefined);
       throw error;
     }
@@ -244,17 +224,14 @@ async function removeLoans(removed: LoanRecord[]): Promise<LoanRecord[]> {
   }
 }
 
-/** Deleting a loan frees its exact bytes immediately. */
 export async function deleteLoan(loanId: string): Promise<LoanRecord[]> {
   return removeLoans(revokeLoan(await getLoans(), loanId).removed);
 }
 
-/** Removes every song borrowed by one offline device. */
 export async function deleteDeviceLoans(deviceId: string): Promise<LoanRecord[]> {
   return removeLoans(revokeDevice(await getLoans(), deviceId).removed);
 }
 
-/** Forgets a paired device and everything it borrowed. */
 export async function forgetDevice(deviceId: string): Promise<void> {
   await deleteDeviceLoans(deviceId);
   const db = await openSyncStore();

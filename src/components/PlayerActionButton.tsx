@@ -5,15 +5,12 @@ export type PlayerAction = 'repeat' | 'shuffle' | 'favorite' | 'clip' | 'volume'
 function actionFrames(action: PlayerAction) {
   switch (action) {
     case 'repeat':
-      // Only the two loop arrows rotate inside the SVG; the outer glyph stays upright.
       return { scale: [1, 0.93, 1.05, 1] };
     case 'shuffle':
-      // The crossed paths smoothly separate to parallel and rejoin on click.
       return { scale: [1, 0.94, 1.04, 1] };
     case 'favorite':
       return { scale: [1, 1.32, 0.9, 1.1, 1], rotate: [0, -8, 6, 0] };
     case 'clip':
-      // The inner filmstrip scrolls upward inside its fixed frame on click.
       return { scale: [1, 0.95, 1.04, 1] };
     case 'volume':
       return { scale: [1, 0.86, 1.14, 1], x: [0, -1, 1.5, 0] };
@@ -21,7 +18,7 @@ function actionFrames(action: PlayerAction) {
       return { scale: [1, 0.86, 1.08, 1] };
   }
 }
-/** Feedback belongs to the icon: no moving the transport or replaying on mount. */
+
 export function PlayerActionButton({
   action,
   value,
@@ -44,7 +41,7 @@ export function PlayerActionButton({
     const el = symbolRef.current;
     if (!el) return;
     el.classList.remove('is-pulsing');
-    // Force a single reflow so consecutive clicks cleanly restart the glyph animation.
+
     void el.offsetWidth;
     el.classList.add('is-pulsing');
     if (pulseTimer.current !== null) window.clearTimeout(pulseTimer.current);

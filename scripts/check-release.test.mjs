@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { checkRelease } from './check-release.mjs';
-import { renderLocKt, renderLocalizationCs } from './build-i18n.mjs';
+import { renderLocKt, renderLocalizationCs, renderLocalizableStrings } from './build-i18n.mjs';
 
 function fixture(run) {
   const root = mkdtempSync(path.join(tmpdir(), 'wave-release-'));
@@ -37,8 +37,7 @@ function fixture(run) {
   );
   put('docs/RELEASE_NOTES_0.1.0.md', '# Wave 0.1.0\n\nRelease notes.');
   put('CHANGELOG.md', '# Changelog\n\n## 0.1.0 — 1 October 2026\n\n- The first release.\n');
-  // The language tables are generated, committed, and part of what a release may
-  // not let drift: the fixture writes them with the same renderer the build uses.
+
   const phrases = [
     ['Play', 'Reproducir'],
     ['Pause', 'Pausa'],
@@ -49,6 +48,7 @@ function fixture(run) {
     renderLocKt(phrases),
   );
   put('platforms/windows/Wave.Windows/Localization.cs', renderLocalizationCs(phrases));
+  put('platforms/ios/Wave/es.lproj/Localizable.strings', renderLocalizableStrings(phrases));
   try {
     run(root, put);
   } finally {
@@ -113,5 +113,11 @@ test('refuses language tables that lag behind the dictionary', () =>
       'i18n/es.json',
       JSON.stringify({ Play: 'Reproducir', Pause: 'Pausa', Next: 'Siguiente' }, null, 2) + '\n',
     );
+    assert.throws(() => checkRelease(root), /build:i18n/);
+  }));
+
+test('refuses an iOS language table that lags behind the dictionary', () =>
+  fixture((root, put) => {
+    put('platforms/ios/Wave/es.lproj/Localizable.strings', '"Play" = "Reproducir";\n');
     assert.throws(() => checkRelease(root), /build:i18n/);
   }));

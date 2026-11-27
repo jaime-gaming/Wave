@@ -1,3 +1,9 @@
+import { useLibraryClips } from './hooks/useLibraryClips';
+import { dailyMixPlaylistName } from './domain/dailyMixes';
+import { greetingFor, greetingGroup } from './domain/greetings';
+import { inferListeningMood } from './domain/mood';
+import { cachedAnalysis } from './audio/mixAnalysis';
+import { useArtistPhotos } from './hooks/useArtistPhotos';
 import { SurfaceLoading } from './components/SurfaceLoading';
 import { VolumeSettings } from './components/VolumeSettings';
 import { MaterialSwitch } from './components/MaterialSwitch';
@@ -7,9 +13,10 @@ import { PlatformLinks } from './components/PlatformLinks';
 import { formatAppRoute, parseAppRoute, usePageRoute } from './hooks/usePageRoute';
 import { useWakeLock } from './hooks/useWakeLock';
 import type { MixSelection } from './components/DailyMixPage';
-import type { SettingsSection } from './components/SettingsPage';
+import { SettingsPage, type SettingsSection } from './components/SettingsPage';
 import { LocalMetadataReview } from './components/LocalMetadataReview';
 import { useOnline } from './ui/network';
+import { headingAtDock } from './ui/scrollHeading';
 import {
   detailsEnabled,
   setDetailsEnabled,
@@ -20,6 +27,7 @@ import { MusicLighting } from './components/MusicLighting';
 import { QueuePanel } from './components/QueuePanel';
 import { useInteractionRipples } from './hooks/useInteractionRipples';
 import { StartupAnimation } from './components/StartupAnimation';
+import { WelcomeSetup } from './components/WelcomeSetup';
 import { useMusicEnergy } from './hooks/useMusicEnergy';
 import { SearchPage } from './components/SearchPage';
 import { useListeningHistory } from './hooks/useListeningHistory';
@@ -33,6 +41,7 @@ import { orderedTracks } from './domain/order';
 import type { ArtistProfile } from './domain/types';
 import { LibrarySurface } from './components/LibrarySurface';
 import { HomePage } from './components/HomePage';
+import { HomeGreeting } from './components/HomeGreeting';
 import { Artists, ArtistHeader } from './components/Artists';
 import {
   albumKey,
@@ -58,7 +67,6 @@ import {
   Check,
   ChevronDown,
   FolderOpen,
-  FolderInput,
   ListMusic,
   Heart,
   Pencil,
@@ -79,11 +87,6 @@ import { useLibrary } from './hooks/useLibrary';
 import { useAppPalette } from './hooks/useAppPalette';
 import { usePlayer } from './hooks/usePlayer';
 
-/*
- * Views that most sessions never open are downloaded when they are first
- * needed, so the first screen on a phone is not paying for the settings page,
- * the metadata review or a daily mix.
- */
 const DevicesPage = lazy(() =>
   import('./components/DevicesPage').then((module) => ({ default: module.DevicesPage })),
 );
@@ -99,9 +102,6 @@ const LyricsEditor = lazy(() =>
 const TrackEditor = lazy(() =>
   import('./components/TrackEditor').then((module) => ({ default: module.TrackEditor })),
 );
-const SettingsPage = lazy(() =>
-  import('./components/SettingsPage').then((module) => ({ default: module.SettingsPage })),
-);
 const DailyMixPage = lazy(() =>
   import('./components/DailyMixPage').then((module) => ({ default: module.DailyMixPage })),
 );
@@ -112,6 +112,7 @@ import { Modal } from './components/Modal';
 import { PlayerBar } from './components/PlayerBar';
 import { getClip, loadClips, removeClip } from './domain/videoClips';
 import { AddMusicDialog } from './components/AddMusicDialog';
+import { AddMusicMenu } from './components/AddMusicMenu';
 import { extendedLyricsEnabled, setExtendedLyrics } from './services/lyricsExtra';
 import { AUDIO_ACCEPT } from './data/import';
 import { shuffleQueue } from './domain/player';
@@ -154,6 +155,12 @@ function WaveApp({
   onAnimations: (value: boolean) => void;
 }) {
   const { t, choice: languageChoice, setChoice: setLanguageChoice } = useI18n();
+  const [greetingSeed] = useState(Math.random);
+  const [greetingNow, setGreetingNow] = useState(Date.now);
+  useEffect(() => {
+    const timer = setInterval(() => setGreetingNow(Date.now()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
   const library = useLibrary();
   const [automaticLyrics, setAutomaticLyrics] = useState(
     () => readFlag('wave-lyrics-consent-v1') && readFlag('wave-auto-lyrics'),
@@ -162,25 +169,19 @@ function WaveApp({
   useEffect(() => {
     try {
       localStorage.setItem('wave-fix-volume', String(volumeFixEnabled));
-    } catch {
-      /* Session-only preference. */
-    }
+    } catch {}
   }, [volumeFixEnabled]);
   const [videoClip, setVideoClip] = useState(() => readFlag('wave-video-clip'));
   const [wordSources, setWordSources] = useState(extendedLyricsEnabled);
   useEffect(() => {
     try {
       localStorage.setItem('wave-video-clip', String(videoClip));
-    } catch {
-      /* Session-only options. */
-    }
+    } catch {}
   }, [videoClip]);
   useEffect(() => {
     try {
       localStorage.setItem('wave-auto-lyrics', String(automaticLyrics));
-    } catch {
-      /* Session-only option. */
-    }
+    } catch {}
   }, [automaticLyrics]);
   const collections = usePlaylists();
   const customizations = useCustomizations();
@@ -199,10 +200,7 @@ function WaveApp({
   const [addingQueue, setAddingQueue] = useState(false);
   const animation = useWaveMotion();
   useInteractionRipples();
-  /**
-   * How the player asks about the dead air at the edges of a file. The library
-   * owns the record; the player only reports and requests.
-   */
+
   const silenceAction = library.silence;
   const silenceStore = useMemo(
     () => ({
@@ -250,13 +248,9 @@ function WaveApp({
       void acceptDuration(currentId, decodedDuration);
   }, [decodedDuration, currentDuration, currentId, player.durationTrackId, acceptDuration]);
   const { dispatch } = player;
-  // Keep the screen awake while Wave is open and playing music.
+
   useWakeLock(player.state.playing && !!player.current);
-  /**
-   * A pairing link opens straight into Settings → Devices. The link is a QR
-   * code someone scanned or a URL they opened, and landing on Home would leave
-   * them to find the page themselves.
-   */
+
   const [pairLink] = useState(() => /(?:#|&|\?)wave-pair=/u.test(location.hash + location.search));
   const [initialRoute] = useState(() => parseAppRoute(location.pathname, location.search));
   const [page, setPage, pageDirection] = usePageRoute(pairLink);
@@ -272,7 +266,7 @@ function WaveApp({
   );
   const [group, setGroup] = useState<string | null>(() => initialRoute.group ?? null);
   const [queueOpen, setQueueOpen] = useState(() => initialRoute.overlay === 'queue');
-  /** Listening history is counted from the playback clock and shown in Remix. */
+
   const listening = useListeningHistory({
     track: player.current,
     playing: player.state.playing && !player.buffering,
@@ -281,6 +275,43 @@ function WaveApp({
     tracks: library.tracks,
     repeatSerial: player.repeatSerial,
   });
+  const greetingTrack = player.current;
+  const greetingPlaying = player.state.playing;
+  const greeting = useMemo(() => {
+    const recent = listening.moodSignals.filter(
+      (signal) =>
+        signal.at !== undefined &&
+        signal.at <= greetingNow &&
+        greetingNow - signal.at <= 90 * 60_000,
+    );
+    const mood =
+      greetingPlaying && recent.some((signal) => signal.seconds >= 25)
+        ? inferListeningMood(
+            library.tracks,
+            [],
+            greetingTrack,
+            (track) => cachedAnalysis(track.blob),
+            recent,
+            greetingNow,
+          )
+        : undefined;
+    return greetingFor(
+      greetingGroup({
+        now: greetingNow,
+        signals: listening.moodSignals,
+        mood,
+        playing: greetingPlaying,
+      }),
+      greetingSeed,
+    );
+  }, [
+    greetingNow,
+    greetingSeed,
+    library.tracks,
+    listening.moodSignals,
+    greetingTrack,
+    greetingPlaying,
+  ]);
   const setPlayerMoodSignals = player.setMoodSignals;
   useEffect(() => {
     setPlayerMoodSignals(listening.moodSignals);
@@ -301,8 +332,7 @@ function WaveApp({
   };
   const closeSettings = () => {
     setPage(settingsPrevious.current);
-    // The section is a way in, not a place to come back to: the next visit to
-    // Settings starts on the list of sections.
+
     setSettingsSection(null);
     requestAnimationFrame(() => settingsOpener.current?.focus({ preventScroll: true }));
   };
@@ -317,33 +347,61 @@ function WaveApp({
   const [trackOptions, setTrackOptions] = useState<Track | null>(null);
   const clipsForOptions = useMemo(() => (trackOptions ? loadClips() : {}), [trackOptions]);
   const [editorEnabled, setEditorEnabled] = useState(() => readFlag('wave-editor-enabled'));
-  /**
-   * Online detail lookups are off until the listener turns them on, and they
-   * stop entirely without a connection: a promise to fill gaps is not a promise
-   * to keep retrying in an offline room.
-   */
+
   const [detailsOn, setDetailsOn] = useState(() => detailsEnabled());
+  const [libraryClips, setLibraryClips] = useState(() => readFlag('wave-library-clips-consent-v1'));
+  const [verifyLibraryRoles, setVerifyLibraryRoles] = useState(() =>
+    readFlag('wave-library-role-check-consent-v1'),
+  );
+  useEffect(() => {
+    try {
+      localStorage.setItem('wave-library-role-check-consent-v1', String(verifyLibraryRoles));
+    } catch {}
+  }, [verifyLibraryRoles]);
+  useEffect(() => {
+    try {
+      localStorage.setItem('wave-library-clips-consent-v1', String(libraryClips));
+    } catch {}
+  }, [libraryClips]);
   const toggleDetails = useCallback((next: boolean) => {
     setDetailsEnabled(next);
     setDetailsOn(next);
   }, []);
   const online = useOnline();
+  useLibraryClips(library.tracks, detailsOn && libraryClips, online);
+  const artistPhotoSearch = useArtistPhotos(
+    library.tracks,
+    customizations.artists,
+    customizations.fillArtistPhoto,
+  );
+  const {
+    find: findArtistPhotos,
+    cancel: cancelArtistPhotos,
+    searching: searchingArtistPhotos,
+  } = artistPhotoSearch;
+  useEffect(() => {
+    if (!detailsOn || !online) {
+      cancelArtistPhotos();
+      return;
+    }
+    if (searchingArtistPhotos) return;
+    const timer = window.setTimeout(() => void findArtistPhotos(true), 1200);
+    return () => window.clearTimeout(timer);
+  }, [detailsOn, online, cancelArtistPhotos, findArtistPhotos, searchingArtistPhotos]);
   const catalogue = useCatalogueDetails({
     tracks: library.tracks,
     onUpdate: library.applyDetails,
     enabled: detailsOn,
     online,
+    verifyRoles: verifyLibraryRoles,
   });
   const [editingTrack, setEditingTrack] = useState<Track | null>(null);
   const [playlistId, setPlaylistId] = useState<string | null>(
     () => initialRoute.playlistId ?? null,
   );
 
-  // Keep deep URL routes (/Current, /Queue, /Library/*, /Settings/*, /Search?q=...)
-  // synchronized with app navigation so reloading lands directly where the listener was.
   const routeSyncReady = useRef(false);
   useEffect(() => {
-    // Preserve pairing links while on Settings -> Devices.
     if (pairLink && page === 'settings') return;
     const overlay = playerOpen ? 'current' : queueOpen ? 'queue' : undefined;
     const nextUrl = formatAppRoute({
@@ -407,11 +465,40 @@ function WaveApp({
     document.documentElement.dataset.textSize = largeText ? 'large' : 'standard';
     try {
       localStorage.setItem('wave-large-text', String(largeText));
-    } catch {
-      /* Session-only text size. */
-    }
+    } catch {}
   }, [largeText]);
   const [theme, setTheme] = useState<Theme>(readTheme);
+  const [listenerName, setListenerName] = useState(() => {
+    try {
+      return (localStorage.getItem('wave-listener-name') ?? '').slice(0, 40);
+    } catch {
+      return '';
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem('wave-listener-name', listenerName.trim());
+    } catch {}
+  }, [listenerName]);
+  const [startupDone, setStartupDone] = useState(false);
+  const [setupActive, setSetupActive] = useState(false);
+  const [setupChecked, setSetupChecked] = useState(false);
+  useEffect(() => {
+    if (!startupDone || library.loading || setupChecked) return;
+    const timer = window.setTimeout(() => {
+      setSetupChecked(true);
+      if (!library.error && !library.tracks.length && !readFlag('wave-welcome-done'))
+        setSetupActive(true);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [startupDone, library.loading, library.error, library.tracks.length, setupChecked]);
+  const finishSetup = () => {
+    try {
+      localStorage.setItem('wave-welcome-done', 'true');
+    } catch {}
+    setSetupActive(false);
+  };
+
   const [dragging, setDragging] = useState(false);
   const [noticeVisible, setNoticeVisible] = useState(true);
   const input = useRef<HTMLInputElement>(null);
@@ -423,9 +510,6 @@ function WaveApp({
   const [bannerCovered, setBannerCovered] = useState(false);
   const [scrolledHeading, setScrolledHeading] = useState('');
 
-  // Banner-covering scroll + live borderless section heading handoff:
-  // Only reveals the borderless dock once the top header is completely covered
-  // (no visible pixels remaining), and switches as the next heading reaches the dock.
   useEffect(() => {
     const workspace = workspaceRef.current;
     if (!workspace) return;
@@ -440,7 +524,7 @@ function WaveApp({
           ? Math.max(0, surfaceTop)
           : Math.max(0, bannerHeight - window.scrollY);
       const progress = Math.max(0, Math.min(1, 1 - visibleBannerPx / bannerHeight));
-      // Show the sticky title bar strictly when the top header is no longer visible.
+
       const covered = visibleBannerPx <= 0;
       workspace.style.setProperty('--banner-cover', progress.toFixed(3));
       workspace.dataset.bannerCovered = covered ? 'true' : 'false';
@@ -452,43 +536,45 @@ function WaveApp({
         ),
       ).filter((el) => el.offsetParent !== null && Boolean(el.textContent?.trim()));
 
-      // Hand over as soon as the incoming heading reaches the dock, not after it passes.
-      const dockHeight = 54;
-      const passThreshold = dockHeight - 6;
-      let activeIndex = -1;
-      for (let i = 0; i < headings.length; i++) {
-        const rect = headings[i].getBoundingClientRect();
-        if (rect.top <= passThreshold) activeIndex = i;
-        else break;
-      }
-
-      const activeText = activeIndex >= 0 ? (headings[activeIndex].textContent?.trim() ?? '') : '';
+      const dock = workspace.querySelector<HTMLElement>('.section-scroll-dock__bar');
+      const threshold = (dock?.offsetHeight ?? 64) - 6;
+      const activeText = headingAtDock(
+        headings
+          .filter((heading) => !heading.closest('[inert], [aria-hidden="true"]'))
+          .map((heading) => ({
+            top: heading.getBoundingClientRect().top,
+            text: heading.textContent ?? '',
+          })),
+        threshold,
+      );
       setScrolledHeading((prev) => (prev === activeText ? prev : activeText));
-
-      // Gently nudge the current docked title upward as the next heading slides under it.
-      let push = 0;
-      const next = headings[activeIndex + 1];
-      if (covered && next) {
-        const nextRect = next.getBoundingClientRect();
-        const handoffStart = dockHeight + 28;
-        if (nextRect.top < handoffStart && nextRect.top > passThreshold) {
-          push = Math.max(0, Math.min(34, handoffStart - nextRect.top));
-        }
-      }
-      workspace.style.setProperty('--section-push', `${-push.toFixed(1)}px`);
     };
     const onScroll = () => {
       if (!raf) raf = window.requestAnimationFrame(apply);
     };
+    const observer = new MutationObserver(onScroll);
+    observer.observe(workspace, { childList: true, subtree: true });
     apply();
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onScroll, { passive: true });
     return () => {
       if (raf) window.cancelAnimationFrame(raf);
+      observer.disconnect();
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onScroll);
     };
-  }, [page, view, group, playlistId, dailySelection, settingsSection]);
+  }, [
+    page,
+    view,
+    group,
+    playlistId,
+    dailySelection,
+    settingsSection,
+    setupActive,
+    setupChecked,
+    startupDone,
+    library.loading,
+  ]);
 
   useEffect(() => {
     const media = window.matchMedia('(prefers-color-scheme: light)');
@@ -500,9 +586,7 @@ function WaveApp({
     media.addEventListener('change', update);
     try {
       localStorage.setItem('wave-theme', theme);
-    } catch {
-      /* Use the theme for this session if storage is blocked. */
-    }
+    } catch {}
     return () => media.removeEventListener('change', update);
   }, [theme]);
 
@@ -561,9 +645,7 @@ function WaveApp({
     try {
       localStorage.setItem('wave-editor-enabled', String(editorEnabled));
       localStorage.setItem('wave-animations-enabled', String(animations));
-    } catch {
-      /* Preferences remain usable for this session. */
-    }
+    } catch {}
   }, [editorEnabled, animations]);
 
   const visible = useMemo(() => {
@@ -606,13 +688,7 @@ function WaveApp({
         })
       : undefined;
   const favoriteCount = library.tracks.filter((track) => track.favorite).length;
-  /**
-   * The line under the page title.
-   *
-   * It says what the page is looking at, in the library's own numbers, and it is
-   * the reason the header has a second line at all: a title alone leaves a band
-   * of empty page under it. Nothing here is a status or a build note.
-   */
+
   const settingsSectionLabels: Record<SettingsSection, string> = {
     appearance: t('Appearance'),
     playback: t('Playback'),
@@ -659,30 +735,35 @@ function WaveApp({
         : page === 'remix'
           ? t('The songs you played this week')
           : page === 'library' && view !== 'songs'
-            ? `${library.tracks.length} ${library.tracks.length === 1 ? 'song' : 'songs'} in your library`
-            : `${library.tracks.length} ${library.tracks.length === 1 ? 'song' : 'songs'} · ${albums.length} ${albums.length === 1 ? 'album' : 'albums'}`;
+            ? t(
+                library.tracks.length === 1
+                  ? '{count} song in your library'
+                  : '{count} songs in your library',
+                { count: library.tracks.length },
+              )
+            : `${t(library.tracks.length === 1 ? '{count} song' : '{count} songs', { count: library.tracks.length })} · ${t(albums.length === 1 ? '{count} album' : '{count} albums', { count: albums.length })}`;
   const busy = library.loading || !!library.progress;
   const chooseFiles = useCallback(() => input.current?.click(), []);
   const [addOpen, setAddOpen] = useState(false);
-  /**
-   * Every "Add music" in the app opens the same chooser.
-   *
-   * A button that jumps straight to the file picker decides for the listener
-   * that what they want is a file on this device; a YouTube song is the other
-   * half of what Wave can add, so the two are always offered together.
-   */
-  const openAddMusic = useCallback(() => setAddOpen(true), []);
+  const [addInitialMode, setAddInitialMode] = useState<'choose' | 'youtube'>('choose');
+
+  const openAddMusic = useCallback(() => {
+    setAddInitialMode('choose');
+    setAddOpen(true);
+  }, []);
   const [addBusy, setAddBusy] = useState(false);
-  /** YouTube songs are added to the library and start playing straight away. */
+
   const addFromYouTube = useCallback(
     async (
       link: string,
       prefilled?: { title?: string; artist?: string; duration?: number; thumbnail?: string },
     ) => {
       setAddBusy(true);
-      const result = await library.addYouTube(link, prefilled);
-      setAddBusy(false);
-      return result;
+      try {
+        return await library.addYouTube(link, prefilled);
+      } finally {
+        setAddBusy(false);
+      }
     },
     [library],
   );
@@ -751,8 +832,6 @@ function WaveApp({
   );
   const openArtist = useCallback(
     (name: string) => {
-      // A tag that names two acts opens the first of them, which is the profile
-      // the listener means when they tap the artist under a song.
       browse('artists');
       setGroup(primaryArtist(name));
     },
@@ -779,9 +858,7 @@ function WaveApp({
       const saved = await collections.create(
         {
           name,
-          description: t(
-            'Brought over from another app. Songs already in your library were reused.',
-          ),
+          description: t('Brought over from another app with YouTube songs.'),
         },
         trackIds,
       );
@@ -865,6 +942,13 @@ function WaveApp({
         { label: t('Settings'), icon: <Settings size={18} />, run: () => openSettings() },
       ];
 
+  const setupRequired =
+    setupActive ||
+    (!library.loading &&
+      !library.error &&
+      !library.tracks.length &&
+      !setupChecked &&
+      !readFlag('wave-welcome-done'));
   return (
     <div
       className={`app-shell ${player.current ? 'has-current-track' : 'without-track'}`}
@@ -923,10 +1007,28 @@ function WaveApp({
         importFiles([...event.dataTransfer.files]);
       }}
     >
-      <LocalFeedback />
-      <a className="skip-link" href="#main">
-        {t('Skip to library')}
-      </a>
+      {!setupRequired && (
+        <LocalFeedback
+          page={
+            playerOpen
+              ? 'Now playing'
+              : page === 'home'
+                ? 'Home'
+                : page === 'search'
+                  ? 'Search'
+                  : page === 'library'
+                    ? 'Library'
+                    : page === 'remix'
+                      ? 'Remix'
+                      : 'Settings'
+          }
+        />
+      )}
+      {!setupRequired && (
+        <a className="skip-link" href="#main">
+          {t('Skip to library')}
+        </a>
+      )}
       <input
         ref={input}
         className="file-input"
@@ -950,737 +1052,864 @@ function WaveApp({
           onClose={() => setContext(null)}
         />
       )}
-      <StartupAnimation loading={library.loading} />
-      <MusicLighting className="music-backdrop" />
-      <Navigation
-        page={page}
-        onPage={changePage}
-        onSettings={() => openSettings()}
-        view={view}
-        onView={browse}
-        counts={{
-          albums: albums.length,
-          artists: artists.length,
-          playlists: collections.playlists.length,
-          favorites: favoriteCount,
-        }}
-      />
-      <main ref={workspaceRef} id="main" tabIndex={-1} className={`workspace ${page}-page`}>
-        <header ref={headerRef} className="library-header">
-          {/* One banner: what this page is on the left, the two utilities on
-              the right, both on the same line. There is no separate row for the
-              buttons, so the header cannot leave an empty band behind. */}
-          <div className="title-row">
-            <div>
-              <h1>
-                {page === 'home'
-                  ? dailySelection
-                    ? t('Daily mixes')
-                    : t('Home')
-                  : page === 'search'
-                    ? t('Search')
-                    : page === 'settings'
-                      ? t('Settings')
-                      : page === 'remix'
-                        ? t('Remix')
-                        : t('Library')}
-              </h1>
-              <p className="library-summary">{pageSummary}</p>
-            </div>
-            <div
-              className="header-actions"
-              aria-hidden={bannerCovered || undefined}
-              inert={bannerCovered || undefined}
-            >
-              <button
-                className="icon-button import-header"
-                disabled={busy}
-                onClick={() => setAddOpen(true)}
-                aria-label={t('Add music')}
-              >
-                <Plus size={24} />
-              </button>
-              <button
-                className="icon-button settings-button"
-                aria-label={t('Open settings')}
-                onClick={() => openSettings()}
-              >
-                <Settings size={24} />
-              </button>
-            </div>
-          </div>
-          {page === 'library' && (
-            <div ref={categoryStrip} className="library-tabs" aria-label={t('Browse library')}>
-              {(
-                [
-                  { id: 'songs', label: t('Songs'), icon: Music2, count: library.tracks.length },
-                  { id: 'albums', label: t('Albums'), icon: Disc3, count: albums.length },
-                  { id: 'artists', label: t('Artists'), icon: Users, count: artists.length },
-                  {
-                    id: 'playlists',
-                    label: t('Playlists'),
-                    icon: ListMusic,
-                    count: collections.playlists.length,
-                  },
-                  { id: 'favorites', label: t('Favorites'), icon: Heart, count: favoriteCount },
-                ] as const
-              ).map((tab) => (
-                <motion.button
-                  whileTap={animation.enabled ? { scale: 0.95 } : undefined}
-                  key={tab.id}
-                  aria-pressed={view === tab.id}
-                  aria-description={`${tab.count} items`}
-                  className={view === tab.id ? 'active' : ''}
-                  onClick={() => changeView(tab.id)}
+      <StartupAnimation loading={library.loading} onFinished={() => setStartupDone(true)} />
+      {!setupRequired && (
+        <>
+          <MusicLighting className="music-backdrop" />
+          <Navigation
+            page={page}
+            onPage={changePage}
+            onSettings={() => openSettings()}
+            view={view}
+            onView={browse}
+            counts={{
+              albums: albums.length,
+              artists: artists.length,
+              playlists: collections.playlists.length,
+              favorites: favoriteCount,
+            }}
+          />
+          <main ref={workspaceRef} id="main" tabIndex={-1} className={`workspace ${page}-page`}>
+            <header ref={headerRef} className="library-header">
+              {}
+              <div className="title-row">
+                <div>
+                  <h1>
+                    {page === 'home' ? (
+                      dailySelection ? (
+                        t('Daily mixes')
+                      ) : listenerName.trim() ? (
+                        <HomeGreeting
+                          key={listenerName.trim()}
+                          active={startupDone && !library.loading}
+                          home={t('Home')}
+                          greeting={t(greeting, { name: listenerName.trim() })}
+                        />
+                      ) : (
+                        t('Home')
+                      )
+                    ) : page === 'search' ? (
+                      t('Search')
+                    ) : page === 'settings' ? (
+                      t('Settings')
+                    ) : page === 'remix' ? (
+                      t('Remix')
+                    ) : (
+                      t('Library')
+                    )}
+                  </h1>
+                  <p className="library-summary">{pageSummary}</p>
+                </div>
+                <div
+                  className="header-actions"
+                  aria-hidden={bannerCovered || undefined}
+                  inert={bannerCovered || undefined}
                 >
-                  {view === tab.id && (
-                    <motion.span
-                      className="category-selection"
-                      layoutId="library-category"
-                      transition={animation.fast}
-                    />
-                  )}
-                  <tab.icon size={19} aria-hidden="true" />
-                  <span className="category-name">{tab.label}</span>
-                  <span className="category-count" aria-hidden="true">
-                    {tab.count}
-                  </span>
-                </motion.button>
-              ))}
-            </div>
-          )}
-        </header>
-        <div className="section-scroll-dock">
-          <div className="section-scroll-dock__bar">
-            {bannerCovered &&
-              (page === 'settings' ||
-                (page === 'home' && dailySelection) ||
-                (page === 'library' && (group || selectedPlaylist))) && (
-                <button
-                  type="button"
-                  className="icon-button section-scroll-dock__back"
-                  aria-label={t('Back')}
-                  onClick={() => {
-                    if (page === 'settings')
-                      workspaceRef.current
-                        ?.querySelector<HTMLButtonElement>('.settings-back')
-                        ?.click();
-                    else if (page === 'home') setDailySelection(null);
-                    else {
-                      setGroup(null);
-                      setPlaylistId(null);
-                      setQuery('');
-                      if (view === 'albums') setSort('recent');
-                    }
-                  }}
-                >
-                  <ArrowLeft size={20} aria-hidden="true" />
-                </button>
-              )}
-            <button
-              type="button"
-              className="section-scroll-dock__heading"
-              tabIndex={bannerCovered ? 0 : -1}
-              aria-hidden={!bannerCovered || undefined}
-              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-            >
-              <span
-                key={scrolledHeading || dockSectionTitle}
-                className="section-scroll-dock__title"
-              >
-                {scrolledHeading || dockSectionTitle}
-              </span>
-            </button>
-            {bannerCovered && (
-              <div className="section-scroll-dock__actions">
-                <button
-                  type="button"
-                  className="icon-button"
-                  disabled={busy}
-                  onClick={() => setAddOpen(true)}
-                  aria-label={t('Add music')}
-                >
-                  <Plus size={20} />
-                </button>
-                <button
-                  type="button"
-                  className="icon-button"
-                  aria-label={t('Open settings')}
-                  onClick={() => openSettings()}
-                >
-                  <Settings size={20} />
-                </button>
+                  <AddMusicMenu
+                    busy={busy || addBusy}
+                    onLocal={chooseFiles}
+                    onFolderFiles={importFiles}
+                    onYouTube={addFromYouTube}
+                    onAdded={playAdded}
+                    onYouTubeChoice={() => {
+                      setAddInitialMode('youtube');
+                      setAddOpen(true);
+                    }}
+                  />
+                  <button
+                    className="icon-button settings-button"
+                    aria-label={t('Open settings')}
+                    onClick={() => openSettings()}
+                  >
+                    <Settings size={24} />
+                  </button>
+                </div>
               </div>
-            )}
-          </div>
-        </div>
-        <AnimatePresence mode="wait" initial={false} custom={pageDirection}>
-          <LibrarySurface
-            key={`${page}:${dailySelection?.mix.id ?? ''}:${view}:${group ?? ''}:${playlistId ?? ''}`}
-          >
-            {page === 'settings' ? (
-              <Suspense fallback={<SurfaceLoading />}>
-                <SettingsPage
-                  initialSection={settingsSection ?? (pairLink ? 'devices' : null)}
-                  onSectionChange={setSettingsSection}
-                  onBack={closeSettings}
-                  appearance={
-                    <>
-                      <div className="settings-label">{t('Theme')}</div>
-                      <div className="theme-options">
-                        {(['dark', 'light', 'system'] as const).map((option) => (
-                          <button
-                            key={option}
-                            className={theme === option ? 'chosen' : ''}
-                            aria-pressed={theme === option}
-                            onClick={() => setTheme(option)}
-                          >
-                            {t(option[0].toUpperCase() + option.slice(1))}
-                            {theme === option && <Check size={18} />}
-                          </button>
-                        ))}
-                      </div>
-                      {/* The language follows the device unless it is pinned
-                          here, and this row is the only place it is mentioned. */}
-                      <div className="settings-label">{t('Language')}</div>
-                      <div className="theme-options">
-                        {languages.map((option) => (
-                          <button
-                            key={option.id}
-                            className={languageChoice === option.id ? 'chosen' : ''}
-                            aria-pressed={languageChoice === option.id}
-                            onClick={() => setLanguageChoice(option.id)}
-                          >
-                            {option.id === 'system' ? t('System') : option.label}
-                            {languageChoice === option.id && <Check size={18} />}
-                          </button>
-                        ))}
-                      </div>
-                      <div className="settings-switch-row">
-                        <div>
-                          <strong>{t('Larger text')}</strong>
-                        </div>
-                        <MaterialSwitch
-                          label={t('Larger text')}
-                          checked={largeText}
-                          onChange={setLargeText}
+              {page === 'library' && (
+                <div ref={categoryStrip} className="library-tabs" aria-label={t('Browse library')}>
+                  {(
+                    [
+                      {
+                        id: 'songs',
+                        label: t('Songs'),
+                        icon: Music2,
+                        count: library.tracks.length,
+                      },
+                      { id: 'albums', label: t('Albums'), icon: Disc3, count: albums.length },
+                      { id: 'artists', label: t('Artists'), icon: Users, count: artists.length },
+                      {
+                        id: 'playlists',
+                        label: t('Playlists'),
+                        icon: ListMusic,
+                        count: collections.playlists.length,
+                      },
+                      { id: 'favorites', label: t('Favorites'), icon: Heart, count: favoriteCount },
+                    ] as const
+                  ).map((tab) => (
+                    <motion.button
+                      whileTap={animation.enabled ? { scale: 0.95 } : undefined}
+                      key={tab.id}
+                      aria-pressed={view === tab.id}
+                      aria-description={`${tab.count} items`}
+                      className={view === tab.id ? 'active' : ''}
+                      onClick={() => changeView(tab.id)}
+                    >
+                      {view === tab.id && (
+                        <motion.span
+                          className="category-selection"
+                          layoutId="library-category"
+                          transition={animation.fast}
                         />
-                      </div>
-                      <div className="settings-switch-row">
-                        <div>
-                          <strong>{t('Animations')}</strong>
-                        </div>
-                        <MaterialSwitch
-                          label={t('Animations')}
-                          checked={animations}
-                          onChange={onAnimations}
-                        />
-                      </div>
-                    </>
-                  }
-                  playback={
-                    <>
-                      <VolumeSettings
-                        enabled={volumeFixEnabled}
-                        status={volumeStatus}
-                        onChange={(enabled) => {
-                          if (enabled)
-                            void player
-                              .prepareVolumeFix()
-                              .then(() => setVolumeFixEnabled(true))
-                              .catch((error: unknown) =>
-                                library.setError(
-                                  error instanceof Error
-                                    ? error.message
-                                    : t('Volume could not be adjusted.'),
-                                ),
-                              );
-                          else setVolumeFixEnabled(false);
-                        }}
-                      />
-                      <div className="settings-switch-row">
-                        <div>
-                          <strong>{t('Mix')}</strong>
-                        </div>
-                        <MaterialSwitch
-                          label={t('Mix')}
-                          checked={player.mixEnabled}
-                          onChange={(next) => {
-                            player.setMixEnabled(next);
-                            window.dispatchEvent(
-                              new CustomEvent('wave:feature-used', { detail: 'Mix' }),
-                            );
-                          }}
-                        />
-                      </div>
-                      <div className="settings-switch-row">
-                        <div>
-                          <strong>{t('Video clip')}</strong>
-                        </div>
-                        <MaterialSwitch
-                          label={t('Video clip')}
-                          checked={videoClip}
-                          onChange={setVideoClip}
-                        />
-                      </div>
-                      <div className="settings-switch-row">
-                        <div>
-                          <strong>{t('Autoplay')}</strong>
-                        </div>
-                        <MaterialSwitch
-                          label={t('Autoplay')}
-                          checked={player.autoplay}
-                          onChange={player.setAutoplay}
-                        />
-                      </div>
-                      <div className="settings-switch-row">
-                        <div>
-                          <strong>{t('Resume playback on reload')}</strong>
-                          <p className="settings-note">
-                            {t('Continue playing where you left off when reopening Wave.')}
+                      )}
+                      <tab.icon size={19} aria-hidden="true" />
+                      <span className="category-name">{tab.label}</span>
+                      <span className="category-count" aria-hidden="true">
+                        {tab.count}
+                      </span>
+                    </motion.button>
+                  ))}
+                </div>
+              )}
+            </header>
+            <div className="section-scroll-dock">
+              <div className="section-scroll-dock__bar">
+                {bannerCovered &&
+                  (page === 'settings' ||
+                    (page === 'home' && dailySelection) ||
+                    (page === 'library' && (group || selectedPlaylist))) && (
+                    <button
+                      type="button"
+                      className="icon-button section-scroll-dock__back"
+                      aria-label={t('Back')}
+                      onClick={() => {
+                        if (page === 'settings')
+                          workspaceRef.current
+                            ?.querySelector<HTMLButtonElement>('.settings-back')
+                            ?.click();
+                        else if (page === 'home') setDailySelection(null);
+                        else {
+                          setGroup(null);
+                          setPlaylistId(null);
+                          setQuery('');
+                          if (view === 'albums') setSort('recent');
+                        }
+                      }}
+                    >
+                      <ArrowLeft size={20} aria-hidden="true" />
+                    </button>
+                  )}
+                <button
+                  type="button"
+                  className="section-scroll-dock__heading"
+                  tabIndex={bannerCovered ? 0 : -1}
+                  aria-hidden={!bannerCovered || undefined}
+                  onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                >
+                  <span
+                    key={scrolledHeading || dockSectionTitle}
+                    className="section-scroll-dock__title"
+                  >
+                    {scrolledHeading || dockSectionTitle}
+                  </span>
+                </button>
+                {bannerCovered && (
+                  <div className="section-scroll-dock__actions">
+                    <AddMusicMenu
+                      busy={busy || addBusy}
+                      onLocal={chooseFiles}
+                      onFolderFiles={importFiles}
+                      onYouTube={addFromYouTube}
+                      onAdded={playAdded}
+                      onYouTubeChoice={() => {
+                        setAddInitialMode('youtube');
+                        setAddOpen(true);
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="icon-button"
+                      aria-label={t('Open settings')}
+                      onClick={() => openSettings()}
+                    >
+                      <Settings size={20} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+            <AnimatePresence mode="wait" initial={false} custom={pageDirection}>
+              <LibrarySurface
+                home={page === 'home'}
+                key={`${page}:${dailySelection?.mix.id ?? ''}:${view}:${group ?? ''}:${playlistId ?? ''}`}
+              >
+                {page === 'settings' ? (
+                  <Suspense fallback={<SurfaceLoading />}>
+                    <SettingsPage
+                      initialSection={settingsSection ?? (pairLink ? 'devices' : null)}
+                      onSectionChange={setSettingsSection}
+                      onBack={closeSettings}
+                      appearance={
+                        <>
+                          <label className="settings-label" htmlFor="listener-name">
+                            {t('Your name')}
+                          </label>
+                          <input
+                            id="listener-name"
+                            className="listener-name-input"
+                            value={listenerName}
+                            maxLength={40}
+                            autoComplete="off"
+                            onChange={(event) => setListenerName(event.target.value)}
+                          />
+                          <p className="settings-row-note">
+                            {t(
+                              'Optional. Your name stays on this device and you can change it later.',
+                            )}
                           </p>
-                        </div>
-                        <MaterialSwitch
-                          label={t('Resume playback on reload')}
-                          checked={player.resumeOnReload}
-                          onChange={player.setResumeOnReload}
-                        />
-                      </div>
-                    </>
-                  }
-                  lyrics={
-                    <>
-                      <div className="settings-switch-row">
-                        <div>
-                          <strong>{t('Word-level lyric sources')}</strong>
-                          <p className="settings-warning">
-                            {t('Unofficial sources. Only the title and artist are sent.')}
-                          </p>
-                        </div>
-                        <MaterialSwitch
-                          label={t('Word-level lyric sources')}
-                          checked={wordSources}
-                          onChange={(next) => {
-                            setWordSources(next);
-                            setExtendedLyrics(next);
-                          }}
-                        />
-                      </div>
-                      <div className="settings-switch-row">
-                        <div>
-                          <strong>{t('Automatic lyrics')}</strong>
-                        </div>
-                        <MaterialSwitch
-                          label={t('Automatic lyrics')}
-                          checked={automaticLyrics}
-                          onChange={(next) => {
-                            setAutomaticLyrics(next);
-                            try {
-                              localStorage.setItem('wave-lyrics-consent-v1', 'true');
-                            } catch {
-                              /* Session-only consent. */
+                          <div className="settings-label">{t('Theme')}</div>
+                          <div className="theme-options">
+                            {(['dark', 'light', 'system'] as const).map((option) => (
+                              <button
+                                key={option}
+                                className={theme === option ? 'chosen' : ''}
+                                aria-pressed={theme === option}
+                                onClick={() => setTheme(option)}
+                              >
+                                {t(option[0].toUpperCase() + option.slice(1))}
+                                {theme === option && <Check size={18} />}
+                              </button>
+                            ))}
+                          </div>
+                          {}
+                          <div className="settings-label">{t('Language')}</div>
+                          <div className="theme-options">
+                            {languages.map((option) => (
+                              <button
+                                key={option.id}
+                                className={languageChoice === option.id ? 'chosen' : ''}
+                                aria-pressed={languageChoice === option.id}
+                                onClick={() => setLanguageChoice(option.id)}
+                              >
+                                {option.id === 'system' ? t('System') : option.label}
+                                {languageChoice === option.id && <Check size={18} />}
+                              </button>
+                            ))}
+                          </div>
+                          <div className="settings-switch-row">
+                            <div>
+                              <strong>{t('Larger text')}</strong>
+                            </div>
+                            <MaterialSwitch
+                              label={t('Larger text')}
+                              checked={largeText}
+                              onChange={setLargeText}
+                            />
+                          </div>
+                          <div className="settings-switch-row">
+                            <div>
+                              <strong>{t('Animations')}</strong>
+                            </div>
+                            <MaterialSwitch
+                              label={t('Animations')}
+                              checked={animations}
+                              onChange={onAnimations}
+                            />
+                          </div>
+                        </>
+                      }
+                      playback={
+                        <>
+                          <VolumeSettings
+                            enabled={volumeFixEnabled}
+                            status={volumeStatus}
+                            onChange={(enabled) => {
+                              if (enabled)
+                                void player
+                                  .prepareVolumeFix()
+                                  .then(() => setVolumeFixEnabled(true))
+                                  .catch((error: unknown) =>
+                                    library.setError(
+                                      error instanceof Error
+                                        ? error.message
+                                        : t('Volume could not be adjusted.'),
+                                    ),
+                                  );
+                              else setVolumeFixEnabled(false);
+                            }}
+                          />
+                          <div className="settings-switch-row">
+                            <div>
+                              <strong>{t('Mix')}</strong>
+                              <p>
+                                {t(
+                                  'Mix blends local songs together. YouTube songs play normally without Mix.',
+                                )}
+                              </p>
+                            </div>
+                            <MaterialSwitch
+                              label={t('Mix')}
+                              checked={player.mixEnabled}
+                              onChange={(next) => {
+                                player.setMixEnabled(next);
+                                window.dispatchEvent(
+                                  new CustomEvent('wave:feature-used', { detail: 'Mix' }),
+                                );
+                              }}
+                            />
+                          </div>
+                          <div className="settings-switch-row">
+                            <div>
+                              <strong>{t('Video clip')}</strong>
+                            </div>
+                            <MaterialSwitch
+                              label={t('Video clip')}
+                              checked={videoClip}
+                              onChange={setVideoClip}
+                            />
+                          </div>
+                          <div className="settings-switch-row">
+                            <div>
+                              <strong>{t('Autoplay')}</strong>
+                            </div>
+                            <MaterialSwitch
+                              label={t('Autoplay')}
+                              checked={player.autoplay}
+                              onChange={player.setAutoplay}
+                            />
+                          </div>
+                          <div className="settings-switch-row">
+                            <div>
+                              <strong>{t('Resume playback on reload')}</strong>
+                              <p className="settings-note">
+                                {t('Continue playing where you left off when reopening Wave.')}
+                              </p>
+                            </div>
+                            <MaterialSwitch
+                              label={t('Resume playback on reload')}
+                              checked={player.resumeOnReload}
+                              onChange={player.setResumeOnReload}
+                            />
+                          </div>
+                        </>
+                      }
+                      lyrics={
+                        <>
+                          <div className="settings-switch-row">
+                            <div>
+                              <strong>{t('Try more lyrics sources')}</strong>
+                              <p className="settings-warning">
+                                {t('Unofficial sources. Only the title and artist are sent.')}
+                              </p>
+                            </div>
+                            <MaterialSwitch
+                              label={t('Try more lyrics sources')}
+                              checked={wordSources}
+                              onChange={(next) => {
+                                setWordSources(next);
+                                setExtendedLyrics(next);
+                              }}
+                            />
+                          </div>
+                          <div className="settings-switch-row">
+                            <div>
+                              <strong>{t('Automatic lyrics')}</strong>
+                            </div>
+                            <MaterialSwitch
+                              label={t('Automatic lyrics')}
+                              checked={automaticLyrics}
+                              onChange={(next) => {
+                                setAutomaticLyrics(next);
+                                try {
+                                  localStorage.setItem('wave-lyrics-consent-v1', 'true');
+                                } catch {}
+                              }}
+                            />
+                          </div>
+                        </>
+                      }
+                      library={
+                        <>
+                          {' '}
+                          <div className="settings-switch-row">
+                            <div>
+                              <strong>{t('Library editing')}</strong>
+                            </div>
+                            <MaterialSwitch
+                              label={t('Library editing')}
+                              checked={editorEnabled}
+                              onChange={setEditorEnabled}
+                            />
+                          </div>
+                          <LocalMetadataReview
+                            advanced={
+                              <>
+                                <div className="settings-switch-row">
+                                  <div>
+                                    <strong>
+                                      {t('Verify artist and title across the library')}
+                                    </strong>
+                                    <p className="settings-note">
+                                      {t(
+                                        'With Auto Fill on, check even complete songs against Apple and Deezer to detect swapped artist and title. Song names are sent to those providers. Manual edits and prior decisions are kept.',
+                                      )}
+                                    </p>
+                                  </div>
+                                  <MaterialSwitch
+                                    label={t('Verify artist and title across the library')}
+                                    checked={verifyLibraryRoles}
+                                    onChange={setVerifyLibraryRoles}
+                                  />
+                                </div>
+                                <div className="settings-switch-row">
+                                  <div>
+                                    <strong>{t('Find clips across the library')}</strong>
+                                    <p className="settings-note">
+                                      {t(
+                                        'With Auto Fill on, send song titles and artists to public Piped and Invidious servers to find missing videos. Existing clips are kept. Turn this off to stop new requests.',
+                                      )}
+                                    </p>
+                                  </div>
+                                  <MaterialSwitch
+                                    label={t('Find clips across the library')}
+                                    checked={libraryClips}
+                                    onChange={setLibraryClips}
+                                  />
+                                </div>
+                                <p className="settings-note">
+                                  {t(
+                                    'Automatic lyrics can be enabled separately in Lyrics settings.',
+                                  )}
+                                </p>
+                              </>
+                            }
+                            tracks={library.tracks}
+                            onResolveRoles={library.resolveRoles}
+                            enabled={detailsOn}
+                            onToggle={toggleDetails}
+                            onLookUp={() => void catalogue.lookUp()}
+                            filling={catalogue.filling}
+                            completed={catalogue.completed}
+                            onFindArtistPhotos={() => void artistPhotoSearch.find()}
+                            artistPhotoProgress={artistPhotoSearch.progress}
+                          />
+                        </>
+                      }
+                      devices={
+                        <DevicesPage
+                          tracks={library.tracks}
+                          onAddLoaned={async (blob, name) => {
+                            setNoticeVisible(true);
+                            const result = await library.importFiles([
+                              new File([blob], name, { type: blob.type }),
+                            ]);
+                            if (!result || (!result.added && !result.duplicates)) {
+                              throw new Error('The song could not be added.');
                             }
                           }}
                         />
-                      </div>
-                    </>
-                  }
-                  library={
-                    <>
-                      {' '}
-                      <div className="settings-switch-row">
-                        <div>
-                          <strong>{t('Library editing')}</strong>
-                        </div>
-                        <MaterialSwitch
-                          label={t('Library editing')}
-                          checked={editorEnabled}
-                          onChange={setEditorEnabled}
-                        />
-                      </div>
-                      <LocalMetadataReview
-                        tracks={library.tracks}
-                        onResolveRoles={library.resolveRoles}
-                        enabled={detailsOn}
-                        onToggle={toggleDetails}
-                        onLookUp={() => void catalogue.lookUp()}
-                        filling={catalogue.filling}
-                        completed={catalogue.completed}
-                      />
-                      {/*
-                        Bringing a library from somewhere else used to live only
-                        behind the playlists shelf, which is not where a person
-                        looks for it. It is here too, named for what it does.
-                      */}
-                      <div className="settings-switch-row">
-                        <div>
-                          <strong>{t('Bring your playlists over')}</strong>
-                          <span className="settings-row-note">
-                            {t(
-                              'Paste a link from another service and Wave finds those songs here.',
-                            )}
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          className="tonal-button"
-                          onClick={() => setMigrationOpen(true)}
-                        >
-                          <FolderInput size={18} />
-                          {t('Open')}
-                        </button>
-                      </div>
-                    </>
-                  }
-                  devices={
-                    <DevicesPage
+                      }
+                      storage={
+                        <>
+                          <LibraryMaintenance
+                            tracks={library.tracks}
+                            currentId={player.current?.id}
+                            onMerged={async () => {
+                              await library.reload();
+                              await collections.reload();
+                              await customizations.reload();
+                            }}
+                          />
+                          <StorageSettings tracks={library.tracks} importing={busy || addBusy} />
+                        </>
+                      }
+                      about={
+                        <>
+                          <PlatformLinks onDevices={() => openSettings('devices')} />
+                          <a
+                            className="settings-source"
+                            href="https://github.com/jaime-gaming/Wave"
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Wave {__WAVE_VERSION__} · {t('Source code')}
+                            <ArrowUpRight size={16} />
+                          </a>
+                        </>
+                      }
+                    />
+                  </Suspense>
+                ) : page === 'search' ? (
+                  <SearchPage
+                    tracks={library.tracks}
+                    playlists={collections.playlists}
+                    query={query}
+                    onQuery={setQuery}
+                    inputRef={searchInput}
+                    onCreatePlaylist={createPlaylist}
+                    photos={artistPhotos}
+                    loading={library.loading}
+                    busy={busy}
+                    currentId={player.current?.id}
+                    playing={player.state.playing}
+                    onPlay={player.play}
+                    onFavorite={favoriteTrack}
+                    onMore={setTrackOptions}
+                    onArtist={openArtist}
+                    onAlbum={openAlbum}
+                    onPlaylist={openPlaylist}
+                    onBrowse={browse}
+                    onAdd={openAddMusic}
+                  />
+                ) : page === 'remix' ? (
+                  <Suspense fallback={<SurfaceLoading />}>
+                    <RemixPage
+                      summary={listening.summary}
+                      recap={listening.recap}
+                      listenerName={listenerName.trim()}
+                      artists={artists}
+                      artistPhotos={artistPhotos}
+                      history={listening.history}
+                      monthlyHistory={listening.monthlyHistory}
+                      yearlyHistory={listening.yearlyHistory}
+                      loaded={listening.loaded}
+                      currentId={player.current?.id}
+                      playing={player.state.playing}
+                      onPlay={player.play}
+                      onArtist={openArtist}
+                      onAdd={openAddMusic}
+                      onManageHistory={() => openSettings('storage')}
+                      onSave={async (songs, periodRecap) => {
+                        const label =
+                          periodRecap.label ??
+                          new Date(periodRecap.end).toLocaleDateString(undefined, {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                          });
+                        const saved = await collections.create(
+                          {
+                            name: `Remix · ${label}`.slice(0, 100),
+                            description: t('Saved from Remix for {date}.', {
+                              date: label,
+                            }),
+                          },
+                          songs.map((track) => track.id),
+                        );
+                        if (!saved) return false;
+                        openPlaylist(saved.id);
+                        return true;
+                      }}
+                      onClear={listening.forget}
+                    />
+                  </Suspense>
+                ) : page === 'home' && dailySelection ? (
+                  <Suspense fallback={<SurfaceLoading />}>
+                    <DailyMixPage
+                      selection={dailySelection}
                       tracks={library.tracks}
-                      onAddLoaned={async (blob, name) => {
-                        await importFiles([new File([blob], name, { type: blob.type })]);
+                      currentId={player.current?.id}
+                      playing={player.state.playing}
+                      onBack={() => setDailySelection(null)}
+                      onPlay={player.play}
+                      onShuffle={shuffleCollection}
+                      onFavorite={favoriteTrack}
+                      onMore={setTrackOptions}
+                      onArtist={openArtist}
+                      onAlbum={(track) => openAlbum(albumKey(track))}
+                      onSave={async (songs) => {
+                        const saved = await collections.create(
+                          {
+                            name: dailyMixPlaylistName(
+                              new Date(),
+                              collections.playlists.map((playlist) => playlist.name),
+                            ),
+                            description: `Saved from your local ${dailySelection.mix.basis}-based daily mix.`,
+                          },
+                          songs.map((t) => t.id),
+                        );
+                        if (!saved) return false;
+                        openPlaylist(saved.id);
+                        return true;
                       }}
                     />
-                  }
-                  storage={
-                    <>
-                      <LibraryMaintenance
-                        tracks={library.tracks}
-                        currentId={player.current?.id}
-                        onMerged={async () => {
-                          await library.reload();
-                          await collections.reload();
-                          await customizations.reload();
+                  </Suspense>
+                ) : page === 'home' ? (
+                  <HomePage
+                    tracks={library.tracks}
+                    listening={listening.summary}
+                    moodSignals={listening.moodSignals}
+                    playlists={collections.playlists}
+                    current={player.current}
+                    playing={player.state.playing}
+                    loading={library.loading}
+                    busy={busy}
+                    onAdd={openAddMusic}
+                    addAction={
+                      <AddMusicMenu
+                        label
+                        busy={busy || addBusy}
+                        onLocal={chooseFiles}
+                        onFolderFiles={importFiles}
+                        onYouTube={addFromYouTube}
+                        onAdded={playAdded}
+                        onYouTubeChoice={() => {
+                          setAddInitialMode('youtube');
+                          setAddOpen(true);
                         }}
                       />
-                      <StorageSettings tracks={library.tracks} />
-                    </>
-                  }
-                  about={
-                    <>
-                      <PlatformLinks onDevices={() => openSettings('devices')} />
-                      <a
-                        className="settings-source"
-                        href="https://github.com/jaime-gaming/Wave"
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        Wave {__WAVE_VERSION__} · {t('Source code')}
-                        <ArrowUpRight size={16} />
-                      </a>
-                    </>
-                  }
-                />
-              </Suspense>
-            ) : page === 'search' ? (
-              <SearchPage
-                tracks={library.tracks}
-                playlists={collections.playlists}
-                query={query}
-                onQuery={setQuery}
-                inputRef={searchInput}
-                onCreatePlaylist={createPlaylist}
-                photos={artistPhotos}
-                loading={library.loading}
-                busy={busy}
-                currentId={player.current?.id}
-                playing={player.state.playing}
-                onPlay={player.play}
-                onFavorite={favoriteTrack}
-                onMore={setTrackOptions}
-                onArtist={openArtist}
-                onAlbum={openAlbum}
-                onPlaylist={openPlaylist}
-                onBrowse={browse}
-                onAdd={openAddMusic}
-              />
-            ) : page === 'remix' ? (
-              <Suspense fallback={<SurfaceLoading />}>
-                <RemixPage
-                  summary={listening.summary}
-                  recap={listening.recap}
-                  artists={artists}
-                  artistPhotos={artistPhotos}
-                  history={listening.history}
-                  monthlyHistory={listening.monthlyHistory}
-                  yearlyHistory={listening.yearlyHistory}
-                  loaded={listening.loaded}
-                  currentId={player.current?.id}
-                  playing={player.state.playing}
-                  onPlay={player.play}
-                  onArtist={openArtist}
-                  onAdd={openAddMusic}
-                  onManageHistory={() => openSettings('storage')}
-                  onSave={async (songs, periodRecap) => {
-                    // Saving is explicit: the list becomes an ordinary playlist and
-                    // nothing about the history changes.
-                    const label =
-                      periodRecap.label ??
-                      new Date(periodRecap.end).toLocaleDateString(undefined, {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                      });
-                    const saved = await collections.create(
-                      {
-                        name: `Remix · ${label}`.slice(0, 100),
-                        description: t('Saved from Remix for {date}.', {
-                          date: label,
-                        }),
-                      },
-                      songs.map((track) => track.id),
-                    );
-                    if (!saved) return false;
-                    openPlaylist(saved.id);
-                    return true;
-                  }}
-                  onClear={listening.forget}
-                />
-              </Suspense>
-            ) : page === 'home' && dailySelection ? (
-              <Suspense fallback={<SurfaceLoading />}>
-                <DailyMixPage
-                  selection={dailySelection}
-                  tracks={library.tracks}
-                  currentId={player.current?.id}
-                  playing={player.state.playing}
-                  onBack={() => setDailySelection(null)}
-                  onPlay={player.play}
-                  onShuffle={shuffleCollection}
-                  onFavorite={favoriteTrack}
-                  onMore={setTrackOptions}
-                  onArtist={openArtist}
-                  onAlbum={(track) => openAlbum(albumKey(track))}
-                  onSave={async (songs) => {
-                    const saved = await collections.create(
-                      {
-                        name: `Daily mix ${dailySelection.number} · ${dailySelection.mix.label}`.slice(
-                          0,
-                          100,
-                        ),
-                        description: `Saved from your local ${dailySelection.mix.basis}-based daily mix.`,
-                      },
-                      songs.map((t) => t.id),
-                    );
-                    if (!saved) return false;
-                    openPlaylist(saved.id);
-                    return true;
-                  }}
-                />
-              </Suspense>
-            ) : page === 'home' ? (
-              <HomePage
-                tracks={library.tracks}
-                listening={listening.summary}
-                moodSignals={listening.moodSignals}
-                playlists={collections.playlists}
-                current={player.current}
-                playing={player.state.playing}
-                loading={library.loading}
-                busy={busy}
-                onAdd={openAddMusic}
-                onView={browse}
-                onAlbum={openAlbum}
-                onArtist={openArtist}
-                onPlaylist={openPlaylist}
-                onPlay={player.play}
-                onFavorite={favoriteTrack}
-                onMore={setTrackOptions}
-                artistPhotos={artistPhotos}
-                onDevices={() => openSettings('devices')}
-                onMix={(mix, number) => setDailySelection({ mix, number })}
-              />
-            ) : view === 'artists' && !group ? (
-              <Artists
-                tracks={library.tracks}
-                query={query}
-                onOpen={openArtist}
-                photos={artistPhotos}
-                loading={library.loading}
-              />
-            ) : view === 'playlists' && !selectedPlaylist ? (
-              collections.loading ? (
-                <div className="empty-state">
-                  <h2>{t('Loading playlists')}</h2>
-                </div>
-              ) : (
-                <PlaylistCollection
-                  playlists={collections.playlists}
-                  tracks={library.tracks}
-                  query={query}
-                  onOpen={openPlaylist}
-                  onCreate={() => setPlaylistForm('new')}
-                  onImport={() => setMigrationOpen(true)}
-                />
-              )
-            ) : (
-              <>
-                {selectedArtist && (
-                  <ArtistHeader
-                    artist={selectedArtist}
-                    photo={artistPhotos.get(selectedArtist.name)}
-                    onEditPhoto={() =>
-                      setEditingArtist({
-                        name: selectedArtist.name,
-                        artwork: artistPhotos.get(selectedArtist.name),
-                      })
                     }
-                    onPlay={() => {
-                      if (selectedArtist.tracks.length)
-                        player.play(selectedArtist.tracks, selectedArtist.tracks[0].id);
-                    }}
-                    onShuffle={() => shuffleCollection(selectedArtist.tracks)}
-                    onBack={() => {
-                      setGroup(null);
-                      setQuery('');
-                    }}
+                    onView={browse}
                     onAlbum={openAlbum}
+                    onArtist={openArtist}
+                    onPlaylist={openPlaylist}
+                    onPlay={player.play}
+                    onFavorite={favoriteTrack}
+                    onMore={setTrackOptions}
+                    artistPhotos={artistPhotos}
+                    onDevices={() => openSettings('devices')}
+                    onMix={(mix, number) => setDailySelection({ mix, number })}
                   />
-                )}
-                {selectedPlaylist && (
-                  <PlaylistHeader
-                    playlist={selectedPlaylist}
+                ) : view === 'artists' && !group ? (
+                  <Artists
                     tracks={library.tracks}
-                    onBack={() => {
-                      setPlaylistId(null);
-                      setQuery('');
-                    }}
-                    onEdit={() => setPlaylistForm('edit')}
-                    onAdd={() => setAddingSongs(true)}
-                    onDelete={() => setDeletingPlaylist(true)}
+                    query={query}
+                    onOpen={openArtist}
+                    photos={artistPhotos}
+                    loading={library.loading}
                   />
-                )}
-                {!group && !selectedPlaylist && (view === 'songs' || view === 'favorites') && (
-                  <div className="library-list-title">
-                    <h2>{view === 'favorites' ? t('Favorite songs') : t('All songs')}</h2>
-                  </div>
-                )}
-                <div className="library-toolbar">
-                  <div className="library-play-actions">
-                    <button
-                      className="tonal-button shuffle-all"
-                      aria-label={t('Shuffle all songs')}
-                      disabled={!visible.length}
-                      onClick={playShuffle}
-                    >
-                      <Shuffle size={20} />
-                      {t('Shuffle')}
-                    </button>
-                    <button
-                      className="icon-button play-all"
-                      aria-label={t('Play all songs')}
-                      disabled={!visible.length}
-                      onClick={() => player.play(visible, visible[0].id)}
-                    >
-                      <Play size={21} />
-                    </button>
-                    <span className="result-count">
-                      {query
-                        ? `${visible.length} results`
-                        : view === 'favorites'
-                          ? `${favoriteCount} favorites`
-                          : `${visible.length} ${visible.length === 1 ? 'song' : 'songs'}`}
-                    </span>
-                  </div>
-                  {(selectedPlaylist || (view === 'albums' && group)) && (
-                    <button
-                      className="tonal-button reorder-collection"
-                      onClick={() => {
-                        const album = albums.find((item) => item.id === group);
-                        const tracks = selectedPlaylist
-                          ? selectedPlaylist.trackIds.flatMap(
-                              (id) => library.tracks.find((track) => track.id === id) ?? [],
-                            )
-                          : orderedTracks(
-                              album?.tracks ?? [],
-                              customizations.albums.find((order) => order.id === group)?.trackIds,
-                            );
-                        setReordering({
-                          kind: selectedPlaylist ? 'playlist' : 'album',
-                          id: selectedPlaylist?.id ?? group!,
-                          name: selectedPlaylist?.name ?? album?.name ?? t('Album'),
-                          tracks,
-                        });
-                      }}
-                    >
-                      {t('Reorder songs')}
-                    </button>
-                  )}
-                  <label className="sort-control">
-                    <SlidersHorizontal size={20} />
-                    <select
-                      aria-label={t('Sort tracks')}
-                      value={sort}
-                      onChange={(event) => setSort(event.target.value)}
-                    >
-                      {selectedPlaylist && <option value="playlist">{t('Playlist order')}</option>}
-                      {view === 'albums' && group && (
-                        <option value="album">{t('Album order')}</option>
+                ) : view === 'playlists' && !selectedPlaylist ? (
+                  collections.loading ? (
+                    <div className="empty-state">
+                      <h2>{t('Loading playlists')}</h2>
+                    </div>
+                  ) : (
+                    <PlaylistCollection
+                      playlists={collections.playlists}
+                      tracks={library.tracks}
+                      query={query}
+                      onOpen={openPlaylist}
+                      onCreate={() => setPlaylistForm('new')}
+                      onImport={() => setMigrationOpen(true)}
+                    />
+                  )
+                ) : (
+                  <>
+                    {selectedArtist && (
+                      <ArtistHeader
+                        artist={selectedArtist}
+                        photo={artistPhotos.get(selectedArtist.name)}
+                        onEditPhoto={() =>
+                          setEditingArtist({
+                            name: selectedArtist.name,
+                            artwork: artistPhotos.get(selectedArtist.name),
+                          })
+                        }
+                        onPlay={() => {
+                          if (selectedArtist.tracks.length)
+                            player.play(selectedArtist.tracks, selectedArtist.tracks[0].id);
+                        }}
+                        onShuffle={() => shuffleCollection(selectedArtist.tracks)}
+                        onBack={() => {
+                          setGroup(null);
+                          setQuery('');
+                        }}
+                        onAlbum={openAlbum}
+                      />
+                    )}
+                    {selectedPlaylist && (
+                      <PlaylistHeader
+                        playlist={selectedPlaylist}
+                        tracks={library.tracks}
+                        onBack={() => {
+                          setPlaylistId(null);
+                          setQuery('');
+                        }}
+                        onEdit={() => setPlaylistForm('edit')}
+                        onAdd={() => setAddingSongs(true)}
+                        onDelete={() => setDeletingPlaylist(true)}
+                      />
+                    )}
+                    {!group && !selectedPlaylist && (view === 'songs' || view === 'favorites') && (
+                      <div className="library-list-title">
+                        <h2>{view === 'favorites' ? t('Favorite songs') : t('All songs')}</h2>
+                      </div>
+                    )}
+                    <div className="library-toolbar">
+                      <div className="library-play-actions">
+                        <button
+                          className="tonal-button shuffle-all"
+                          aria-label={t('Shuffle all songs')}
+                          disabled={!visible.length}
+                          onClick={playShuffle}
+                        >
+                          <Shuffle size={20} />
+                          {t('Shuffle')}
+                        </button>
+                        <button
+                          className="icon-button play-all"
+                          aria-label={t('Play all songs')}
+                          disabled={!visible.length}
+                          onClick={() => player.play(visible, visible[0].id)}
+                        >
+                          <Play size={21} />
+                        </button>
+                        <span className="result-count">
+                          {query
+                            ? `${visible.length} results`
+                            : view === 'favorites'
+                              ? `${favoriteCount} favorites`
+                              : `${visible.length} ${visible.length === 1 ? 'song' : 'songs'}`}
+                        </span>
+                      </div>
+                      {(selectedPlaylist || (view === 'albums' && group)) && (
+                        <button
+                          className="tonal-button reorder-collection"
+                          onClick={() => {
+                            const album = albums.find((item) => item.id === group);
+                            const tracks = selectedPlaylist
+                              ? selectedPlaylist.trackIds.flatMap(
+                                  (id) => library.tracks.find((track) => track.id === id) ?? [],
+                                )
+                              : orderedTracks(
+                                  album?.tracks ?? [],
+                                  customizations.albums.find((order) => order.id === group)
+                                    ?.trackIds,
+                                );
+                            setReordering({
+                              kind: selectedPlaylist ? 'playlist' : 'album',
+                              id: selectedPlaylist?.id ?? group!,
+                              name: selectedPlaylist?.name ?? album?.name ?? t('Album'),
+                              tracks,
+                            });
+                          }}
+                        >
+                          {t('Reorder songs')}
+                        </button>
                       )}
-                      <option value="recent">{t('Recently added')}</option>
-                      <option value="title">{t('Title A–Z')}</option>
-                      <option value="artist">{t('Artist A–Z')}</option>
-                    </select>
-                    <ChevronDown size={16} />
-                  </label>
-                </div>
-                <LibraryContent
-                  loading={library.loading}
-                  tracks={visible}
-                  total={library.tracks.length}
-                  view={view}
-                  query={query}
-                  group={group}
-                  hideGroupHeader={view === 'artists'}
-                  onGroup={chooseGroup}
-                  onClearSearch={clearSearch}
-                  onAdd={openAddMusic}
-                  busy={busy}
-                  currentId={player.current?.id}
-                  playing={player.state.playing}
-                  onPlay={player.play}
-                  onFavorite={favoriteTrack}
-                  onMore={setTrackOptions}
-                  onArtist={openArtist}
-                  onAlbum={playAlbumTrack}
-                />
-              </>
-            )}
-          </LibrarySurface>
-        </AnimatePresence>
-      </main>
-      <PlayerBar
-        player={player}
-        expanded={playerOpen}
-        onArtist={(name) => {
-          setPlayerOpen(false);
-          openArtist(name);
-        }}
-        onAlbum={(track) => {
-          setPlayerOpen(false);
-          openAlbum(albumKey(track));
-        }}
-        onExpanded={setPlayerOpen}
-        onOpen={openPlayer}
-        returnFocusRef={playerOpener}
-        onFavorite={favoriteTrack}
-        onLyrics={setEditingLyrics}
-        onSaveLyrics={library.saveLyrics}
-        automaticLyrics={automaticLyrics}
-        lyricsLoading={lookup.loading === player.current?.id}
-        onRetryLyrics={lookup.retryTrack}
-        queueOpen={queueOpen}
-        onQueue={() => setQueueOpen(!queueOpen)}
-        videoClip={videoClip}
-        onToggleVideoClip={() => setVideoClip(!videoClip)}
-      />
+                      <label className="sort-control">
+                        <SlidersHorizontal size={20} />
+                        <select
+                          aria-label={t('Sort tracks')}
+                          value={sort}
+                          onChange={(event) => setSort(event.target.value)}
+                        >
+                          {selectedPlaylist && (
+                            <option value="playlist">{t('Playlist order')}</option>
+                          )}
+                          {view === 'albums' && group && (
+                            <option value="album">{t('Album order')}</option>
+                          )}
+                          <option value="recent">{t('Recently added')}</option>
+                          <option value="title">{t('Title A–Z')}</option>
+                          <option value="artist">{t('Artist A–Z')}</option>
+                        </select>
+                        <ChevronDown size={16} />
+                      </label>
+                    </div>
+                    <LibraryContent
+                      loading={library.loading}
+                      tracks={visible}
+                      total={library.tracks.length}
+                      view={view}
+                      query={query}
+                      group={group}
+                      hideGroupHeader={view === 'artists'}
+                      onGroup={chooseGroup}
+                      onClearSearch={clearSearch}
+                      onAdd={openAddMusic}
+                      busy={busy}
+                      currentId={player.current?.id}
+                      playing={player.state.playing}
+                      onPlay={player.play}
+                      onFavorite={favoriteTrack}
+                      onMore={setTrackOptions}
+                      onArtist={openArtist}
+                      onAlbum={playAlbumTrack}
+                    />
+                  </>
+                )}
+              </LibrarySurface>
+            </AnimatePresence>
+          </main>
+          <PlayerBar
+            player={player}
+            expanded={playerOpen}
+            onArtist={(name) => {
+              setPlayerOpen(false);
+              openArtist(name);
+            }}
+            onAlbum={(track) => {
+              setPlayerOpen(false);
+              openAlbum(albumKey(track));
+            }}
+            onExpanded={setPlayerOpen}
+            onOpen={openPlayer}
+            returnFocusRef={playerOpener}
+            onFavorite={favoriteTrack}
+            onLyrics={setEditingLyrics}
+            onSaveLyrics={library.saveLyrics}
+            automaticLyrics={automaticLyrics}
+            lyricsLoading={lookup.loading === player.current?.id}
+            onRetryLyrics={lookup.retryTrack}
+            queueOpen={queueOpen}
+            onQueue={() => setQueueOpen(!queueOpen)}
+            videoClip={videoClip}
+            onToggleVideoClip={() => setVideoClip(!videoClip)}
+          />
+        </>
+      )}
+      {setupActive && (
+        <WelcomeSetup
+          animations={animations}
+          onAnimations={onAnimations}
+          largeText={largeText}
+          onLargeText={setLargeText}
+          theme={theme}
+          onTheme={setTheme}
+          name={listenerName}
+          onName={setListenerName}
+          mixEnabled={player.mixEnabled}
+          onMixEnabled={player.setMixEnabled}
+          volumeFix={volumeFixEnabled}
+          onVolumeFix={(enabled) => {
+            if (enabled)
+              void player
+                .prepareVolumeFix()
+                .then(() => setVolumeFixEnabled(true))
+                .catch(() => library.setError(t('Volume could not be adjusted.')));
+            else setVolumeFixEnabled(false);
+          }}
+          automaticLyrics={automaticLyrics}
+          onAutomaticLyrics={(next) => {
+            setAutomaticLyrics(next);
+            try {
+              localStorage.setItem('wave-lyrics-consent-v1', 'true');
+            } catch {}
+          }}
+          wordSources={wordSources}
+          onWordSources={(next) => {
+            setWordSources(next);
+            setExtendedLyrics(next);
+          }}
+          progress={library.progress}
+          message={library.message}
+          tracks={library.tracks}
+          error={library.error}
+          onAdd={openAddMusic}
+          onFinish={finishSetup}
+        />
+      )}
       <AnimatePresence>
         {addOpen && (
           <AddMusicDialog
+            setup={setupActive}
+            initialMode={addInitialMode}
             key="add-music"
             onClose={() => setAddOpen(false)}
             onLocal={chooseFiles}
             onFolderFiles={importFiles}
             onYouTube={addFromYouTube}
-            onAdded={playAdded}
+            onAdded={setupActive ? () => {} : playAdded}
             busy={busy || addBusy}
           />
         )}
@@ -1688,6 +1917,7 @@ function WaveApp({
           <Suspense key="migration" fallback={null}>
             <MigrationSheet
               tracks={library.tracks}
+              onAddVideo={library.addPlaylistVideo}
               onSave={saveMigrated}
               onClose={() => setMigrationOpen(false)}
             />
@@ -2080,7 +2310,7 @@ function WaveApp({
           </Modal>
         )}
       </AnimatePresence>
-      {(error || (library.message && noticeVisible) || library.progress) && (
+      {!setupRequired && (error || (library.message && noticeVisible) || library.progress) && (
         <div
           className={`toast ${library.progress ? 'library-update-toast' : ''} ${error ? 'error-toast' : ''}`}
           role={error ? 'alert' : 'status'}

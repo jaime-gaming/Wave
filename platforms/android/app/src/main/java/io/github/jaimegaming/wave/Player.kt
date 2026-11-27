@@ -11,17 +11,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import java.io.File
 
-/**
- * The one player.
- *
- * Two [MediaPlayer]s, never one: the spare is armed with the next song while the
- * current one plays, which is what makes a blend possible at all — a player that
- * has to open a file first can only ever cut. Nothing about the audio is altered;
- * the blend is two files playing at once at changing levels.
- *
- * Position is published ten times a second because the bar only shows tenths of
- * a second, and at 33 ms while a blend is running because the ramps need it.
- */
+
+
+
+
+
+
+
+
+
+
+
 class Player(private val context: Context) {
     var current by mutableStateOf<Song?>(null)
         private set
@@ -34,21 +34,21 @@ class Player(private val context: Context) {
     var message by mutableStateOf("")
         private set
 
-    /** The queue, as it was started and as it has been reordered since. */
+
     var queue by mutableStateOf<List<Song>>(emptyList())
         private set
     var index by mutableStateOf(0)
         private set
-    /** Changes for each new playback, including an automatic Mix handover. */
+
     var playbackSerial: Long = 0
         private set
 
-    /**
-     * Listeners for "what the outside world shows has changed".
-     *
-     * A list rather than one slot: the screen counts listening from the same
-     * changes the notification redraws on, and neither may silence the other.
-     */
+
+
+
+
+
+
     private val observers = mutableListOf<() -> Unit>()
 
     fun observe(observer: () -> Unit) {
@@ -84,7 +84,7 @@ class Player(private val context: Context) {
             changed()
         }
 
-    /** Focus ducking never overwrites the listener's volume or remembered mute level. */
+
     fun setDucked(ducked: Boolean) {
         focusGain = if (ducked) .3f else 1f
         if (outgoing == null && prepared) active?.setVolume(outputGain, outputGain)
@@ -100,24 +100,39 @@ class Player(private val context: Context) {
     private var spareReady = false
     private var outgoing: MediaPlayer? = null
     private var fadeLength = 0.0
+    private var fadeEnding = EndingShape.FADE
+
+    private var fadeCue = 0.0
     private val handler = Handler(Looper.getMainLooper())
+
+    private var released = false
+    private var pulseScheduled = false
 
     private val pulse = object : Runnable {
         override fun run() {
+            pulseScheduled = false
             try {
                 step()
             } catch (error: Exception) {
                 message = error.message ?: "Playback error"
             }
-            handler.postDelayed(this, if (outgoing != null) 33 else 100)
+
+
+            if (!released && (playing || outgoing != null)) schedulePulse()
         }
     }
 
-    init {
-        handler.post(pulse)
+    private fun schedulePulse() {
+        if (released || pulseScheduled) return
+        pulseScheduled = true
+        handler.postDelayed(pulse, if (outgoing != null) 33L else 100L)
     }
 
-    /** Optional local mood-aware Autoplay supplier invoked when the queue ends. */
+    init {
+        schedulePulse()
+    }
+
+
     var onQueueEnded: (() -> Song?)? = null
 
     private fun step() {
@@ -128,15 +143,17 @@ class Player(private val context: Context) {
         if (shouldPublishTime(time, position, outgoing != null)) time = position
         val tail = outgoing
         if (tail != null) {
-            val progress = (time / fadeLength).coerceIn(0.0, 1.0)
-            val gains = handoverGains(progress)
+            val progress = ((time - fadeCue) / fadeLength).coerceIn(0.0, 1.0)
+            val gains = endingGains(progress, fadeEnding)
             runCatching {
                 tail.setVolume(gains.first * outputGain, gains.first * outputGain)
                 player.setVolume(gains.second * outputGain, gains.second * outputGain)
             }
-            if (progress >= 1) {
+            if (progress >= endingCut(fadeEnding)) {
                 runCatching { tail.release() }
+                player.setVolume(outputGain, outputGain)
                 outgoing = null
+                fadeCue = 0.0
                 prepareNext()
                 changed()
             }
@@ -147,15 +164,25 @@ class Player(private val context: Context) {
             val remaining = (totalMs - currentMs) / 1000.0
             val next = spare ?: return
             val nextMs = runCatching { next.duration }.getOrNull() ?: return
-            // The same window the web client chooses for this pair, never longer
-            // than what is left of the song that is leaving.
+            val outgoingSong = current ?: return
+            fadeEnding = detectEnding(outgoingSong)
+
             val window = minOf(
                 crossfade,
                 automaticBlendSeconds(totalMs / 1000.0, nextMs / 1000.0),
+                nextMs / 1000.0,
             )
             if (remaining <= 0 || remaining > window) return
-            fadeLength = minOf(window, remaining, nextMs / 2000.0)
+            fadeLength = remaining
+            fadeCue = 0.0
             if (fadeLength <= .1) return
+            next.setVolume(0f, 0f)
+            if (runCatching { next.start() }.isFailure) {
+                runCatching { next.release() }
+                spare = null
+                spareReady = false
+                return
+            }
             outgoing = player
             active = next
             spare = null
@@ -164,8 +191,6 @@ class Player(private val context: Context) {
             current = queue.getOrNull(index)
             playbackSerial++
             duration = nextMs / 1000.0
-            next.setVolume(0f, 0f)
-            next.start()
             changed()
         }
     }
@@ -196,7 +221,7 @@ class Player(private val context: Context) {
         }
     }
 
-    /** Arms the next song in silence so the blend has something to blend into. */
+
     private fun prepareNext() {
         spare?.release()
         spare = null
@@ -229,7 +254,7 @@ class Player(private val context: Context) {
         open(songs[index])
     }
 
-    /** Plays this queue from the top, which is what a playlist header does. */
+
     fun play(songs: List<Song>) {
         songs.firstOrNull()?.let { play(songs, it) }
     }
@@ -245,6 +270,7 @@ class Player(private val context: Context) {
                     player.setVolume(outputGain, outputGain)
                     player.start()
                     playing = true
+                    schedulePulse()
                     prepareNext()
                     changed()
                 }
@@ -259,6 +285,8 @@ class Player(private val context: Context) {
     private fun cancelFade() {
         outgoing?.release()
         outgoing = null
+        fadeCue = 0.0
+        fadeEnding = EndingShape.FADE
         if (prepared) active?.setVolume(outputGain, outputGain)
     }
 
@@ -277,6 +305,7 @@ class Player(private val context: Context) {
             cancelFade()
             if (playing) active?.pause() else active?.start()
             playing = !playing
+            if (playing) schedulePulse()
             changed()
         } catch (_: Exception) {
             message = "Choose a playable file."
@@ -327,7 +356,7 @@ class Player(private val context: Context) {
         }
     }
 
-    /** Adds a song after the current one, which is what "play next" means. */
+
     fun enqueue(song: Song) {
         if (queue.any { it.id == song.id }) {
             message = "Already in the queue."
@@ -356,7 +385,7 @@ class Player(private val context: Context) {
         }
     }
 
-    /** Shuffle only upcoming songs: no new decoder, position or playback reset. */
+
     fun shuffleUpcoming() {
         if (index !in queue.indices) return
         cancelFade()
@@ -365,7 +394,7 @@ class Player(private val context: Context) {
         changed()
     }
 
-    /** Moves a song inside the queue, keeping whatever is playing playing. */
+
     fun reorder(from: Int, to: Int) {
         if (from !in queue.indices || to !in queue.indices || from == to) return
         val updated = queue.toMutableList()
@@ -377,7 +406,7 @@ class Player(private val context: Context) {
         changed()
     }
 
-    /** True when the file or content URI behind a song can still be opened. */
+
     fun isPlayable(song: Song): Boolean =
         if (song.path.startsWith("content://")) {
             runCatching {
@@ -388,6 +417,8 @@ class Player(private val context: Context) {
         }
 
     fun dispose() {
+        released = true
+        pulseScheduled = false
         handler.removeCallbacks(pulse)
         playing = false
         prepared = false

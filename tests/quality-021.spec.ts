@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/returning-user';
 import { wav } from './helpers/audio';
 
 test.beforeEach(async ({ page }) => {
@@ -329,3 +329,36 @@ test('repeat overlaps the same local song and renews only its repeat icon', asyn
   await expect(stage.locator('.mix-visual')).toHaveCount(0);
   await expect(stage.getByRole('button', { name: 'Repeat: one' })).toBeVisible();
 });
+
+for (const viewport of [
+  { width: 320, height: 640 },
+  { width: 360, height: 800 },
+  { width: 667, height: 375 },
+  { width: 768, height: 1024 },
+  { width: 1024, height: 768 },
+  { width: 1280, height: 800 },
+  { width: 1440, height: 900 },
+  { width: 1920, height: 1080 },
+  { width: 2560, height: 1440 },
+  { width: 3840, height: 2160 },
+]) {
+  test(`Remix fills the screen without a right-hand empty strip at ${viewport.width}x${viewport.height}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await page.goto('/Remix');
+    const workspace = await page.locator('.workspace').boundingBox();
+    const surface = await page.locator('.library-surface').boundingBox();
+    const remix = await page
+      .locator('main.workspace > .library-surface > .remix-page')
+      .boundingBox();
+    expect(workspace).not.toBeNull();
+    expect(surface).not.toBeNull();
+    expect(remix).not.toBeNull();
+    expect(viewport.width - (workspace!.x + workspace!.width)).toBeLessThanOrEqual(26);
+    expect(remix!.width).toBeGreaterThan(surface!.width - 120);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      viewport.width + 1,
+    );
+  });
+}

@@ -7,118 +7,71 @@ import {
   type TrackAnalysis,
 } from '../audio/dsp';
 import { isRubato, tempoRelation } from '../audio/tempo';
+import { alignInstrumentalPulse, instrumentalEdges, pulseGrid } from './instrumentalPulse';
+import { stagedGains, type EndingShape } from './mixEnding';
 import type { Lyrics } from './lyrics';
 
-/**
- * Mix planner: decides *how* two songs are joined, before any audio is touched.
- *
- * Order of preference:
- * 1. `beatmatched` — both songs have a trusted beat grid close enough in tempo.
- *    The overlap starts on a beat (ideally a bar), is a whole number of bars
- *    chosen from the tempo so the blend lasts about `TARGET_SECONDS`, bass is
- *    swapped around the midpoint. Both songs play at their own tempo: nothing
- *    is stretched, the entry is simply placed on a bar.
- * 2. `crossfade` — no trusted grid, or a tempo gap too wide to join on the bar.
- *    An equal-power overlap of the configured length, still inside audible audio.
- * 3. `cut` — nothing usable (very short files). Normal sequential playback.
- */
 export const BEATS_PER_BAR = 4;
-/**
- * The widest tempo correction Mix will make, relative.
- *
- * No song is stretched, but a tempo gap still decides *how* two songs are
- * joined: within this much they share the full bar-aligned overlap, and past it
- * the overlap is halved so the two pulses have less time to drift against each
- * other.
- */
+
 export const MAX_STRETCH = 0.16;
 export const MIN_BARS = 4;
-/** Hard ceiling for an explicit request; Mix itself chooses far fewer bars. */
+
 export const MAX_BARS = 16;
-/**
- * How long a blend lasts when the tempo cannot be trusted.
- *
- * Rubato material is not crossfaded in the four bars a DJ would use; the two
- * songs are given a longer, quieter overlap so the join reads as one song
- * handing over to another rather than as a fade.
- */
+
 export const RUBATO_SECONDS = 12;
-/**
- * How long a blend should last, near enough.
- *
- * Eight seconds was a crossfade: two songs sliding past each other. A mix needs
- * room for the three things a DJ does — bring the new song in, let both play,
- * take the old one out — and that is two to four phrases, so about twenty
- * seconds. Almost four times the playing time of either song stays untouched.
- */
+
 export const TARGET_SECONDS = 20;
-/**
- * How far the two grids may drift apart inside one blend, in beats.
- *
- * Under a beat and a half the two pulses are still heard as one groove with a
- * little movement; past it the kicks are audibly trading places.
- */
+
 export const DRIFT_BEATS = 1.5;
-/**
- * How far Mix may move the incoming song to land on a downbeat.
- */
+
 export const MAX_CUE_LEAD = 6;
-/**
- * How far into a song Mix may start it to reach the first bar with the drums
- * already playing.
- *
- * A record is cued on its first kick, not on its first second. Real DJ material
- * opens with eight, sixteen or thirty-two bars of intro — thirty-two bars of a
- * 124 BPM record is over a minute — so the ceiling has to be large enough to
- * reach the drums of a club edit, while the vocal guard below still refuses any
- * skip that would hide a sung line. Nothing is skipped of a song that opens with
- * a voice.
- */
+
 export const MAX_ENTRY = 32;
 
 export type TransitionMode = 'beatmatched' | 'crossfade' | 'cut';
 
 export interface TransitionOptions {
-  /** Overrides the bar count Mix would choose for the tempo; may be shortened. */
   bars?: number;
-  /** Length used when the planner falls back to a plain crossfade. */
+
   fallbackSeconds?: number;
-  /** Lower bound: never overlap less than this unless a `cut` is chosen. */
+
   minSeconds?: number;
-  /** A vocal overlap shorter than this is acceptable (a natural handover). */
+
   vocalTolerance?: number;
-  /** BPM difference above which stretching is refused (relative). */
+
   maxStretch?: number;
+
+  ending?: EndingShape;
 }
 
 export interface TransitionPlan {
   mode: TransitionMode;
-  /** Overlap length in seconds (0 for a cut). */
+
   seconds: number;
-  /** Position in the outgoing song where the overlap begins. */
+
   startAt: number;
-  /** Position in the incoming song where it starts playing. */
+
   cue: number;
-  /** Fraction of the overlap after which bass is swapped to the incoming song. */
+
   bassSwapAt: number;
-  /** Bars used, when beat matched. */
+
   bars: number;
-  /** Both tempo and bar phase aligned. */
+
   phaseAligned: boolean;
-  /** Camelot-wheel harmonic compatibility between both tracks (0..1). */
+
   harmonicScore?: number;
-  /** Combined studio transition compatibility across key, tempo, and spectrum (0..1). */
+
   compatibility?: number;
-  /** True when active vocals overlap across the join and need a deeper 1.4 kHz carve. */
+
   vocalOverlap?: boolean;
-  /** Human-readable reasons for the decisions, for tests and logs. */
+
+  instrumentalPulseAligned?: boolean;
+
+  ending?: EndingShape;
+
   notes: string[];
 }
 
-/**
- * Evaluates how naturally two tracks mix together across musical key (Camelot wheel),
- * folded tempo proximity, and spectral/energy profile continuity. Purely local DSP.
- */
 export function transitionCompatibility(
   outgoing: TrackAnalysis | undefined,
   incoming: TrackAnalysis | undefined,
@@ -133,13 +86,17 @@ export function transitionCompatibility(
     if (rel.kind === 'half' || rel.kind === 'double') tempoFit = Math.max(tempoFit, 0.88);
   }
 
-  // Cosine similarity of the 4-band spectral balance so tonal worlds connect smoothly.
   const a = outgoing.profile;
   const b = incoming.profile;
   const dot = a.bass * b.bass + a.low * b.low + a.mid * b.mid + a.high * b.high;
-  const magA = Math.hypot(a.bass, a.low, a.mid, a.high) || 1;
-  const magB = Math.hypot(b.bass, b.low, b.mid, b.high) || 1;
-  const spectralFit = Math.max(0, Math.min(1, dot / (magA * magB)));
+  const magA = Math.hypot(a.bass, a.low, a.mid, a.high);
+  const magB = Math.hypot(b.bass, b.low, b.mid, b.high);
+
+  const similarity = dot / (magA * magB);
+  const spectralFit =
+    Number.isFinite(similarity) && magA > 0 && magB > 0
+      ? Math.max(0, Math.min(1, similarity))
+      : 0.55;
 
   const score = harmonic * 0.42 + tempoFit * 0.38 + spectralFit * 0.2;
   return Math.round(score * 1000) / 1000;
@@ -148,10 +105,6 @@ export function transitionCompatibility(
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 const barsToSeconds = (bars: number, bpm: number) => (bars * BEATS_PER_BAR * 60) / bpm;
 
-/**
- * Bar count for a blend of roughly TARGET_SECONDS at this tempo, in multiples of
- * four bars and inside the range Mix uses.
- */
 export function automaticBars(bpm: number): number {
   if (!Number.isFinite(bpm) || bpm <= 0) return MIN_BARS;
   const bars = Math.round(TARGET_SECONDS / barsToSeconds(1, bpm) / 4) * 4;
@@ -171,14 +124,6 @@ function trusted(analysis: TrackAnalysis | undefined): analysis is TrackAnalysis
   );
 }
 
-/**
- * Time in A at or before `time`, on a bar line when one is close enough.
- *
- * Songs are built in bars, not in beats: leaving on a bar is what makes the
- * handover land on a phrase instead of in the middle of one. The bar line is
- * only used when it is inside the audible tail; otherwise the nearest beat is
- * the honest answer.
- */
 function alignOutgoing(analysis: TrackAnalysis, time: number): number {
   const { bpm, offset } = analysis.beats;
   const period = 60 / bpm;
@@ -190,37 +135,11 @@ function alignOutgoing(analysis: TrackAnalysis, time: number): number {
   return Math.max(analysis.trimmed.start, offset + Math.floor(beats) * period);
 }
 
-/**
- * Incoming start: the song's first full bar, on a downbeat.
- *
- * This is the one move that separates a mix from two songs played over each
- * other. A song almost always opens with a beatless intro or a single held
- * chord; fading that under the outgoing song gives the join no arrival at all,
- * because the new record has nothing to arrive with. A DJ cues at the first bar
- * where the drums are already playing, and that is `introEnd`.
- *
- * The skip is bounded by `MAX_ENTRY` and forbidden as soon as a voice is present
- * in the part that would be skipped: a song that opens with a sung line starts
- * on its first beat like it always did.
- */
-/**
- * Maximum safe intro skip for a given track.
- *
- * Club tracks can have 24–32s beatless intros on a 4–5 minute record, whereas a
- * shorter pop or indie track must never lose a third or half of its runtime.
- * Bounding by both MAX_ENTRY and 16% of the audible duration prevents skipping
- * into the middle of short songs while keeping club-intro cueing intact.
- */
 function maxEntryFor(analysis: TrackAnalysis): number {
   const audible = Math.max(0, analysis.trimmed.end - analysis.trimmed.start);
   return Math.min(MAX_ENTRY, Math.max(0, audible * 0.16));
 }
 
-/**
- * Spectral-aware bass swap point: swap earlier when the incoming song brings
- * a heavier kick/bass, hold the outgoing low end slightly longer when it carries
- * the groove.
- */
 function plannedBassSwapAt(outgoing: TrackAnalysis, incoming: TrackAnalysis): number {
   const diff = (incoming.profile?.bass ?? 0) - (outgoing.profile?.bass ?? 0);
   if (diff > 0.1) return 0.42;
@@ -233,14 +152,13 @@ function alignIncoming(analysis: TrackAnalysis): number {
   const period = 60 / bpm;
   const start = analysis.trimmed.start;
   const maxEntry = maxEntryFor(analysis);
-  // The end of the intro, or the first place the kick is already playing if that
-  // is later — a long intro often ends in a breakdown, not on a downbeat.
+
   const kick = kickStart(analysis, introEnd(analysis));
   const body = clamp(kick ?? introEnd(analysis), start, start + maxEntry);
   const entry = body - start > period ? body : start;
   const skip = !overlapsRegion(analysis.vocals, start, entry, 0.05);
   const from = skip ? entry : start;
-  // Round up to the next bar so the incoming song enters on a downbeat.
+
   const beats = (from - offset) / period;
   const bar = Math.ceil(beats / BEATS_PER_BAR) * BEATS_PER_BAR;
   const aligned = offset + bar * period;
@@ -254,15 +172,6 @@ function alignIncoming(analysis: TrackAnalysis): number {
   );
 }
 
-/**
- * The first bar inside a short search where the new record is actually sounding.
- *
- * A song's intro often ends in a breakdown — a held pad, a filtered beat, a single
- * chord — and a DJ does not bring a record in there: the arrival would be a hiss
- * under the outgoing song, not a new record. The entry keeps its bar grid, only
- * moves forward, and only as far as `MAX_CUE_LEAD`, so this is a nudge and never a
- * skip into the first chorus.
- */
 function loudEntry(analysis: TrackAnalysis, from: number, length: number): number {
   const { bpm, offset } = analysis.beats;
   const period = 60 / bpm;
@@ -281,7 +190,7 @@ function loudEntry(analysis: TrackAnalysis, from: number, length: number): numbe
     entryCeiling,
     analysis.trimmed.end - period,
   );
-  // Whole bars only: the entry has to stay on the downbeat it was placed on.
+
   const firstBar = Math.ceil((from - offset) / period / BEATS_PER_BAR);
   for (let step = 1; step <= 8; step++) {
     const time = offset + (firstBar + step) * BEATS_PER_BAR * period;
@@ -291,30 +200,21 @@ function loudEntry(analysis: TrackAnalysis, from: number, length: number): numbe
   return from;
 }
 
-/**
- * First bar-aligned entry, within a short search, where the incoming song has no
- * prominent vocal for the whole overlap. The window is deliberately small: a
- * quieter pickup is nice, skipping a verse to find one is not. Past the window,
- * shortening the overlap is the better answer.
- */
 function findClearEntry(analysis: TrackAnalysis, from: number, length: number): number | null {
   const { bpm, offset } = analysis.beats;
   const period = 60 / bpm;
-  const first = Math.ceil((from - offset) / period);
+  const barPeriod = period * BEATS_PER_BAR;
+  const first = Math.ceil((from - offset) / barPeriod);
   const cap = from + Math.max(MAX_CUE_LEAD, period);
-  for (let step = 0; step < BEATS_PER_BAR * 8; step++) {
-    const time = offset + (first + step) * period;
+  for (let step = 0; step < 8; step++) {
+    const time = offset + (first + step) * barPeriod;
     if (time > cap || time + length > analysis.trimmed.end) break;
     if (!overlapsRegion(analysis.vocals, time, time + length, 0.15)) return time;
   }
   return null;
 }
 
-/**
- * Builds the transition plan for A → B. `outgoingPosition` is where A currently
- * is, so the planner never schedules a window in the past.
- */
-export function planTransition(
+function buildTransitionPlan(
   outgoing: TrackAnalysis | undefined,
   incoming: TrackAnalysis | undefined,
   options: TransitionOptions = {},
@@ -370,27 +270,17 @@ export function planTransition(
   const harmonicScore = harmonicCompatibility(outgoing.key, incoming.key);
   const compatibility = transitionCompatibility(outgoing, incoming);
 
-  /**
-   * Two songs with unsteady pulses are joined, not beatmatched.
-   *
-   * Rubato — a live drummer, a string quartet, a ballad that breathes — has no
-   * period to lock to, so a grid drifts off it within a bar and every aligned
-   * cue lands in the wrong place. The honest answer is a longer, gentler
-   * equal-power blend, started where the outgoing song has room.
-   */
   const gentle = (reason: string): TransitionPlan => {
     notes.push(reason);
     const tail = outgoing.trimmed.end - outgoing.trimmed.start;
     const head = incoming.trimmed.end - incoming.trimmed.start;
-    // Long enough to read as a handover, short enough to fit in both songs.
+
     const seconds = Math.max(0.5, Math.min(RUBATO_SECONDS, tail, head, Math.max(minSeconds, tail)));
-    // A steady grid still decides *where* the blend starts, even when it is not
-    // steady enough to beatmatch to.
+
     const start = hasGrid(outgoing)
       ? alignOutgoing(outgoing, outgoing.trimmed.end - seconds)
       : Math.max(outgoing.trimmed.start, outgoing.trimmed.end - seconds);
-    // Never jump past the gentle intro bound on rubato/acoustic/ballad material:
-    // an uncapped kickStart used to leap past quiet first verses straight to the chorus.
+
     const maxGentleSkip = Math.min(6, head * 0.08);
     const introTarget = kickStart(incoming) ?? introEnd(incoming);
     const hasEarlyVocal = overlapsRegion(
@@ -435,35 +325,15 @@ export function planTransition(
 
   const bpmA = outgoing.beats.bpm;
   const bpmB = incoming.beats.bpm;
-  // Compared as folded tempi: 174 and 87 are the same pulse to a dancer, and a
-  // mix between them needs no stretching at all. Only a real gap is refused.
+
   const relation = tempoRelation(bpmA, bpmB);
-  // A written-at-174, played-at-87 pair folds to one tempo; the raw numbers are
-  // still worth saying out loud, because they explain why nothing was stretched.
+
   const rawRatio = bpmA / bpmB;
-  const octave =
-    relation.kind === 'half' ||
-    relation.kind === 'double' ||
-    Math.abs(rawRatio / 2 - 1) <= 0.03 ||
-    Math.abs(rawRatio * 2 - 1) <= 0.03;
+  // Folded BPMs can land on opposite sides of the fold boundary even when
+  // the recorded tempos are close. Only the raw ratio establishes an octave.
+  const octave = Math.abs(rawRatio / 2 - 1) <= 0.03 || Math.abs(rawRatio * 2 - 1) <= 0.03;
   const stretchNeeded = relation.difference;
-  // Folding already resolved the octave, so what is left of `difference` is the
-  // real gap: a few per cent is a stretch, a lot of it is a different tempo.
-  /*
-   * Neither deck is ever sped up or slowed down.
-   *
-   * Mix used to split the tempo difference across both songs and let the browser
-   * hold the pitch. Held pitch is not a free lunch: the stretching smears
-   * transients, thins the low end of the deck that is slowed and makes the one
-   * that is quickened sound like it is catching its breath, and two records a few
-   * per cent apart beat against each other for the whole overlap. It was the one
-   * thing in a blend that sounded wrong.
-   *
-   * So the songs meet on the bar instead, each at the tempo it was recorded at,
-   * and a mix keeps the parts that do work: a bar-aligned entry, the bass
-   * changing hands once, and the old song filtered out as it leaves. Close
-   * tempos still earn the full overlap; a wide gap simply gets a shorter one.
-   */
+
   const stretchable = stretchNeeded <= maxStretch;
 
   if (octave)
@@ -479,8 +349,6 @@ export function planTransition(
       `Tempo gap of ${(stretchNeeded * 100).toFixed(1)} %: both songs keep their own tempo.`,
     );
 
-  // Overlap is a whole number of bars at the outgoing tempo, chosen so the blend
-  // lasts about TARGET_SECONDS: slow songs get more bars, fast songs fewer.
   let bars =
     options.bars === undefined
       ? automaticBars(bpmA)
@@ -488,19 +356,11 @@ export function planTransition(
   const audibleTail = Math.max(0, outgoing.trimmed.end - outgoing.trimmed.start);
   const maxByTail = Math.floor(audibleTail / barsToSeconds(1, bpmA));
   bars = Math.min(bars, Math.max(0, maxByTail));
-  /*
-   * How long two records can share a room before their pulses part company.
-   *
-   * Both songs now play at their own tempo, so a pair whose tempos differ drifts:
-   * after `t` seconds the two downbeats are `t · |1 − rate|` beats apart, and once
-   * that passes a beat and a half the kicks are trading places and the blend
-   * sounds like a mistake. The length is therefore tied to the gap — close tempos
-   * keep the full twelve to twenty-four seconds, a wider pair gets a shorter,
-   * cleaner handover — instead of a fixed cut at one arbitrary threshold.
-   */
-  // A half-time pair is one pulse at two speeds: its downbeats keep meeting, so
-  // there is nothing to drift.
-  const driftPerSecond = octave ? 0 : Math.abs(1 - bpmB / bpmA);
+
+  // A half/double-time relation is not necessarily exact: account for the
+  // residual tempo difference instead of assuming the grids never drift.
+  const effectiveBpmB = octave ? (rawRatio > 1 ? bpmB * 2 : bpmB / 2) : bpmB;
+  const driftPerSecond = Math.abs(1 - effectiveBpmB / bpmA);
   if (driftPerSecond > 0) {
     const allowed = (DRIFT_BEATS * 60) / bpmA / driftPerSecond;
     const driftedBars = Math.max(0, Math.floor(allowed / barsToSeconds(1, bpmA)));
@@ -511,8 +371,7 @@ export function planTransition(
       );
     }
   }
-  // Harmonic intelligence: tight Camelot clashes shorten the overlap so
-  // incompatible chords never blur; harmonic matches breathe across the full phrase.
+
   if (outgoing.key && incoming.key) {
     if (harmonicScore >= 0.85) {
       notes.push(
@@ -534,8 +393,6 @@ export function planTransition(
   let seconds = barsToSeconds(bars, bpmA);
   if (seconds < minSeconds) return fallback('The overlap would be too short to sound intentional.');
 
-  // Start the overlap on a beat, preferring the natural outro / breakdown phrase
-  // in the final tail when it fits cleanly inside the audible end.
   const naturalOutro = outroStart(outgoing);
   const idealEndStart = outgoing.trimmed.end - seconds;
   const useOutroAnchor =
@@ -543,12 +400,10 @@ export function planTransition(
     naturalOutro <= idealEndStart + 1.5 &&
     naturalOutro + seconds <= outgoing.trimmed.end + 0.05 &&
     !overlapsRegion(outgoing.vocals, naturalOutro, naturalOutro + seconds, vocalTolerance);
-  const startAt = alignOutgoing(outgoing, useOutroAnchor ? naturalOutro : idealEndStart);
+  let startAt = alignOutgoing(outgoing, useOutroAnchor ? naturalOutro : idealEndStart);
   if (startAt + seconds > outgoing.trimmed.end + 0.05)
     return fallback('The overlap would run past the end of the song.');
 
-  // Incoming entry: after its intro, on a bar, where the record is already
-  // sounding, and clear of any vocal if possible.
   let cue = loudEntry(incoming, alignIncoming(incoming), seconds);
   let phaseAligned = true;
   if (overlapsRegion(incoming.vocals, cue, cue + seconds, vocalTolerance)) {
@@ -557,10 +412,11 @@ export function planTransition(
       cue = clear;
       notes.push('Incoming entry moved to a bar without a prominent vocal.');
     } else {
-      // Both sides have vocals: shorten the overlap so the collision is brief.
       bars = Math.max(2, Math.floor(bars / 2));
       seconds = barsToSeconds(bars, bpmA);
-      notes.push('Both songs have vocals here: the overlap is halved.');
+      // Shortening must not fade out well before the outgoing song ends.
+      startAt = alignOutgoing(outgoing, outgoing.trimmed.end - seconds);
+      notes.push('A prominent incoming vocal needs space: the overlap is halved.');
     }
   }
   const outgoingHasVocal = overlapsRegion(
@@ -576,7 +432,6 @@ export function planTransition(
       'The outgoing song still has a vocal in the overlap; carving its midrange pocket and fading the low band cleanly.',
     );
 
-  // Never fade more than half of the incoming song, even if the cue is late.
   if (cue + seconds > incoming.trimmed.end) {
     const available = incoming.trimmed.end - cue;
     if (available < minSeconds)
@@ -588,7 +443,7 @@ export function planTransition(
   const baseSwap = plannedBassSwapAt(outgoing, incoming);
   const bassSwapAt = harmonicScore < 0.42 ? Math.min(baseSwap, 0.42) : baseSwap;
 
-  return {
+  const plan: TransitionPlan = {
     mode: 'beatmatched',
     seconds: Math.round(seconds * 100) / 100,
     startAt: Math.round(startAt * 1000) / 1000,
@@ -601,20 +456,61 @@ export function planTransition(
     vocalOverlap,
     notes,
   };
+
+  const edges = instrumentalEdges(outgoing, incoming);
+  const gridA = edges ? pulseGrid(outgoing) : undefined;
+  const gridB = edges ? pulseGrid(incoming) : undefined;
+  const aligned =
+    edges && gridA && gridB
+      ? alignInstrumentalPulse(edges, gridA, gridB, {
+          startAt: plan.startAt,
+          cue: plan.cue,
+          seconds: plan.seconds,
+          maxCue: incoming.trimmed.start + maxEntryFor(incoming) + (BEATS_PER_BAR * 60) / bpmB,
+          minSeconds,
+          driftPerSecond,
+          driftBeats: DRIFT_BEATS,
+        })
+      : undefined;
+  if (!aligned) return plan;
+  return {
+    ...plan,
+    seconds: aligned.seconds,
+    startAt: aligned.startAt,
+    cue: aligned.cue,
+    bars: aligned.bars,
+    instrumentalPulseAligned: true,
+    vocalOverlap:
+      overlapsRegion(
+        outgoing.vocals,
+        aligned.startAt,
+        aligned.startAt + aligned.seconds,
+        vocalTolerance,
+      ) &&
+      overlapsRegion(incoming.vocals, aligned.cue, aligned.cue + aligned.seconds, vocalTolerance),
+    notes: [...notes, ...aligned.notes],
+  };
 }
 
-/**
- * How much each deck should be pulled down so the two arrive at the same level.
- *
- * A mix is judged by its join, and two records mastered years apart rarely meet
- * at the same loudness: the new one at -6 dB sounds like the old one fading out,
- * however well the beats line up. The quieter song is the reference; only the
- * louder deck is turned down, never up, so nothing is pushed towards clipping.
- * This is a playback gain for the length of the overlap — the file, its samples
- * and its loudness on disk are untouched, and the deck is back at unity when the
- * handover ends.
- */
-/** Mean level of the body segments that overlap a window of the song. */
+export function planTransition(
+  outgoing: TrackAnalysis | undefined,
+  incoming: TrackAnalysis | undefined,
+  options: TransitionOptions = {},
+): TransitionPlan {
+  const plan = buildTransitionPlan(outgoing, incoming, options);
+  if (!options.ending || plan.mode === 'cut') return plan;
+  return {
+    ...plan,
+    ending: options.ending,
+    notes: [
+      ...plan.notes,
+      options.ending === 'echo-cut'
+        ? 'The outgoing tail rings out gently through the end of the fade.'
+        : 'The outgoing tail fades naturally to zero.',
+    ],
+  };
+}
+
 function levelAround(
   analysis: TrackAnalysis | undefined,
   seconds: number,
@@ -628,8 +524,7 @@ function levelAround(
       segment.kind === 'body' && segment.level > 0.01 && segment.end > from && segment.start < to,
   );
   if (!inside.length) return undefined;
-  // Weighted by how much of each segment is actually inside the window, so a
-  // blend that starts halfway through a loud passage is judged by that passage.
+
   let total = 0,
     weight = 0;
   for (const segment of inside) {
@@ -641,24 +536,6 @@ function levelAround(
   return weight > 0 ? total / weight : undefined;
 }
 
-/**
- * The level match between two records.
- *
- * It used to compare the average level of both bodies, which is the wrong
- * question: the only thing that has to match is the moment the two songs are
- * actually heard together. A quiet album track whose outro is loud and a loud
- * single whose intro is quiet average out to "matched" and then arrive with a
- * jolt, which is exactly the "it comes in too loud and then it adjusts" that
- * made a mix feel unfinished.
- *
- * `at` gives the two positions — where the outgoing song's tail begins and
- * where the incoming song is cued — and the comparison happens there. Without
- * it the old whole-body average is used, so nothing that cannot say where the
- * join is gets a worse answer than before.
- *
- * Only ever attenuates: the louder of the two is turned down, never the quieter
- * one up, so nothing clips and no file is made louder than it was mastered.
- */
 export function levelTrim(
   outgoing: TrackAnalysis | undefined,
   incoming: TrackAnalysis | undefined,
@@ -682,32 +559,17 @@ export function levelTrim(
     : { outgoing: Math.round(10 ** (decibels / 20) * 1000) / 1000, incoming: 1 };
 }
 
-/**
- * How far the two songs are pulled apart in the stereo field.
- *
- * A blend is two records in one space, and the ear separates them best by
- * position rather than by level: the old one drifts a little towards one side as
- * it leaves, the new one arrives from the other, and both come back to the
- * centre by the end. It costs no level at all — the power of the overlap stays
- * exactly what `handoverGains` says it is — and it is the one effect that makes
- * a handover sound deliberate without colouring either song.
- */
 export const PAN_SPREAD = 0.32;
 
 export function panSpread(progress: number, role: 'outgoing' | 'incoming'): number {
   const p = clamp(progress, 0, 1);
-  // Opens over the first fifth, holds, closes over the last third.
+
   const open = p < 0.2 ? smoothstep(p / 0.2) : 1;
   const close = p > 0.66 ? 1 - smoothstep((p - 0.66) / 0.34) : 1;
   const amount = PAN_SPREAD * Math.min(open, close);
   return Number(((role === 'outgoing' ? -amount : amount) || 0).toFixed(3));
 }
 
-/**
- * Plans are a pure function of the two analyses and the options, and the engine
- * asks for one twenty times a second while a song plays. Memoising them keeps
- * that loop off the audio thread's budget on a slow phone.
- */
 const planCache = new WeakMap<TrackAnalysis, WeakMap<TrackAnalysis, Map<string, TransitionPlan>>>();
 
 export function planTransitionCached(
@@ -732,6 +594,7 @@ export function planTransitionCached(
     options.minSeconds ?? '',
     options.maxStretch ?? '',
     options.vocalTolerance ?? '',
+    options.ending ?? '',
   ].join('|');
   const hit = plans.get(key);
   if (hit) return hit;
@@ -740,14 +603,14 @@ export function planTransitionCached(
   return plan;
 }
 
-/** Move the entry earlier when synced lyrics let the incoming vocal arrive near
- * the end of the fade. Never skip lyrics, extend the fade, or invent timings. */
 export function alignIncomingLyrics(
   plan: TransitionPlan,
   lyrics: Lyrics | undefined,
   start = 0,
 ): TransitionPlan {
   if (!lyrics || plan.mode === 'cut' || plan.seconds <= 0) return plan;
+
+  if (plan.instrumentalPulseAligned) return plan;
   const first = lyrics.lines
     .filter(
       (line) => line.text.trim() && typeof line.time === 'number' && Number.isFinite(line.time),
@@ -766,27 +629,16 @@ export function alignIncomingLyrics(
   };
 }
 
-/**
- * Re-anchors a plan to where the song actually is.
- *
- * The plan is built from the tail of the song, so its `startAt` is a bar line a
- * little before the last `seconds` of audio. If playback reaches that point on
- * time, nothing happens here. If it arrives late — a throttled tab, a seek, a
- * phone that slept — starting the blend at that moment would put the new song in
- * halfway through a bar, which is exactly what makes a mix feel off. The blend is
- * therefore moved forward by whole bars, never by a fraction, and loses those
- * bars from its length. When too little is left for a phrase, the plan is
- * abandoned so the engine can fall back instead of staggering.
- */
 export function realignPlan(plan: TransitionPlan, position: number): TransitionPlan | null {
   if (plan.mode !== 'beatmatched' || plan.seconds <= 0 || plan.bars < 2) return plan;
   if (!Number.isFinite(position)) return plan;
   const bar = plan.seconds / plan.bars;
   const late = position - plan.startAt;
   if (late <= bar * 0.25) return plan;
-  const skipped = Math.ceil(late / bar);
+  const whole = Math.floor(late / bar);
+  const skipped = late - whole * bar <= bar * 0.25 ? whole : whole + 1;
   const bars = plan.bars - skipped;
-  // Two bars is the shortest overlap that still reads as a mix.
+
   if (bars < 2) return null;
   return {
     ...plan,
@@ -797,24 +649,8 @@ export function realignPlan(plan: TransitionPlan, position: number): TransitionP
   };
 }
 
-/** True when the plan can be executed by the current engine. */
 export function isUsablePlan(plan: TransitionPlan, remaining: number): boolean {
   return plan.mode !== 'cut' && plan.seconds >= 0.5 && remaining > 0.25;
-}
-
-/**
- * Bass-swap curve: the outgoing low band closes as the incoming one opens, with a
- * short cross point so the kick never disappears completely.
- */
-export function bassSwapGains(progress: number): { outgoing: number; incoming: number } {
-  const p = clamp(progress, 0, 1);
-  // Cosine ramp centred slightly before the middle, which is what keeps the
-  // low end continuous instead of leaving a gap.
-  const centre = 0.45;
-  const width = 0.35;
-  const t = clamp((p - (centre - width / 2)) / width, 0, 1);
-  const smooth = t * t * (3 - 2 * t);
-  return { outgoing: Math.cos((smooth * Math.PI) / 2), incoming: Math.sin((smooth * Math.PI) / 2) };
 }
 
 export const smoothstep = (value: number) => {
@@ -822,31 +658,11 @@ export const smoothstep = (value: number) => {
   return t * t * (3 - 2 * t);
 };
 
-/** Equal-power gains for a plain crossfade: A leaves exactly as fast as B arrives. */
 export function planGains(progress: number): { outgoing: number; incoming: number } {
   const p = clamp(progress, 0, 1);
   return { outgoing: Math.cos((p * Math.PI) / 2), incoming: Math.sin((p * Math.PI) / 2) };
 }
 
-/**
- * Equal-power gains for a mix, which is not a crossfade.
- *
- * A crossfade slides one song out while the other slides in at the same rate, so
- * both are half-heard for the whole overlap. A mix is staged: the new song comes
- * in quickly and sits at level (that is the moment you hear it arrive), the two
- * play together for a few bars, and then the old song gets out of the way. The
- * power sum stays at one the whole way, so nothing clips and no band drops out —
- * only the balance changes, and it changes in a shape you can hear as a decision
- * rather than a slide.
- */
 export function handoverGains(progress: number): { outgoing: number; incoming: number } {
-  const p = clamp(progress, 0, 1);
-  // Fast arrival, a held middle, then the outgoing song leaves on the phrase.
-  const phase =
-    p < 0.28
-      ? 0.5 * smoothstep(p / 0.28)
-      : p < 0.62
-        ? 0.5 + 0.06 * smoothstep((p - 0.28) / 0.34)
-        : 0.56 + 0.44 * smoothstep((p - 0.62) / 0.38);
-  return { outgoing: Math.cos((phase * Math.PI) / 2), incoming: Math.sin((phase * Math.PI) / 2) };
+  return stagedGains(progress);
 }

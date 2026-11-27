@@ -1,6 +1,20 @@
 # Validation record
 
-Development target: 0.2.2 · 16 November 2026. Historical run dates are retained below.
+Development target: 0.3 in progress · 19 November 2026. Historical run dates are retained below.
+
+## Backup and organization follow-up — 19 November 2026
+
+- WAVEBK2 adds password encryption, per-device signatures and an explicit fingerprint comparison; review and atomic restore detect malformed archives and exact duplicates. Tests include a synthetic interoperability vector, wrong passwords, tampering, truncation, duplicate keys and bytes, reset, and concurrent identity creation. Local checks passed: 903 unit/component tests, 34 release contracts, 6 packaging tests, lint, formatting and web build. A Chromium end-to-end run exported and restored generated WAV bytes in another browser context, checked a wrong password and compared fingerprints; a narrow reduced-motion legacy review also passed. Native backup interoperability, merging into a nonempty library and independent cryptographic review remain outstanding.
+- Android and iOS recognize a UTF-8 BOM before LRC offsets; Android rejects oversized offsets. Windows supports BOM, offsets, comma timestamps, repeated lines and strips enhanced word markers from line text. [Hosted run 45290533064](https://github.com/jaime-gaming/Wave/actions/runs/45290533064) passed Android core contracts, full Android tests/lint/APK and Windows contracts/build/UI smoke at `35ca3c3`. Earlier Android attempts failed fetching Robolectric runtime artifacts; a later retry succeeded. [Hosted run 45288757775](https://github.com/jaime-gaming/Wave/actions/runs/45288757775) passed the changed iOS Swift core, generated-PCM simulator tests and unsigned simulator build. Screenshots and other workflow jobs may still be running. No physical-device validation is claimed.
+- Moved community files into `.github/`, grouped backup code/tests and archived historical architecture/development notes. Root build/tool entry points remain in place intentionally.
+
+## Native follow-up — 19 November 2026
+
+- iOS source adds enhanced LRC word timing/following, a Daily Mix detail sheet and playback failure/seek safeguards. XCTest cases cover LRC parsing and generated PCM playback/seek/failure/Mix cancellation in the simulator. Hosted CI at `d3e089a` passed the Swift core tests, the new Xcode simulator tests and an unsigned simulator build ([run](https://github.com/jaime-gaming/Wave/actions/runs/45282936438)); an earlier simulator build failed module resolution before the architecture was corrected. The present workspace has no Swift or Xcode.
+- Local checks: 896 web tests, 34 release contracts, 6 packaging tests, lint, formatting, release metadata and web build passed. The build retains Vite warnings.
+- Windows passed hosted native checks at `d3e089a`. Android failed fetching Robolectric's Maven artifact, rather than a reported assertion failure; the earlier `2a8b7ba` Android job passed. Current web and iOS screenshot jobs were still running at review.
+- Hosted checks for the earlier revision `78c6a87` passed iOS core tests and unsigned simulator build, Windows, and Android unit/lint/APK; that does not validate later changes. Simulator smoke is not proof of audible output, route changes, interruptions, Bluetooth, car controls, battery performance or real-device Mix quality.
+- Web-compatible native linking and backups, native Fix Volume, integrated native YouTube and full web-feature parity remain unimplemented. No production deployment, signed iOS build or physical-device test is claimed.
 
 ## Playback and artwork follow-up — 16 November 2026
 

@@ -9,7 +9,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.io.File
 
-/** Removal may forget a library row, but must never delete someone else's file. */
+
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
 class NativeStorageSafetyTest {
@@ -27,7 +27,7 @@ class NativeStorageSafetyTest {
             assertTrue("The original is outside Wave's audio directory", original.exists())
             assertTrue(library.load().isEmpty())
         } finally {
-            original.delete() // only this test's temporary file
+            original.delete()
         }
     }
 
@@ -44,7 +44,7 @@ class NativeStorageSafetyTest {
             library.delete("two")
             assertFalse(copy.exists())
         } finally {
-            copy.delete() // only this test's temporary file
+            copy.delete()
         }
     }
 }

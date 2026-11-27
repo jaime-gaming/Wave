@@ -40,13 +40,13 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/**
- * Where the bottom bar can take you.
- *
- * The label is the name; the drawing comes from `WaveIcons`, which holds Wave's
- * own paths. A typed symbol here would be whatever the device font happens to
- * have, which is how one phone ends up with a box where the music should be.
- */
+
+
+
+
+
+
+
 enum class Destination(val label: String, val icon: String) {
     Home("Home", "home"),
     Search("Search", "search"),
@@ -55,7 +55,7 @@ enum class Destination(val label: String, val icon: String) {
     Settings("Settings", "settings"),
 }
 
-/** The ways into the collection from the Library screen. */
+
 enum class Shelf(val label: String) {
     Songs("Songs"),
     Albums("Albums"),
@@ -64,7 +64,7 @@ enum class Shelf(val label: String) {
     Favorites("Favorites"),
 }
 
-/** A collection opened from a shelf, shown as its own page. */
+
 sealed interface Open {
     data class Album(val name: String) : Open
     data class Artist(val name: String) : Open
@@ -72,7 +72,7 @@ sealed interface Open {
     data class Mix(val label: String) : Open
 }
 
-/** What a shortcut, the widget or the notification asked the app to open. */
+
 sealed interface Opening {
     data object Default : Opening
     data object Player : Opening
@@ -80,13 +80,13 @@ sealed interface Opening {
     data class Where(val destination: Destination) : Opening
 }
 
-/**
- * Everything the screens read and write, in one place.
- *
- * The screens receive this and draw; the library, the player and the network work
- * live here. That keeps layout out of the logic and means a screen that loses its
- * composition — a rotation, a trip to another app — loses nothing.
- */
+
+
+
+
+
+
+
 @Stable
 class WaveState(
     private val context: Context,
@@ -103,7 +103,7 @@ class WaveState(
     var summary by mutableStateOf(listeningSummary(plays, songs, System.currentTimeMillis()))
         private set
     var recap by mutableStateOf(weekRecap(plays, songs, System.currentTimeMillis()))
-    /** The last four weeks, newest first, so the page keeps a record. */
+
     var recaps by mutableStateOf(weeklyRecaps(plays, songs, System.currentTimeMillis()))
         private set
     var monthlyRecap by mutableStateOf(monthlyRecap(plays, songs, System.currentTimeMillis()))
@@ -124,7 +124,7 @@ class WaveState(
     var queueOpen by mutableStateOf(false)
     var addOpen by mutableStateOf(false)
     var options by mutableStateOf<Song?>(null)
-    /** The playlist a song was opened from, when there is one. */
+
     var optionsPlaylist by mutableStateOf<Playlist?>(null)
     var addToPlaylist by mutableStateOf<Song?>(null)
     var editing by mutableStateOf<Song?>(null)
@@ -134,7 +134,7 @@ class WaveState(
     var busy by mutableStateOf(false)
         private set
     var notice by mutableStateOf("")
-    /** Minutes left on the sleep timer; 0 when it is off. */
+
     var sleepMinutes by mutableStateOf(0)
     var sleepChoice by mutableStateOf(0)
         private set
@@ -143,18 +143,18 @@ class WaveState(
     var onlineLyrics by mutableStateOf(context.wave.preferences().getBoolean(KEY_LYRICS, false))
         private set
 
-    /** Library work and lookups run here, never on the frame that draws a row. */
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var sleepJob: Job? = null
     private val listeningCounter = ListeningCounter()
 
-    /**
-     * One listener for the player's changes, plus a one-second beat.
-     *
-     * The changes alone are not enough to count listening: a song that simply
-     * plays on between them would count for nothing, so the clock is read once a
-     * second while it runs.
-     */
+
+
+
+
+
+
+
     private val listener: () -> Unit = {
         sampleListening()
         io.github.jaimegaming.wave.PlaybackService.refresh(context)
@@ -170,7 +170,7 @@ class WaveState(
         player.onQueueEnded = {
             val activeSong = player.current
             if (!autoplayEnabled || activeSong == null || songs.size < 2) null
-            else pickAutoplayNext(songs, activeSong, recentPlayedIds, moodSignals)
+            else pickAutoplayNext(songs, activeSong, plays.takeLast(32).map { it.songId } + recentPlayedIds, moodSignals)
         }
         player.observe(listener)
         scope.launch {
@@ -196,16 +196,16 @@ class WaveState(
         yearlyRecap = yearlyRecap(plays, songs, now)
     }
 
-    // --- listening ---------------------------------------------------------
 
-    /**
-     * Counts what was heard, from the player's own clock.
-     *
-     * The difference between two samples is added and a jump is ignored, so a
-     * seek or a stall never inflates the count: the total is time actually spent
-     * listening. A play is written as soon as the song passes its threshold, not
-     * when it ends — a song skipped in its last ten seconds was still heard.
-     */
+
+
+
+
+
+
+
+
+
     private fun sampleListening() {
         val song = player.current
         val serial = player.playbackSerial
@@ -257,7 +257,7 @@ class WaveState(
         }
     }
 
-    /** Stops the music after a while, for falling asleep with something on. */
+
     fun setSleepTimer(minutes: Int) {
         sleepJob?.cancel()
         sleepChoice = minutes.coerceIn(0, 180)
@@ -288,7 +288,7 @@ class WaveState(
         }
     }
 
-    // --- preferences -------------------------------------------------------
+
 
     fun setMix(enabled: Boolean) {
         mixEnabled = enabled
@@ -306,9 +306,9 @@ class WaveState(
         context.wave.preferences().edit().putBoolean(KEY_LYRICS, enabled).apply()
     }
 
-    // --- recent searches ---------------------------------------------------
 
-    /** The phrases searched for lately, newest first; the site keeps the same list. */
+
+
     var recentSearches by mutableStateOf(
         context.wave.preferences()
             .getString(KEY_RECENT, "").orEmpty()
@@ -331,9 +331,9 @@ class WaveState(
         context.wave.preferences().edit().remove(KEY_RECENT).apply()
     }
 
-    // --- browsing ----------------------------------------------------------
 
-    /** Songs matching the search, best match first. */
+
+
     fun visible(): List<Song> = rankSongs(songs, query)
 
     fun favorites(): List<Song> = songs.filter { it.favorite }
@@ -346,14 +346,14 @@ class WaveState(
         .groupBy { it.artist.ifBlank { "Unknown artist" } }
         .toSortedMap(String.CASE_INSENSITIVE_ORDER)
 
-    /**
-     * Persisted complete-only Daily Mixes: already-created mixes appear
-     * instantaneously from local preferences; while a bulk import is running
-     * with no saved mix yet, returns empty so Home shows the skeleton loader.
-     */
+
+
+
+
+
     fun mixes(): List<DailyMix> {
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
-        val signature = "${songs.size}:" + songs.map { it.id }.sorted().take(48).joinToString(",")
+        val signature = "v3:${songs.size}:" + songs.map { it.id }.sorted().take(48).joinToString(",")
         val byId = songs.associateBy { it.id }
         val preferences = context.wave.preferences()
         val savedDay = preferences.getString(KEY_MIX_DAY, null)
@@ -366,7 +366,8 @@ class WaveState(
                 val label = parts[0]
                 val trackList = parts[1].split(",").mapNotNull { byId[it] }
                 if (trackList.size < 7) return@mapNotNull null
-                DailyMix(label = label, songs = trackList)
+                val covers = parts.getOrNull(2)?.split(",")?.mapNotNull { byId[it] }.orEmpty()
+                DailyMix(label = label, songs = trackList, covers = covers.ifEmpty { trackList.take(3) })
             }.take(3)
             if (hydrated.isNotEmpty()) return hydrated
         }
@@ -374,7 +375,7 @@ class WaveState(
         val built = dailyMixes(songs, today)
         if (built.isNotEmpty()) {
             val serialized = built.joinToString("\u001e") { mix ->
-                "${mix.label}\u001f${mix.songs.joinToString(",") { it.id }}"
+                "${mix.label}\u001f${mix.songs.joinToString(",") { it.id }}\u001f${mix.covers.joinToString(",") { it.id }}"
             }
             preferences.edit()
                 .putString(KEY_MIX_DAY, today)
@@ -390,7 +391,7 @@ class WaveState(
         return playlist.trackIds.mapNotNull { byId[it] }
     }
 
-    /** The songs behind whatever collection is open, and the queue it plays as. */
+
     fun openSongs(): List<Song> = when (val target = open) {
         null -> emptyList()
         is Open.Album -> albums()[target.name].orEmpty()
@@ -407,15 +408,15 @@ class WaveState(
         is Open.Mix -> target.label
     }
 
-    // --- playing -----------------------------------------------------------
 
-    /**
-     * Plays a song inside the collection it was tapped in, so "next" means the
-     * next thing on the screen the listener is looking at rather than the whole
-     * library.
-     */
+
+
+
+
+
+
     fun play(song: Song) {
-        // "Next" means the next thing on the screen the song was tapped on.
+
         val around = openSongs().ifEmpty { if (query.isBlank()) songs else visible() }
         player.play(if (around.any { it.id == song.id }) around else songs, song)
     }
@@ -447,14 +448,14 @@ class WaveState(
         notice = "${song.title} removed from this device."
     }
 
-    // --- playlists ---------------------------------------------------------
 
-    /**
-     * Saves the Remix as an ordinary playlist.
-     *
-     * Saving is explicit and changes nothing about the history: the list becomes
-     * a playlist like any other, which can then be renamed, reordered or deleted.
-     */
+
+
+
+
+
+
+
     fun saveRemix() {
         val songs = recap.songs
         if (songs.isEmpty()) return
@@ -466,10 +467,19 @@ class WaveState(
         notice = Loc.t("Remix saved as a playlist.")
     }
 
-    /** Saves a daily mix without modifying its songs or the original files. */
+
     fun saveDailyMix(label: String, songs: List<Song>) {
         if (songs.isEmpty()) return
-        val playlist = repository.createPlaylist("Daily mix · $label")
+        val day = java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.ROOT).format(java.util.Date())
+        fun name(index: Int): String {
+            if (index == 1) return "$day's Daily Mix"
+            val suffix = if (index % 100 in 11..13) "th" else when (index % 10) { 1 -> "st"; 2 -> "nd"; 3 -> "rd"; else -> "th" }
+            return "$day's $index$suffix Daily Mix"
+        }
+        val existing = playlists.map { it.name.lowercase(java.util.Locale.ROOT) }.toSet()
+        var index = 1
+        while (name(index).lowercase(java.util.Locale.ROOT) in existing) index++
+        val playlist = repository.createPlaylist(name(index))
         repository.updatePlaylist(playlist.copy(trackIds = songs.map { it.id }))
         playlists = repository.loadPlaylists()
         notice = Loc.t("Daily mix saved as a playlist.")
@@ -518,7 +528,7 @@ class WaveState(
         playlists = repository.loadPlaylists()
     }
 
-    // --- importing ---------------------------------------------------------
+
 
     fun importMusic(uris: List<Uri>) {
         if (uris.isNotEmpty()) run { repository.importFiles(uris) }
@@ -550,23 +560,21 @@ class WaveState(
         }
     }
 
-    // --- lyrics ------------------------------------------------------------
 
-    /**
-     * Asks for a lyric only when it is wanted and not recent. A song is looked at
-     * again after fifteen minutes rather than on every visit, so the service is
-     * asked once and a song without lyrics is not asked about again and again.
-     */
+
+
+
+
+
+
     fun lookupLyrics(song: Song) {
         scope.launch {
             busy = true
             try {
                 val raw = withContext(Dispatchers.IO) { client.find(song) }
                 val latest = songs.find { it.id == song.id }
-                if (latest != null && latest.lyrics.isEmpty() && raw.isNotEmpty()) {
-                    update(latest.copy(lyrics = raw, checkedAt = System.currentTimeMillis()))
-                } else {
-                    latest?.let { update(it.copy(checkedAt = System.currentTimeMillis())) }
+                if (latest != null && latest.title == song.title && latest.artist == song.artist && latest.lyrics.isEmpty()) {
+                    update(latest.copy(lyrics = raw.ifEmpty { latest.lyrics }, checkedAt = System.currentTimeMillis()))
                 }
                 notice = if (raw.isEmpty()) Loc.t("No lyrics found for this song.") else ""
             } catch (error: Exception) {
@@ -600,7 +608,7 @@ class WaveState(
         const val KEY_MIX_DAY = "daily-mixes-day"
         const val KEY_MIX_SIG = "daily-mixes-sig"
         const val KEY_MIX_DATA = "daily-mixes-data"
-        /** A character no phrase contains, so one string can hold the list. */
+
         const val RECENT_SEPARATOR = "\u001f"
         const val LYRIC_COOLDOWN = 15 * 60 * 1000L
     }

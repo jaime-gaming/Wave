@@ -82,7 +82,7 @@ describe('video clip backdrop', () => {
     expect(JSON.parse(localStorage.getItem(CLIP_STORAGE_KEY) ?? '{}')).toMatchObject({
       'track-video': { videoId: 'dQw4w9WgXcQ' },
     });
-    // The clip is decoration and nothing else: the song's bar is the transport.
+
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
@@ -98,7 +98,7 @@ describe('video clip backdrop', () => {
     expect(await screen.findByTitle(/video clip for/i)).toBeInTheDocument();
     act(() => removeClip('track-video'));
     await waitFor(() => expect(screen.queryByTitle(/video clip for/i)).not.toBeInTheDocument());
-    // The song is untouched: no clip record left behind.
+
     expect(JSON.parse(localStorage.getItem(CLIP_STORAGE_KEY) ?? '{}')).toEqual({});
   });
 });
@@ -123,16 +123,14 @@ describe('keeping the picture on the song', () => {
 
   it('asks the player to report, then seeks it when the picture is behind', async () => {
     const { frame, sent } = await open();
-    // The player only answers a page that has said it is listening; without it
-    // Wave never learned where the picture was, which is why the clip never
-    // lined up with the song.
+
     await waitFor(() => expect(sent.some((m) => m.event === 'listening')).toBe(true));
     expect(sent[0]).toMatchObject({ event: 'listening', id: 'wave-clip-player' });
 
-    // The player reports the beginning of the video while the song is at 12 s.
     act(() => {
       window.dispatchEvent(
         new MessageEvent('message', {
+          origin: 'https://www.youtube-nocookie.com',
           data: JSON.stringify({
             event: 'infoDelivery',
             info: { currentTime: 0.4, playerState: 1, duration: 200 },
@@ -146,8 +144,7 @@ describe('keeping the picture on the song', () => {
       { timeout: 2_000 },
     );
     const seek = sent.find((m) => m.event === 'command' && m.func === 'seekTo');
-    // The song's position is the one the interface last reported, plus whatever
-    // has elapsed since — never the stale number on its own.
+
     const [to, allowSeekAhead] = seek?.args as [number, boolean];
     expect(to).toBeGreaterThanOrEqual(12);
     expect(to).toBeLessThan(13);
@@ -161,6 +158,7 @@ describe('keeping the picture on the song', () => {
     act(() => {
       window.dispatchEvent(
         new MessageEvent('message', {
+          origin: 'https://www.youtube-nocookie.com',
           data: JSON.stringify({
             event: 'infoDelivery',
             info: { currentTime: 12.05, playerState: 1, duration: 200 },
@@ -180,6 +178,7 @@ describe('keeping the picture on the song', () => {
     act(() => {
       window.dispatchEvent(
         new MessageEvent('message', {
+          origin: 'https://www.youtube-nocookie.com',
           data: JSON.stringify({
             event: 'infoDelivery',
             info: { currentTime: 0, playerState: 1, duration: 200 },
@@ -189,8 +188,7 @@ describe('keeping the picture on the song', () => {
       );
     });
     await new Promise((resolve) => setTimeout(resolve, 400));
-    // Nothing is applied: the page is still asking to be heard, but no command
-    // comes from a message it did not expect.
+
     expect(sent.some((m) => m.event === 'command')).toBe(false);
   });
 });

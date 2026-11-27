@@ -28,14 +28,14 @@ const sections = [
   { id: 'about', title: 'About', note: 'Version, source and privacy', icon: Info },
 ] as const;
 type Section = (typeof sections)[number]['id'];
-/** The id of a Settings section, for anything that opens Settings on one. */
+
 export type SettingsSection = Section;
 export function SettingsPage(
   props: Record<Section, ReactNode> & {
     onBack: () => void;
-    /** Opens straight into one section, used by a `#wave-pair=` or `/Settings/<Section>` link. */
+
     initialSection?: Section | null;
-    /** Optional callback so deep routes stay in sync as sections open and close. */
+
     onSectionChange?: (section: Section | null) => void;
   },
 ) {

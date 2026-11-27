@@ -1,28 +1,16 @@
-/**
- * Broadcast-grade, non-destructive loudness normalization (ITU-R BS.1770-4 / EBU R128 inspired).
- *
- * Key principles for Wave 0.2.2:
- * - Measures K-weighted gated integrated loudness (LUFS) instead of naive raw RMS.
- * - Uses an upward-biased target (-11.0 LUFS) with a balanced deadband (-13.0 to -7.5 LUFS):
- *   songs that are already well-leveled are left completely untouched (`applied: false, gain: 1`).
- * - Mostly raises quiet tracks cleanly (with transient-aware headroom + soft-knee limiter support),
- *   and only gently tames genuinely over-loud outliers (> -7.5 LUFS).
- * - Never alters the stored audio file.
- */
 export const VOLUME_FIX_VERSION = 2;
 
-/** Target perceived loudness for boosted quiet tracks. */
 export const TARGET_LUFS = -11.0;
-/** Balanced zone: recordings inside this window are left untouched (`gain = 1`). */
+
 export const BALANCED_MIN_LUFS = -13.0;
 export const BALANCED_MAX_LUFS = -7.5;
-/** Gentle ceiling target only for extremely hot tracks above BALANCED_MAX_LUFS. */
+
 export const HOT_CEILING_LUFS = -8.5;
-/** Maximum upward makeup gain (+10 dB ≈ 3.16x, or up to +14 dB for very quiet wide-headroom files). */
+
 export const MAX_BOOST_LINEAR = 5.0;
-/** Maximum downward trim for extreme outliers (-4.5 dB ≈ 0.60x) so loud songs are never crushed. */
+
 export const MIN_ATTENUATION_LINEAR = 0.55;
-/** Minimum meaningful gain change (~0.6 dB) before applying processing. */
+
 export const MIN_GAIN_DELTA_DB = 0.6;
 
 export type VolumeFixAction = 'boost' | 'trim' | 'balanced';
@@ -31,11 +19,11 @@ export interface VolumeFix {
   gain: number;
   rmsDb: number;
   peakDb: number;
-  /** Gated K-weighted integrated loudness in LUFS. */
+
   lufs?: number;
-  /** Whether a correction is actually applied (`false` means original level is kept). */
+
   applied?: boolean;
-  /** Whether the boost relies on the playback soft-knee limiter for brief sparse peaks. */
+
   limiterAssisted?: boolean;
   action?: VolumeFixAction;
   algorithmVersion?: number;
@@ -50,7 +38,6 @@ interface Biquad {
   a2: number;
 }
 
-/** Pre-filter high-shelf (+4 dB @ ~1682 Hz) from ITU-R BS.1770 K-weighting. */
 function kWeightHighShelf(sampleRate: number): Biquad {
   const fc = Math.min(1681.974450955533, sampleRate * 0.42);
   const dbGain = 3.999843853973347;
@@ -72,7 +59,6 @@ function kWeightHighShelf(sampleRate: number): Biquad {
   return { b0: b0 / a0, b1: b1 / a0, b2: b2 / a0, a1: a1 / a0, a2: a2 / a0 };
 }
 
-/** RLB high-pass (~38 Hz) from ITU-R BS.1770 K-weighting. */
 function kWeightHighPass(sampleRate: number): Biquad {
   const fc = Math.min(38.13547087602444, sampleRate * 0.25);
   const q = 0.5003270373238773;
@@ -108,7 +94,6 @@ function applyBiquad(input: Float32Array, frames: number, f: Biquad, out: Float3
   }
 }
 
-/** Estimate inter-sample peak via Catmull-Rom midpoint evaluation without full 4x allocation. */
 function estimateTruePeak(channel: Float32Array, frames: number): number {
   let peak = 0;
   for (let i = 0; i < frames; i++) {
@@ -153,7 +138,6 @@ export function volumeCorrection(
 
   if (peak < 0.0001) throw Error('This recording is silent or too quiet to measure safely.');
 
-  // Overlapping 400 ms gating blocks (100 ms hop, 75% overlap per BS.1770-4).
   const blockSize = Math.max(1, Math.min(frames, Math.round(sampleRate * 0.4)));
   const hopSize = Math.max(1, Math.round(blockSize / 4));
   const blockEnergies: number[] = [];
@@ -176,8 +160,7 @@ export function volumeCorrection(
         chKSum += kv * kv;
         chRawSum += rv * rv;
       }
-      // BS.1770 sums channel mean-squares; average mono/stereo consistently to stay
-      // comparable between mono and stereo masters of the same perceived level.
+
       kSum += chKSum / count;
       rawSum += chRawSum / count;
     }
@@ -188,7 +171,6 @@ export function volumeCorrection(
     if (end >= frames) break;
   }
 
-  // Fine-grained 50 ms window peaks to distinguish isolated clicks from sustained peaks.
   const fineWindow = Math.max(1, Math.round(sampleRate * 0.05));
   const shortPeaks: number[] = [];
   for (let start = 0; start < frames; start += fineWindow) {
@@ -210,12 +192,11 @@ export function volumeCorrection(
   const rmsDb = 20 * Math.log10(Math.max(1e-9, rms));
   const peakDb = 20 * Math.log10(Math.max(1e-9, peak));
 
-  // Absolute gate at -70 LUFS -> mean energy threshold = 10^((-70 + 0.691) / 10).
   const absGateEnergy = Math.pow(10, (-70 + 0.691) / 10);
   const afterAbs = blockEnergies.filter((e) => e > absGateEnergy);
   if (!afterAbs.length) throw Error('This recording is silent or too quiet to measure safely.');
   const ungatedMean = afterAbs.reduce((a, b) => a + b, 0) / afterAbs.length;
-  // Relative gate: 10 LU below ungated mean (factor 0.1 in linear energy).
+
   const relGateEnergy = ungatedMean * 0.1;
   const afterRel = afterAbs.filter((e) => e > relGateEnergy);
   const gatedMean = afterRel.length
@@ -223,13 +204,11 @@ export function volumeCorrection(
     : ungatedMean;
   const lufs = -0.691 + 10 * Math.log10(Math.max(1e-12, gatedMean));
 
-  // Sustained peak (90th percentile of 50 ms window peaks) separates sparse clicks from body peaks.
   shortPeaks.sort((a, b) => a - b);
   const sustainedPeak = shortPeaks.length
     ? shortPeaks[Math.min(shortPeaks.length - 1, Math.floor(shortPeaks.length * 0.9))]
     : peak;
 
-  // Decide whether this track even needs Fix Volume.
   const linearCeiling = Math.pow(10, -1 / 20) / peak;
   let gain = 1;
   let action: VolumeFixAction = 'balanced';
@@ -237,19 +216,15 @@ export function volumeCorrection(
   let limiterAssisted = false;
 
   if (lufs < BALANCED_MIN_LUFS) {
-    // Quiet recording: lift toward TARGET_LUFS.
     const desiredGain = Math.min(MAX_BOOST_LINEAR, Math.pow(10, (TARGET_LUFS - lufs) / 20));
     if (desiredGain <= linearCeiling) {
       gain = desiredGain;
     } else if (sustainedPeak < peak * 0.72) {
-      // Sparse transient peak (e.g. a lone click/snare) with plenty of body headroom:
-      // boost safely using sustained headroom and engage the transparent soft-knee limiter.
       const sustainedCeiling = Math.pow(10, -1.5 / 20) / Math.max(sustainedPeak, 0.001);
-      // Cap limiter-assisted boost to +6 dB above linear ceiling so dynamics stay musical.
+
       gain = Math.min(desiredGain, sustainedCeiling, Math.max(1, linearCeiling * 2.0));
       limiterAssisted = gain > linearCeiling;
     } else {
-      // Dense peaks close to 0 dBFS: stay cleanly inside -1 dBTP ceiling (never pull a quiet song down).
       gain = Math.max(1, Math.min(desiredGain, linearCeiling));
     }
     const deltaDb = 20 * Math.log10(gain);
@@ -263,7 +238,6 @@ export function volumeCorrection(
       action = 'balanced';
     }
   } else if (lufs > BALANCED_MAX_LUFS) {
-    // Only genuinely over-loud recordings are trimmed gently, never crushed to -18.
     const desiredGain = Math.max(
       MIN_ATTENUATION_LINEAR,
       Math.pow(10, (HOT_CEILING_LUFS - lufs) / 20),

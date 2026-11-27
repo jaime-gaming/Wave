@@ -43,15 +43,14 @@ describe('the Remix page', () => {
   it('leads with three highlights and opens listening details on request', async () => {
     render(<RemixPage {...props} />);
     expect(screen.getByRole('heading', { name: 'Remix' })).toBeInTheDocument();
-    // 450 seconds this week, rounded the way the rest of the app rounds.
-    // The figure climbs to its value rather than appearing at it.
+
     expect(await screen.findByText('8 min')).toBeInTheDocument();
     expect(screen.queryByText('3 plays · 2 songs · 1 artist')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Top artist/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Top song/ })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /Listening time/ }));
     expect(screen.getByText('3 plays · 2 songs · 1 artist')).toBeInTheDocument();
-    // The old page's detail sections are gone on purpose.
+
     expect(screen.queryByRole('region', { name: /last two weeks/i })).not.toBeInTheDocument();
     expect(screen.queryByText('Recent')).not.toBeInTheDocument();
   });
@@ -64,7 +63,7 @@ describe('the Remix page', () => {
     expect(props.onPlay).toHaveBeenCalledWith(recap.mix, recap.mix[0].id);
     await user.click(screen.getByRole('button', { name: /Save as playlist/i }));
     expect(props.onSave).toHaveBeenCalledWith(recap.mix, recap);
-    // The most played song leads the list, and its count is shown as a fact.
+
     expect(screen.getAllByText('2×').length).toBe(1);
   });
 
@@ -113,7 +112,7 @@ describe('the Remix page', () => {
   it('sends Manage history somewhere that exists', async () => {
     const user = userEvent.setup();
     render(<RemixPage {...props} onManageHistory={props.onManageHistory} />);
-    // It used to be an anchor to #settings-storage, which no page ever had.
+
     expect(screen.queryByRole('link', { name: 'Manage history' })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Manage history' }));
     expect(props.onManageHistory).toHaveBeenCalledOnce();
@@ -145,7 +144,7 @@ describe('the weeks before', () => {
     );
     const section = screen.getByRole('region', { name: 'Weeks before this one' });
     expect(within(section).getByText('2 plays · Later still')).toBeInTheDocument();
-    // Only the previous week with recorded plays is offered.
+
     expect(within(section).getAllByRole('listitem')).toHaveLength(1);
   });
 
@@ -237,4 +236,22 @@ it('switches between Weekly, Monthly and Yearly recaps', async () => {
   expect(screen.getByRole('combobox', { name: 'Explore a year' })).toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: /Listening time/ }));
   expect(screen.getByRole('region', { name: 'Listening per month' })).toBeInTheDocument();
+});
+
+it('switches periods immediately while outgoing controls are inert', async () => {
+  const monthlyHistory = monthlyRecaps(plays, tracks, now);
+  const yearlyHistory = yearlyRecaps(plays, tracks, now);
+  const user = userEvent.setup();
+  const { container } = render(
+    <RemixPage {...props} monthlyHistory={monthlyHistory} yearlyHistory={yearlyHistory} />,
+  );
+  const old = container.querySelector('.remix-period-stage')!;
+  await user.click(screen.getByRole('tab', { name: 'Monthly' }));
+  expect(screen.getByRole('combobox', { name: 'Explore a month' })).toBeInTheDocument();
+  if (old.isConnected) {
+    expect(old).toHaveAttribute('inert');
+    expect(old).toHaveAttribute('aria-hidden', 'true');
+  }
+  await user.click(screen.getByRole('tab', { name: 'Yearly' }));
+  expect(screen.getByRole('combobox', { name: 'Explore a year' })).toBeInTheDocument();
 });

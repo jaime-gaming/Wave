@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mixCues, mixWindowReached } from './mix';
+import { mixCues, mixWindowReached, plannedMixWindow } from './mix';
 it('conservatively bounds silence cues without trimming quiet music', () => {
   const values = new Float32Array(200);
   values.fill(0.1, 20, 180);
@@ -25,8 +25,7 @@ it('selects a bounded pair-specific window automatically', async () => {
   expect(automaticMixSeconds(240, 200)).toBeGreaterThan(automaticMixSeconds(20, 20));
   expect(automaticMixSeconds(4, 8)).toBeLessThanOrEqual(2);
   expect(automaticMixSeconds(1000, 1000)).toBe(24);
-  // Two full songs never hand over in a fade shorter than a phrase.
-  // Two ordinary songs get the middle of the range, not a two-second fade.
+
   expect(automaticMixSeconds(180, 200)).toBeGreaterThanOrEqual(16);
   expect(automaticMixSeconds(180, 200)).toBeLessThanOrEqual(24);
   expect(automaticMixSeconds(NaN, 20)).toBe(0);
@@ -34,7 +33,6 @@ it('selects a bounded pair-specific window automatically', async () => {
 
 describe('when a handover may start', () => {
   it('never begins before the final seconds of the file', () => {
-    // A three minute song is not mixed at two minutes, whatever the analysis says.
     expect(mixWindowReached(120, 180, 8)).toBe(false);
     expect(mixWindowReached(160, 180, 8)).toBe(false);
     expect(mixWindowReached(170, 180, 8)).toBe(true);
@@ -64,4 +62,13 @@ it('never enters a short-song mix window at playback start or beyond valid clock
   expect(mixWindowReached(2.5, 4, 24)).toBe(true);
   expect(mixWindowReached(-1, 30, 100)).toBe(false);
   expect(mixWindowReached(31, 30, 12)).toBe(false);
+});
+
+it('opens the scheduler early enough for a bar-aligned plan', () => {
+  const window = plannedMixWindow(12, 240, 220);
+  expect(window).toBe(20);
+  expect(mixWindowReached(220, 240, window)).toBe(true);
+  expect(mixWindowReached(220, 240, 12)).toBe(false);
+  expect(plannedMixWindow(12, 240, undefined)).toBe(12);
+  expect(plannedMixWindow(12, 240, Number.NaN)).toBe(12);
 });

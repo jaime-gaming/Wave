@@ -59,8 +59,7 @@ export const SearchPage = memo(function SearchPage({
   onCreatePlaylist,
 }: Props) {
   const t = useT();
-  // The filter is a stable id, never a translated label: the comparisons below
-  // must keep working whichever language the chips are drawn in.
+
   const [kind, setKind] = useState<'All' | 'Songs' | 'Artists' | 'Albums' | 'Playlists'>('All');
   const [recent, setRecent] = useState<string[]>(loadRecentSearches);
   useEffect(() => {
@@ -68,19 +67,15 @@ export const SearchPage = memo(function SearchPage({
   }, [inputRef]);
   const animation = useWaveMotion();
   const deferredQuery = useDeferredValue(query);
-  // Ranked, not filtered: the song you meant belongs at the top of the list.
+
   const songs = useMemo(() => rankTracks(tracks, deferredQuery), [tracks, deferredQuery]);
-  /**
-   * A search is remembered when it settles — the library already narrowed —
-   * not on every keystroke, so the list holds phrases rather than prefixes.
-   */
+
   useEffect(() => {
     if (deferredQuery.trim().length < 3) return;
     const timer = setTimeout(() => setRecent(rememberSearch(deferredQuery)), 1200);
     return () => clearTimeout(timer);
   }, [deferredQuery]);
-  // Ranked like the songs are: the collection whose name you typed comes first,
-  // not whichever one was alphabetically in the way.
+
   const albums = useMemo(
     () =>
       rankNames(
@@ -95,8 +90,7 @@ export const SearchPage = memo(function SearchPage({
     () => rankNames(collectArtists(tracks), deferredQuery, (artist) => artist.name),
     [tracks, deferredQuery],
   );
-  // The ranking already drops what does not answer, including the near miss, so
-  // filtering first only removed results twice.
+
   const playlists = useMemo(
     () =>
       rankNames(
@@ -140,7 +134,7 @@ export const SearchPage = memo(function SearchPage({
             }
             if (event.key !== 'Enter' || !query.trim()) return;
             event.preventDefault();
-            // Resolve the current input, not an older deferred render, and honor its category.
+
             rememberSearch(query);
             setRecent(loadRecentSearches());
             if (kind === 'Artists') {

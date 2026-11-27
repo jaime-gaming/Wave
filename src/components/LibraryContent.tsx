@@ -67,7 +67,7 @@ export const LibraryContent = memo(function LibraryContent({
   const t = useT();
   const online = useOnline();
   const grouped = (view === 'albums' || view === 'artists') && !group;
-  // Only the rows near the viewport exist at any moment; the rest arrive on scroll.
+
   const rows = useIncrementalRows(tracks.length);
   const groups = new Map<string, Track[]>();
   if (grouped && view === 'artists')
@@ -146,14 +146,14 @@ export const LibraryContent = memo(function LibraryContent({
           <button
             className="icon-button"
             onClick={() => onGroup(null)}
-            aria-label={`Back to ${view}`}
+            aria-label={t('Back to {view}', { view: t(view) })}
           >
             <ArrowLeft size={22} />
           </button>
           <div>
             <h2>{view === 'albums' ? (tracks[0]?.album ?? t('Album')) : group}</h2>
             <p>
-              {tracks.length} {tracks.length === 1 ? 'song' : 'songs'}
+              {tracks.length} {t(tracks.length === 1 ? 'song' : 'songs')}
             </p>
           </div>
         </div>
@@ -180,8 +180,7 @@ export const LibraryContent = memo(function LibraryContent({
             <span>{t('Duration')}</span>
             <span />
           </div>
-          {/* Long libraries: rows outside the viewport are not laid out or
-              painted until they are needed. */}
+          {}
           <ol
             className="song-list"
             data-virtual={tracks.length > 40 ? 'true' : undefined}
@@ -194,8 +193,7 @@ export const LibraryContent = memo(function LibraryContent({
                   <AnimatedListItem
                     key={track.id}
                     trackId={track.id}
-                    // Only the first rows are worth an entrance animation; animating
-                    // hundreds of them costs more than it shows.
+
                     animateLayout={index < 12}
                     index={index}
                     className={`song-row ${currentId === track.id ? 'current' : ''}${offlineTrack ? ' is-offline-track' : ''}`}
@@ -230,7 +228,7 @@ export const LibraryContent = memo(function LibraryContent({
                     <div className="song-title-button">
                       <button
                         className="song-cover-play"
-                        aria-label={`Play artwork for ${track.title}`}
+                        aria-label={t('Play artwork for {title}', { title: track.title })}
                         disabled={offlineTrack}
                         onClick={() => {
                           if (!offlineTrack) onPlay(tracks, track.id);
@@ -251,7 +249,10 @@ export const LibraryContent = memo(function LibraryContent({
                                   title: track.title,
                                   artist: track.artist,
                                 })
-                              : `Play ${track.title} by ${track.artist}`
+                              : t('Play {title} by {artist}', {
+                                  title: track.title,
+                                  artist: track.artist,
+                                })
                           }
                           title={offlineTrack ? t('Needs an internet connection') : track.title}
                         >
@@ -263,7 +264,7 @@ export const LibraryContent = memo(function LibraryContent({
                         <button
                           className="metadata-link song-artist-link"
                           onClick={() => onArtist?.(track.artist)}
-                          aria-label={`Open artist ${track.artist}`}
+                          aria-label={t('Open artist {artist}', { artist: track.artist })}
                           title={track.artist}
                         >
                           {track.artist}
@@ -273,7 +274,7 @@ export const LibraryContent = memo(function LibraryContent({
                     <button
                       className="album-name metadata-link"
                       onClick={() => onAlbum?.(track)}
-                      aria-label={`Open album ${track.album}`}
+                      aria-label={t('Open album {album}', { album: track.album })}
                       title={track.album}
                     >
                       <Disc3 size={15} />
@@ -287,7 +288,9 @@ export const LibraryContent = memo(function LibraryContent({
                         action="favorite"
                         value={track.favorite}
                         className={`icon-button row-favorite ${track.favorite ? 'active' : ''}`}
-                        aria-label={`${track.favorite ? t('Unfavorite') : t('Favorite')} ${track.title}`}
+                        aria-label={t(track.favorite ? 'Unfavorite {title}' : 'Favorite {title}', {
+                          title: track.title,
+                        })}
                         aria-pressed={track.favorite}
                         onClick={() => onFavorite(track)}
                       >
@@ -295,7 +298,7 @@ export const LibraryContent = memo(function LibraryContent({
                       </PlayerActionButton>
                       <button
                         className="icon-button mobile-more"
-                        aria-label={`Options for ${track.title}`}
+                        aria-label={t('Options for {title}', { title: track.title })}
                         onClick={() => onMore(track)}
                       >
                         <MoreVertical size={23} />

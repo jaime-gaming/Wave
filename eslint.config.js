@@ -10,9 +10,14 @@ export default tseslint.config(
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
+  { rules: { 'no-empty': ['error', { allowEmptyCatch: true }] } },
   {
     files: ['public/sw.js'],
     languageOptions: { globals: { ...globals.serviceworker } },
+  },
+  {
+    files: ['public/boot.js'],
+    languageOptions: { globals: { ...globals.browser } },
   },
   {
     files: ['scripts/**/*.mjs'],

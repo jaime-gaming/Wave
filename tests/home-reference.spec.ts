@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './helpers/returning-user';
 import { wav } from './helpers/audio';
 
 test.beforeEach(async ({ page }) => {
@@ -12,6 +12,7 @@ test('the reference desktop composition stays the same width when playback start
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
   await page.getByLabel('Import audio files').setInputFiles({
     name: 'Reference.wav',
@@ -22,8 +23,11 @@ test('the reference desktop composition stays the same width when playback start
   const workspace = page.locator('.workspace');
   const before = await workspace.boundingBox();
   expect(before).not.toBeNull();
-  expect(before!.x).toBeCloseTo(220, 0);
-  expect(before!.width).toBeCloseTo(852, 0);
+  const navigation = await page.getByRole('navigation', { name: 'Main navigation' }).boundingBox();
+  expect(navigation).not.toBeNull();
+  expect(before!.x).toBeGreaterThanOrEqual(navigation!.x + navigation!.width);
+  expect(before!.width).toBeGreaterThan(800);
+  expect(before!.x + before!.width).toBeLessThanOrEqual(1440);
   await expect(page.getByRole('region', { name: 'Jump back in' })).toHaveCount(0);
   const wordmark = page.locator('.wave-wordmark-full');
   await expect(wordmark).toBeVisible();
@@ -47,17 +51,17 @@ test('the reference desktop composition stays the same width when playback start
   await page.getByRole('button', { name: 'Play Reference by Wave Tests' }).click();
   await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
   const after = await workspace.boundingBox();
+  expect(after!.x).toBeCloseTo(before!.x, 0);
   expect(after!.width).toBeCloseTo(before!.width, 0);
 });
 
 test('the phone keeps equal margins and all collection shortcuts', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
-  const workspace = page.locator('.workspace');
-  const bounds = await workspace.boundingBox();
+  const bounds = await page.getByRole('region', { name: 'Your collection' }).boundingBox();
   expect(bounds).not.toBeNull();
-  expect(bounds!.x).toBeCloseTo(10, 0);
-  expect(bounds!.width).toBeCloseTo(370, 0);
+  expect(bounds!.x).toBeGreaterThan(0);
+  expect(bounds!.x).toBeCloseTo(390 - (bounds!.x + bounds!.width), 0);
   await expect(
     page.getByRole('region', { name: 'Your collection' }).locator('.home-shortcut'),
   ).toHaveCount(5);

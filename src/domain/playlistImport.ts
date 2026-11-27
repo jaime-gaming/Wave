@@ -1,25 +1,12 @@
 import { artistMatch, canonical, cleanTitle, mainArtist } from './lyricsMatch';
 import { searchText } from './musicIdentity';
 
-/**
- * Matching a pasted playlist against the local collection.
- *
- * The importer only ever produces a *proposal*: every entry is reported as
- * matched, ambiguous or missing, and nothing is written until the user confirms.
- * A local song is never assigned to two entries, and a low-confidence match is
- * surfaced as ambiguous instead of being silently accepted.
- *
- * Matching never touches audio: it reads titles, artists, albums and durations
- * and returns track identifiers. Nothing here can re-encode, resample or
- * otherwise alter a stored file.
- */
 export interface ImportedEntry {
-  /** Provider-side identifier, used only for reporting. */
   id: string;
   title: string;
   artist: string;
   album?: string;
-  /** Seconds. Omitted when the provider did not report a usable duration. */
+
   duration?: number;
 }
 
@@ -36,11 +23,11 @@ export type MatchStatus = 'matched' | 'ambiguous' | 'missing';
 export interface EntryMatch {
   entry: ImportedEntry;
   status: MatchStatus;
-  /** Chosen local track for `matched`; best proposal for `ambiguous`. */
+
   trackId?: string;
-  /** 0–1 confidence of the chosen or best candidate. */
+
   score: number;
-  /** Scored alternatives above the reporting floor, best first. */
+
   alternatives: { trackId: string; score: number }[];
 }
 
@@ -49,21 +36,17 @@ export interface ImportReport {
   matchedCount: number;
   ambiguousCount: number;
   missingCount: number;
-  /** Ordered, unique local track IDs for the entries the user can accept as-is. */
+
   trackIds: string[];
 }
 
 export interface MatchOptions {
-  /** Seconds. Durations given by providers are rounded, so a small window is required. */
   durationTolerance?: number;
-  /** Minimum score to accept without review. */
+
   acceptScore?: number;
-  /** Minimum score to report as a possible alternative. */
+
   reportScore?: number;
-  /**
-   * Compares every entry with every candidate. Only used to verify the indexed
-   * search in tests; it is orders of magnitude slower for large libraries.
-   */
+
   exhaustive?: boolean;
 }
 
@@ -73,18 +56,14 @@ export const DEFAULT_MATCH_OPTIONS: Required<Omit<MatchOptions, 'exhaustive'>> =
   reportScore: 0.45,
 };
 
-/** Hard ceiling for one import so a hostile provider cannot exhaust memory. */
 export const MAX_IMPORT_ENTRIES = 5000;
 
 const TRAILING_DECORATION =
   /\s*[|–—-]\s*(?:official\s+)?(?:music\s+)?(?:video|audio|lyric\s+video|visuali[sz]er|lyrics?|hd|hq|4k)\s*$/iu;
 
-/** Text decorations that only appear on provider titles. */
 function tidy(value: string): string {
   const trimmed = value.replace(/\s*-\s*topic\s*$/iu, '').trim();
-  // Strip one trailing decoration at a time; anything that looks like a real
-  // version ("Remix", "Live", "Acoustic") is preserved so it cannot be confused
-  // with the studio recording.
+
   let text = trimmed;
   for (let pass = 0; pass < 2; pass++) {
     const next = text.replace(TRAILING_DECORATION, '').trim();
@@ -162,7 +141,6 @@ export interface ScoreBreakdown {
   score: number;
 }
 
-/** Scores one prepared pair. Exported for verification tests only. */
 function scorePrepared(
   entry: PreparedEntry,
   candidate: PreparedCandidate,
@@ -188,7 +166,7 @@ function scorePrepared(
     ? Math.abs((entry.duration as number) - candidate.duration)
     : Number.POSITIVE_INFINITY;
   const durationOk = !durationsKnown || durationDelta <= settings.durationTolerance;
-  // A large duration difference means a different edit, even with the same name.
+
   if (durationsKnown && durationDelta > settings.durationTolerance * 4) return { score: 0 };
 
   let score: number;
@@ -216,8 +194,6 @@ function scorePrepared(
   }
   if (score === 0) return { score: 0 };
 
-  // Album agreement is corroborating evidence; disagreement alone is not proof
-  // (compilations and single releases legitimately differ).
   if (entry.album && candidate.album && searchText(entry.album) === searchText(candidate.album))
     score = Math.min(1, score + 0.04);
   if (durationsKnown) {
@@ -239,12 +215,10 @@ export function scoreCandidate(
 }
 
 export interface MatchIndex {
-  /** Canonical title token → candidate positions. */
   byToken: Map<string, number[]>;
   candidates: PreparedCandidate[];
 }
 
-/** Inverted index: only candidates sharing a title token can ever score above 0. */
 export function buildMatchIndex(candidates: MatchCandidate[]): MatchIndex {
   const prepared = candidates.slice(0, MAX_IMPORT_ENTRIES * 20).map(prepareCandidate);
   const byToken = new Map<string, number[]>();
@@ -273,15 +247,10 @@ function candidatePositions(
       positions.push(position);
     }
   }
-  // Deterministic order regardless of token iteration order in the map.
+
   return positions.sort((a, b) => a - b);
 }
 
-/**
- * Assigns each entry to at most one local track, preferring the globally
- * strongest pairs first so a distinctive match cannot be stolen by an earlier
- * generic one. Deterministic for identical inputs.
- */
 export function matchEntries(
   entries: ImportedEntry[],
   candidates: MatchCandidate[],
@@ -326,8 +295,7 @@ export function matchEntries(
       .map((pair) => ({ trackId: pair.candidate.id, score: pair.score }))
       .slice(0, 3);
     if (!best) return { entry, status: 'missing', score: 0, alternatives };
-    // Two local songs scoring the same is a real ambiguity (single vs compilation),
-    // never a silent pick.
+
     const tied = alternatives.some((alternative) => alternative.score >= best.score);
     const accepted = best.score >= settings.acceptScore && !tied;
     return {
@@ -356,7 +324,6 @@ export function matchEntries(
   };
 }
 
-/** Accepts a user's manual choice for an ambiguous or missing entry. */
 export function chooseCandidate(
   report: ImportReport,
   entryIndex: number,
@@ -382,7 +349,6 @@ export function chooseCandidate(
   };
 }
 
-/** Playlist name suggested by the provider, trimmed to the domain limit. */
 export function suggestedPlaylistName(raw: string | undefined, provider: string): string {
   const name = raw?.replace(/\s+/gu, ' ').trim();
   return (name && name.slice(0, 120)) || `Imported ${provider} playlist`;

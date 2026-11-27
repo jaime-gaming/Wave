@@ -9,7 +9,7 @@ namespace Wave.Windows;
 
 public partial class MainWindow
 {
-    // Release checks are advisory: never download or replace an executable without consent.
+
     private async Task CheckForUpdate()
     {
         try {
@@ -35,7 +35,7 @@ public partial class MainWindow
             var message = Localization.T("A newer version ({version}) is available. Download the Windows package and replace the existing Wave files; keep your local library.", new Dictionary<string, string> { ["version"] = tag });
             if (MessageBox.Show(this, message, Localization.T("Wave update available"), MessageBoxButton.YesNo, MessageBoxImage.Information) == MessageBoxResult.Yes)
                 Process.Start(new ProcessStartInfo("https://github.com/jaime-gaming/Wave/releases/latest") { UseShellExecute = true });
-        } catch { /* Offline, rate-limited and invalid responses do not interrupt playback. */ }
+        } catch {                                                                              }
     }
     private record UpdateCheck(DateTime Checked);
 }

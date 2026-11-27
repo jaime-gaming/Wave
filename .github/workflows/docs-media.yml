@@ -57,8 +57,8 @@ jobs:
             echo "Nothing was captured; nothing to publish."
             exit 0
           fi
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git config user.name 'jaime-gaming'
+          git config user.email '250595486+jaime-gaming@users.noreply.github.com'
           git add docs/media
           if git diff --cached --quiet; then
             echo "Images unchanged."

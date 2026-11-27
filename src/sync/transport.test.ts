@@ -7,6 +7,7 @@ class Peer {
   iceGatheringState = 'gathering';
   localDescription: { toJSON: () => RTCSessionDescriptionInit } | null = null;
   onicegatheringstatechange: (() => void) | null = null;
+  onicecandidate: ((event: { candidate: { candidate: string } | null }) => void) | null = null;
   ondatachannel = null;
   onconnectionstatechange = null;
   constructor() {
@@ -59,5 +60,82 @@ it('rejects malformed signaling before touching the remote description', async (
     ),
   ).rejects.toThrow('Invalid connection code');
   expect(Peer.last.setRemoteDescription).not.toHaveBeenCalled();
+  transport.close();
+});
+
+it('waits for an open channel and applies backpressure until its buffer drains', async () => {
+  class Channel extends EventTarget {
+    readyState = 'connecting';
+    bufferedAmount = 0;
+    bufferedAmountLowThreshold = 0;
+    onopen?: () => void;
+    onclose?: () => void;
+    onerror?: () => void;
+    onmessage?: () => void;
+    send = vi.fn();
+    close = vi.fn(() => {
+      this.readyState = 'closed';
+      this.onclose?.();
+      this.dispatchEvent(new Event('close'));
+    });
+  }
+  class BufferedPeer extends Peer {
+    static channel: Channel;
+    override createDataChannel() {
+      BufferedPeer.channel = new Channel();
+      return BufferedPeer.channel;
+    }
+  }
+  vi.stubGlobal('RTCPeerConnection', BufferedPeer);
+  const transport = createTransport({ polite: false }, { onMessage: vi.fn(), onState: vi.fn() });
+  const code = transport.localCode();
+  Peer.last.iceGatheringState = 'complete';
+  Peer.last.onicegatheringstatechange?.();
+  await code;
+  const channel = BufferedPeer.channel;
+  const first = transport.send('first');
+  await Promise.resolve();
+  expect(channel.send).not.toHaveBeenCalled();
+  channel.readyState = 'open';
+  channel.onopen?.();
+  await first;
+  expect(channel.send).toHaveBeenCalledWith('first');
+  channel.bufferedAmount = 600 * 1024;
+  const second = transport.send('second');
+  await Promise.resolve();
+  expect(channel.send).toHaveBeenCalledTimes(1);
+  channel.bufferedAmount = 100 * 1024;
+  channel.dispatchEvent(new Event('bufferedamountlow'));
+  await second;
+  expect(channel.send).toHaveBeenLastCalledWith('second');
+  transport.close();
+});
+
+it('rejects pending sends if the connection closes before opening', async () => {
+  vi.stubGlobal('RTCPeerConnection', Peer);
+  const transport = createTransport({ polite: false }, { onMessage: vi.fn(), onState: vi.fn() });
+  const send = transport.send('hello');
+  await Promise.resolve();
+  transport.close();
+  await expect(send).rejects.toThrow('closed');
+});
+
+it('can finish after a public candidate settles without waiting for a stalled STUN server', async () => {
+  vi.useFakeTimers();
+  vi.stubGlobal('RTCPeerConnection', Peer);
+  const transport = createTransport({ polite: false }, { onMessage: vi.fn(), onState: vi.fn() });
+  let settled = false;
+  const code = transport.localCode().then(() => {
+    settled = true;
+  });
+  await vi.advanceTimersByTimeAsync(1);
+  Peer.last.onicecandidate?.({
+    candidate: { candidate: 'candidate:1 1 udp 1 203.0.113.1 4000 typ srflx' },
+  });
+  await vi.advanceTimersByTimeAsync(1199);
+  expect(settled).toBe(false);
+  await vi.advanceTimersByTimeAsync(1);
+  await code;
+  expect(settled).toBe(true);
   transport.close();
 });

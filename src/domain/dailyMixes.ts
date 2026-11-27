@@ -4,23 +4,11 @@ import { missingTag } from './metadata';
 import { analyzeSongMood, MOOD_DISPLAY, type MoodLabel } from './mood';
 import type { Track } from './types';
 
-/**
- * Daily mixes built from local tags, mood profiles and audio measurements.
- *
- * Designed for genuine daily variety without artist burnout:
- * - Caps how many tracks any single artist can take in a multi-artist mix.
- * - Spaces artists generously across a sliding window instead of back-to-back alternation.
- * - Varies the listening flow day to day (warm-up arc, rising energy, wave contour,
- *   or fresh shuffle) rather than repeating the exact same BPM sort every morning.
- * - Falls back to multi-artist Mood Mixes when tracks have no genre tags, only
- *   building a single-artist mix if the collection itself has just one artist.
- */
 export interface MixFeatures {
-  /** Measured tempo, when the song has been analysed for Mix. */
   bpm?: number;
-  /** 0..1 energy from the same analysis. */
+
   energy?: number;
-  /** Optional full audio analysis for richer mood profiling. */
+
   analysis?: TrackAnalysis;
 }
 
@@ -35,19 +23,14 @@ export interface DailyMix {
   label: string;
   basis: 'genre' | 'mood' | 'artist';
   tracks: Track[];
-  /** Stable cover tracks locked for the day so card sleeves never jump or cycle. */
+
   covers: Track[];
-  /** One line for the card: tempo range, song count and years when known. */
+
   descriptor: string;
   bpm?: number;
   energy?: number;
 }
 
-/**
- * Picks up to `count` stable cover sleeves for a Daily Mix for the given calendar day.
- * Order depends strictly on `(day, mixId, track.id)` and prefers distinct album artwork,
- * so the covers never shift when playback, listening stats, or ordering updates occur.
- */
 export function mixCovers(tracks: Track[], mixId: string, day: string, count = 3): Track[] {
   if (tracks.length <= count) return [...tracks];
   const bySeed = [...tracks].sort(
@@ -85,7 +68,6 @@ function hash(value: string) {
   return h >>> 0;
 }
 
-/** Deterministic shuffle so a mix looks the same all day and changes tomorrow. */
 function seededOrder<T>(items: T[], seed: number): T[] {
   const order = [...items];
   let state = seed || 1;
@@ -102,16 +84,10 @@ const artistKeyOf = (track: Track) => {
   return main || canonical(track.artist);
 };
 
-/**
- * Selects up to `maxTracks` songs while capping any single artist so a prolific
- * artist cannot take over the whole mix and burn the listener out.
- */
 function balanceArtists(items: Track[], maxTracks = 20): Track[] {
   const distinctArtists = new Set(items.map(artistKeyOf).filter(Boolean));
   if (distinctArtists.size <= 1) return items.slice(0, maxTracks);
 
-  // Soft cap: at most 3 songs per artist when 7+ artists exist, scaling gently
-  // for smaller artist pools so we still reach a rich mix without artist fatigue.
   const softCap =
     distinctArtists.size >= 7 ? 3 : Math.max(2, Math.ceil(maxTracks / distinctArtists.size) + 1);
 
@@ -129,16 +105,11 @@ function balanceArtists(items: Track[], maxTracks = 20): Track[] {
     }
   }
   if (primary.length >= maxTracks) return primary.slice(0, maxTracks);
-  // Only top up from overflow if the library genuinely has fewer distinct-artist
-  // tracks than the mix size, still respecting a strict ceiling when possible.
+
   const needed = Math.min(maxTracks, items.length) - primary.length;
   return [...primary, ...overflow.slice(0, Math.max(0, needed))];
 }
 
-/**
- * Arranges tracks to maximize spacing between repeats of the same artist
- * (a sliding 4-track cooldown window instead of merely avoiding adjacent duplicates).
- */
 function spreadArtistsWide(items: Track[]): Track[] {
   const remaining = [...items];
   const result: Track[] = [];
@@ -149,9 +120,9 @@ function spreadArtistsWide(items: Track[]): Track[] {
     for (let i = 0; i < remaining.length; i++) {
       const key = artistKeyOf(remaining[i]);
       const lastPos = key ? recent.lastIndexOf(key) : -1;
-      // Not in recent window gets full distance bonus; otherwise further back is better.
+
       const spacing = lastPos < 0 ? 5 : recent.length - 1 - lastPos;
-      // Preserve intended flow order as tie-breaker so the mix contour stays intact.
+
       const orderBias = -i * 0.015;
       const score = spacing + orderBias;
       if (score > bestScore) {
@@ -164,10 +135,6 @@ function spreadArtistsWide(items: Track[]): Track[] {
   return result;
 }
 
-/**
- * Applies a day-varied listening contour when tempo/energy measurements exist,
- * so the sequence feels crafted rather than identical every day.
- */
 function shapeDailyFlow(
   items: Track[],
   daySeed: number,
@@ -179,15 +146,12 @@ function shapeDailyFlow(
   );
   const mode = daySeed % 4;
   if (mode === 0) {
-    // Rising build (classic warm-up into peak).
     return byIntensity;
   }
   if (mode === 1) {
-    // Peak-to-chill wind-down (opens bright, lands mellow).
     return [...byIntensity].reverse();
   }
   if (mode === 2) {
-    // Arch contour: mid → build → peak in the second half → smooth landing.
     const left: Track[] = [];
     const right: Track[] = [];
     byIntensity.forEach((track, idx) => {
@@ -196,7 +160,7 @@ function shapeDailyFlow(
     });
     return [...left, ...right];
   }
-  // Undulating wave: alternating lifts and breathers seeded per day.
+
   const low = byIntensity.slice(0, Math.ceil(byIntensity.length / 2));
   const high = byIntensity.slice(Math.ceil(byIntensity.length / 2));
   const mixedLow = seededOrder(low, daySeed ^ 0x9e3779b9);
@@ -264,10 +228,6 @@ export function dailyMixes(
     }
   }
 
-  // Handle tracks without genre tags:
-  // If multiple valid artists exist among untagged tracks, cluster by musical mood
-  // so listeners get varied multi-artist mixes instead of single-artist burnout.
-  // Only fall back to single-artist grouping when there is genuinely one artist.
   const validUntagged = untagged.filter((track) => {
     const artist = mainArtist(track.artist).trim();
     return artist && !missingTag(artist) && !!canonical(artist);
@@ -294,8 +254,7 @@ export function dailyMixes(
         descriptor: '',
       });
     }
-    // If tracks spread across moods so no single mood hits the minimum yet,
-    // combine the untagged pool into one complete multi-artist Daily Mix.
+
     const hasMoodGroup = [...groups.values()].some((g) => g.basis === 'mood');
     if (!hasMoodGroup && validUntagged.length >= MIN_DAILY_MIX_TRACKS) {
       groups.set('mood:discovery', {
@@ -347,8 +306,6 @@ export function dailyMixes(
       a.id.localeCompare(b.id),
   );
 
-  // Rotate slightly among extra eligible groups across days so a large library
-  // doesn't show the exact same 3 genres every single day of the year.
   const selected =
     ranked.length > MAX_DAILY_MIXES
       ? [
@@ -365,8 +322,9 @@ export function dailyMixes(
     const seed = hash(`${day}:${group.id}`);
     const shuffled = seededOrder(sorted, seed);
 
-    // Cap per-artist concentration BEFORE flow shaping so no artist hijacks the mix.
-    let ordered = balanceArtists(shuffled, MAX_DAILY_MIX_TRACKS);
+    // Stable for the local day, but not the same round number on every mix.
+    const target = Math.min(group.tracks.length, 14 + (hash(`size:${day}:${group.id}`) % 7));
+    let ordered = balanceArtists(shuffled, target);
 
     if (measured >= Math.ceil(group.tracks.length / 2)) {
       ordered = shapeDailyFlow(ordered, seed, bpmOf, energyOf);
@@ -391,4 +349,21 @@ export function dailyMixes(
       descriptor: mixDescriptor({ tracks: ordered, bpm }),
     };
   });
+}
+
+/** Name a saved snapshot without replacing an existing playlist. */
+export function dailyMixPlaylistName(date: Date, existing: readonly string[]): string {
+  const day = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+  const names = new Set(existing.map((name) => name.trim().toLocaleLowerCase()));
+  const nameFor = (index: number) => {
+    if (index === 1) return `${day}'s Daily Mix`;
+    const suffix =
+      index % 100 >= 11 && index % 100 <= 13
+        ? 'th'
+        : (({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[index % 10] ?? 'th');
+    return `${day}'s ${index}${suffix} Daily Mix`;
+  };
+  let index = 1;
+  while (names.has(nameFor(index).toLocaleLowerCase())) index++;
+  return nameFor(index);
 }

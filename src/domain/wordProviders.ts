@@ -1,17 +1,10 @@
-/**
- * Choosing a lyric candidate from the extra providers.
- *
- * Same rule as the rest of Wave: never accept a recording that does not match.
- * Both providers return many rows for one query, and the wrong one is worse than
- * nothing, because it looks right until the words drift.
- */
 export interface ProviderSong {
   id: string;
   title: string;
   artist: string;
-  /** Seconds; 0 when unknown. */
+
   duration: number;
-  /** Extra key some providers need to fetch the lyric (Kugou access key). */
+
   accessKey?: string;
 }
 
@@ -35,7 +28,6 @@ function similarity(a: string, b: string): number {
   return shared / (left.size + right.size - shared);
 }
 
-/** Rejects "live at…", "remix" and other versions when the file is the studio cut. */
 const VERSION_WORDS = ['live', 'remix', 'acoustic', 'instrumental', 'karaoke', 'demo'];
 
 export function scoreProviderSong(
@@ -58,7 +50,6 @@ export function scoreProviderSong(
   return Math.min(1, score);
 }
 
-/** Ranked recording matches: a missing lyric on the first upload should not end the search. */
 export function rankProviderSongs(
   songs: ProviderSong[],
   wanted: { title: string; artist: string; duration: number },
@@ -75,7 +66,6 @@ export function rankProviderSongs(
     .map((item) => item.song);
 }
 
-/** Best candidate above the floor, or null. Higher score wins, then closer length. */
 export function pickProviderSong(
   songs: ProviderSong[],
   wanted: { title: string; artist: string; duration: number },
@@ -93,7 +83,6 @@ export function pickProviderSong(
   return bestScore >= floor ? best : null;
 }
 
-/** Duration is often "04:12"; anything else returns 0 instead of a guess. */
 export function parseClock(value: unknown): number {
   if (typeof value === 'number' && Number.isFinite(value) && value > 0) return Math.round(value);
   if (typeof value !== 'string') return 0;
@@ -119,7 +108,6 @@ const names = (value: unknown): string => {
     .join(' ');
 };
 
-/** NetEase search payload (`/api/search/get/web` and the newer `cloudsearch`). */
 export function parseNetEaseSongs(payload: unknown): ProviderSong[] {
   const result = (payload as { result?: { songs?: unknown; songCount?: unknown } })?.result;
   const rows = result?.songs;
@@ -139,14 +127,12 @@ export function parseNetEaseSongs(payload: unknown): ProviderSong[] {
   });
 }
 
-/** NetEase lyric payload: `yrc.lyric` carries word stamps, `lrc.lyric` does not. */
 export function parseNetEaseLyric(payload: unknown): { yrc?: string; lrc?: string } {
   const body = payload as { yrc?: { lyric?: unknown }; lrc?: { lyric?: unknown } };
   const text = (value: unknown) => (typeof value === 'string' && value.trim() ? value : undefined);
   return { yrc: text(body?.yrc?.lyric), lrc: text(body?.lrc?.lyric) };
 }
 
-/** Kugou lyric search payload: candidates need `id` + `accesskey`. */
 export function parseKugouCandidates(payload: unknown): ProviderSong[] {
   const candidates = (payload as { candidates?: unknown })?.candidates;
   if (!Array.isArray(candidates)) return [];
@@ -162,14 +148,16 @@ export function parseKugouCandidates(payload: unknown): ProviderSong[] {
         id,
         title,
         artist: typeof entry.singer === 'string' ? entry.singer : '',
-        duration: parseClock(entry.duration),
+        duration:
+          typeof entry.duration === 'number' && entry.duration > 10_000
+            ? Math.round(entry.duration / 1000)
+            : parseClock(entry.duration),
         accessKey,
       },
     ];
   });
 }
 
-/** Kugou download payload: base64 KRC (or plain LRC) plus its charset. */
 export function parseKugouLyric(payload: unknown): { krc?: string; lrc?: string } {
   const body = payload as { content?: unknown; fmt?: unknown };
   const content = typeof body?.content === 'string' ? body.content : '';

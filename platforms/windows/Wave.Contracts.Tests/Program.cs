@@ -38,7 +38,7 @@ Check(rockMix.Label == "Rock" && rockMix.Songs.Count == 8, "daily mix uses actua
 Check(rockMix.Covers != null && rockMix.Covers.Count == 3 && rockMix.Covers.Select(c => c.Artwork).Distinct().Count() == 3, "daily mix locks distinct covers for the calendar day");
 Check(NativeCollections.DailyMixes(tagged.Select(s => s with { Genre = null, Artist = "---" }), new DateOnly(2026, 10, 16)).Count == 0, "unknown styles are not fabricated");
 
-// A listener's folder cover is used without changing the original music.
+
 var artFolder = Path.Combine(Path.GetTempPath(), "wave-art-" + Guid.NewGuid());
 try {
     Directory.CreateDirectory(artFolder);
@@ -47,7 +47,7 @@ try {
     Check(Library.FindFolderArtwork(Path.Combine(artFolder, "song.mp3")) == cover, "folder cover lookup preserves the original file");
 } finally { if (Directory.Exists(artFolder)) Directory.Delete(artFolder, true); }
 
-// Safe file URI and corrupt-JSON recovery from rolling .bak backup.
+
 Check(Library.SafeFileUri(Path.Combine(Path.GetTempPath(), "Track #1 [100%].mp3")).AbsoluteUri.Contains("%231"), "file URIs preserve # and % safely");
 var recoveryFolder = Path.Combine(Path.GetTempPath(), "wave-recover-" + Guid.NewGuid());
 try {
@@ -58,7 +58,7 @@ try {
     Check(recovered != null && recovered.CurrentId == "a", "corrupted storage recovers cleanly from rolling backup");
 } finally { if (Directory.Exists(recoveryFolder)) Directory.Delete(recoveryFolder, true); }
 
-// 100% local NativeMood engine & Autoplay selection.
+
 var ambientSong = a with { Id = "amb", Title = "Midnight Ocean Rain", Genre = "Ambient", Artist = "Soft One" };
 var technoSong = a with { Id = "tec", Title = "Turbo Rave Fire", Genre = "Techno", Artist = "Loud Two" };
 var ambientVec = NativeMood.AnalyzeSong(ambientSong);
@@ -73,13 +73,20 @@ var moodSession = NativeMood.InferSession(
     ambientSong);
 Check(moodSession.Energy < 0.45, "local mood engine anchors full listens and repels quick skips");
 
+var autoplayLibrary = Enumerable.Range(0, 6).Select(i => a with { Id = $"history-{i}", Artist = $"Artist {i}" }).ToList();
+var recycled = NativeMood.PickAutoplayNext(autoplayLibrary, autoplayLibrary[^1], autoplayLibrary.Select(s => s.Id), Array.Empty<NativeMoodSignal>(), new Random(7));
+Check(recycled != null && new[] { "history-0", "history-1", "history-2" }.Contains(recycled.Id), "autoplay recycles the oldest songs after exhausting the library");
+
 var retryNow = new DateTime(2026, 10, 17, 12, 0, 0, DateTimeKind.Utc);
 Check(LyricsClient.RetryDeadline(retryNow, new System.Net.Http.Headers.RetryConditionHeaderValue(TimeSpan.FromSeconds(2))) == retryNow.AddSeconds(2), "short lyric Retry-After does not impose a minute");
 Check(LyricsClient.RetryDeadline(retryNow, new System.Net.Http.Headers.RetryConditionHeaderValue(new DateTimeOffset(retryNow.AddSeconds(5)))) == retryNow.AddSeconds(5), "HTTP-date lyric Retry-After is honored");
+var compatibleLyrics = LyricsClient.Parse("\uFEFF[Offset: 500]\r[00:02,50][00:12.50]<00:02.50>Hello <00:03>world");
+Check(compatibleLyrics.Count == 2 && Math.Abs(compatibleLyrics[0].Time - 2) < .001 && Math.Abs(compatibleLyrics[1].Time - 12) < .001 && compatibleLyrics.All(line => line.Text == "Hello world"), "LRC BOM, offset, comma, repeated lines and word markers");
+Check(LyricsClient.Parse("[offset:999999999999999999999999]\n[00:01]Text").Count == 0, "invalid large LRC offset fails safely");
 Check(LyricsClient.RetryDeadline(retryNow, null) == retryNow.AddSeconds(60), "missing lyric Retry-After uses a conservative fallback");
 Check(LyricsClient.RetryDeadline(retryNow, new System.Net.Http.Headers.RetryConditionHeaderValue(TimeSpan.Zero)) == retryNow.AddSeconds(1), "expired/zero lyric Retry-After avoids an immediate retry loop");
 
-// Listening history: the same rules as the web and Android builds.
+
 Check(Listening.Threshold(240) == 30 && Listening.Threshold(40) == 20 && Listening.Threshold(3) == 5, "a play needs half the song, at most thirty seconds, at least five");
 Check(Listening.Counts(30, 240) && !Listening.Counts(29, 240) && !Listening.Counts(10, 40), "the play threshold matches the other builds");
 var heardAt = new DateTimeOffset(2026, 10, 29, 12, 0, 0, TimeSpan.Zero).ToUnixTimeMilliseconds();
@@ -101,7 +108,7 @@ try {
     Check(Listening.Load(historyFolder).Count == 0, "clearing history forgets every listen");
 } finally { if (Directory.Exists(historyFolder)) Directory.Delete(historyFolder, true); }
 
-// The week as one card, and the Remix list it earns.
+
 var weekNow = new DateTimeOffset(2026, 10, 29, 20, 0, 0, TimeSpan.Zero).ToUnixTimeMilliseconds();
 long DaysAgo(int days) => weekNow - days * 24L * 60 * 60 * 1000;
 var weekPlays = new List<Play> {
@@ -119,8 +126,8 @@ Check(Listening.Recap(weekPlays, new List<Song> { a with { Genre = "Ambient" }, 
 var thinWeek = Listening.Recap(new List<Play> { new("a", DaysAgo(0), 120, true) }, new List<Song> { a, b }, weekNow);
 Check(thinWeek.Songs.Select(s => s.Id).Distinct().Count() == thinWeek.Songs.Count, "a topped-up Remix never repeats a song");
 
-// The language table: Spanish answers a known line, placeholders fill, English
-// keeps the original wording, and an unknown line falls back to itself.
+
+
 Localization.Init("es");
 Check(Localization.T("Play") == "Reproducir", "the Spanish table answers a known line");
 Check(Localization.T("Daily mix {number}", new Dictionary<string, string> { ["number"] = "3" }) == "Mezcla diaria 3", "placeholders fill in Spanish");
@@ -131,9 +138,73 @@ Localization.Init("system");
 
 var crowdedMixes = Enumerable.Range(0, 5).SelectMany(g => Enumerable.Range(0, 35).Select(i => a with { Id = $"mix-{g}-{i}", Genre = $"Style {g}" }));
 var boundedMixes = NativeCollections.DailyMixes(crowdedMixes, new DateOnly(2026, 11, 6));
-Check(boundedMixes.Count == 3 && boundedMixes.All(mix => mix.Songs.Count == 20), "daily mixes are capped at three lists and twenty songs");
+Check(boundedMixes.Count == 3 && boundedMixes.All(mix => mix.Songs.Count is >= 14 and <= 20), "daily mixes are capped at three lists and twenty songs");
 
-// Monthly & Yearly Remix recaps.
+
 var monthly = Listening.MonthlyRecap(weekPlays, new List<Song> { a, b }, weekNow);
 var yearly = Listening.YearlyRecap(weekPlays, new List<Song> { a, b }, weekNow);
 Check(monthly.Plays >= week.Plays && yearly.Plays >= monthly.Plays && yearly.Seconds == 820, "monthly and yearly Remix recaps aggregate plays cleanly");
+
+
+
+Check(NativePerformance.Profile(new DeviceSignals(ReducedMotion: true)) == NativeDeviceProfile.Lite, "reduced motion selects the automatic lite profile");
+Check(NativePerformance.Profile(new DeviceSignals(MemoryGB: 8, Cores: 8)) == NativeDeviceProfile.Full, "capable hardware keeps the full profile");
+Check(NativePerformance.Profile(new DeviceSignals(MemoryGB: 2, Cores: 2, LowPowerMode: true)) == NativeDeviceProfile.Lite, "low-power modest hardware selects lite");
+var phoneRemix = NativeLayout.Remix(360, 740, 1, NativeDeviceProfile.Full);
+var tabletRemix = NativeLayout.Remix(820, 1180, 1, NativeDeviceProfile.Balanced);
+var fourKRemix = NativeLayout.Remix(3840, 2160, 1, NativeDeviceProfile.Full);
+Check(phoneRemix.Columns == 1 && tabletRemix.Columns == 2 && fourKRemix.Columns == 4, "Remix columns adapt from phones to tablets to 4K");
+Check(phoneRemix.MaxContentWidth == 360 && fourKRemix.MaxContentWidth == 3840, "Remix never reserves an empty right-hand strip");
+Check(fourKRemix.HeroSize > phoneRemix.HeroSize && fourKRemix.Padding >= phoneRemix.Padding, "Remix type and spacing scale with the window");
+
+string PulseLyrics(int start) => string.Join("\n", Enumerable.Range(0, 80).Select(i => {
+    int seconds = start + i * 2;
+    return $"[{seconds / 60:00}:{seconds % 60:00}.00]Line {i}";
+}));
+var pulseA = a with { Id = "pulse-a", Duration = 240, Bpm = 120, BarOffset = .05, Lyrics = PulseLyrics(30) };
+var pulseB = a with { Id = "pulse-b", Duration = 240, Bpm = 120, BarOffset = .05, Lyrics = PulseLyrics(30) };
+var equalPulse = NativePulse.Plan(pulseA, pulseB);
+Check(equalPulse != null && equalPulse.PulseAligned && equalPulse.Bars == 9 && Math.Abs(equalPulse.Overlap - 18) < .001, "equal-tempo instrumentals meet on both downbeats for nine bars");
+var driftingPulse = NativePulse.Plan(pulseA, pulseB with { Id = "pulse-c", Bpm = 126 });
+Check(driftingPulse != null && driftingPulse.Bars < equalPulse!.Bars, "different tempos keep the bar-aligned overlap short enough to avoid drift");
+var octavePulse = NativePulse.Plan(pulseA with { Bpm = 174 }, pulseB with { Bpm = 89.5 });
+Check(octavePulse != null && octavePulse.Overlap * Math.Abs(1 - 89.5 * 2 / 174.0) <= NativePulse.DriftBeats * 60 / 174.0 + .001, "near half-time still bounds residual drift");
+var taggedBpm = NativePulse.Grid(pulseA);
+var inferredBpm = NativePulse.EstimatedBpm(NativePulse.LrcStamps((pulseA with { Bpm = null, BarOffset = null }).Lyrics));
+Check(taggedBpm != null && Math.Abs(taggedBpm.Bpm - 120) < .001, "optional local tempo tags describe the Mix grid");
+Check(inferredBpm != null && Math.Abs(inferredBpm.Value - 120) < .001, "steady local LRC timings infer the same pulse without a tag");
+Check(NativePulse.Plan(pulseA with { Bpm = null, BarOffset = null }, pulseB with { Bpm = null, BarOffset = null }) != null, "LRC-inferred pulses still align both instrumental edges");
+
+
+var endingFade = a with { Id = "ending-fade", Duration = 200, Bpm = 120, Lyrics = "[02:50.00]Last line" };
+var endingEcho = a with { Id = "ending-echo", Duration = 200, Bpm = 120, Lyrics = "[03:16.00]Last line" };
+Check(NativeEnding.Detect(endingFade) == NativeEndingShape.FadeToZero && NativeEnding.Detect(endingEcho) == NativeEndingShape.EchoCut, "Mix endings vary with the detected outgoing tail");
+Check(NativeEnding.Cut(NativeEndingShape.EchoCut) == 1 && NativeEnding.Cut(NativeEndingShape.FadeToZero) == 1, "both tails fade to silence");
+var echoAtCut = NativeEnding.Gains(.75, NativeEndingShape.EchoCut);
+Check(echoAtCut.Outgoing > 0 && NativeEnding.Gains(1, NativeEndingShape.EchoCut).Outgoing < .00001, "echo tail fades continuously");
+
+
+using (var vector = JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "backup-v2.json")))) {
+    var fixture = vector.RootElement;
+    var backup = Convert.FromBase64String(fixture.GetProperty("fileBase64").GetString()!);
+    var password = fixture.GetProperty("password").GetString()!;
+    using var plain = new MemoryStream();
+    var fingerprint = WaveBackup.Decrypt(new MemoryStream(backup), plain, password);
+    Check(fingerprint == fixture.GetProperty("fingerprint").GetString() && Convert.ToBase64String(plain.ToArray()) == fixture.GetProperty("archiveBase64").GetString(), "Windows decrypts and verifies the web backup vector byte for byte");
+    bool rejected = false;
+    try { WaveBackup.Decrypt(new MemoryStream(backup), new MemoryStream(), "wrong password"); }
+    catch (InvalidDataException) { rejected = true; }
+    Check(rejected, "Windows rejects the wrong backup password");
+    rejected = false;
+    try { WaveBackup.Decrypt(new MemoryStream(backup[..^1]), new MemoryStream(), password); }
+    catch (InvalidDataException) { rejected = true; }
+    Check(rejected, "Windows rejects a truncated backup");
+    rejected = false;
+    try { WaveBackup.Decrypt(new MemoryStream(backup.Concat(new byte[] { 0 }).ToArray()), new MemoryStream(), password); }
+    catch (InvalidDataException) { rejected = true; }
+    Check(rejected, "Windows rejects trailing backup bytes");
+    backup[^1] ^= 1; rejected = false;
+    try { WaveBackup.Decrypt(new MemoryStream(backup), new MemoryStream(), password); }
+    catch (InvalidDataException) { rejected = true; }
+    Check(rejected, "Windows rejects corrupted backup bytes");
+}

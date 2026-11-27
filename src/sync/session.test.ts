@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createIdentity, encodePairingLink, parsePairingLink, sasCode } from './pairing';
-import { keyFingerprint } from './identity';
+import { createIdentity, encodePairingLink, parsePairingLink } from './pairing';
 import { LoanInbox, PairingSession, type PairingFailure, type PairingState } from './session';
 import {
   base64ToBytes,
@@ -12,7 +11,6 @@ import {
 } from './protocol';
 import { DEFAULT_LOAN_POLICY } from './loan';
 
-/** Two sessions wired together with an in-memory channel. */
 async function connect(options: { confirm?: boolean } = {}) {
   const confirms = options.confirm ?? true;
   const hostIdentity = await createIdentity(undefined, 'PC');
@@ -24,7 +22,7 @@ async function connect(options: { confirm?: boolean } = {}) {
   };
   const received: { host: SyncFrame[]; guest: SyncFrame[] } = { host: [], guest: [] };
   const sas: { host?: string; guest?: string } = {};
-  // Declared in a holder because each session's transport references the other.
+
   const peers: { host?: PairingSession; guest?: PairingSession } = {};
 
   peers.host = new PairingSession({
@@ -70,22 +68,10 @@ async function connect(options: { confirm?: boolean } = {}) {
   };
 }
 
-/**
- * Lets queued delivery and the asynchronous seal/open calls finish. Several short
- * waits instead of one: under a full parallel test run the crypto promises can
- * take longer than a single macrotask, which made this suite flaky.
- */
 const settle = async () => {
   for (let i = 0; i < 6; i += 1) await new Promise((resolve) => setTimeout(resolve, 10));
 };
 
-/**
- * Waits for a condition instead of guessing how long the handshake needs. Six
- * fixed waits are enough on an idle machine and not always enough on a busy one.
- */
-// The budget is generous on purpose: pairing runs real ECDH, HKDF and AES work
-// in a worker pool shared with eighty other suites, and a three-second ceiling
-// made this wait time out on a loaded machine while the handshake was fine.
 const settleUntil = async (ready: () => boolean, budget = 10_000) => {
   const started = Date.now();
   while (!ready() && Date.now() - started < budget) {
@@ -110,16 +96,31 @@ describe('pairing session', () => {
     expect(received.guest).toEqual([{ type: 'ping', at: 1 }]);
   });
 
+  it('treats repeated confirmation as one action', async () => {
+    const { host, guest } = await connect({ confirm: false });
+    host.start();
+    await settleUntil(
+      () => host.state === 'awaiting-confirmation' && guest.state === 'awaiting-confirmation',
+    );
+    host.confirm();
+    host.confirm();
+    guest.confirm();
+    guest.confirm();
+    await settleUntil(() => host.state === 'paired' && guest.state === 'paired');
+    expect(host.state).toBe('paired');
+    expect(guest.state).toBe('paired');
+  });
+
   it('never pairs when the displayed codes differ', async () => {
     const { host, guest, events } = await connect({ confirm: false });
     host.start();
     await settle();
     expect(host.state).toBe('awaiting-confirmation');
-    // Both sides derived the same code, so force a mismatch to model a relay.
+
     guest.sas = '000000';
     guest.confirm();
     await settle();
-    // The device that receives a mismatched code is the one that refuses.
+
     expect(host.state).toBe('failed');
     expect(host.failure).toBe('authentication');
     expect(events.failures).toContain('authentication');
@@ -179,7 +180,7 @@ describe('pairing session', () => {
     session.start();
     await session.receive(encodeFrame({ type: 'revoke-loan', loanId: 'loan1' }));
     await session.receive(
-      JSON.stringify({ v: 1, type: 'sealed', iv: 'AAAAAAAAAAAAAAAA', data: 'AAAA' }),
+      JSON.stringify({ v: 2, type: 'sealed', iv: 'AAAAAAAAAAAAAAAA', data: 'AAAA' }),
     );
     expect(frames).toEqual([]);
     expect(session.state).toBe('failed');
@@ -204,7 +205,8 @@ describe('pairing session', () => {
         deviceId: identity.deviceId,
         name: 'PC',
         platform: 'web',
-        protocolVersion: 1,
+        protocolVersion: 2,
+        nonce: 'AAAAAAAAAAAAAAAAAAAAAA',
         publicKey: btoa(String.fromCharCode(...(self?.publicKey ?? new Uint8Array())))
           .replace(/\+/gu, '-')
           .replace(/\//gu, '_')
@@ -254,11 +256,13 @@ describe('loan inbox', () => {
 });
 
 describe('sealed frame hardening', () => {
-  /** Host/peer pair where every host frame is captured for inspection. */
-  async function pairedPair() {
+  async function pairedPair(identities?: {
+    host: Awaited<ReturnType<typeof createIdentity>>;
+    peer: Awaited<ReturnType<typeof createIdentity>>;
+  }) {
     let deliver = true;
-    const hostIdentity = await createIdentity();
-    const peerIdentity = await createIdentity();
+    const hostIdentity = identities?.host ?? (await createIdentity());
+    const peerIdentity = identities?.peer ?? (await createIdentity());
     const captured: string[] = [];
     const peerFrames: SyncFrame[] = [];
     const peers: { peer?: PairingSession } = {};
@@ -338,6 +342,37 @@ describe('sealed frame hardening', () => {
     expect(peerFrames).toEqual([]);
   });
 
+  it('rejects plaintext application frames even after pairing', async () => {
+    const { peer, peerFrames } = await pairedPair();
+    await peer.receive(encodeFrame({ type: 'ping', at: 123 }));
+    expect(peer.failure).toBe('authentication');
+    expect(peerFrames).toEqual([]);
+  });
+
+  it('authenticates the sequence number and direction', async () => {
+    const { host, peer, peerFrames, captured, stopDelivering } = await pairedPair();
+    stopDelivering();
+    await host.sendFrame({ type: 'ping', at: 1 });
+    const envelope = JSON.parse(captured.at(-1)!);
+    await peer.receive(JSON.stringify({ ...envelope, n: envelope.n + 1 }));
+    expect(peer.failure).toBe('authentication');
+    expect(peerFrames).toEqual([]);
+  });
+
+  it('rejects a ciphertext replayed into a fresh session with the same identities', async () => {
+    const identities = { host: await createIdentity(), peer: await createIdentity() };
+    const first = await pairedPair(identities);
+    await first.host.sendFrame({ type: 'ping', at: 8 });
+    await settle();
+    const recorded = first.captured.at(-1)!;
+    first.host.close();
+    first.peer.close();
+    const second = await pairedPair(identities);
+    await second.peer.receive(recorded);
+    expect(second.peer.failure).toBe('authentication');
+    expect(second.peerFrames).toEqual([]);
+  });
+
   it('refuses an oversized sealed envelope before decrypting', async () => {
     const identity = await createIdentity();
     const session = new PairingSession({
@@ -351,7 +386,7 @@ describe('sealed frame hardening', () => {
     session.start();
     await session.receive(
       JSON.stringify({
-        v: 1,
+        v: 2,
         type: 'sealed',
         n: 1,
         iv: 'AAAAAAAAAAAAAAAA',
@@ -374,7 +409,7 @@ describe('sealed frame hardening', () => {
     });
     session.start();
     await session.receive(
-      JSON.stringify({ v: 1, type: 'sealed', n: 1, iv: 'AAAAAAAAAAAAAAAA', data: 'AAAA' }),
+      JSON.stringify({ v: 2, type: 'sealed', n: 1, iv: 'AAAAAAAAAAAAAAAA', data: 'AAAA' }),
     );
     expect(frames).toEqual([]);
     expect(session.state).toBe('failed');
@@ -408,48 +443,13 @@ describe('loan inbox validation', () => {
   });
 });
 
-describe('a confirmation that arrives early', () => {
-  it('waits for the code instead of failing the pairing', async () => {
-    // Both devices show the same six digits at almost the same instant, and one
-    // of them confirms before the other has finished its own key exchange. That
-    // used to be treated as a protocol error and killed a perfect pairing.
-    const hostIdentity = await createIdentity(undefined, 'PC');
-    const guestIdentity = await createIdentity(undefined, 'Phone');
-    const sent: string[] = [];
-    const failures: string[] = [];
-    const guest = new PairingSession({
-      role: 'guest',
-      identity: guestIdentity,
-      deviceName: 'Phone',
-      platform: 'android',
-      send: (payload) => sent.push(payload),
-      onState: (_state, failure) => {
-        if (failure) failures.push(failure);
-      },
-      autoExpire: false,
-    });
-    const code = await sasCode(guestIdentity.publicKey, hostIdentity.publicKey);
-
-    // The hello starts an asynchronous handshake that is not awaited, so the
-    // confirmation that follows lands while the session is still inviting.
-    void guest.receive(
-      encodeFrame({
-        type: 'hello',
-        deviceId: hostIdentity.deviceId,
-        name: 'PC',
-        platform: 'web',
-        protocolVersion: 1,
-        publicKey: keyFingerprint(hostIdentity.publicKey),
-      }),
-    );
-    await guest.receive(encodeFrame({ type: 'pair-confirm', sas: code }));
-    expect(guest.failure).toBeUndefined();
-    // The listener pressing the button at that same moment is honoured too.
-    guest.confirm();
-
-    await settleUntil(() => guest.state === 'paired');
-    expect(guest.state).toBe('paired');
-    expect(failures).toEqual([]);
-    expect(sent.some((payload) => payload.includes('pair-confirm'))).toBe(true);
+describe('authenticated confirmations', () => {
+  it('rejects a forged plaintext confirmation', async () => {
+    const { host } = await connect({ confirm: false });
+    host.start();
+    await settleUntil(() => host.state === 'awaiting-confirmation');
+    await host.receive(encodeFrame({ type: 'pair-confirm', sas: host.sas! }));
+    expect(host.state).toBe('failed');
+    expect(host.failure).toBe('authentication');
   });
 });

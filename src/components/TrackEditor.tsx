@@ -4,6 +4,7 @@ import { RotateCcw, Save, Search, SlidersHorizontal, AudioLines } from './Glyphs
 import { formatTime, type Track, type TrackMetadata } from '../domain/types';
 import { catalogueQuery, scoreRelease, type CatalogueRelease } from '../domain/catalogue';
 import { downloadCover, preferredCountry, searchCatalogue } from '../services/catalogue';
+import { searchDeezer, searchMusicBrainz } from '../services/musicBrainz';
 import { readArtwork } from '../data/artwork';
 import { useOnline } from '../ui/network';
 import { Modal } from './Modal';
@@ -32,7 +33,7 @@ export function TrackEditor({
   onClose: () => void;
   onSave: (id: string, metadata: TrackMetadata) => Promise<boolean>;
   onRestore: (id: string) => Promise<boolean>;
-  /** Gives the silent edges back, leaving every byte of the file as it was. */
+
   onRestoreSilence?: (id: string) => Promise<void>;
 }) {
   const t = useT();
@@ -74,11 +75,20 @@ export function TrackEditor({
       artist: metadata.artist,
       album: metadata.album,
     };
-    const results = await searchCatalogue(query, { country: preferredCountry() });
+    const [apple, musicBrainz, deezer] = await Promise.all([
+      searchCatalogue(query, { country: preferredCountry() }),
+      searchMusicBrainz(query),
+      searchDeezer(query),
+    ]);
+    const results: CatalogueRelease[] = [
+      ...apple.map((release) => ({ ...release, provider: 'Apple Music' as const })),
+      ...musicBrainz,
+      ...deezer,
+    ];
     const ranked = results
       .map((release) => ({ release, score: scoreRelease(previewTrack, release) }))
       .sort((a, b) => b.score - a.score)
-      .slice(0, 4);
+      .slice(0, 9);
     setMatches(ranked);
     if (!ranked.length) {
       setSearchNote(t('No matching releases found. Try adjusting the artist or title.'));
@@ -102,7 +112,6 @@ export function TrackEditor({
           setMetadata((current) => ({ ...current, artwork }));
         }
       } catch {
-        /* Text fields are already aligned even if cover download fails. */
       } finally {
         setApplyingCover(false);
       }
@@ -194,7 +203,9 @@ export function TrackEditor({
                 >
                   <span>
                     <strong>{t('Find song details')}</strong>
-                    <small>{t('Search and align title, artist, album and cover')}</small>
+                    <small>
+                      {t('Search Apple Music, MusicBrainz and Deezer using the song details.')}
+                    </small>
                   </span>
                   <Search size={18} aria-hidden="true" />
                 </button>
@@ -246,6 +257,7 @@ export function TrackEditor({
                                 <strong>{release.title}</strong>
                                 <small>
                                   {release.artist}
+                                  {release.provider ? ` · ${release.provider}` : ''}
                                   {release.album ? ` · ${release.album}` : ''}
                                   {release.year ? ` (${release.year})` : ''}
                                 </small>
@@ -253,7 +265,7 @@ export function TrackEditor({
                               <span className="metadata-match-meta">
                                 {release.duration ? formatTime(release.duration) : ''}
                                 {aligned && (
-                                  <em className="metadata-match-badge">{t('Exact match')}</em>
+                                  <em className="metadata-match-badge">{t('Similar duration')}</em>
                                 )}
                                 {!aligned && score >= 0.72 && (
                                   <em className="metadata-match-badge">{t('Close match')}</em>
@@ -307,11 +319,7 @@ export function TrackEditor({
                 <AudioLines size={18} aria-hidden="true" />
               </button>
             )}
-            {/*
-             * Silent edges, offered once they have been measured. The original file
-             * is never altered: skipping silence is a pair of bounds, and undoing it
-             * gives the song back exactly as it arrived.
-             */}
+            {}
             {track.trim && (
               <button
                 type="button"

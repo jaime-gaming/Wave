@@ -12,6 +12,7 @@ import {
 import { startTransition, useCallback, useEffect, useRef, useState } from 'react';
 import {
   applyOnlineDetails,
+  mergeYouTubeLocalFile,
   deleteTrack,
   getTracks,
   saveTrack,
@@ -33,7 +34,7 @@ import {
   readTrack,
 } from '../data/import';
 import { parseYouTubeLink } from '../domain/youtube';
-import { youtubeTrack } from '../domain/youtubeTrack';
+import { youtubeTrack, youtubeMergeTarget } from '../domain/youtubeTrack';
 import { fetchVideoMeta, fetchYouTubePlaylist } from '../services/videoMeta';
 import type { Track, TrackMetadata } from '../domain/types';
 
@@ -83,44 +84,56 @@ export function useLibrary() {
       setError('');
       setMessage('');
       let added = 0,
+        merged = 0,
         duplicates = 0,
         rejected = 0,
         wrongFormat = 0,
         failed = 0,
         outOfSpace = false;
+
+      const legacyBySize = new Map<number, Track[]>();
+      for (const track of existing.current) {
+        if (!track.contentHash && track.blob) {
+          const matches = legacyBySize.get(track.size) ?? [];
+          matches.push(track);
+          legacyBySize.set(track.size, matches);
+        }
+      }
       const pending: Track[] = [];
       let lastPublish = performance.now();
       const publish = () => {
         if (!pending.length) return;
         const batch = pending.splice(0);
-        startTransition(() => setTracks((current) => [...current, ...batch]));
+        startTransition(() =>
+          setTracks((current) => {
+            const updates = new Map(batch.map((track) => [track.id, track]));
+            const retained = current.map((track) => updates.get(track.id) ?? track);
+            const currentIds = new Set(current.map((track) => track.id));
+            return [...retained, ...batch.filter((track) => !currentIds.has(track.id))];
+          }),
+        );
         lastPublish = performance.now();
       };
       setProgress({ done: 0, total: files.length });
       try {
         for (const [index, file] of files.entries()) {
-          // One unreadable file is one file. A folder of a thousand songs is not
-          // a curated set, and a single odd tag, a truncated download or a codec
-          // this browser cannot read must not end the import of the other 999.
           if (!isAudioFile(file) || file.size > MAX_FILE_SIZE || file.size === 0) {
             if (isLegacyAudioFile(file)) wrongFormat++;
             rejected++;
           } else {
-            // Reading a file can fail on the file; writing one can only fail on
-            // the library, so the two are handled apart.
             let prepared: { id: string; track?: Track } | undefined;
             try {
               const id = await contentIdentity(file);
-              for (const old of existing.current.filter(
-                (track) => !track.contentHash && track.blob && track.size === file.size,
-              )) {
+              const legacy = legacyBySize.get(file.size) ?? [];
+              for (const old of legacy) {
                 const hash = await contentIdentity(old.blob!);
                 recordContentHash(old.id, hash).catch(() => undefined);
                 known.current.add(hash);
-                existing.current = existing.current.map((track) =>
-                  track.id === old.id ? { ...track, contentHash: hash } : track,
-                );
+                const index = existing.current.findIndex((track) => track.id === old.id);
+                if (index !== -1)
+                  existing.current[index] = { ...existing.current[index], contentHash: hash };
               }
+              legacyBySize.delete(file.size);
               prepared = known.current.has(id)
                 ? { id }
                 : { id, track: { ...(await readTrack(file, id)), contentHash: id } };
@@ -129,15 +142,23 @@ export function useLibrary() {
             }
             if (prepared?.track) {
               try {
-                await saveTrack(prepared.track);
+                const target = youtubeMergeTarget(prepared.track, existing.current);
+                const combined = target
+                  ? await mergeYouTubeLocalFile(target.id, prepared.track)
+                  : null;
+                const saved = combined ?? prepared.track;
+                if (!combined) await saveTrack(saved);
                 known.current.add(prepared.id);
-                existing.current = [...existing.current, prepared.track];
-                pending.push(prepared.track);
+                if (combined) {
+                  existing.current = existing.current.map((track) =>
+                    track.id === combined.id ? saved : track,
+                  );
+                  merged++;
+                } else existing.current.push(saved);
+                pending.push(saved);
                 if (pending.length >= 8 || performance.now() - lastPublish >= 250) publish();
                 added++;
               } catch {
-                // Storage is the one failure that cannot be skipped past: stop
-                // cleanly, say so, and leave what was already saved in place.
                 outOfSpace = true;
                 break;
               }
@@ -157,21 +178,16 @@ export function useLibrary() {
             'Import stopped: browser storage is unavailable or full. Files already added are safe.',
           );
         setMessage(
-          `${added} ${added === 1 ? 'track' : 'tracks'} added${duplicates ? ` · ${duplicates} already in your library` : ''}${rejected ? ` · ${rejected} skipped (${IMPORT_FORMAT_HINT}, up to 200 MB)` : ''}${failed ? ` · ${failed} could not be read` : ''}${wrongFormat ? ` · ${wrongFormat} in a format Wave no longer imports` : ''}.`,
+          `${added} ${added === 1 ? 'track' : 'tracks'} added${merged ? ` · ${merged} linked to a YouTube song` : ''}${duplicates ? ` · ${duplicates} already in your library` : ''}${rejected ? ` · ${rejected} skipped (${IMPORT_FORMAT_HINT}, up to 200 MB)` : ''}${failed ? ` · ${failed} could not be read` : ''}${wrongFormat ? ` · ${wrongFormat} in a format Wave no longer imports` : ''}.`,
         );
         setProgress(null);
         importing.current = false;
       }
+      return { added, duplicates };
     },
     [loading],
   );
 
-  /**
-   * Adds a song or public playlist that lives on YouTube. Nothing is downloaded:
-   * each record stores the video id and the official embed plays it. Metadata
-   * comes from Wave's same-origin `/api/youtube-meta` / `/api/youtube-playlist`
-   * endpoint first (CORS-free) and falls back to public providers.
-   */
   const addYouTube = useCallback(
     async (
       link: string,
@@ -198,6 +214,7 @@ export function useLibrary() {
         }
         const addedTracks: Track[] = [];
         let skipped = 0;
+        let storageFailed = false;
         for (const entry of playlist.videos) {
           const id = `yt-${entry.videoId}`;
           if (existing.current.some((t) => t.id === id || t.videoId === entry.videoId)) {
@@ -219,6 +236,7 @@ export function useLibrary() {
             existing.current = [...existing.current, track];
             addedTracks.push(track);
           } catch {
+            storageFailed = true;
             break;
           }
         }
@@ -232,6 +250,10 @@ export function useLibrary() {
           };
         }
         setTracks((current) => [...current, ...addedTracks]);
+        if (storageFailed)
+          setError(
+            'Import stopped: browser storage is unavailable or full. Files already added are safe.',
+          );
         setMessage(
           `Added ${addedTracks.length} ${addedTracks.length === 1 ? 'song' : 'songs'} from YouTube · ${playlist.title}${skipped ? ` (${skipped} already in your library)` : ''}`,
         );
@@ -268,6 +290,38 @@ export function useLibrary() {
       } catch {
         setError('This song could not be saved. Please check browser storage.');
         return { ok: false, error: 'This song could not be saved.' };
+      }
+    },
+    [],
+  );
+
+  const addPlaylistVideo = useCallback(
+    async (video: {
+      videoId: string;
+      title: string;
+      artist: string;
+      duration: number;
+      thumbnail: string;
+    }): Promise<Track | null> => {
+      if (!parseYouTubeLink(`https://youtu.be/${video.videoId}`)) return null;
+      const id = `yt-playlist-${video.videoId}`;
+      const saved = existing.current.find(
+        (track) => track.id === id || track.videoId === video.videoId,
+      );
+      if (saved) return saved;
+      const track = {
+        ...youtubeTrack({ ...video, artwork: video.thumbnail }, id),
+        youtubeOnly: true,
+      };
+      try {
+        await saveTrack(track);
+        existing.current = [...existing.current, track];
+        setTracks((current) =>
+          current.some((item) => item.id === id) ? current : [...current, track],
+        );
+        return track;
+      } catch {
+        return null;
       }
     },
     [],
@@ -350,11 +404,9 @@ export function useLibrary() {
       setTracks((current) =>
         current.map((track) => (track.id === id ? { ...updated, blob: track.blob } : track)),
       );
-    } catch {
-      /* A removed track or blocked storage cannot interrupt listening. */
-    }
+    } catch {}
   }, []);
-  /** Silent edges: measured, removed, restored or kept, never re-encoded. */
+
   const silence = useCallback(
     async (
       id: string,
@@ -374,9 +426,7 @@ export function useLibrary() {
         setTracks((current) =>
           current.map((track) => (track.id === id ? { ...updated, blob: track.blob } : track)),
         );
-      } catch {
-        /* A removed track or blocked storage cannot interrupt listening. */
-      }
+      } catch {}
     },
     [],
   );
@@ -386,19 +436,22 @@ export function useLibrary() {
       current.map((track) => (track.id === id ? { ...updated, blob: track.blob } : track)),
     );
   }, []);
-  /** Writes what the online catalogue filled in, and hands back the new song. */
-  const applyDetails = useCallback(async (id: string, patch: Record<string, unknown>) => {
-    const updated = await applyOnlineDetails(
-      id,
-      patch as Parameters<typeof applyOnlineDetails>[1],
-      { checked: true },
-    );
-    if (updated)
-      setTracks((current) =>
-        current.map((track) => (track.id === id ? { ...updated, blob: track.blob } : track)),
+
+  const applyDetails = useCallback(
+    async (id: string, patch: Record<string, unknown>, expected?: Track) => {
+      const updated = await applyOnlineDetails(
+        id,
+        patch as Parameters<typeof applyOnlineDetails>[1],
+        { checked: true, expected },
       );
-    return updated;
-  }, []);
+      if (updated)
+        setTracks((current) =>
+          current.map((track) => (track.id === id ? { ...updated, blob: track.blob } : track)),
+        );
+      return updated;
+    },
+    [],
+  );
   const reload = useCallback(async () => {
     const saved = await getTracks();
     setTracks((current) =>
@@ -437,6 +490,7 @@ export function useLibrary() {
     setError,
     importFiles,
     addYouTube,
+    addPlaylistVideo,
     toggleFavorite,
     editMetadata,
     resolveRoles,

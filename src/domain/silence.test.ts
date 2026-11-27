@@ -15,12 +15,11 @@ describe('dead air at the edges of a file', () => {
   });
 
   it('leaves short gaps alone, because they are how recordings breathe', () => {
-    // A second and a half in, two and a half out: part of the recording.
     expect(silenceReport(analysis(1.4, 197.5))!.worth).toBe(false);
     expect(silenceReport(analysis(1.2, 197.5))!.worth).toBe(false);
-    // Three seconds of nothing at the end is still how a song breathes.
+
     expect(silenceReport(analysis(0.2, 197))!.worth).toBe(false);
-    // Either side alone is enough to mention it once it is unmistakable.
+
     expect(silenceReport(analysis(2.6, 197))!.worth).toBe(true);
     expect(silenceReport(analysis(0.2, 195))!.worth).toBe(true);
   });
@@ -32,7 +31,7 @@ describe('dead air at the edges of a file', () => {
 
   it('keeps a margin so a trim never shaves the playing', () => {
     const trim = trimFromReport(silenceReport(analysis(4.2, 190))!);
-    // Rounded to a tenth of a second, then pulled back by the margin.
+
     expect(trim.start).toBe(4.0);
     expect(trim.end).toBe(190.3);
     expect(trim.start).toBeLessThan(4.2);
@@ -42,7 +41,7 @@ describe('dead air at the edges of a file', () => {
   it('plays a trimmed song between its bounds and an untrimmed one to the end', () => {
     expect(playableBounds(200, { start: 3, end: 190 })).toEqual({ start: 3, end: 190 });
     expect(playableBounds(200, undefined)).toEqual({ start: 0, end: 200 });
-    // Bounds that make no sense still leave a song that plays.
+
     expect(playableBounds(200, { start: 400, end: 100 })).toEqual({ start: 200, end: 200 });
     expect(playableBounds(0, { start: 3, end: 190 })).toEqual({ start: 0, end: 0 });
   });

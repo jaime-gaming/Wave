@@ -53,7 +53,7 @@ describe('sync store', () => {
     await expect(
       commitLoan(request('loan-2', 6 * MB), bytes(6 * MB), policy, 2_000),
     ).rejects.toThrow(/borrowed space/);
-    // What the listener already has stays exactly where it is.
+
     expect((await getLoans()).map((loan) => loan.loanId)).toEqual(['loan-1']);
     expect((await getLoanedAudio('loan-1'))?.size).toBe(6 * MB);
     expect(await getLoanedAudio('loan-2')).toBeUndefined();

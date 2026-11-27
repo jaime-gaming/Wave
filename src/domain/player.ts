@@ -118,7 +118,7 @@ export function playerReducer(state: PlayerState, action: PlayerAction): PlayerS
     case 'shuffle': {
       if (!state.queue.length) return state;
       const current = state.queue[state.index];
-      // Accept only permutations of the existing queue.
+
       if (
         action.queue.length !== state.queue.length ||
         new Set(action.queue).size !== state.queue.length ||

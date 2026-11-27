@@ -56,7 +56,7 @@ describe('clip search', () => {
     expect(
       pickClip([candidate({ title: 'Completely different song', author: 'Nobody' })], song),
     ).toBeNull();
-    // A video id that is not eleven characters cannot be embedded.
+
     expect(pickClip([candidate({ videoId: 'short' })], song)).toBeNull();
   });
 
@@ -70,12 +70,12 @@ describe('clip search', () => {
     expect(isArtistChannel(repost, song)).toBe(false);
     expect(scoreClip(repost, song)).toBe(0);
     expect(pickClip([repost], song)).toBeNull();
-    // The channel suffixes that really exist.
+
     for (const author of ['M83', 'M83VEVO', 'M83 Official', 'M83 - Topic', 'm83 music'])
       expect(isArtistChannel(candidate({ author }), song)).toBe(true);
-    // A channel that merely mentions the song has nothing to do with the artist.
+
     expect(isArtistChannel(candidate({ author: 'Best of 2011' }), song)).toBe(false);
-    // Multi-word artists keep working.
+
     expect(
       isArtistChannel(candidate({ author: 'The Midnight' }), {
         ...song,
@@ -119,9 +119,8 @@ describe('clip search', () => {
 
 describe('autoClipStart', () => {
   it('splits the extra length of the upload, keeping the larger part at the start', () => {
-    // A 30 s title card on a 240 s song: start 18 s in, which is where the music is.
     expect(autoClipStart(270, 240)).toBe(18);
-    // Anything within two seconds is noise, not an intro.
+
     expect(autoClipStart(242, 240)).toBe(0);
     expect(autoClipStart(240, 240)).toBe(0);
   });
@@ -131,14 +130,14 @@ describe('autoClipStart', () => {
     expect(autoClipStart(0, 240)).toBe(0);
     expect(autoClipStart(240, 0)).toBe(0);
     expect(autoClipStart(Number.NaN, 240)).toBe(0);
-    // A short clip inside a long song is not a start problem.
+
     expect(autoClipStart(200, 400)).toBe(0);
   });
 });
 
 describe('a clip is a video, not the song with a still picture', () => {
   const official = candidate();
-  // The label's own upload: the sleeve, held still, for the length of the record.
+
   const artTrack = candidate({
     videoId: 'bbbbbbbbbbb',
     title: 'M83 - Midnight City',
@@ -167,8 +166,6 @@ describe('a clip is a video, not the song with a still picture', () => {
   });
 
   it('skips a still rather than showing the sleeve again', () => {
-    // Nothing better exists, so there is no clip: a four-minute sleeve is not a
-    // picture, and Wave's own cover is already on screen.
     expect(scoreClip(audio, song)).toBe(0);
     expect(pickClip([audio], song)).toBeNull();
   });
@@ -183,15 +180,13 @@ describe('a clip is a video, not the song with a still picture', () => {
     const plain = candidate({ videoId: 'fffffffffff', title: 'M83 - Midnight City (Lyrics)' });
     expect(isLyricVideo(lyric)).toBe(true);
     expect(isAudioOnly(lyric)).toBe(true);
-    // Wave draws its own lyrics; a second set over a still frame is the one
-    // thing worse than no picture.
+
     expect(scoreClip(lyric, song)).toBe(0);
     expect(pickClip([lyric], song)).toBeNull();
     expect(pickClip([plain], song)).toBeNull();
   });
 
   it('does not reject a title that only looks like it says "lyrics"', () => {
-    // "Letters" is a word of its own, not the Spanish "letra" in a title.
     expect(isLyricVideo(candidate({ title: 'M83 - Midnight City (Letters Remix)' }))).toBe(false);
     expect(isLyricVideo(candidate({ title: 'M83 - Midnight City (Video Oficial)' }))).toBe(false);
   });
@@ -220,7 +215,7 @@ describe('finding an official upload for a real act', () => {
     expect(searchableTitle('Says (Remastered 2011)')).toBe('Says');
     expect(searchableTitle('Says [Deluxe Edition]')).toBe('Says');
     expect(searchableTitle('Says - Radio Edit')).toBe('Says');
-    // A featured artist is part of the song, so it stays.
+
     expect(searchableTitle('Says (feat. Ólafur Arnalds)')).toBe('Says (feat. Ólafur Arnalds)');
   });
 

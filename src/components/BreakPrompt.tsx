@@ -3,14 +3,6 @@ import { useWaveMotion } from '../ui/motion';
 import { BREAK_BODY, BREAK_HEADLINE } from '../domain/breakTime';
 import { useT } from '../i18n';
 
-/**
- * The long-session question.
- *
- * It appears only after the music has already stopped, so nothing is being
- * shouted over. It is a card, not a full-screen dialog: the library is still
- * there behind it, and leaving is a normal thing to do rather than a failure.
- * Both answers restart the count with more room, so declining is never a fight.
- */
 export function BreakPrompt({
   open,
   onContinue,

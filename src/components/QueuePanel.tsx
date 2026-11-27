@@ -107,7 +107,7 @@ function QueueRow({
         <span className="queue-order-actions">
           <button
             className="icon-button"
-            aria-label={`Move ${track.title} up`}
+            aria-label={t('Move {title} up', { title: track.title })}
             disabled={index === 0}
             onClick={() => onMove(-1)}
           >
@@ -115,7 +115,7 @@ function QueueRow({
           </button>
           <button
             className="icon-button"
-            aria-label={`Move ${track.title} down`}
+            aria-label={t('Move {title} down', { title: track.title })}
             disabled={index === count - 1}
             onClick={() => onMove(1)}
           >
@@ -163,7 +163,7 @@ export function QueuePanel({
     <aside className="listening-queue" aria-label={t('Playback queue')} data-editing={editing}>
       <div className="listening-queue__summary">
         <span>
-          {queue.length} {queue.length === 1 ? 'song' : 'songs'}
+          {queue.length} {t(queue.length === 1 ? 'song' : 'songs')}
           {total > 0 ? ` · ${formatTime(total)}` : ''}
         </span>
         <button

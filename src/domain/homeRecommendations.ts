@@ -4,10 +4,6 @@ import type { ListeningSummary } from './listening';
 import { canonical, mainArtist } from './lyricsMatch';
 import { analyzeSongMood, inferListeningMood, moodSimilarity, type ListeningSignal } from './mood';
 
-/**
- * Local-only, deterministic daily discovery shaped automatically by the
- * listener's current musical mood, balancing affinity, mood flow and variety.
- */
 export function homeRecommendations(
   tracks: Track[],
   listening?: ListeningSummary,
@@ -23,8 +19,6 @@ export function homeRecommendations(
   const recentIds = listening?.recentTracks.map((track) => track.id) ?? [];
   const justHeard = new Set(recentIds.slice(0, 3));
 
-  // Automatically infer the user's current listening mood from dwell-weighted
-  // listening signals, active track and recent session.
   const derivedSignals: ListeningSignal[] | undefined =
     moodSignals && moodSignals.length > 0
       ? moodSignals
@@ -55,7 +49,7 @@ export function homeRecommendations(
     if (sessionMood && sessionMood.confidence >= 0.25) {
       const trackMood = analyzeSongMood(track, analysisLookup?.(track));
       const sim = moodSimilarity(trackMood.vector, sessionMood.vector);
-      // Reward mood alignment strongly without locking out discovery.
+
       moodBoost = (sim - 0.5) * 4.2 * (0.4 + 0.6 * trackMood.confidence);
     }
     return (
@@ -75,7 +69,7 @@ export function homeRecommendations(
 
   while (pool.length && chosen.length < 12) {
     const recentWindow = chosen.slice(-2).map((t) => canonical(mainArtist(t.artist)));
-    // Prefer an artist not in the last 2 picks and below per-artist cap.
+
     let index = pool.findIndex((track) => {
       const key = canonical(mainArtist(track.artist));
       return !recentWindow.includes(key) && (artistCounts.get(key) ?? 0) < maxPerArtist;

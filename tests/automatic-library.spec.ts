@@ -1,5 +1,5 @@
 import { settingsMenu, closeSettings } from './helpers/settings';
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './helpers/returning-user';
 import { wav } from './helpers/audio';
 async function start(page: Page) {
   await page.route('https://lrclib.net/api/**', (r) => r.fulfill({ status: 404, body: '{}' }));

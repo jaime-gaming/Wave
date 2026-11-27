@@ -1,5 +1,9 @@
 package io.github.jaimegaming.wave.ui
 
+import android.app.ActivityManager
+import android.content.Context
+import android.os.PowerManager
+import android.provider.Settings
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.Animatable
@@ -11,6 +15,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.runtime.getValue
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,6 +35,9 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -41,23 +50,74 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.jaimegaming.wave.DeviceProfile
+import io.github.jaimegaming.wave.DeviceSignals
+import io.github.jaimegaming.wave.WavePerformance
+import io.github.jaimegaming.wave.remixMetrics
 
-/** Actions shared by every page header; their implementations stay native. */
+
 class ChromeActions(val addMusic: () -> Unit, val openSettings: () -> Unit)
 val LocalChromeActions = staticCompositionLocalOf<ChromeActions?> { null }
 
-/** The inset, rounded page and its softly tinted header, as on mobile web. */
+
+val LocalWaveProfile = staticCompositionLocalOf { DeviceProfile.FULL }
+
+@Composable
+fun rememberDeviceProfile(): DeviceProfile {
+    val context = LocalContext.current.applicationContext
+    val configuration = LocalConfiguration.current
+    val density = LocalDensity.current.density.toDouble()
+    val manager = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
+    val memoryInfo = ActivityManager.MemoryInfo()
+    manager?.getMemoryInfo(memoryInfo)
+    val memoryGB = manager?.let { memoryInfo.totalMem / 1_073_741_824.0 }
+    val cores = Runtime.getRuntime().availableProcessors()
+    val reducedMotion = Settings.Global.getFloat(
+        context.contentResolver,
+        Settings.Global.ANIMATOR_DURATION_SCALE,
+        1f,
+    ) == 0f || Settings.Global.getFloat(
+        context.contentResolver,
+        Settings.Global.TRANSITION_ANIMATION_SCALE,
+        1f,
+    ) == 0f
+    val power = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+    val lowPower = power?.isPowerSaveMode == true
+    return remember(memoryGB, cores, reducedMotion, lowPower, density, configuration.screenWidthDp) {
+        WavePerformance.profile(
+            DeviceSignals(
+                memoryGB = memoryGB,
+                cores = cores,
+                reducedMotion = reducedMotion,
+                lowPowerMode = lowPower,
+                screenScale = density,
+                smallScreen = configuration.screenWidthDp < 700,
+            ),
+        )
+    }
+}
+
+
 @Composable
 fun Modifier.wavePage(): Modifier {
     val surface = MaterialTheme.colorScheme.surface
     val header = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.38f)
+    val configuration = LocalConfiguration.current
+    val metrics = remixMetrics(
+        configuration.screenWidthDp,
+        configuration.screenHeightDp,
+        configuration.fontScale,
+        LocalWaveProfile.current,
+    )
+    val inset = minOf(metrics.paddingDp.dp, 24.dp)
+    val headerHeight = minOf(124.dp, maxOf(72.dp, (configuration.screenHeightDp * 0.16f).dp))
     return this
         .fillMaxSize()
-        .padding(horizontal = 10.dp)
+        .padding(horizontal = inset)
         .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
         .background(surface)
         .drawBehind {
-            val height = 124.dp.toPx()
+            val height = headerHeight.toPx()
             drawRect(
                 brush = Brush.verticalGradient(listOf(header, Color.Transparent), endY = height),
                 size = Size(size.width, height),
@@ -65,7 +125,7 @@ fun Modifier.wavePage(): Modifier {
         }
 }
 
-/** A round header control with a spoken name and the same line art as web. */
+
 @Composable
 fun ChromeButton(
     icon: String,
@@ -90,11 +150,11 @@ fun ChromeButton(
     }
 }
 
-/** Four destinations; Settings belongs in the header, not a fifth tab. */
+
 @Composable
 fun WaveNavigation(destination: Destination, onDestination: (Destination) -> Unit) {
-    // The drawing belongs to the destination, so a tab cannot end up with the
-    // wrong icon or with none at all.
+
+
     val destinations = listOf(
         Destination.Home,
         Destination.Search,
@@ -124,7 +184,10 @@ fun WaveNavigation(destination: Destination, onDestination: (Destination) -> Uni
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .height(70.dp)
+                    .padding(horizontal = 3.dp)
+                    .height(64.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(indicator)
                     .semantics { this.selected = selected }
                     .clickable(role = Role.Tab) { onDestination(place) },
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -133,9 +196,7 @@ fun WaveNavigation(destination: Destination, onDestination: (Destination) -> Uni
                 Box(
                     modifier = Modifier
                         .width(66.dp)
-                        .height(29.dp)
-                        .clip(RoundedCornerShape(50))
-                        .background(indicator),
+                        .height(29.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     WaveIcon(place.icon, 22.dp, tint)
@@ -152,9 +213,10 @@ fun WaveNavigation(destination: Destination, onDestination: (Destination) -> Uni
     }
 }
 
-/** Adaptive vertical rail used on tablets, foldables and landscape screens (>= 600dp). */
+
 @Composable
 fun WaveNavigationRail(destination: Destination, onDestination: (Destination) -> Unit) {
+    val fontScale = LocalConfiguration.current.fontScale
     val destinations = listOf(
         Destination.Home,
         Destination.Search,
@@ -167,6 +229,8 @@ fun WaveNavigationRail(destination: Destination, onDestination: (Destination) ->
             .width(84.dp)
             .clip(RoundedCornerShape(28.dp))
             .background(MaterialTheme.colorScheme.surfaceContainer)
+
+            .verticalScroll(rememberScrollState())
             .padding(vertical = 14.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -184,7 +248,7 @@ fun WaveNavigationRail(destination: Destination, onDestination: (Destination) ->
             Column(
                 modifier = Modifier
                     .width(72.dp)
-                    .height(60.dp)
+                    .height(if (fontScale > 1.3f) 76.dp else 60.dp)
                     .clip(RoundedCornerShape(18.dp))
                     .semantics { this.selected = selected }
                     .clickable(role = Role.Tab) { onDestination(place) },
@@ -213,7 +277,7 @@ fun WaveNavigationRail(destination: Destination, onDestination: (Destination) ->
     }
 }
 
-/** A local icon response; Shuffle smoothly separates into parallel ribbons and rejoins. */
+
 @Composable
 fun WaveActionButton(icon: String, label: String, onClick: () -> Unit, active: Boolean? = null, enabled: Boolean = true) {
     val motionEnabled = waveMotionEnabled()

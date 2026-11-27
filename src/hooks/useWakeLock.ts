@@ -11,11 +11,6 @@ interface NavigatorWithWakeLock {
   };
 }
 
-/**
- * Keeps the screen awake via the Screen Wake Lock API while Wave is open and
- * playing music. Re-acquires automatically when returning to a visible tab, and
- * releases cleanly when playback pauses or stops.
- */
 export function useWakeLock(active: boolean) {
   useEffect(() => {
     const api = (navigator as Navigator & NavigatorWithWakeLock).wakeLock;
@@ -42,9 +37,7 @@ export function useWakeLock(active: boolean) {
           return;
         }
         sentinel = lock;
-      } catch {
-        // Low-battery mode or denied permissions simply leave screen timeout untouched.
-      }
+      } catch {}
     };
 
     void acquire();

@@ -25,6 +25,7 @@ function deliver(frame: HTMLIFrameElement, info: Record<string, unknown>) {
   act(() => {
     window.dispatchEvent(
       new MessageEvent('message', {
+        origin: 'https://www.youtube-nocookie.com',
         data: JSON.stringify({ event: 'infoDelivery', info }),
         source: frame.contentWindow,
       }),
@@ -33,11 +34,6 @@ function deliver(frame: HTMLIFrameElement, info: Record<string, unknown>) {
 }
 
 describe('YouTube song stage', () => {
-  /*
-   * The embed is sound and picture, never an interface. Anything focusable or
-   * clickable inside it can raise YouTube's own buttons over Wave's player, so the
-   * frame is kept out of both the tab order and the pointer's reach.
-   */
   it('cannot be focused, clicked or read as a control surface', () => {
     render(<YouTubeStage {...baseProps} playing />);
     const frame = screen.getByTitle(/youtube video for midnight city/i) as HTMLIFrameElement;
@@ -52,9 +48,9 @@ describe('YouTube song stage', () => {
     const url = new URL(frame.src);
     expect(url.pathname).toBe('/embed/dQw4w9WgXcQ');
     expect(url.searchParams.get('controls')).toBe('0');
-    // Unlike a backdrop clip, the song's audio comes from the video itself.
+
     expect(url.searchParams.get('mute')).toBeNull();
-    // One transport only: the link out lives in the song's options, not here.
+
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
@@ -144,6 +140,7 @@ describe('YouTube song stage', () => {
     act(() => {
       window.dispatchEvent(
         new MessageEvent('message', {
+          origin: 'https://www.youtube-nocookie.com',
           data: JSON.stringify({
             event: 'infoDelivery',
             info: { playerState: 0, currentTime: 200, videoData: { video_id: 'dQw4w9WgXcQ' } },
@@ -162,6 +159,7 @@ describe('YouTube song stage', () => {
     act(() =>
       window.dispatchEvent(
         new MessageEvent('message', {
+          origin: 'https://www.youtube-nocookie.com',
           data: JSON.stringify({ event: 'onAutoplayBlocked' }),
           source: frame.contentWindow,
         }),
@@ -186,4 +184,42 @@ describe('YouTube song stage', () => {
       post.mock.calls.some(([message]) => String(message).includes('"event":"listening"')),
     ).toBe(true);
   });
+});
+
+it('prepares an incoming video muted and reports when it actually starts', async () => {
+  const onStarted = vi.fn();
+  render(<YouTubeStage {...baseProps} playing startGain={0} gain={0} onStarted={onStarted} />);
+  const frame = screen.getByTitle(/youtube video for/i) as HTMLIFrameElement;
+  expect(new URL(frame.src).searchParams.get('mute')).toBe('1');
+  expect(onStarted).not.toHaveBeenCalled();
+  deliver(frame, { playerState: 1, currentTime: 0.1, duration: 244 });
+  await waitFor(() => expect(onStarted).toHaveBeenCalled());
+});
+
+it('ignores untrusted origins and handles a duplicate end only once', () => {
+  const onEnded = vi.fn();
+  render(<YouTubeStage {...baseProps} onEnded={onEnded} playing />);
+  const frame = screen.getByTitle(/youtube video for/i) as HTMLIFrameElement;
+  const send = (origin: string, event: string, info: unknown) =>
+    act(() => {
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          origin,
+          source: frame.contentWindow,
+          data: JSON.stringify({ event, info }),
+        }),
+      );
+    });
+  send('https://example.com', 'onStateChange', 0);
+  expect(onEnded).not.toHaveBeenCalled();
+  send('https://www.youtube-nocookie.com', 'onStateChange', 0);
+  send('https://www.youtube-nocookie.com', 'infoDelivery', {
+    playerState: 0,
+    currentTime: 244,
+    duration: 244,
+  });
+  expect(onEnded).toHaveBeenCalledTimes(1);
+  send('https://www.youtube.com', 'onStateChange', 1);
+  send('https://www.youtube.com', 'onStateChange', 0);
+  expect(onEnded).toHaveBeenCalledTimes(2);
 });

@@ -15,21 +15,21 @@ import io.github.jaimegaming.wave.ui.Opening
 import io.github.jaimegaming.wave.ui.WaveApp
 import io.github.jaimegaming.wave.ui.WaveTheme
 
-/**
- * The phone app, in one place: edge to edge, in Wave's own theme, drawing
- * [WaveApp]. Everything else lives in `ui`, where a reader can find it.
- */
+
+
+
+
 class MainActivity : ComponentActivity() {
     private val notifications =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Draw under the system bars and keep content clear of the cutout and the
-        // gesture bar, the way a full-screen music app is expected to look.
+
+
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        // The lock-screen controls are a notification; without this permission the
-        // music still plays but the controls stay hidden.
+
+
         if (
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
@@ -52,7 +52,7 @@ class MainActivity : ComponentActivity() {
         setIntent(intent)
     }
 
-    /** Where a shortcut, the widget or the notification asked the app to open. */
+
     private fun opening(): Opening = when (intent?.getStringExtra(EXTRA_DESTINATION)) {
         "search" -> Opening.Where(Destination.Search)
         "remix", "listening" -> Opening.Where(Destination.Remix)

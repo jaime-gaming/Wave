@@ -1,35 +1,21 @@
 import { decodeSignal, encodeSignal } from './signal';
 
-/**
- * The wire between two devices.
- *
- * A WebRTC data channel, set up by hand: `offers` are exchanged as text codes
- * (see `signal.ts`), candidates are gathered before the code is shown so a
- * single exchange is enough, and the channel is opened before a pairing session
- * is allowed to start. Everything the app sends is text; encryption above the
- * channel is done by `PairingSession`.
- *
- * Two devices on the same network connect directly. Two devices on different
- * networks usually can too, because a public STUN server tells each side what
- * address the internet sees; when the networks refuse (symmetric NAT), the code
- * says so instead of hanging.
- */
 export type TransportState = 'idle' | 'gathering' | 'waiting' | 'connecting' | 'open' | 'closed';
 
 export interface Transport {
-  send: (payload: string) => void;
+  send: (payload: string) => Promise<void>;
   receive: (handler: (payload: string) => void) => void;
   onState: (handler: (state: TransportState) => void) => void;
-  /** Resolves with the code to give the other device. */
+
   localCode: () => Promise<string>;
-  /** Applies the code the other device gave us. May resolve with a code to return. */
+
   acceptCode: (code: string) => Promise<string | null>;
   close: () => void;
   readonly state: TransportState;
 }
 
 export const STUN_URL = 'stun:stun.l.google.com:19302';
-/** Candidate gathering is bounded: an offer is never worth a minute of waiting. */
+
 export const GATHER_TIMEOUT_MS = 8000;
 
 interface Wire {
@@ -50,31 +36,36 @@ export function createTransport(
   });
   let channel: RTCDataChannel | null = null;
   let state: TransportState = 'idle';
-  let queue: string[] = [];
+  let pendingOpen: {
+    resolve: (channel: RTCDataChannel) => void;
+    reject: (error: Error) => void;
+  }[] = [];
+  let sendTail: Promise<void> = Promise.resolve();
+  const failPending = () => {
+    const pending = pendingOpen;
+    pendingOpen = [];
+    for (const waiter of pending) waiter.reject(new Error('The connection closed.'));
+  };
 
+  const isClosed = () => state === 'closed';
   const setState = (next: TransportState) => {
-    if (state === next) return;
+    if (state === next || isClosed()) return;
     state = next;
+    if (next === 'closed') failPending();
     handlers.onState(next);
   };
 
   const attach = (next: RTCDataChannel) => {
     channel = next;
+    next.bufferedAmountLowThreshold = 256 * 1024;
     next.onopen = () => {
       setState('open');
-      // Anything queued while the channel was connecting goes out in order.
-      const pending = queue;
-      queue = [];
-      for (const payload of pending) next.send(payload);
+      const pending = pendingOpen;
+      pendingOpen = [];
+      for (const waiter of pending) waiter.resolve(next);
     };
-    next.onclose = () => {
-      queue = [];
-      setState('closed');
-    };
-    next.onerror = () => {
-      queue = [];
-      setState('closed');
-    };
+    next.onclose = () => setState('closed');
+    next.onerror = () => setState('closed');
     next.onmessage = (event) => {
       if (typeof event.data === 'string') handlers.onMessage(event.data);
     };
@@ -92,12 +83,29 @@ export function createTransport(
         resolve();
         return;
       }
+      let quiet: ReturnType<typeof setTimeout> | undefined;
       const done = () => {
         clearTimeout(timer);
+        clearTimeout(quiet);
         peer.onicegatheringstatechange = null;
+        peer.onicecandidate = null;
         resolve();
       };
       const timer = setTimeout(done, GATHER_TIMEOUT_MS);
+      // Once a public candidate is available, allow a short quiet period for other
+      // interfaces. Host-only candidates keep the full timeout for restrictive NATs.
+      let hasPublicCandidate = false;
+      peer.onicecandidate = (event) => {
+        if (
+          event.candidate?.candidate &&
+          /\styp\s(?:srflx|relay)\b/u.test(event.candidate.candidate)
+        )
+          hasPublicCandidate = true;
+        if (hasPublicCandidate && event.candidate) {
+          clearTimeout(quiet);
+          quiet = setTimeout(done, 1200);
+        }
+      };
       peer.onicegatheringstatechange = () => {
         if (peer.iceGatheringState === 'complete') done();
       };
@@ -141,7 +149,6 @@ export function createTransport(
       }
       setState('connecting');
       if (wire.mode === 'offer') {
-        // The guest only ever answers: it is the side that pasted a code.
         await peer.setRemoteDescription(wire.description);
         for (const candidate of wire.candidates) await peer.addIceCandidate(candidate);
         await peer.setLocalDescription(await peer.createAnswer());
@@ -152,8 +159,44 @@ export function createTransport(
       return null;
     },
     send(payload: string) {
-      if (channel?.readyState === 'open') channel.send(payload);
-      else if (state !== 'closed' && state !== 'idle') queue.push(payload);
+      const task = sendTail.then(async () => {
+        if (state === 'closed') throw new Error('The connection closed.');
+        const open =
+          channel?.readyState === 'open'
+            ? channel
+            : await new Promise<RTCDataChannel>((resolve, reject) => {
+                pendingOpen.push({ resolve, reject });
+              });
+        if (open.readyState !== 'open' || isClosed()) throw new Error('The connection closed.');
+        if (open.bufferedAmount > 512 * 1024) {
+          await new Promise<void>((resolve, reject) => {
+            const cleanup = () => {
+              clearTimeout(timer);
+              open.removeEventListener('bufferedamountlow', low);
+              open.removeEventListener('close', closed);
+              open.removeEventListener('error', closed);
+            };
+            const low = () => {
+              cleanup();
+              resolve();
+            };
+            const closed = () => {
+              cleanup();
+              reject(new Error('The connection closed.'));
+            };
+            const timer = setTimeout(closed, 30_000);
+            open.addEventListener('bufferedamountlow', low);
+            open.addEventListener('close', closed);
+            open.addEventListener('error', closed);
+            if (open.readyState !== 'open') closed();
+            else if (open.bufferedAmount <= open.bufferedAmountLowThreshold) low();
+          });
+        }
+        if (open.readyState !== 'open' || isClosed()) throw new Error('The connection closed.');
+        open.send(payload);
+      });
+      sendTail = task.catch(() => undefined);
+      return task;
     },
     receive(handler) {
       handlers.onMessage = handler;
@@ -162,13 +205,10 @@ export function createTransport(
       handlers.onState = handler;
     },
     close() {
-      queue = [];
       setState('closed');
       try {
         channel?.close();
-      } catch {
-        // Already closed.
-      }
+      } catch {}
       peer.close();
     },
   };

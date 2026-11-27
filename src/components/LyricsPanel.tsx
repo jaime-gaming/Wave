@@ -60,8 +60,7 @@ const LyricRow = memo(function LyricRow({
     ...word,
     fill: timedWordProgress(word, seconds, offsetMs, nextLine, duration),
   }));
-  // Word-by-word timing: provider timestamps when the file has them, otherwise
-  // a deterministic estimate derived from the line window.
+
   const karaokeTokens = useMemo(() => {
     if (!karaoke || line.time === undefined) return null;
     const words = karaokeWords(line, nextLine, duration);
@@ -160,7 +159,7 @@ export function LyricsPanel({
   playing?: boolean;
   stage?: boolean;
   cinematic?: boolean;
-  /** Word-by-word highlighting; estimated timings are labelled as such. */
+
   karaoke?: boolean;
   track: Track;
   time: number;
@@ -179,16 +178,30 @@ export function LyricsPanel({
     let frame = 0,
       last = 0;
     const sample = (now: number) => {
-      // ~12 Hz is smooth for a word fill and keeps the reader off the main
-      // thread's critical path on a slow device; the seek bar has its own clock.
-      if (!document.hidden && now - last >= 80) {
+      frame = 0;
+      if (document.hidden) return;
+      if (now - last >= 80) {
         setNativeTime(readTime());
         last = now;
       }
       frame = requestAnimationFrame(sample);
     };
-    frame = requestAnimationFrame(sample);
-    return () => cancelAnimationFrame(frame);
+    const visibility = () => {
+      if (document.hidden) {
+        cancelAnimationFrame(frame);
+        frame = 0;
+      } else if (!frame) {
+        // Catch up immediately after a background tab becomes visible.
+        setNativeTime(readTime());
+        frame = requestAnimationFrame(sample);
+      }
+    };
+    document.addEventListener('visibilitychange', visibility);
+    visibility();
+    return () => {
+      document.removeEventListener('visibilitychange', visibility);
+      cancelAnimationFrame(frame);
+    };
   }, [readTime, playing]);
   const time = playing && readTime ? nativeTime : reportedTime;
   const pane = useRef<HTMLDivElement>(null);
@@ -210,12 +223,7 @@ export function LyricsPanel({
   useLayoutEffect(() => {
     const el = pane.current;
     if (!el || typeof ResizeObserver === 'undefined') return;
-    // Only the scroll is adjusted. Lyrics are never shrunk to fit: a line that is
-    // too long wraps, and the reader scrolls, because small lyrics are unreadable
-    // lyrics — this is the size the type is set to and it stays there.
-    //
-    // The cinema view follows too: a lyric page that stops on the first verse is
-    // not a lyric page, and the long listen is exactly where it matters most.
+
     const fit = (smooth: boolean) => {
       const line = el.querySelector<HTMLElement>('.lyric-line.active');
       if (!line || (!follow && !cinematic)) return;
@@ -338,19 +346,22 @@ export function LyricsPanel({
                   <div className="lyrics-offset" aria-label={t('Lyric timing adjustment')}>
                     <button
                       className="icon-button"
-                      aria-label={t('Show lyrics 100 milliseconds earlier')}
+                      aria-label={t('Show lyrics a little earlier')}
                       disabled={adjusting || lyrics.offsetMs <= -10000}
                       onClick={() => void adjustOffset(-100)}
                     >
                       <Minus size={16} />
                     </button>
                     <span aria-live="polite" aria-atomic="true">
-                      {lyrics.offsetMs > 0 ? '+' : ''}
-                      {lyrics.offsetMs} ms
+                      {lyrics.offsetMs < 0
+                        ? t('Earlier')
+                        : lyrics.offsetMs > 0
+                          ? t('Later')
+                          : t('On time')}
                     </span>
                     <button
                       className="icon-button"
-                      aria-label={t('Show lyrics 100 milliseconds later')}
+                      aria-label={t('Show lyrics a little later')}
                       disabled={adjusting || lyrics.offsetMs >= 10000}
                       onClick={() => void adjustOffset(100)}
                     >
@@ -398,36 +409,38 @@ export function LyricsPanel({
             )}
           </motion.div>
           <h3>
-            {!online
-              ? t('No connection')
-              : cooldown
-                ? t('Taking a breath')
-                : loading
-                  ? t('Looking for lyrics')
-                  : status === 'instrumental'
-                    ? t('Instrumental')
+            {status === 'instrumental' && !loading
+              ? t('Instrumental')
+              : !online
+                ? t('No connection')
+                : cooldown
+                  ? t('Taking a breath')
+                  : loading
+                    ? t('Looking for lyrics')
                     : t('No lyrics yet')}
           </h3>
           <p>
-            {!online
-              ? t('Lyrics search needs a connection. Anything already saved still shows.')
-              : cooldown
-                ? `Try again in ${cooldown} seconds.`
-                : loading
-                  ? t('Searching for this song.')
-                  : status === 'instrumental'
-                    ? t('This song is marked instrumental.')
+            {status === 'instrumental' && !loading
+              ? t('Enjoy the music.')
+              : !online
+                ? t('Lyrics search needs a connection. Anything already saved still shows.')
+                : cooldown
+                  ? t('Try again in {seconds} seconds.', { seconds: cooldown })
+                  : loading
+                    ? t('Searching for this song.')
                     : status === 'error'
                       ? t('The lyrics service did not answer.')
                       : t('Nothing matched this song.')}
           </p>
-          <span>
-            {automatic
-              ? !canLookup(track)
-                ? t('Add a title and artist in the song details to search for lyrics.')
-                : t('You can add your own lyrics if nothing matches.')
-              : ''}
-          </span>
+          {status !== 'instrumental' && (
+            <span>
+              {automatic
+                ? !canLookup(track)
+                  ? t('Add a title and artist in the song details to search for lyrics.')
+                  : t('You can add your own lyrics if nothing matches.')
+                : ''}
+            </span>
+          )}
           {!cinematic && (
             <div className="lyrics-empty-actions">
               {onRetry && (
@@ -442,7 +455,7 @@ export function LyricsPanel({
                 </button>
               )}
               <button className="text-button" onClick={onEdit}>
-                Add lyrics
+                {t('Add lyrics')}
               </button>
             </div>
           )}

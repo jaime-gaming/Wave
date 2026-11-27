@@ -169,3 +169,21 @@ it('automatically resumes a throttled track at the server deadline', async () =>
   expect(lookupLyrics).toHaveBeenCalledTimes(1);
   expect(saved).toHaveBeenCalledTimes(1);
 });
+
+it('does not delay a different song because an earlier lookup needs to retry later', async () => {
+  vi.useFakeTimers();
+  const earlier = makeTrack({
+    id: 'earlier',
+    lyricsLookup: {
+      key: lyricsKey(makeTrack()),
+      status: 'error',
+      checkedAt: Date.now(),
+      retryAt: Date.now() + 60000,
+    },
+  });
+  const next = makeTrack({ id: 'next', title: 'A different song' });
+  vi.mocked(lookupLyrics).mockImplementation(() => new Promise(() => {}));
+  renderHook(() => useAutomaticLyrics([earlier, next], true, false, vi.fn()));
+  await act(() => vi.advanceTimersByTimeAsync(450));
+  expect(lookupLyrics).toHaveBeenCalledWith(next, expect.any(AbortSignal));
+});

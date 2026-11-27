@@ -56,7 +56,6 @@ describe('word-level lyric formats', () => {
   });
 
   it('decodes the XOR-obfuscated payload and refuses to guess on junk', async () => {
-    // Real KRC: plaintext krc1 header + XORed zlib stream, then base64.
     const key = [
       0x40, 0x47, 0x61, 0x77, 0x5e, 0x32, 0x74, 0x47, 0x51, 0x36, 0x31, 0x2d, 0xce, 0xd2, 0x6e,
       0x69,
@@ -75,7 +74,7 @@ describe('word-level lyric formats', () => {
   it('only trusts timings that fit the song', () => {
     const lines = parseYrc(YRC);
     expect(wordTimelinePlausible(lines, 200)).toBe(true);
-    // Lyrics that run minutes past the file are not trusted.
+
     expect(wordTimelinePlausible(lines, 0.5)).toBe(true);
     expect(
       wordTimelinePlausible(parseYrc('[400000,1000,0](400000,1000,0)Far past the end'), 100),

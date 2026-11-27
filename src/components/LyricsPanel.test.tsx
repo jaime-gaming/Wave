@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
 import { LyricsPanel } from './LyricsPanel';
 import { parseLyrics } from '../domain/lyrics';
@@ -56,11 +56,11 @@ it('keeps timing controls tucked away and explains nothing about the timing', ()
     expect(container.querySelector('.lyrics-provenance')).toBeNull();
     expect(screen.queryByRole('link')).toBeNull();
     expect(screen.queryByText(/Word-timed|saved offline|interpolat/i)).toBeNull();
-    // The one hint kept: the line is a seek target.
+
     expect(screen.getByText('Tap a line to seek')).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText('Adjust lyric timing'));
     expect(details.open).toBe(true);
-    fireEvent.click(screen.getByRole('button', { name: 'Show lyrics 100 milliseconds later' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Show lyrics a little later' }));
     expect(onOffset).toHaveBeenCalledWith({ ...lyrics, offsetMs: 100 });
     fireEvent.click(screen.getByRole('button', { name: 'Edit lyrics' }));
     expect(onEdit).toHaveBeenCalledOnce();
@@ -90,7 +90,7 @@ it('recovers the timing controls after a failed save instead of leaving them dis
       />,
     );
     fireEvent.click(screen.getByLabelText('Adjust lyric timing'));
-    const later = screen.getByRole('button', { name: 'Show lyrics 100 milliseconds later' });
+    const later = screen.getByRole('button', { name: 'Show lyrics a little later' });
     fireEvent.click(later);
     await waitFor(() =>
       expect(screen.getByRole('alert')).toHaveTextContent('Could not save timing'),
@@ -116,12 +116,10 @@ it('highlights each word individually, with a line-level fallback', () => {
     const line = screen.getByRole('button', { name: 'Seek to lyric: We were young' });
     const words = [...line.querySelectorAll('.lyric-word')];
     expect(words).toHaveLength(3);
-    // No provider timestamps: the word timing is derived and labelled as such.
+
     expect(words.every((word) => word.getAttribute('data-word-source') === 'derived')).toBe(true);
     expect(words[0]).toHaveAttribute('data-word-fill', '0');
 
-    // Two seconds into a four-second line: the first word is complete, the rest
-    // are mid-fill or not started, never all-or-nothing.
     rerender(<LyricsPanel {...props} time={2} />);
     const fills = [...line.querySelectorAll('.lyric-word')].map((word) =>
       Number(word.getAttribute('data-word-fill')),
@@ -130,8 +128,6 @@ it('highlights each word individually, with a line-level fallback', () => {
     expect(fills[2]).toBeLessThan(1);
     expect(fills[1]).toBeGreaterThan(0);
 
-    // Built in, not optional: without line timing the panel falls back to the
-    // previous whole-line view instead of hiding the lyrics.
     rerender(
       <LyricsPanel
         {...props}
@@ -152,7 +148,7 @@ it('highlights each word individually, with a line-level fallback', () => {
 it('shows the whole lyric, not a three-line window, and centres the sung line', () => {
   const previous = HTMLElement.prototype.scrollTo;
   const previousObserver = globalThis.ResizeObserver;
-  // jsdom has no ResizeObserver; the reader uses one to re-fit the text.
+
   globalThis.ResizeObserver = class {
     observe() {}
     unobserve() {}
@@ -214,7 +210,7 @@ it('follows the song in the cinema view too, not only in Now Playing', () => {
       onEdit: vi.fn(),
     };
     const { container, rerender } = render(<LyricsPanel {...props} time={5} />);
-    // The first verse has already asked the reader to move, and so does the next.
+
     expect(scrolled.length).toBeGreaterThan(0);
     const before = scrolled.length;
     rerender(<LyricsPanel {...props} time={125} />);
@@ -223,10 +219,79 @@ it('follows the song in the cinema view too, not only in Now Playing', () => {
       (line) => line.getAttribute('aria-current') === 'true',
     );
     expect(active[0].textContent).toBe('Line 26');
-    // Cinema is read-only: no row is a seek target.
+
     expect(screen.queryAllByRole('button')).toHaveLength(0);
   } finally {
     HTMLElement.prototype.scrollTo = previous;
     globalThis.ResizeObserver = previousObserver;
+  }
+});
+
+it('shows the instrumental message even offline when the provider marked the recording', () => {
+  vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+  render(
+    <LyricsPanel
+      track={makeTrack({
+        lyricsLookup: { status: 'instrumental', checkedAt: Date.now(), key: 'song' },
+      })}
+      time={0}
+      duration={90}
+      onSeek={vi.fn()}
+      onEdit={vi.fn()}
+    />,
+  );
+  expect(screen.getByRole('heading', { name: 'Instrumental' })).toBeInTheDocument();
+  expect(screen.getByText('Enjoy the music.')).toBeInTheDocument();
+  vi.restoreAllMocks();
+});
+
+it('suspends lyric sampling while hidden and catches up when visible', () => {
+  let hidden = false;
+  let nextFrame = 0;
+  const frames = new Map<number, FrameRequestCallback>();
+  const hiddenSpy = vi.spyOn(document, 'hidden', 'get').mockImplementation(() => hidden);
+  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+    frames.set(++nextFrame, callback);
+    return nextFrame;
+  });
+  vi.stubGlobal('cancelAnimationFrame', (id: number) => frames.delete(id));
+  const previous = HTMLElement.prototype.scrollTo;
+  HTMLElement.prototype.scrollTo = vi.fn();
+  try {
+    let time = 1;
+    const readTime = vi.fn(() => time);
+    const { unmount } = render(
+      <LyricsPanel
+        track={makeTrack({ lyrics: parseLyrics('[00:00]First\n[00:04]Second') })}
+        time={0}
+        duration={8}
+        playing
+        readTime={readTime}
+        onSeek={vi.fn()}
+        onEdit={vi.fn()}
+      />,
+    );
+    expect(frames.size).toBe(1);
+    act(() => {
+      hidden = true;
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    expect(frames.size).toBe(0);
+    time = 5;
+    act(() => {
+      hidden = false;
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    expect(screen.getByRole('button', { name: 'Seek to lyric: Second' })).toHaveAttribute(
+      'aria-current',
+      'true',
+    );
+    expect(frames.size).toBe(1);
+    unmount();
+    expect(frames.size).toBe(0);
+  } finally {
+    hiddenSpy.mockRestore();
+    vi.unstubAllGlobals();
+    HTMLElement.prototype.scrollTo = previous;
   }
 });

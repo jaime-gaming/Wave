@@ -6,10 +6,6 @@ import { useWaveMotion } from '../ui/motion';
 const TRACK_TRAVEL_PX = 24;
 const DRAG_THRESHOLD_PX = 3;
 
-/**
- * Tactile on/off switch supporting both click and smooth horizontal pointer
- * dragging while keeping a standard pointer cursor (no drag indicator).
- */
 export function MaterialSwitch({
   checked,
   onChange,
@@ -46,9 +42,7 @@ export function MaterialSwitch({
     };
     try {
       event.currentTarget.setPointerCapture(event.pointerId);
-    } catch {
-      /* Synthetic pointer events in tests may not carry an active capture id. */
-    }
+    } catch {}
   };
 
   const handlePointerMove = (event: PointerEvent<HTMLButtonElement>) => {
@@ -70,9 +64,7 @@ export function MaterialSwitch({
       if (event.currentTarget.hasPointerCapture(event.pointerId)) {
         event.currentTarget.releasePointerCapture(event.pointerId);
       }
-    } catch {
-      /* Ignore release errors on synthetic events. */
-    }
+    } catch {}
     if (active.dragged) {
       suppressClickRef.current = true;
       setDragProgress(null);

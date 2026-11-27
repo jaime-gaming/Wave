@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { dailyMixes, localDayKey, mixCovers } from './dailyMixes';
+import { dailyMixes, dailyMixPlaylistName, localDayKey, mixCovers } from './dailyMixes';
 import { makeTrack } from '../test/fixtures';
 const tracks = () =>
   ['Rock', 'Jazz', 'Electronic'].flatMap((genre, g) =>
@@ -16,7 +16,7 @@ it('makes three disjoint coherent groups, stable within the day and independent 
   );
   expect(new Set(a.flatMap((g) => g.tracks.map((t) => t.id))).size).toBe(21);
   for (const mix of a) expect(new Set(mix.tracks.map((t) => t.genres![0])).size).toBe(1);
-  // A different day reshuffles the fallback order, but the groups stay coherent.
+
   expect(a.map((g) => g.tracks.map((t) => t.id))).not.toEqual(
     dailyMixes(source, '2026-10-16').map((g) => g.tracks.map((t) => t.id)),
   );
@@ -40,8 +40,9 @@ it('caps results, does not mutate originals, deduplicates IDs and uses local cal
   const many = Array.from({ length: 60 }, (_, i) => makeTrack({ id: String(i), genres: ['Rock'] }));
   const ids = many.map((t) => t.id);
   const result = dailyMixes([...many, many[0]], '2026-10-15');
-  expect(result[0].tracks).toHaveLength(20);
-  expect(new Set(result[0].tracks.map((t) => t.id)).size).toBe(20);
+  expect(result[0].tracks.length).toBeGreaterThanOrEqual(14);
+  expect(result[0].tracks.length).toBeLessThanOrEqual(20);
+  expect(new Set(result[0].tracks.map((t) => t.id)).size).toBe(result[0].tracks.length);
   expect(many.map((t) => t.id)).toEqual(ids);
   expect(localDayKey(new Date(2026, 9, 5, 23, 59))).toBe('2026-10-05');
 });
@@ -63,7 +64,7 @@ it('shapes a measured mix with daily flow variety and never repeats an artist ba
   expect(mixA.tracks).toHaveLength(8);
   for (let i = 1; i < mixA.tracks.length; i++)
     expect(mixA.tracks[i].artist).not.toBe(mixA.tracks[i - 1].artist);
-  // Across consecutive days, measured mixes rotate contours instead of playing the exact same order.
+
   const orders = new Set([mixA, mixB, mixC].map((m) => m.tracks.map((t) => t.id).join(',')));
   expect(orders.size).toBeGreaterThan(1);
   expect(mixA.bpm).toBe(126);
@@ -81,7 +82,7 @@ it('caps any dominant artist and spaces artists widely to prevent artist burnout
     ),
   ).flat();
   const [mix] = dailyMixes([...dominant, ...varied], '2026-11-16');
-  expect(mix.tracks).toHaveLength(20);
+  expect(mix.tracks.length).toBeGreaterThanOrEqual(14);
   const dominantCount = mix.tracks.filter((t) => t.artist === 'Dominant Band').length;
   expect(dominantCount).toBeLessThanOrEqual(3);
   for (let i = 1; i < mix.tracks.length; i++) {
@@ -130,10 +131,10 @@ it('offers at most three simultaneous mixes with no more than twenty songs each'
   ).flat();
   const result = dailyMixes(source, '2026-11-06');
   expect(result).toHaveLength(3);
-  expect(result.every((mix) => mix.tracks.length === 20)).toBe(true);
-  expect(result.every((mix) => new Set(mix.tracks.map((track) => track.id)).size === 20)).toBe(
-    true,
-  );
+  expect(result.every((mix) => mix.tracks.length >= 14 && mix.tracks.length <= 20)).toBe(true);
+  expect(
+    result.every((mix) => new Set(mix.tracks.map((track) => track.id)).size === mix.tracks.length),
+  ).toBe(true);
 });
 
 it('locks distinct cover sleeves for the day independent of playback ordering or BPM analysis', () => {
@@ -157,4 +158,24 @@ it('locks distinct cover sleeves for the day independent of playback ordering or
   expect(
     mixCovers([...source].reverse(), 'genre:dream pop', '2026-11-16').map((t) => t.id),
   ).toEqual(mixCovers(source, 'genre:dream pop', '2026-11-16').map((t) => t.id));
+});
+
+it('varies actual mix sizes across days without changing a mix within the same day', () => {
+  const source = Array.from({ length: 45 }, (_, i) =>
+    makeTrack({ id: `size-${i}`, genres: ['Jazz'], artist: `Artist ${i % 5}` }),
+  );
+  const sizes = Array.from(
+    { length: 14 },
+    (_, i) => dailyMixes(source, `2026-11-${String(i + 1).padStart(2, '0')}`)[0].tracks.length,
+  );
+  expect(new Set(sizes).size).toBeGreaterThan(1);
+  expect(dailyMixes(source, '2026-11-01')[0].tracks.length).toBe(sizes[0]);
+});
+
+it('names daily snapshots by local date and avoids existing names', () => {
+  const date = new Date(2026, 10, 27, 23, 59);
+  expect(dailyMixPlaylistName(date, [])).toBe("27/11/2026's Daily Mix");
+  expect(dailyMixPlaylistName(date, ["27/11/2026's daily mix", "27/11/2026's 2nd Daily Mix"])).toBe(
+    "27/11/2026's 3rd Daily Mix",
+  );
 });

@@ -10,7 +10,7 @@ it('notifies subscribers at most ten times a second, delivering the last positio
   const clock = new PlaybackClock();
   const seen = vi.fn();
   clock.subscribe(seen);
-  // A 20 Hz source must not become 20 renders.
+
   for (let i = 1; i <= 4; i++) clock.set(i * 0.05);
   expect(seen).not.toHaveBeenCalled();
   vi.advanceTimersByTime(100);

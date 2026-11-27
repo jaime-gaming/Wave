@@ -66,3 +66,30 @@ it('allows hover motion only with a fine pointer and updates when input capabili
   unmount();
   expect(listeners.size).toBe(0);
 });
+
+it('shares system listeners across many animated rows and releases them on unmount', () => {
+  const attached = new Map<string, Set<() => void>>();
+  let reduced = false;
+  const media = vi.fn((query: string) => ({
+    get matches() {
+      return query.includes('reduced-motion') ? reduced : true;
+    },
+    addEventListener: (_event: string, listener: () => void) => {
+      if (!attached.has(query)) attached.set(query, new Set());
+      attached.get(query)!.add(listener);
+    },
+    removeEventListener: (_event: string, listener: () => void) =>
+      attached.get(query)?.delete(listener),
+  }));
+  vi.stubGlobal('matchMedia', media);
+  const { result, unmount } = renderHook(() => Array.from({ length: 50 }, () => useWaveMotion()));
+  expect([...attached.values()].map((set) => set.size)).toEqual([1, 1]);
+  expect(media).toHaveBeenCalledTimes(2);
+  act(() => {
+    reduced = true;
+    attached.get('(prefers-reduced-motion: reduce)')!.forEach((listener) => listener());
+  });
+  expect(result.current.every((motion) => !motion.enabled)).toBe(true);
+  unmount();
+  expect([...attached.values()].every((set) => set.size === 0)).toBe(true);
+});

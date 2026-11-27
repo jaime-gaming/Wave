@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   CLIP_STORAGE_KEY,
   clipThumbnail,
+  clipExcluded,
   getClip,
   loadClips,
   removeClip,
@@ -71,7 +72,7 @@ describe('video clips', () => {
     );
     const clips = loadClips(store as unknown as Storage);
     expect(Object.keys(clips).sort()).toEqual(['good', 'negative']);
-    // A negative placement is a real setting now: the clip may start before the song.
+
     expect(clips.negative.startAt).toBe(-5);
     expect(clips.negative.addedAt).toBe(0);
     store.setItem(CLIP_STORAGE_KEY, '{not json');
@@ -81,6 +82,9 @@ describe('video clips', () => {
   it('removes a clip and survives an unavailable store', () => {
     saveClip('t1', `https://youtu.be/${ID}`, store as unknown as Storage);
     expect(Object.keys(removeClip('t1', store as unknown as Storage))).toEqual([]);
+    expect(clipExcluded('t1', store as unknown as Storage)).toBe(true);
+    saveClip('t1', `https://youtu.be/${ID}`, store as unknown as Storage);
+    expect(clipExcluded('t1', store as unknown as Storage)).toBe(false);
     expect(loadClips(null)).toEqual({});
     expect(saveClip('t1', `https://youtu.be/${ID}`, null).ok).toBe(true);
     expect(clipThumbnail({ videoId: ID, startAt: 0, addedAt: 0 })).toContain(ID);

@@ -117,7 +117,7 @@ it('matches full collaboration credits and common video labels without broadenin
 });
 it('answers a title that carries an edition word the library did not keep', () => {
   const track = makeTrack({ title: 'Signal', artist: 'Wave Tests', duration: 95 });
-  // The same take, called something slightly longer by the service.
+
   expect(
     recordingMatch(
       { trackName: 'Signal (Radio Edit)', artistName: 'Wave Tests', duration: 95 },
@@ -130,7 +130,7 @@ it('answers a title that carries an edition word the library did not keep', () =
       track,
     ),
   ).toMatchObject({ synchronized: true });
-  // A different performance is still a different recording.
+
   expect(
     recordingMatch({ trackName: 'Signal (Live)', artistName: 'Wave Tests', duration: 95 }, track),
   ).toBeUndefined();

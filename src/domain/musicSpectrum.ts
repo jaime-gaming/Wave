@@ -1,4 +1,3 @@
-/** Frequency energy, not voice/instrument stem separation. No audio output processing. */
 export interface MusicBands {
   bass: number;
   body: number;

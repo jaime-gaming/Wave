@@ -1,5 +1,5 @@
 import { settingsMenu, closeSettings } from './helpers/settings';
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './helpers/returning-user';
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     if (localStorage.getItem('wave-autoplay') === null)

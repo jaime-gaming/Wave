@@ -1,3 +1,4 @@
+import { mergeYouTubeWithFile, youtubeMergeTarget } from '../domain/youtubeTrack';
 import { rolesReviewKey } from '../domain/metadata';
 import { contentIdentity } from './import';
 import { lyricsKey } from '../domain/lyricsLookup';
@@ -21,18 +22,17 @@ interface WaveDatabase extends DBSchema {
   artists: { key: string; value: ArtistProfile };
   albumOrders: { key: string; value: AlbumOrder };
   plays: { key: string; value: PlayEvent; indexes: { 'by-at': number } };
-  /** Folders the listener asked Wave to remember. Added in version 5. */
+
   folders: { key: string; value: RememberedFolder };
 }
 
-/** A folder Wave was given, and the browser's handle for asking again. */
 export interface RememberedFolder {
   id: string;
   name: string;
-  /** Absent on browsers without the File System Access API. */
+
   handle?: unknown;
   addedAt: number;
-  /** Last time files were read from it, for the sheet's line of text. */
+
   scannedAt?: number;
 }
 const DATABASE_NAME = 'wave-library';
@@ -40,25 +40,10 @@ const DATABASE_NAME = 'wave-library';
 async function abortFailedTransaction(tx: { abort: () => void; done: Promise<unknown> }) {
   try {
     tx.abort();
-  } catch {
-    // An IndexedDB request may already have aborted the transaction.
-  }
+  } catch {}
   await tx.done.catch(() => undefined);
 }
 
-/**
- * Schema versions.
- *
- * 1: tracks. 2: playlists. 3: artist profiles and album order. 4: listening
- * history. 5: remembered folders. Each step is additive, so an old library opens
- * and keeps every row; a play is only ever appended, and the store is pruned by
- * the domain rules rather than by a migration.
- *
- * Nothing is ever rewritten in place: a version bump only creates what is
- * missing, which means a listener who updates mid-week keeps the same library
- * and the same history. `docs/ARCHITECTURE.md` describes the rule and the
- * migration test that holds it.
- */
 export const LIBRARY_VERSION = 5;
 
 export function openLibrary() {
@@ -93,6 +78,24 @@ export async function saveTrack(track: Track): Promise<void> {
   const db = await openLibrary();
   try {
     await db.put('tracks', compactTrack(track));
+  } finally {
+    db.close();
+  }
+}
+
+export async function mergeYouTubeLocalFile(id: string, local: Track): Promise<Track | null> {
+  const db = await openLibrary();
+  try {
+    const tx = db.transaction('tracks', 'readwrite');
+    const stored = await tx.store.get(id);
+    if (!stored || !youtubeMergeTarget(local, [stored])) {
+      await tx.done;
+      return null;
+    }
+    const merged = mergeYouTubeWithFile(hydrateTrack(stored), local);
+    await tx.store.put(compactTrack(merged));
+    await tx.done;
+    return merged;
   } finally {
     db.close();
   }
@@ -145,14 +148,7 @@ async function mutateTrack(id: string, mutate: (track: Track) => Track): Promise
     db.close();
   }
 }
-/**
- * Silent edges: recorded once, then either removed or kept.
- *
- * None of these touch the audio. `silence` is what the analysis measured, `trim`
- * is the pair of bounds playback obeys, and `silenceKept` is the listener saying
- * they want the file as it is. The recording keeps every sample in every case —
- * removing a trim restores the song exactly as it was imported.
- */
+
 export function recordTrackSilence(
   id: string,
   bounds: { start: number; end: number },
@@ -213,7 +209,7 @@ export function editTrackMetadata(id: string, metadata: TrackMetadata): Promise<
     }),
   );
 }
-/** Resolve a filename disagreement without rewriting the source file. */
+
 export function reviewTrackRoles(id: string, action: 'swap' | 'keep'): Promise<Track> {
   return mutateTrack(id, (track) => {
     const next =
@@ -235,23 +231,47 @@ export function reviewTrackRoles(id: string, action: 'swap' | 'keep'): Promise<T
   });
 }
 
-/**
- * Writes what an online catalogue filled in, and remembers that the song was
- * asked about.
- *
- * Two things can never come from here: a field the listener edited (a song with
- * `editedAt` is left alone entirely) and the running time, which belongs to the
- * decoded file rather than to a catalogue's edition of it. A title change
- * invalidates cached online lyrics the same way a hand edit does, because it
- * changes what would be searched for.
- */
 export function applyOnlineDetails(
   id: string,
-  patch: Partial<Pick<Track, 'title' | 'artist' | 'album' | 'year' | 'genres' | 'artwork'>>,
-  options: { checked?: boolean } = {},
+  patch: Partial<
+    Pick<
+      Track,
+      'title' | 'artist' | 'album' | 'year' | 'genres' | 'artwork' | 'trackNumber' | 'discNumber'
+    >
+  >,
+  options: { checked?: boolean; expected?: Track } = {},
 ): Promise<Track | null> {
   return mutateTrack(id, (track) => {
-    const next = track.editedAt ? { ...track } : { ...track, ...cleanPatch(patch) };
+    const expected = options.expected;
+    // Reject stale results if a different lookup, a role review or a manual edit
+    // changed the source while the request was in flight.
+    const fields = [
+      'title',
+      'artist',
+      'album',
+      'year',
+      'genres',
+      'artwork',
+      'trackNumber',
+      'discNumber',
+      'rolesReviewed',
+      'duration',
+    ] as const;
+    const stale =
+      expected &&
+      fields.some((field) => JSON.stringify(track[field]) !== JSON.stringify(expected[field]));
+    const safe = !track.editedAt && !stale;
+    const next = safe ? { ...track, ...cleanPatch(patch) } : { ...track };
+    if (safe && next.title !== track.title && next.artist !== track.artist) {
+      next.originalMetadata = track.originalMetadata ?? {
+        title: track.title,
+        artist: track.artist,
+        album: track.album,
+        artwork: track.artwork,
+      };
+      next.rolesReviewed = rolesReviewKey(next);
+    }
+    if (stale) return next;
     next.detailsCheckedAt = Date.now();
     if (!options.checked) delete next.detailsCheckedAt;
     if (track.editedAt) return next;
@@ -261,9 +281,13 @@ export function applyOnlineDetails(
   }).catch(() => null);
 }
 
-/** Blank values are never written: a gap is better than an empty string. */
 function cleanPatch(
-  patch: Partial<Pick<Track, 'title' | 'artist' | 'album' | 'year' | 'genres' | 'artwork'>>,
+  patch: Partial<
+    Pick<
+      Track,
+      'title' | 'artist' | 'album' | 'year' | 'genres' | 'artwork' | 'trackNumber' | 'discNumber'
+    >
+  >,
 ) {
   const clean: typeof patch = {};
   if (patch.title?.trim()) clean.title = patch.title.trim().slice(0, 200);
@@ -272,10 +296,13 @@ function cleanPatch(
   if (patch.year && patch.year > 1000) clean.year = patch.year;
   if (patch.genres?.length) clean.genres = patch.genres.filter(Boolean).slice(0, 4);
   if (patch.artwork) clean.artwork = patch.artwork;
+  if (Number.isInteger(patch.trackNumber) && patch.trackNumber! > 0)
+    clean.trackNumber = patch.trackNumber;
+  if (Number.isInteger(patch.discNumber) && patch.discNumber! > 0)
+    clean.discNumber = patch.discNumber;
   return clean;
 }
 
-/** Marks a song as already asked about, so it is not asked again for a month. */
 export function markDetailsChecked(id: string): Promise<Track | null> {
   return mutateTrack(id, (track) => ({ ...track, detailsCheckedAt: Date.now() })).catch(() => null);
 }
@@ -286,6 +313,7 @@ export function restoreTrackMetadata(id: string): Promise<Track> {
     const restored = { ...track, ...track.originalMetadata };
     delete restored.originalMetadata;
     delete restored.editedAt;
+    restored.rolesReviewed = rolesReviewKey(restored);
     return invalidateOnlineLyrics(track, restored);
   });
 }
@@ -392,6 +420,33 @@ export async function saveArtistProfile(profile: ArtistProfile): Promise<ArtistP
     db.close();
   }
 }
+
+export async function saveMissingArtistPhoto(
+  name: string,
+  artwork: string,
+): Promise<ArtistProfile | null> {
+  if (
+    !name.trim() ||
+    !/^data:image\/(jpeg|png|webp);base64,/.test(artwork) ||
+    artwork.length > 7_000_000
+  )
+    throw new Error('Invalid artist image.');
+  const db = await openLibrary();
+  try {
+    const tx = db.transaction('artists', 'readwrite');
+    const current = await tx.store.get(name);
+    if (current?.artwork) {
+      await tx.done;
+      return null;
+    }
+    const profile = { name, artwork };
+    await tx.store.put(profile);
+    await tx.done;
+    return profile;
+  } finally {
+    db.close();
+  }
+}
 export async function saveAlbumOrder(id: string, trackIds: string[]): Promise<AlbumOrder> {
   const db = await openLibrary();
   try {
@@ -463,7 +518,6 @@ export function saveLyricsResult(id: string, result: LyricsResult): Promise<Trac
   });
 }
 
-/** Merge only byte-verified records; names alone never authorize deletion. */
 export async function mergeExactDuplicates(keepId: string, ids: string[]) {
   const snapshot = await getTracks(),
     group = ids.map((id) => snapshot.find((track) => track.id === id));
@@ -526,7 +580,6 @@ export function recordDecodedDuration(id: string, duration: number): Promise<Tra
   return mutateTrack(id, (track) => invalidateOnlineLyrics(track, { ...track, duration }));
 }
 
-/** Persist gain on the latest row, so concurrent metadata/lyrics writes survive. */
 export function setTrackVolumeFix(id: string, volumeFix?: Track['volumeFix']): Promise<Track> {
   if (volumeFix && (!Number.isFinite(volumeFix.gain) || volumeFix.gain <= 0 || volumeFix.gain > 8))
     return Promise.reject(Error('Invalid volume correction.'));

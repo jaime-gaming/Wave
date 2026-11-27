@@ -64,3 +64,13 @@ describe('import links', () => {
     expect(PROVIDER_LIMITS.youtube.limitation).toMatch(/embedded player/);
   });
 });
+
+it('accepts public Deezer playlist links without accepting arbitrary hosts', () => {
+  expect(parseImportLink('https://www.deezer.com/es/playlist/12345')).toEqual({
+    ok: true,
+    target: { provider: 'deezer', kind: 'playlist', id: '12345' },
+  });
+  expect(parseImportLink('https://deezer.com.evil.test/playlist/12345')).toMatchObject({
+    ok: false,
+  });
+});

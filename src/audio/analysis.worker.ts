@@ -1,10 +1,5 @@
-/// <reference lib="webworker" />
 import { analyzePcm, type TrackAnalysis } from './dsp';
 
-/**
- * Mix analysis worker. Receives a mono PCM copy and returns the structure the
- * planner needs. It never sees a file, a URL or the library.
- */
 interface AnalyseRequest {
   id: number;
   samples: Float32Array;

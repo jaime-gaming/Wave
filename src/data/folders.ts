@@ -1,26 +1,5 @@
-/**
- * Folders the listener hands to Wave, and the permission to read them again.
- *
- * Importing a folder is a different promise from importing files: a folder has
- * a *name* that keeps existing, so Wave can offer to read it again tomorrow — and
- * that means asking the browser for access a second time. Both halves are here.
- *
- * Three ways in, in order of preference:
- *
- * 1. `showDirectoryPicker()` — the folder is chosen, walked at any depth, and a
- *    handle is stored so the same folder can be re-read later. The browser asks
- *    for permission explicitly the first time, and again after a restart.
- * 2. `<input type="file" webkitdirectory>` — every browser that lacks the above
- *    (Firefox, Safari) still lets a folder be chosen; the files arrive at once
- *    and nothing is remembered.
- * 3. Choosing files one by one, which ever browser can do.
- *
- * Nothing here reads audio data: it produces `File` objects, and the importer
- * hashes and copies them exactly as it does for any other file.
- */
 import { openLibrary, type RememberedFolder } from './library';
 
-/** The same list the importer accepts, as extensions. */
 export const AUDIO_EXTENSIONS = [
   'mp3',
   'wav',
@@ -36,7 +15,6 @@ export const AUDIO_EXTENSIONS = [
   'wma',
 ] as const;
 
-/** A ceiling, so a folder pointed at `/` cannot lock the page up. */
 export const MAX_FOLDER_FILES = 20_000;
 export const MAX_FOLDER_DEPTH = 12;
 
@@ -59,7 +37,6 @@ export interface DirectoryHandleLike {
   requestPermission?(descriptor: { mode: 'read' }): Promise<PermissionState>;
 }
 
-/** The part of the window this module needs, so tests can supply their own. */
 export interface PickerScope {
   showDirectoryPicker?: (options?: object) => Promise<DirectoryHandleLike>;
 }
@@ -70,20 +47,12 @@ export function supportsFolderPicker(
   return typeof scope?.showDirectoryPicker === 'function';
 }
 
-/** Whether this browser can be handed a whole folder at once through an input. */
 export function supportsDirectoryInput(doc: Document | undefined = globalThis.document) {
   if (!doc) return false;
   const input = doc.createElement('input');
   return 'webkitdirectory' in input;
 }
 
-/**
- * What the browser currently thinks about our access.
- *
- * `prompt` is not a failure: it means the browser wants a click before it hands
- * the folder back, which is exactly the explicit permission the interface asks
- * for rather than requesting silently on load.
- */
 export async function folderAccess(
   folder: RememberedFolder,
 ): Promise<'granted' | 'prompt' | 'denied'> {
@@ -96,10 +65,6 @@ export async function folderAccess(
   }
 }
 
-/**
- * Asks for access. Must be called from a click: a browser refuses a permission
- * request that has no gesture behind it, and rightly so.
- */
 export async function requestFolderAccess(folder: RememberedFolder): Promise<boolean> {
   const handle = folder.handle as DirectoryHandleLike | undefined;
   if (!handle?.requestPermission) return false;
@@ -110,12 +75,6 @@ export async function requestFolderAccess(folder: RememberedFolder): Promise<boo
   }
 }
 
-/**
- * Every audio file under a handle, depth first.
- *
- * A subdirectory that cannot be read is skipped rather than failing the import:
- * one unreadable folder is not a reason to lose the other four hundred files.
- */
 export async function readFolder(
   handle: DirectoryHandleLike,
   options: { depth?: number; limit?: number } = {},
@@ -138,31 +97,17 @@ export async function readFolder(
           if (!isAudioFile(entry.name)) continue;
           try {
             files.push(await entry.getFile());
-          } catch {
-            // A file that vanished between listing and reading is skipped.
-          }
+          } catch {}
         } else {
           await walk(entry, depth + 1);
         }
       }
-    } catch {
-      // The iterator failed mid-way; keep what was read.
-    }
+    } catch {}
   };
   await walk(handle, 0);
   return files;
 }
 
-/** Chosen by the listener, remembered for next time. Null when they cancelled. */
-/**
- * Whether the app is running inside somebody else's frame.
- *
- * Chrome refuses the directory picker in a cross-origin frame ("cross origin
- * sub frames aren't allowed to show a file picker") and there is no way to ask
- * first — the call simply throws. Knowing this up front is the difference
- * between a button that works and one that appears to do nothing, so the frame
- * is detected and the folder input is used instead.
- */
 export function inEmbeddedFrame(
   scope: (PickerScope & { top?: unknown }) | undefined = globalThis.window as PickerScope,
 ): boolean {
@@ -170,12 +115,10 @@ export function inEmbeddedFrame(
   try {
     return Boolean(scope.top) && scope.top !== scope;
   } catch {
-    // Reading `top` from a cross-origin frame throws: that is itself the answer.
     return true;
   }
 }
 
-/** The picker is only offered where it can actually open. */
 export function canShowFolderPicker(
   scope: (PickerScope & { top?: unknown }) | undefined = globalThis.window as PickerScope,
 ): boolean {
@@ -185,13 +128,6 @@ export function canShowFolderPicker(
 export type FolderPick =
   { ok: true; handle: DirectoryHandleLike } | { ok: false; reason: 'cancelled' | 'blocked' };
 
-/**
- * Opens the browser's own folder chooser.
- *
- * Cancelling and being refused are different outcomes and the caller must be
- * able to tell them apart: one is silence, the other needs a fallback. Treating
- * both as "null" is what made the folder button look broken inside a frame.
- */
 export async function pickFolder(
   scope: (PickerScope & { top?: unknown }) | undefined = globalThis.window as PickerScope,
 ): Promise<FolderPick> {
@@ -204,8 +140,7 @@ export async function pickFolder(
     return { ok: true, handle };
   } catch (error) {
     const name = (error as { name?: string } | undefined)?.name;
-    // The listener closed the chooser: nothing to report and nothing to fall
-    // back to, because they did not ask for anything.
+
     if (name === 'AbortError') return { ok: false, reason: 'cancelled' };
     return { ok: false, reason: 'blocked' };
   }
@@ -224,9 +159,6 @@ export async function rememberFolder(handle: DirectoryHandleLike): Promise<Remem
     try {
       await db.put('folders', folder);
     } catch {
-      // A handle that cannot be stored (an old browser, or a context where the
-      // object is not transferable) still leaves a folder worth remembering by
-      // name: the sheet asks for it again instead of pretending it never saw it.
       await db.put('folders', { ...folder, handle: undefined });
     }
   } finally {

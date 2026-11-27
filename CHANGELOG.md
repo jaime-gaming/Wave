@@ -1,5 +1,42 @@
 # Changelog
 
+## Unreleased
+
+- Reduce AutoPlay repetition by preferring unheard songs and recycling older songs first; small
+  libraries can still repeat once alternatives run out.
+- Make Daily Mix lengths vary by day and group while keeping the actual playlists stable for the
+  day. Correct half/double-time drift calculations and keep shortened vocal handovers near the
+  outgoing ending; native grid planning still depends on available metadata and timed lyrics.
+- Load the web Settings hub with the main app, refine the Home return transition, and provide
+  clearer, non-destructive recovery actions when a screen fails.
+
+- Show the personalised web greeting briefly in the Home heading, then return to the page name;
+  simplify the mobile collection shortcuts and reduce the space used by the welcome layout.
+- Improve web playlist migration with review, manual YouTube match correction, progress and
+  recoverable save errors; reuse existing YouTube tracks rather than duplicating them.
+- Require an explicit selection from YouTube search results, discard stale results, and handle
+  interrupted operations and duplicate player-end events more safely.
+- Share web motion listeners, keep large lists accessible without IntersectionObserver, pause
+  background lyric sampling and protect interrupted Windows player navigation. Remove invisible
+  native idle motion and avoid repeatedly parsing idle-view lyrics on iOS.
+- Refresh the English and Spanish presentation, contribution guidance and security reporting
+  information. Platform parity, live provider availability and real-device testing remain limited.
+
+## 0.3.0 — 19 November 2026
+
+- Organize GitHub community files, the backup module and historical guides; refresh Architecture and Development.
+- Add password-encrypted, device-signed web backups with fingerprint review, corruption checks and optional exact-duplicate handling. Legacy backups remain readable; restore still requires an empty web library and is not yet native-compatible.
+- Improve LRC compatibility across Android, Windows and iOS; device playback validation remains necessary.
+
+- Refine web welcome, light surfaces, Storage and the player transition; welcome previews reflect selected settings and support Enter.
+- Add web library backup/empty-library restore and a confirmed local reset; originals and other devices are not erased.
+- Improve local search ranking and add optional manual MusicBrainz and Deezer metadata suggestions alongside Apple Music. Provider availability and real-device UI validation remain open.
+
+- Publish future Windows releases as an unsigned standalone `Wave.exe` without requiring a signing certificate.
+
+- Add native listening cards for sharing song details and the Wave website without sharing the audio file.
+- Improve the iOS simulator capture workflow and build fixes.
+
 ## 0.2.2 — 16 November 2026
 
 - Overhaul **Mix** into a studio-grade harmonic DJ transition engine: 12-bin spectral chroma & Krumhansl-Schmuckler Camelot musical key estimation (`harmonicCompatibility` & `transitionCompatibility`), dynamic 3-band EQ handover (`bass` low-shelf + `1.4 kHz` peaking `mid` vocal pocket carve + `air` low-pass fade-out and rising incoming air filter), key-clash tightening (earlier bass swap, tighter <=4-bar window), bar-aligned `outroStart` exit anchoring, stereo pan spread, incoming cue safety for short/rubato tracks and earlier next-track preloading.
@@ -7,7 +44,7 @@
 - Refine **Daily Mixes** across Web, Windows 11 and Android: enforce complete-only mixes (**7–20 songs**, **max 3 mixes**), persist completed mixes locally so already-generated mixes appear instantaneously on launch, show a calm skeleton loader (_"Your daily mix is on its way"_) while building, lock cover artwork per calendar day (`covers`), and apply per-artist caps with 4-slot cooldown spacing, daily flow contours and mood-grouped fallbacks for untagged libraries.
 - Expand **Remix** across Web, Windows 11 and Android to smoothly animated **Weekly, Monthly and Yearly** recaps backed by a full 366-day local history window, interactive period switchers and saved playlist snapshots.
 - Polish **UI/UX & micro-interactions** across Web, Windows 11 and Android: strictly header-cleared, non-duplicating sticky section-heading bar, horizontally draggable Settings switches with clean pointer cursor, calm slowed-down ambient artwork lighting behind the workspace, click-only inner glyph animations (Shuffle uncross-to-parallel, Repeat arrows-only rotation keeping `1` steady, Filmstrip upward roll), smooth expanded-player compression down into the mini-player bar, and unified 6-tooth Settings gear.
-- Package native releases as **clean signed single files** with zero ZIPs, loose DLLs, or technical clutter exposed to users: **`Wave.exe`** (self-contained single-file Authenticode-signed WPF executable for Windows 11) and **`Wave.apk`** (`apksigner`-verified signed release APK for Android).
+- Planned single-file native packaging for **`Wave.exe`** and **`Wave.apk`**. The v0.2.2 public release contains an Android APK but no Windows executable; the current workflow prepares Windows releases without signing.
 - Overhaul **Fix Volume** with K-weighted BS.1770 LUFS loudness gating (`-11.0 LUFS` target), soft-knee peak limiting and a balanced deadband that leaves already-balanced tracks untouched while boosting quiet recordings.
 - Fix **YouTube search & import** end-to-end with CORS-free Worker endpoints (`/api/youtube-meta`, `/api/youtube-playlist`, `/api/youtube-search`), unified search + link input, automatic artwork thumbnails, Topic channel cleaning, IFrame `listening` handshake and clear offline badges + guardrails when disconnected.
 - Upgrade metadata detection, catalogue search and alignment with folder-path tag inference (`Artist/Album/Track`), cleaner multi-query fallback scoring, karaoke/live edition guards and an inline catalogue matcher inside Edit Song.

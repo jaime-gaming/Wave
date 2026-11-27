@@ -1,10 +1,3 @@
-/**
- * Renders the app icons from the same wave stroke used by `public/wave.svg`.
- *
- * Run with `node scripts/make-icons.mjs`. There is no image dependency: the
- * artwork is two primitives (a rounded background and a stroked polyline), so
- * the pixels are drawn here and written as PNG with zlib.
- */
 import { deflateSync } from 'node:zlib';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -13,10 +6,6 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = join(ROOT, 'public', 'icons');
 
-/**
- * The wave glyph from `public/wave.svg`: four cubic segments in a 40×32 box,
- * kept here as control points so the icons match the favicon exactly.
- */
 const START = [4, 7];
 const CURVES = [
   [
@@ -87,7 +76,7 @@ function render({ size, scale, offsetX, offsetY, strokeWidth }) {
     for (let y = top; y <= bottom; y += 1) {
       for (let x = from; x <= to; x += 1) {
         const distance = Math.hypot(x + 0.5 - cx, y + 0.5 - cy);
-        // One pixel of feathering keeps the curve smooth at small sizes.
+
         const alpha = Math.min(1, Math.max(0, radius + 0.5 - distance));
         if (alpha <= 0) continue;
         const i = (y * size + x) * 4;
@@ -141,8 +130,7 @@ mkdirSync(OUT, { recursive: true });
 const icons = [
   ['icon-192.png', { size: 192, scale: 8, offsetX: 96, offsetY: 136, strokeWidth: 3.6 }],
   ['icon-512.png', { size: 512, scale: 8, offsetX: 96, offsetY: 136, strokeWidth: 3.6 }],
-  // Maskable icons are cropped to a circle by the launcher, so the glyph sits
-  // inside the middle 80 % of the canvas.
+
   ['icon-maskable-512.png', { size: 512, scale: 6, offsetX: 136, offsetY: 172, strokeWidth: 4.2 }],
   ['apple-touch-icon.png', { size: 180, scale: 8, offsetX: 96, offsetY: 136, strokeWidth: 3.6 }],
 ];

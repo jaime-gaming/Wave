@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './helpers/returning-user';
 import { wav } from './helpers/audio';
 import { settingsMenu, closeSettings } from './helpers/settings';
 async function library(page: Page) {
@@ -186,7 +186,7 @@ test('library categories, song rows, menus and full player contain very long unb
     .getByRole('button', { name: 'Home', exact: true })
     .click();
   await bounded(page, '.home-session,.home-session strong,.home-playlist,.artist-card');
-  // Album shelves intentionally scroll horizontally; labels must still fit their own cards.
+
   expect(
     await page
       .locator('.album-card strong')

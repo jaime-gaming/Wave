@@ -39,25 +39,12 @@ function safeDecode(value: string): string {
 export const navigationDirection = (from: Page, to: Page): 1 | -1 =>
   pages.indexOf(to) >= pages.indexOf(from) ? 1 : -1;
 
-/**
- * Parses a pathname + search query into the full Wave destination:
- * - `/Current` opens the Now Playing player view
- * - `/Queue` opens the playback queue
- * - `/Library/<Songs|Albums|Artists|Playlists|Favorites>[/<id>]`
- * - `/Settings[/<Appearance|Playback|Lyrics|Library|Devices|Storage|About>]`
- * - `/Search[?q=<query>]`
- * - `/Remix`
- * - `/` or `/Home`
- *
- * Also supports subpath deployments (e.g. `/wave/Remix/`).
- */
 export function parseAppRoute(path: string, search = ''): AppRoute {
   const rawSegments = path
     .replace(/^\/+|\/+$/gu, '')
     .split('/')
     .filter(Boolean);
 
-  // Locate the first recognized root segment so deployments under `/wave/...` work identically.
   const roots = new Set<string>([...pages, 'current', 'queue']);
   const rootIndex = rawSegments.findIndex((segment) => roots.has(segment.toLowerCase()));
   if (rootIndex < 0) return { page: 'home' };
@@ -97,7 +84,6 @@ export function parseAppRoute(path: string, search = ''): AppRoute {
   return { page: matchedPage };
 }
 
-/** Formats an AppRoute back into a clean shareable browser URL path + query. */
 export function formatAppRoute(route: AppRoute, baseUrl = import.meta.env.BASE_URL): string {
   const base = baseUrl.replace(/\/+$/u, '');
   if (route.overlay === 'current') return `${base}/Current`;
@@ -113,7 +99,7 @@ export function formatAppRoute(route: AppRoute, baseUrl = import.meta.env.BASE_U
       ? `${base}/Settings/${cap(route.settingsSection)}`
       : `${base}/Settings`;
   }
-  // library
+
   if (!route.view || (route.view === 'songs' && !route.group && !route.playlistId)) {
     return `${base}/Library`;
   }

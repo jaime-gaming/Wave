@@ -7,9 +7,7 @@ import { useWaveMotion } from '../ui/motion';
 function persistPalette(h: string, s: string) {
   try {
     localStorage.setItem('wave-palette', JSON.stringify({ hue: Number(h), saturation: s }));
-  } catch {
-    /* Optional visual preference. */
-  }
+  } catch {}
 }
 export function useAppPalette(
   artwork?: string,
@@ -52,6 +50,18 @@ export function useAppPalette(
       persistPalette(h, s);
     };
     if (motion.enabled && document.visibilityState === 'visible' && document.startViewTransition) {
+      const origin =
+        document.querySelector<HTMLElement>('dialog.player-modal[open] .stage-cover') ??
+        document.querySelector<HTMLElement>('.player-bar .compact-cover-open');
+      const box = origin?.getBoundingClientRect();
+      root.style.setProperty(
+        '--palette-origin-x',
+        box?.width ? `${box.left + box.width / 2}px` : '50%',
+      );
+      root.style.setProperty(
+        '--palette-origin-y',
+        box?.height ? `${box.top + box.height / 2}px` : '100%',
+      );
       try {
         const transition = document.startViewTransition(apply);
         active.current = transition;
@@ -66,9 +76,7 @@ export function useAppPalette(
       active.current?.skipTransition();
     };
   }, [artwork, hue, saturation, motion.enabled, mixing]);
-  // The tab follows the same hue as the interface, once per song rather than on
-  // every frame of a blend: a favicon is not animated, and rewriting it twenty
-  // times a second would only make the browser re-read it.
+
   useEffect(() => {
     applyFavicon(Number(hue ?? 226), Number.parseFloat(String(saturation ?? '24%')));
   }, [hue, saturation]);

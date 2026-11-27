@@ -1,36 +1,22 @@
-import { metadataIssues } from './metadata';
+import { metadataIssues, rolesReviewKey } from './metadata';
 import type { Track } from './types';
-
-/**
- * Completing what a file already says about itself.
- *
- * An analysed file is only as good as its tags. Ripped collections often carry
- * nothing but a filename, and a great many files carry no sleeve at all, so the
- * library looks unfinished even when the music is perfectly good. This module
- * decides two things and nothing else: whether a song has holes worth asking
- * about, and — when an answer comes back — precisely which holes it may fill.
- *
- * Two rules hold everywhere here.
- *
- * 1. It only ever *fills*, never replaces. A real artist name is not improved by
- *    whichever release the catalogue happened to rank first, and a listener who
- *    corrected a title by hand outranks any release.
- * 2. `duration` is never touched. The decoder knows how long the actual file is;
- *    a catalogue knows how long its own edition is.
- */
 
 export interface CatalogueRelease {
   title: string;
   artist: string;
   album: string;
-  /** Release year reported by the provider, when it reports one. */
+
+  provider?: 'Apple Music' | 'MusicBrainz' | 'Deezer';
+
   year?: number;
   genre?: string;
-  /** Seconds, as the provider lists the recording. */
+
   duration?: number;
-  /** A remote cover URL; fetched and stored as a local image before use. */
+
   artworkUrl?: string;
-  /** Where the provider places the song on its album, so an album can be ordered. */
+
+  artistArtworkUrl?: string;
+
   trackNumber?: number;
   discNumber?: number;
 }
@@ -47,14 +33,10 @@ export function isPlaceholderAlbum(album: string | undefined): boolean {
   return !value || value === UNKNOWN.album || value === UNKNOWN.album.replace('unknown ', '');
 }
 
-/** A title that is really a filename: `01_-_track`, `song_2`, `final_mix_3`. */
 export function looksLikeFileName(track: Pick<Track, 'title' | 'fileName'>): boolean {
   const title = track.title.trim();
   if (!title) return true;
-  // Underscores joined as words, or a bare track position: the two shapes a
-  // filename has and a title almost never does. The old rule also caught any
-  // title containing "final", "mix", "copy" or "take", which called perfectly
-  // good songs by their file name — "Take Five" among them.
+
   if (/\p{L}[_]+\p{L}/u.test(title)) return true;
   if (/^\d{1,3}\s*[-._]\s*\p{L}/u.test(title)) return true;
   const stem = track.fileName
@@ -64,27 +46,18 @@ export function looksLikeFileName(track: Pick<Track, 'title' | 'fileName'>): boo
   return stem.toLowerCase() === title.toLowerCase() && /[_-]/u.test(track.fileName);
 }
 
-/**
- * Is this song worth one question?
- *
- * Cheap to answer and deliberately blunt: a missing sleeve, an unknown artist or
- * album, no year, no genre, or a title that is plainly a filename. Everything
- * else is a song that already knows what it is.
- */
 export function needsDetails(track: Track): boolean {
   if (track.editedAt) return false;
   if (track.source === 'youtube') return false;
-  // Only the things a listener actually notices are missing: who it is, what it
-  // is called, which album it belongs to and which cover it wears. A year or a
-  // genre missing is normal in a private library and never worth a request.
+
   return (
     metadataIssues(track).includes('roles') ||
     !track.artwork ||
+    !track.year ||
+    !track.genres?.length ||
     isPlaceholderArtist(track.artist) ||
     isPlaceholderAlbum(track.album) ||
     looksLikeFileName(track) ||
-    // A song on a real album with no position has no place in it. Asking costs
-    // one request and gives the album its running order.
     (!track.trackNumber && !isPlaceholderAlbum(track.album))
   );
 }
@@ -101,7 +74,6 @@ function cleanQueryPiece(value: string): string {
     .trim();
 }
 
-/** The words to send: real values only, never the word "unknown" or filename rip noise. */
 export function catalogueQuery(track: Track): string {
   const title = cleanQueryPiece(track.title);
   const artist = isPlaceholderArtist(track.artist) ? '' : cleanQueryPiece(track.artist);
@@ -109,11 +81,6 @@ export function catalogueQuery(track: Track): string {
   return artist ? `${artist} ${title}` : title;
 }
 
-/**
- * Secondary queries tried only when the primary query finds no convincing match:
- * stripped bare title, album-qualified title, or swapped artist/title when roles
- * look inverted.
- */
 export function catalogueFallbackQueries(track: Track): string[] {
   const primary = catalogueQuery(track);
   const queries: string[] = [];
@@ -144,12 +111,6 @@ const letters = (value: string) =>
 
 const tokens = (value: string) => new Set(letters(value).split(' ').filter(Boolean));
 
-/**
- * A title without the parts a provider adds and a file rarely has.
- *
- * "Song (feat. Somebody) - 2011 Remaster" and "Song" are the same recording, and
- * a match that fails because of the bracket is a gap left open for no reason.
- */
 export function bareTitle(value: string): string {
   return letters(
     value
@@ -166,13 +127,6 @@ function shared(left: Set<string>, right: Set<string>): number {
   return count / Math.min(left.size, right.size);
 }
 
-/**
- * Whether one title contains the other once its decorations are gone.
- *
- * "Song" against "Song (feat. Somebody)" is a full match, not a half one: the
- * shorter title is entirely present in the longer. Two titles that merely share
- * a word are not, which is why this is containment and not overlap.
- */
 function titleOverlap(track: string, release: string): number {
   const left = bareTitle(track);
   const right = bareTitle(release);
@@ -188,13 +142,6 @@ const COVER_NOISE =
   /\b(?:karaoke|tribute|ringtone|8-?bit|lullaby|made famous by|in the style of)\b/iu;
 const EDITION_MARKER = /\b(?:live|acoustic|remix|sped up|slowed|nightcore|instrumental)\b/iu;
 
-/**
- * How much a release answers this track, 0–1.
- *
- * Title and artist carry the weight; the running time breaks ties between two
- * editions, and a different artist is disqualifying rather than merely costly —
- * a cover band's album is not this song's album.
- */
 export function scoreRelease(track: Track, release: CatalogueRelease): number {
   const wantedTitle = tokens(cleanQueryPiece(track.title));
   const foundTitle = tokens(release.title);
@@ -212,26 +159,23 @@ export function scoreRelease(track: Track, release: CatalogueRelease): number {
   } else {
     score += 0.18;
   }
-  // Two editions of the same album share a title and a release year closely, so
-  // the album the song already names is what separates them. It adds nothing when
-  // the song does not know its album, and it never overrides a wrong artist.
+
   if (!isPlaceholderAlbum(track.album) && release.album) {
     const albumScore = shared(tokens(track.album), tokens(release.album));
     if (albumScore >= 0.5) score += 0.06 * albumScore;
   }
   if (track.duration > 30 && release.duration && release.duration > 0) {
     const difference = Math.abs(release.duration - track.duration);
-    // Recordings of the same song differ by seconds, not by minutes.
+
     if (difference > 40) return 0;
-    // Reward studio-master duration alignment (<= 3s) over rough matches.
+
     const durationScore =
       difference <= 3 ? 0.12 : difference <= 10 ? 0.09 : 0.08 * (1 - difference / 40);
     score += durationScore;
   } else {
     score += 0.05;
   }
-  // Guard against aligning a genuine song to a karaoke/tribute knockoff or a
-  // live/remix edition when the local track is a studio recording.
+
   const trackText = `${track.title} ${track.artist} ${track.album}`;
   const releaseText = `${release.title} ${release.artist} ${release.album}`;
   if (COVER_NOISE.test(releaseText) && !COVER_NOISE.test(trackText)) score -= 0.38;
@@ -239,7 +183,6 @@ export function scoreRelease(track: Track, release: CatalogueRelease): number {
   return Math.max(0, Math.min(1, score));
 }
 
-/** The best release for this track, or nothing when none is convincing enough. */
 export function bestRelease(
   track: Track,
   releases: CatalogueRelease[],
@@ -257,12 +200,22 @@ export function bestRelease(
   return bestScore >= accept ? best : undefined;
 }
 
-/** A filename alone cannot determine artist/title order; a matching recording can. */
 export function confirmedRoleRelease(
   track: Track,
   releases: CatalogueRelease[],
 ): CatalogueRelease | undefined {
-  if (track.editedAt || !metadataIssues(track).includes('roles') || track.duration <= 0)
+  if (track.editedAt || track.rolesReviewed === rolesReviewKey(track) || track.duration <= 0)
+    return undefined;
+  // Do not guess when the catalogue contains an equally plausible recording in the original orientation.
+  if (
+    releases.some(
+      (release) =>
+        letters(release.title) === letters(track.title) &&
+        letters(release.artist) === letters(track.artist) &&
+        !!release.duration &&
+        Math.abs(release.duration - track.duration) <= 3,
+    )
+  )
     return undefined;
   return releases.find(
     (release) =>
@@ -280,16 +233,10 @@ export interface DetailsPatch {
       'title' | 'artist' | 'album' | 'year' | 'genres' | 'artwork' | 'trackNumber' | 'discNumber'
     >
   >;
-  /** What changed, in the interface's own words. */
+
   filled: string[];
 }
 
-/**
- * What may be written from a release. Empty when the listener edited this song.
- *
- * Artwork is decided by the caller, which is the only party that can fetch and
- * store an image; everything textual is decided here.
- */
 export function detailsPatch(track: Track, release: CatalogueRelease): DetailsPatch {
   if (track.editedAt) return { patch: {}, filled: [] };
   const patch: DetailsPatch['patch'] = {};
@@ -300,9 +247,6 @@ export function detailsPatch(track: Track, release: CatalogueRelease): DetailsPa
     filled.push('title', 'artist');
   }
 
-  // A title that is really a filename is the one thing worth replacing, and it
-  // does not depend on the album being known: a nameless album used to block the
-  // fix, which left the file's name sitting in the library forever.
   const releaseTitle = release.title.trim();
   if (
     looksLikeFileName(track) &&
@@ -329,8 +273,7 @@ export function detailsPatch(track: Track, release: CatalogueRelease): DetailsPa
     patch.year = release.year;
     filled.push('year');
   }
-  // The album's running order, but only from a release that is this song's album:
-  // the position of a track on someone else's compilation is not an answer.
+
   const sameAlbum =
     !isPlaceholderAlbum(track.album) &&
     !!release.album &&
@@ -345,8 +288,6 @@ export function detailsPatch(track: Track, release: CatalogueRelease): DetailsPa
     filled.push('order');
   }
   if (!track.genres?.length && release.genre?.trim()) {
-    // Providers list several styles in one string; splitting them keeps the
-    // library's own genre filter useful instead of holding "Pop / Soul".
     const genres = release.genre
       .split(/\s*[/;|,]\s*|\s+(?:and|&)\s+/iu)
       .map((genre) => genre.trim())
@@ -360,7 +301,6 @@ export function detailsPatch(track: Track, release: CatalogueRelease): DetailsPa
   return { patch, filled };
 }
 
-/** True when nothing worth asking about is left, so the song is not asked again. */
 export function detailsComplete(track: Track): boolean {
   return (
     !!track.artwork &&

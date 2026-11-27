@@ -23,7 +23,6 @@ describe('Fix volume', () => {
   });
 
   it('leaves already well-leveled modern recordings completely untouched', () => {
-    // A 0.42 sine wave at ~350 Hz sits cleanly in the -11 LUFS modern balanced window.
     const fix = volumeCorrection([tone(0.42)], 22050);
     expect(fix.lufs).toBeGreaterThanOrEqual(BALANCED_MIN_LUFS);
     expect(fix.lufs).toBeLessThanOrEqual(BALANCED_MAX_LUFS);
@@ -40,7 +39,7 @@ describe('Fix volume', () => {
     expect(fix.action).toBe('boost');
     expect(fix.gain).toBeGreaterThan(1);
     expect(fix.limiterAssisted).toBe(true);
-    // Body level stays cleanly below clipping.
+
     expect(0.05 * fix.gain).toBeLessThan(0.85);
   });
 

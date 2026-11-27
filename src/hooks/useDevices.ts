@@ -39,14 +39,11 @@ function deviceId() {
   }
 }
 
-/** A name that says which device this is, without asking. */
 export function defaultDeviceName() {
   try {
     const saved = localStorage.getItem(DEVICE_NAME_KEY);
     if (saved) return saved;
-  } catch {
-    // Storage is unavailable; a name is still needed for this session.
-  }
+  } catch {}
   const platform = /Android/u.test(navigator.userAgent) ? 'Android' : 'Wave';
   return `${platform} · ${location.hostname || 'browser'}`.slice(0, 64);
 }
@@ -54,18 +51,14 @@ export function defaultDeviceName() {
 export function setDeviceName(name: string) {
   try {
     localStorage.setItem(DEVICE_NAME_KEY, name.trim().slice(0, 64));
-  } catch {
-    // Session only.
-  }
+  } catch {}
 }
 
-/** The link a QR code carries. Opening it on the other device is enough. */
 export function pairingLink(payload: string) {
   const base = `${location.origin}${location.pathname}`;
   return `${base}#wave-pair=${encodeURIComponent(payload)}`;
 }
 
-/** Reads a pairing payload from a scanned or opened link. */
 export function readPairingLink(text: string): string | null {
   const value = text.trim();
   if (!value) return null;
@@ -80,7 +73,6 @@ export function readPairingLink(text: string): string | null {
   return value.startsWith('wave1.') ? value : null;
 }
 
-/** What the page is doing, in one word each. */
 export type LinkStage =
   'idle' | 'show-code' | 'scan-reply' | 'scan-invite' | 'show-reply' | 'confirm' | 'connected';
 
@@ -118,9 +110,7 @@ export function useDevices(tracks: Track[]) {
       setSummaries(usage.devices);
       setUsedBytes(usage.usage.bytes);
       setCapacityBytes(usage.usage.capacityBytes);
-    } catch {
-      // Private mode or a wiped database: nothing saved is a fine answer.
-    }
+    } catch {}
   }, []);
 
   useEffect(() => {
@@ -138,9 +128,7 @@ export function useDevices(tracks: Track[]) {
         setSummaries(usage.devices);
         setUsedBytes(usage.usage.bytes);
         setCapacityBytes(usage.usage.capacityBytes);
-      } catch {
-        // Nothing stored yet.
-      }
+      } catch {}
     })();
     return () => {
       active = false;
@@ -217,7 +205,6 @@ export function useDevices(tracks: Track[]) {
     );
   }, []);
 
-  /** Host: creates the invite and shows it as a QR code. */
   const invite = useCallback(async () => {
     setError('');
     setBusy(true);
@@ -233,7 +220,6 @@ export function useDevices(tracks: Track[]) {
     }
   }, [makeLink, reset, show]);
 
-  /** Host: applies the reply the other device showed. */
   const acceptReply = useCallback(async (raw: string) => {
     setError('');
     setBusy(true);
@@ -250,7 +236,6 @@ export function useDevices(tracks: Track[]) {
     }
   }, []);
 
-  /** Guest: joins from a scanned or opened invite, then shows a reply QR. */
   const join = useCallback(
     async (raw: string) => {
       setError('');
@@ -279,7 +264,6 @@ export function useDevices(tracks: Track[]) {
 
   const confirm = useCallback(() => {
     linkRef.current?.confirm();
-    setStage('connected');
   }, []);
 
   const request = useCallback(async (entries: LibraryEntry[]) => {
@@ -300,7 +284,6 @@ export function useDevices(tracks: Track[]) {
     [refresh],
   );
 
-  /** Removing a device is explicit, and takes its borrowed songs with it. */
   const removeDevice = useCallback(
     async (id: string) => {
       await deleteDeviceLoans(id);

@@ -19,7 +19,9 @@ public record Song(
     string? Genre = null,
     int PlayCount = 0,
     long LastPlayed = 0,
-    bool Linked = false)
+    bool Linked = false,
+    double? Bpm = null,
+    double? BarOffset = null)
 {
     public string Caption => $"{Artist} · {Album} · {FileName}";
 }
@@ -63,7 +65,7 @@ public sealed class Library
                 Directory.CreateDirectory(full);
                 return full;
             }
-            catch { /* Fall back to default audio folder if custom path is unavailable. */ }
+            catch {                                                                        }
         }
         Directory.CreateDirectory(DefaultAudioFolder);
         return DefaultAudioFolder;
@@ -91,10 +93,10 @@ public sealed class Library
 
     private static readonly object IoLock = new();
 
-    /// <summary>
-    /// Builds a safe absolute file URI that preserves special filename characters
-    /// such as #, %, and ? so MediaPlayer and BitmapImage never misparse them.
-    /// </summary>
+
+
+
+
     public static Uri SafeFileUri(string path)
     {
         var full = System.IO.Path.GetFullPath(path).Replace('\\', '/');
@@ -125,7 +127,7 @@ public sealed class Library
                 }
                 if (File.Exists(path))
                 {
-                    try { File.Copy(path, backup, true); } catch { /* Best-effort rolling backup. */ }
+                    try { File.Copy(path, backup, true); } catch {                                   }
                 }
                 File.Move(temp, path, true);
             }
@@ -183,12 +185,12 @@ public sealed class Library
     public void SavePreferences(Preferences value) =>
         WriteJsonAtomic(System.IO.Path.Combine(Folder, "preferences.json"), value);
 
-    /// <summary>
-    /// Imports audio files into the Wave library.
-    /// By default (copyFiles = false), files are linked in-place at their original
-    /// disk location without duplicating bytes into AppData. When copyFiles is
-    /// explicitly enabled, copies are placed into the configured storage folder.
-    /// </summary>
+
+
+
+
+
+
     public async Task<int> Import(IEnumerable<string> paths, bool copyFiles = false, string? customAudioFolder = null)
     {
         var songs = Load();
@@ -286,11 +288,11 @@ public sealed class Library
         return count;
     }
 
-    /// <summary>
-    /// Removes a song from the Wave library index. Original linked user files are
-    /// NEVER deleted from disk; only Wave-managed copies inside the storage folder
-    /// are cleaned up.
-    /// </summary>
+
+
+
+
+
     public bool Remove(string id, Preferences? prefs = null)
     {
         var songs = Load();
@@ -300,7 +302,7 @@ public sealed class Library
         Save(songs);
         if (IsManagedCopy(target, prefs))
         {
-            try { if (File.Exists(target.Path)) File.Delete(target.Path); } catch { /* Best-effort cleanup. */ }
+            try { if (File.Exists(target.Path)) File.Delete(target.Path); } catch {                            }
         }
         return true;
     }
@@ -325,7 +327,7 @@ public sealed class Library
         catch { return null; }
     }
 
-    /// <summary>Use a nearby album image without moving or editing the listener's files.</summary>
+
     public static string? FindFolderArtwork(string audioPath)
     {
         try
@@ -339,7 +341,7 @@ public sealed class Library
                 if (file.Exists && file.Length is > 0 and <= 6291456) return candidate;
             }
         }
-        catch { /* Artwork is optional; missing permissions must not block playback. */ }
+        catch {                                                                         }
         return null;
     }
 
@@ -414,7 +416,7 @@ public static class Metadata
             else if (Encoding.ASCII.GetString(header, 0, 3) == "ID3" && (header[3] == 3 || header[3] == 4))
             {
                 int total = (header[6] << 21) | (header[7] << 14) | (header[8] << 7) | header[9];
-                // Skip unsynchronised tags rather than treating encoded bytes as a picture.
+
                 if (total <= 8388608 && (header[5] & 0x80) == 0)
                 {
                     stream.Position = 10;

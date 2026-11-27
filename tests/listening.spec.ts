@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/returning-user';
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     if (localStorage.getItem('wave-mix-v2') === null) localStorage.setItem('wave-mix-v2', 'false');
@@ -109,7 +109,7 @@ test('Now Playing fits without scrolling or clipping controls and follows authen
   await page.reload();
   await page.getByRole('button', { name: 'Play Alpha by Wave Tests' }).click();
   await page.getByRole('button', { name: 'Pause', exact: true }).click();
-  // Seek the paused decoder so assertion latency cannot advance the tested word.
+
   await page.evaluate(() => {
     const audio = (window as unknown as { __audio: HTMLAudioElement[] }).__audio.find(
       (a) => a.src,
@@ -119,7 +119,7 @@ test('Now Playing fits without scrolling or clipping controls and follows authen
   });
   await page.getByRole('button', { name: 'Open now playing', exact: true }).click();
   const full = page.getByRole('dialog', { name: 'Now playing' });
-  // The panel shows the words themselves, never a note about how they were timed.
+
   await expect(full.locator('.lyrics-provenance')).toHaveCount(0);
   await expect(full.getByText(/Synchronized lyrics/i)).toHaveCount(0);
   const word = full.locator('.lyric-line[aria-current=true] .lyric-word').first();

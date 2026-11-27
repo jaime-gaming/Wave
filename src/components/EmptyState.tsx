@@ -1,13 +1,5 @@
 import type { ReactNode } from 'react';
 
-/**
- * The one shape an empty or failed view takes.
- *
- * Every screen says the same thing in the same order — symbol, what happened,
- * what the listener can do — instead of each panel inventing its own wording and
- * spacing. `announce` marks the block as a live status for views that appear in
- * response to an action, such as a search that found nothing.
- */
 export function EmptyState({
   icon,
   symbolClassName = 'empty-symbol',
@@ -20,13 +12,13 @@ export function EmptyState({
   className,
 }: {
   icon?: ReactNode;
-  /** Class for the symbol box, so a panel can keep its own proportion. */
+
   symbolClassName?: string;
   title: string;
   description?: string;
   hint?: string;
   actions?: ReactNode;
-  /** Heading level: 3 inside a panel that already has its own heading. */
+
   level?: 2 | 3;
   announce?: boolean;
   className?: string;

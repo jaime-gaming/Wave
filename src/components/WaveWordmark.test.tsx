@@ -7,7 +7,7 @@ describe('the Wave wordmark', () => {
     const { container } = render(<WaveWordmark variant="full" />);
     const svg = container.querySelector('svg')!;
     expect(svg).toHaveClass('wave-wordmark-full');
-    // W, the bowl and the stem of the a, the v, and the two strokes of the e.
+
     expect(svg.querySelectorAll('path')).toHaveLength(6);
     expect(svg.textContent).toBe('');
   });
@@ -16,7 +16,7 @@ describe('the Wave wordmark', () => {
     const { container } = render(<WaveWordmark variant="mark" />);
     const svg = container.querySelector('svg')!;
     expect(svg).toHaveClass('wave-wordmark-mark');
-    // The same W curves as the full wordmark, so the swap is not a swap of logos.
+
     const { container: full } = render(<WaveWordmark variant="full" />);
     expect(svg.querySelector('path')!.getAttribute('d')).toBe(
       full.querySelector('path')!.getAttribute('d'),

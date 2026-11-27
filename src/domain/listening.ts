@@ -1,40 +1,22 @@
-/**
- * Listening history, kept locally.
- *
- * Wave has no account and no analytics, which means it cannot know what you
- * listen to unless it writes it down here. The point is small and honest: a
- * play counts once, seconds are counted as they pass, and everything derived
- * from that — most played songs, top artists, the shape of a fortnight — is
- * computed from this file rather than sent anywhere.
- *
- * A "play" is deliberately not "a song started". Skipping through twenty songs
- * in a minute should not make twenty plays, so a play counts once the song has
- * actually been listened to: half of it, or thirty seconds, whichever is
- * shorter, and never less than five seconds for a very short track.
- */
 import type { Track } from './types';
 
 export interface PlayEvent {
-  /** Stable identity: one entry per play, not per track. */
   id: string;
   trackId: string;
-  /** When the play started, epoch milliseconds. */
+
   at: number;
-  /** Seconds actually listened, which is not always the song's length. */
+
   seconds: number;
-  /** Reached the end of the recording rather than being skipped away. */
+
   completed: boolean;
 }
 
-/** Half the song or thirty seconds, whichever comes first; five seconds minimum. */
 export const PLAY_THRESHOLD_SECONDS = 30;
-/** How many plays are kept. Large enough to retain full monthly and annual recaps. */
+
 export const MAX_PLAYS = 10_000;
-/**
- * The recent history guaranteed to survive regardless of count: five full weeks.
- */
+
 export const HISTORY_DAYS = 35;
-/** The ceiling for that promise, so a library on repeat cannot grow without end. */
+
 export const HISTORY_PLAYS = 12_000;
 
 export function playThreshold(duration: number): number {
@@ -42,7 +24,6 @@ export function playThreshold(duration: number): number {
   return Math.max(5, Math.min(PLAY_THRESHOLD_SECONDS, duration * 0.5));
 }
 
-/** True once a song has been listened to enough to count as played. */
 export function countsAsPlay(seconds: number, duration: number): boolean {
   if (!Number.isFinite(seconds) || seconds <= 0) return false;
   return seconds >= playThreshold(duration);
@@ -63,7 +44,6 @@ export function makePlay(
   };
 }
 
-/** Keeps the newest plays, oldest first, and drops anything malformed. */
 export function prunePlays(plays: PlayEvent[], limit = MAX_PLAYS, now = Date.now()): PlayEvent[] {
   const valid = plays.filter(
     (play) =>
@@ -75,8 +55,7 @@ export function prunePlays(plays: PlayEvent[], limit = MAX_PLAYS, now = Date.now
       play.seconds >= 0,
   );
   const ordered = [...valid].sort((a, b) => a.at - b.at);
-  // Everything from the last four weeks survives; older plays share what is left
-  // of the count, oldest dropped first.
+
   const keepFrom = now - HISTORY_DAYS * DAY_MS;
   const recent = ordered.filter((play) => play.at >= keepFrom).slice(-HISTORY_PLAYS);
   const older = ordered.filter((play) => play.at < keepFrom);
@@ -84,7 +63,6 @@ export function prunePlays(plays: PlayEvent[], limit = MAX_PLAYS, now = Date.now
   return [...(room > 0 ? older.slice(-room) : []), ...recent];
 }
 
-/** Local calendar day, because listening at 23:00 belongs to that evening. */
 export function dayKey(at: number): string {
   const date = new Date(at);
   const month = `${date.getMonth() + 1}`.padStart(2, '0');
@@ -122,32 +100,25 @@ export interface ArtistTotal {
 }
 
 export interface ListeningSummary {
-  /** Everything ever counted. */
   totalSeconds: number;
   totalPlays: number;
   weekSeconds: number;
   weekPlays: number;
   monthSeconds: number;
-  /** One entry per day for the requested window, oldest first, gaps included. */
+
   days: DayTotal[];
-  /** Plays per hour of the local day, 0–23. */
+
   hours: number[];
   topTracks: TrackTotal[];
   topArtists: ArtistTotal[];
-  /** Most recent plays, newest first, with the song still in the library. */
+
   recent: (PlayEvent & { track: Track })[];
-  /** Songs heard most recently, without repeats. */
+
   recentTracks: Track[];
   uniqueTracks: number;
   uniqueArtists: number;
 }
 
-/**
- * Everything the listening page shows, from the plays and the library.
- *
- * Deleted songs keep their seconds in the totals — they were listened to — but
- * are left out of the lists, which is why the two can disagree.
- */
 export function listeningSummary(
   plays: PlayEvent[],
   tracks: Track[],
@@ -263,7 +234,6 @@ export function listeningSummary(
   };
 }
 
-/** Plays grouped by local day, newest day first, for the history list. */
 export function playsByDay(
   plays: PlayEvent[],
   tracks: Track[],
@@ -287,7 +257,6 @@ export function playsByDay(
   return [...groups.values()];
 }
 
-/** Minutes as words a person would say, for the summary tiles. */
 export function listeningTime(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 60) return 'less than a minute';
   const minutes = Math.round(seconds / 60);
@@ -298,7 +267,6 @@ export function listeningTime(seconds: number): string {
   return `${hours} h ${rest} min`;
 }
 
-/** "2 h ago", "yesterday", "3 days ago" — words, not a timestamp. */
 export function timeAgo(at: number, now = Date.now()): string {
   const seconds = Math.max(0, Math.round((now - at) / 1000));
   if (seconds < 60) return 'just now';
@@ -314,47 +282,29 @@ export function timeAgo(at: number, now = Date.now()): string {
   return new Date(at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
-/**
- * The week as one card, and the playlist it earns.
- *
- * A recap is only worth showing when it is about a real week, so the window is
- * the last seven local days (today included) and the comparison is the seven
- * days before that. "Your Remix" is the week's most played songs in the order
- * they were played most, topped up from the all-time list when a week has fewer
- * than eight, with no repeats: an ordinary list of songs you can play, save as a
- * playlist and keep, not a recommendation.
- */
 export interface WeekRecap {
-  /** First day of the window, local midnight. */
   start: number;
-  /** Midnight today, the last day of the window. */
+
   end: number;
   seconds: number;
   plays: number;
   tracks: number;
   artists: number;
-  /** The seven days before this one, for the comparison line. */
+
   previousSeconds: number;
-  /** One entry per day of the window, oldest first, quiet days included. */
+
   days: DayTotal[];
-  /** Plays per hour of the local day for the week, 0–23. */
+
   hours: number[];
-  /** The week's listening split by the genre tag on the files. */
+
   genres: { genre: string; seconds: number; plays: number }[];
   topTracks: TrackTotal[];
   topArtists: ArtistTotal[];
   mix: Track[];
 }
 
-/** How many songs "Your Remix" holds. */
 export const REMIX_LENGTH = 12;
 
-/**
- * The recap of this week, or of a week before it.
- *
- * `weeksAgo` counts whole weeks back from today, so `weeklyRecaps` can walk the
- * history that Remix now keeps without a second implementation.
- */
 export function weeklyRecap(
   plays: PlayEvent[],
   tracks: Track[],
@@ -365,8 +315,7 @@ export function weeklyRecap(
   const end = startOfDay(now) - Math.max(0, weeksAgo) * 7 * DAY_MS;
   const start = end - 6 * DAY_MS;
   const previousStart = start - 7 * DAY_MS;
-  // The week ends at local midnight today, so a previous week is bounded on both
-  // sides and cannot absorb its successor's plays.
+
   const inWeek = plays.filter((play) => play.at >= start && play.at < end + DAY_MS);
   const previous = plays.filter((play) => play.at >= previousStart && play.at < start);
 
@@ -410,9 +359,6 @@ export function weeklyRecap(
     (a, b) => b.plays - a.plays || b.seconds - a.seconds || b.lastPlayed - a.lastPlayed,
   );
 
-  // The shape of the week: a bar per day, a point per hour, a slice per genre.
-  // All three are the same plays counted three ways, so they always agree with
-  // the headline number.
   const days: DayTotal[] = Array.from({ length: 7 }, (_, index) => {
     const at = start + index * DAY_MS;
     return { key: dayKey(at), at, seconds: 0, plays: 0 };
@@ -426,8 +372,7 @@ export function weeklyRecap(
     hours[new Date(play.at).getHours()]++;
     const track = byId.get(play.trackId);
     if (!track) continue;
-    // One play can carry several tags; each of them gets the whole listen, so
-    // the slices add up to the week rather than to a fraction of it.
+
     for (const raw of track.genres ?? []) {
       const genre = raw?.trim();
       if (!genre) continue;
@@ -438,8 +383,6 @@ export function weeklyRecap(
     }
   }
 
-  // The week first, then whatever is still worth hearing from before it, until
-  // the list is long enough to be a playlist rather than a footnote.
   const mix: Track[] = ranked.map((entry) => entry.track);
   if (mix.length < REMIX_LENGTH && weeksAgo === 0) {
     const seen = new Set(mix.map((track) => track.id));
@@ -471,14 +414,6 @@ export function weeklyRecap(
   };
 }
 
-/** "26 Oct – 1 Nov", the window a recap covers. */
-/**
- * The last four weeks, newest first, including the one Remix is about.
- *
- * A week with no plays is still a week: it keeps its place in the list so the
- * comparison with the week before it stays honest, and the page can say "quiet"
- * instead of pretending the week did not happen.
- */
 export function weeklyRecaps(
   plays: PlayEvent[],
   tracks: Track[],
@@ -510,9 +445,9 @@ export interface RecapBucket {
 
 export interface PeriodRecap {
   period: 'month' | 'year';
-  /** Stable identifier: e.g. "2026-11" or "2026". */
+
   key: string;
-  /** Human label: e.g. "November 2026" or "2026". */
+
   label: string;
   start: number;
   end: number;
@@ -606,7 +541,6 @@ function summarizeRange(
   };
 }
 
-/** Calendar-month recap with 4–5 weekly activity buckets inside the month. */
 export function monthlyRecap(
   plays: PlayEvent[],
   tracks: Track[],
@@ -662,7 +596,6 @@ export function monthlyRecap(
   };
 }
 
-/** Recent calendar months (newest first) plus any older months that have plays. */
 export function monthlyRecaps(
   plays: PlayEvent[],
   tracks: Track[],
@@ -692,7 +625,6 @@ export function monthlyRecaps(
   return coords.map(({ year, month }) => monthlyRecap(plays, tracks, year, month));
 }
 
-/** Calendar-year recap with 12 monthly activity bars (Jan–Dec). */
 export function yearlyRecap(plays: PlayEvent[], tracks: Track[], year: number): PeriodRecap {
   const start = new Date(year, 0, 1, 0, 0, 0, 0).getTime();
   const endExclusive = new Date(year + 1, 0, 1, 0, 0, 0, 0).getTime();
@@ -738,7 +670,6 @@ export function yearlyRecap(plays: PlayEvent[], tracks: Track[], year: number): 
   };
 }
 
-/** Calendar years with listening history plus the current year, newest first. */
 export function yearlyRecaps(plays: PlayEvent[], tracks: Track[], now: number): PeriodRecap[] {
   const years = new Set<number>([new Date(now).getFullYear()]);
   for (const play of plays) {

@@ -31,9 +31,9 @@ export function Modal({
   title: string;
   fullScreen?: boolean;
   closeDisabled?: boolean;
-  /** How the dialog opens when expanding out of another surface such as the mini-player. */
+
   enterMotion?: TargetAndTransition;
-  /** How the dialog leaves, when closing is worth showing rather than skipping. */
+
   exitMotion?: TargetAndTransition;
   exitTransition?: Transition;
   onClose: () => void;
@@ -83,8 +83,7 @@ export function Modal({
                     ? 28
                     : 14
                   : 0,
-              // The player grows out of the bar at the bottom of the screen; a small
-              // dialog grows out of the point it was opened from.
+
               scale:
                 animation.enabled && !immediate && placement !== 'side'
                   ? fullScreen
@@ -95,7 +94,16 @@ export function Modal({
       }
       animate={
         fullScreen
-          ? { opacity: 1, x: 0, y: 0, scale: 1, scaleX: 1, scaleY: 1, borderRadius: '0px' }
+          ? {
+              opacity: 1,
+              x: 0,
+              y: 0,
+              scale: 1,
+              scaleX: 1,
+              scaleY: 1,
+              borderRadius: '0px',
+              ...(enterMotion?.clipPath ? { clipPath: 'inset(0px 0px 0px 0px round 0px)' } : {}),
+            }
           : { opacity: 1, x: 0, y: 0, scale: 1 }
       }
       exit={
@@ -137,7 +145,7 @@ export function Modal({
         backdropStart.current = false;
         if (fullScreen || closeDisabled || !beganOutside || event.target !== event.currentTarget)
           return;
-        // Both ends must be outside: padding clicks and text-selection drags preserve drafts.
+
         if (outsideDialog(event.currentTarget, event.clientX, event.clientY)) onClose();
       }}
     >

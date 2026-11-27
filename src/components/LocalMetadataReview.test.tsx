@@ -15,6 +15,7 @@ it('lets the listener resolve an ambiguous filename in either direction without 
       onResolveRoles={resolve}
     />,
   );
+  await userEvent.click(screen.getByText('Review your library'));
   await userEvent.click(screen.getByRole('button', { name: 'Swap title and artist' }));
   expect(resolve).toHaveBeenCalledWith('signal', 'swap');
   await userEvent.click(screen.getByRole('button', { name: 'These details are correct' }));

@@ -1,6 +1,6 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/returning-user';
 for (const reduced of [false, true]) {
-  test(`page motion follows direction and reduced-motion=${reduced}`, async ({ page }) => {
+  test(`page motion rises from below and reduced-motion=${reduced}`, async ({ page }) => {
     await page.emulateMedia({ reducedMotion: reduced ? 'reduce' : 'no-preference' });
     await page.addInitScript(() => {
       sessionStorage.setItem('wave-booted', '1');
@@ -11,30 +11,41 @@ for (const reduced of [false, true]) {
     await expect(page.getByLabel('Import audio files')).toBeEnabled();
     await expect(page.locator('.library-surface')).toHaveCSS('transform', 'none');
     await page.evaluate(() => {
-      const samples: Array<{ x: number; exiting: boolean }> = [];
+      const samples: Array<{ x: number; y: number; exiting: boolean }> = [];
       Object.defineProperty(window, '__routeMotion', { value: samples });
-      new MutationObserver((records) => {
-        for (const { target } of records)
-          if (target instanceof HTMLElement && target.matches('.library-surface')) {
-            samples.push({
-              x: new DOMMatrixReadOnly(getComputedStyle(target).transform).m41,
-              exiting: target.inert,
-            });
-          }
-      }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['style'] });
+      const start = performance.now();
+      const sample = () => {
+        for (const target of document.querySelectorAll<HTMLElement>('.library-surface')) {
+          const matrix = new DOMMatrixReadOnly(getComputedStyle(target).transform);
+          samples.push({ x: matrix.m41, y: matrix.m42, exiting: target.inert });
+        }
+        if (performance.now() - start < 1800) requestAnimationFrame(sample);
+      };
+      requestAnimationFrame(sample);
     });
     await page.getByRole('button', { name: 'Search', exact: true }).click();
     await expect(page.getByRole('searchbox', { name: 'Search library' })).toBeVisible();
-    await expect(page.locator('.library-surface')).toHaveCSS('transform', 'none');
+    if (!reduced) {
+      await expect
+        .poll(() =>
+          page.evaluate(() =>
+            (
+              window as unknown as { __routeMotion: Array<{ y: number; exiting: boolean }> }
+            ).__routeMotion.some(({ y, exiting }) => !exiting && y > 1),
+          ),
+        )
+        .toBe(true);
+    }
+    await expect(page.locator('.library-surface:not([inert])')).toHaveCSS('transform', 'none');
     const samples = await page.evaluate(
       () =>
-        (window as unknown as { __routeMotion: Array<{ x: number; exiting: boolean }> })
+        (window as unknown as { __routeMotion: Array<{ x: number; y: number; exiting: boolean }> })
           .__routeMotion,
     );
     if (reduced) expect(samples.every(({ x }) => Math.abs(x) < 0.1)).toBe(true);
     else {
-      expect(samples.some(({ x, exiting }) => !exiting && x < -1)).toBe(true);
-      expect(samples.some(({ x, exiting }) => exiting && x > 1)).toBe(true);
+      expect(samples.some(({ y, exiting }) => !exiting && y > 1)).toBe(true);
+      expect(samples.every(({ x }) => Math.abs(x) < 0.1)).toBe(true);
     }
     await page.getByRole('button', { name: 'Settings', exact: true }).click();
     const playback = page.getByRole('button', { name: 'Playback', exact: true });
